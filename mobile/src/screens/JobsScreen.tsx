@@ -1,0 +1,31 @@
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+export const JobsScreen = () => {
+  return (
+    <SafeAreaView style={styles.container}>
+      <Text style={styles.title}>Jobs</Text>
+      <Text style={styles.subtitle}>Track your photo processing jobs</Text>
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f8f9fa',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#1d1d1f',
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 17,
+    color: '#86868b',
+  },
+});

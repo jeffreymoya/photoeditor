@@ -1,0 +1,276 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  NODE_VERSION: '20.x'
+  TERRAFORM_VERSION: '1.6.0'
+
+jobs:
+  # Lint and validate code
+  lint:
+    name: Lint & Validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            backend/package-lock.json
+            shared/package-lock.json
+
+      - name: Install shared dependencies
+        run: cd shared && npm ci
+
+      - name: Install backend dependencies
+        run: cd backend && npm ci
+
+      - name: Lint shared package
+        run: cd shared && npm run lint
+
+      - name: Lint backend
+        run: cd backend && npm run lint
+
+      - name: TypeScript check shared
+        run: cd shared && npm run typecheck
+
+      - name: TypeScript check backend
+        run: cd backend && npm run typecheck
+
+  # Test backend services
+  test:
+    name: Test Backend
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            backend/package-lock.json
+            shared/package-lock.json
+
+      - name: Install shared dependencies
+        run: cd shared && npm ci
+
+      - name: Install backend dependencies
+        run: cd backend && npm ci
+
+      - name: Run backend tests
+        run: cd backend && npm test
+
+      - name: Upload test coverage
+        uses: codecov/codecov-action@v4
+        if: success()
+        with:
+          directory: backend/coverage
+          flags: backend
+
+  # Build Lambda functions
+  build:
+    name: Build Lambda Functions
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            backend/package-lock.json
+            shared/package-lock.json
+
+      - name: Install shared dependencies
+        run: cd shared && npm ci
+
+      - name: Install backend dependencies
+        run: cd backend && npm ci
+
+      - name: Build Lambda functions
+        run: cd backend && npm run build:lambdas
+
+      - name: Upload Lambda artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: lambda-functions
+          path: backend/dist/lambdas/
+          retention-days: 30
+
+  # Validate Terraform
+  terraform-validate:
+    name: Validate Terraform
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Terraform Format Check
+        run: cd infrastructure && terraform fmt -check -recursive
+
+      - name: Terraform Init
+        run: cd infrastructure && terraform init -backend=false
+
+      - name: Terraform Validate
+        run: cd infrastructure && terraform validate
+
+  # Security scanning
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # Deploy to development environment
+  deploy-dev:
+    name: Deploy to Development
+    runs-on: ubuntu-latest
+    needs: [build, terraform-validate]
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    environment:
+      name: development
+      url: ${{ steps.deploy.outputs.api_gateway_url }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Lambda artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: lambda-functions
+          path: backend/dist/lambdas/
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Terraform Init
+        run: cd infrastructure && terraform init
+        env:
+          TF_VAR_environment: dev
+
+      - name: Terraform Plan
+        run: cd infrastructure && terraform plan -var-file=terraform.tfvars.dev
+        env:
+          TF_VAR_environment: dev
+
+      - name: Terraform Apply
+        id: deploy
+        run: |
+          cd infrastructure && terraform apply -var-file=terraform.tfvars.dev -auto-approve
+          echo "api_gateway_url=$(terraform output -raw api_gateway_url)" >> $GITHUB_OUTPUT
+        env:
+          TF_VAR_environment: dev
+
+      - name: Run smoke tests
+        run: |
+          echo "Running smoke tests against ${{ steps.deploy.outputs.api_gateway_url }}"
+          # Add actual smoke test commands here
+          curl -f ${{ steps.deploy.outputs.api_gateway_url }}/health || exit 1
+
+  # Deploy to production environment
+  deploy-prod:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build, terraform-validate, security]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.api_gateway_url }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Lambda artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: lambda-functions
+          path: backend/dist/lambdas/
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+          aws-region: ${{ secrets.AWS_REGION_PROD }}
+
+      - name: Terraform Init
+        run: cd infrastructure && terraform init
+        env:
+          TF_VAR_environment: prod
+
+      - name: Terraform Plan
+        run: cd infrastructure && terraform plan -var-file=terraform.tfvars.prod
+        env:
+          TF_VAR_environment: prod
+
+      - name: Terraform Apply
+        id: deploy
+        run: |
+          cd infrastructure && terraform apply -var-file=terraform.tfvars.prod -auto-approve
+          echo "api_gateway_url=$(terraform output -raw api_gateway_url)" >> $GITHUB_OUTPUT
+        env:
+          TF_VAR_environment: prod
+
+      - name: Run smoke tests
+        run: |
+          echo "Running smoke tests against ${{ steps.deploy.outputs.api_gateway_url }}"
+          # Add actual smoke test commands here
+          curl -f ${{ steps.deploy.outputs.api_gateway_url }}/health || exit 1
+
+      - name: Notify deployment
+        if: success()
+        run: |
+          echo "🚀 Production deployment successful!"
+          echo "API Gateway URL: ${{ steps.deploy.outputs.api_gateway_url }}"

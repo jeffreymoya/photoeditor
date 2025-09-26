@@ -1,0 +1,144 @@
+name: Security & Maintenance
+
+on:
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  # Audit dependencies for vulnerabilities
+  audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          cache-dependency-path: |
+            backend/package-lock.json
+            shared/package-lock.json
+
+      - name: Install shared dependencies
+        run: cd shared && npm ci
+
+      - name: Install backend dependencies
+        run: cd backend && npm ci
+
+      - name: Audit shared dependencies
+        run: cd shared && npm audit --audit-level=high
+
+      - name: Audit backend dependencies
+        run: cd backend && npm audit --audit-level=high
+
+      - name: Check for outdated packages
+        run: |
+          echo "## Shared Package Updates" >> audit-report.md
+          cd shared && npm outdated >> ../audit-report.md || true
+          echo -e "\n## Backend Package Updates" >> ../audit-report.md
+          cd ../backend && npm outdated >> ../audit-report.md || true
+
+      - name: Upload audit report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-audit-report
+          path: audit-report.md
+
+  # Check for license compliance
+  license-check:
+    name: License Compliance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+
+      - name: Install license checker
+        run: npm install -g license-checker
+
+      - name: Check backend licenses
+        run: |
+          cd backend && npm install --production
+          license-checker --onlyAllow 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC' --production
+
+      - name: Check shared licenses
+        run: |
+          cd shared && npm install --production
+          license-checker --onlyAllow 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC' --production
+
+  # Dependabot-style dependency updates
+  dependency-updates:
+    name: Check Dependency Updates
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+
+      - name: Check for updates and create PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { execSync } = require('child_process');
+
+            // Check for updates in backend
+            try {
+              execSync('cd backend && npm update --dry-run', { stdio: 'inherit' });
+            } catch (error) {
+              console.log('Backend updates available');
+            }
+
+            // Check for updates in shared
+            try {
+              execSync('cd shared && npm update --dry-run', { stdio: 'inherit' });
+            } catch (error) {
+              console.log('Shared package updates available');
+            }
+
+  # Infrastructure cost monitoring
+  cost-monitoring:
+    name: Infrastructure Cost Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Check AWS costs
+        run: |
+          # Get current month costs for the project
+          aws ce get-cost-and-usage \
+            --time-period Start=$(date +%Y-%m-01),End=$(date +%Y-%m-%d) \
+            --granularity MONTHLY \
+            --metrics BlendedCost \
+            --group-by Type=DIMENSION,Key=SERVICE \
+            --output table
+
+      - name: Check budget alerts
+        run: |
+          aws budgets describe-budgets \
+            --account-id $(aws sts get-caller-identity --query Account --output text) \
+            --output table

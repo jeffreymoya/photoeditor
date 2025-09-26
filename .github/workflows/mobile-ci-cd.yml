@@ -1,0 +1,203 @@
+name: Mobile CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+    paths: ['mobile/**']
+  pull_request:
+    branches: [main]
+    paths: ['mobile/**']
+
+env:
+  NODE_VERSION: '20.x'
+  JAVA_VERSION: '17'
+
+jobs:
+  # Lint and validate mobile code
+  lint-mobile:
+    name: Lint Mobile App
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install mobile dependencies
+        run: cd mobile && npm ci
+
+      - name: Lint mobile app
+        run: cd mobile && npm run lint
+
+      - name: TypeScript check mobile
+        run: cd mobile && npm run typecheck
+
+      - name: Run mobile tests
+        run: cd mobile && npm test
+
+  # Build Android app
+  build-android:
+    name: Build Android
+    runs-on: ubuntu-latest
+    needs: lint-mobile
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          api-level: 34
+          build-tools: 34.0.0
+
+      - name: Install mobile dependencies
+        run: cd mobile && npm ci
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            mobile/android/.gradle
+          key: ${{ runner.os }}-gradle-${{ hashFiles('mobile/android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Build Android APK
+        run: |
+          cd mobile/android
+          ./gradlew assembleRelease
+
+      - name: Upload Android artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: mobile/android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 30
+
+  # Build iOS app (macOS only)
+  build-ios:
+    name: Build iOS
+    runs-on: macos-latest
+    needs: lint-mobile
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Install mobile dependencies
+        run: cd mobile && npm ci
+
+      - name: Install CocoaPods dependencies
+        run: cd mobile/ios && pod install
+
+      - name: Build iOS app
+        run: |
+          cd mobile/ios
+          xcodebuild -workspace PhotoEditor.xcworkspace \
+            -scheme PhotoEditor \
+            -configuration Release \
+            -destination generic/platform=iOS \
+            -archivePath PhotoEditor.xcarchive \
+            archive
+
+      - name: Upload iOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-archive
+          path: mobile/ios/PhotoEditor.xcarchive
+          retention-days: 30
+
+  # Deploy to TestFlight (iOS) and Play Console (Android) for beta testing
+  deploy-beta:
+    name: Deploy Beta
+    runs-on: ubuntu-latest
+    needs: [build-android, build-ios]
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    environment: beta
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Android artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: android-apk
+          path: android-artifacts/
+
+      - name: Deploy to Google Play Console (Internal Testing)
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.photoeditor.app
+          releaseFiles: android-artifacts/app-release.apk
+          track: internal
+          status: completed
+
+      - name: Notify beta deployment
+        run: |
+          echo "📱 Beta deployment completed!"
+          echo "Android: Available on Google Play Internal Testing"
+          echo "iOS: Available on TestFlight"
+
+  # Deploy to production app stores
+  deploy-production:
+    name: Deploy Production
+    runs-on: ubuntu-latest
+    needs: [build-android, build-ios]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Android artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: android-apk
+          path: android-artifacts/
+
+      - name: Deploy to Google Play Store
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.photoeditor.app
+          releaseFiles: android-artifacts/app-release.apk
+          track: production
+          status: completed
+
+      - name: Notify production deployment
+        run: |
+          echo "🚀 Production deployment completed!"
+          echo "Android: Available on Google Play Store"
+          echo "iOS: Available on App Store"

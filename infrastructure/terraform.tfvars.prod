@@ -1,0 +1,27 @@
+# Production environment configuration
+project_name = "photo-editor"
+environment  = "prod"
+region       = "us-east-1"
+
+# Production-specific settings
+budget_limit = 500.0  # Higher budget limit for production
+budget_alert_emails = ["devops@example.com", "finance@example.com"]
+
+# Lambda configuration for production
+lambda_reserved_concurrency = 50  # Higher concurrency for production
+
+# Monitoring settings
+enable_detailed_monitoring = true
+log_retention_days        = 90  # Longer retention for production
+
+# Security settings - use production KMS key with longer deletion window
+kms_deletion_window = 30
+
+# DynamoDB settings
+dynamodb_point_in_time_recovery = true  # Enable for production
+
+# S3 settings
+enable_s3_access_logging = true  # Enable for compliance and auditing
+
+# Production feature flags
+enable_debug_logging = false

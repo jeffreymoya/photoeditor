@@ -1,14 +1,16 @@
-import { DynamoDBClient, PutItemCommand, GetItemCommand, UpdateItemCommand } from '@aws-sdk/client-dynamodb';
+import { DynamoDBClient, PutItemCommand, GetItemCommand, UpdateItemCommand, QueryCommand } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
-import { Job, JobStatus, JobStatusType, CreateJobRequest, APP_CONFIG } from '@photoeditor/shared';
+import { Job, JobStatus, JobStatusType, CreateJobRequest, APP_CONFIG, BatchJob, CreateBatchJobRequest } from '@photoeditor/shared';
 import { v4 as uuidv4 } from 'uuid';
 
 export class JobService {
   private client: DynamoDBClient;
   private tableName: string;
+  private batchTableName: string;
 
-  constructor(tableName: string, region: string) {
+  constructor(tableName: string, region: string, batchTableName?: string) {
     this.tableName = tableName;
+    this.batchTableName = batchTableName || `${tableName}-batches`;
     this.client = new DynamoDBClient({ region });
   }
 
@@ -24,6 +26,8 @@ export class JobService {
       updatedAt: now,
       locale: request.locale || 'en',
       settings: request.settings,
+      prompt: request.prompt,
+      batchJobId: request.batchJobId,
       expires_at
     };
 
@@ -61,11 +65,11 @@ export class JobService {
     const now = new Date().toISOString();
 
     let updateExpression = 'SET #status = :status, #updatedAt = :updatedAt';
-    let expressionAttributeNames: Record<string, string> = {
+    const expressionAttributeNames: Record<string, string> = {
       '#status': 'status',
       '#updatedAt': 'updatedAt'
     };
-    let expressionAttributeValues: Record<string, any> = {
+    const expressionAttributeValues: Record<string, unknown> = {
       ':status': status,
       ':updatedAt': now
     };
@@ -132,5 +136,139 @@ export class JobService {
 
   isJobTerminal(status: JobStatusType): boolean {
     return status === JobStatus.COMPLETED || status === JobStatus.FAILED;
+  }
+
+  // Batch Job Methods
+  async createBatchJob(request: CreateBatchJobRequest): Promise<BatchJob> {
+    const now = new Date().toISOString();
+    const expires_at = Math.floor(Date.now() / 1000) + (APP_CONFIG.JOB_TTL_DAYS * 24 * 60 * 60);
+
+    const batchJob: BatchJob = {
+      batchJobId: uuidv4(),
+      userId: request.userId,
+      status: JobStatus.QUEUED,
+      createdAt: now,
+      updatedAt: now,
+      sharedPrompt: request.sharedPrompt,
+      individualPrompts: request.individualPrompts,
+      childJobIds: [], // Will be populated when child jobs are created
+      completedCount: 0,
+      totalCount: request.fileCount,
+      locale: request.locale || 'en',
+      settings: request.settings,
+      expires_at
+    };
+
+    const command = new PutItemCommand({
+      TableName: this.batchTableName,
+      Item: marshall(batchJob, { removeUndefinedValues: true }),
+      ConditionExpression: 'attribute_not_exists(batchJobId)'
+    });
+
+    await this.client.send(command);
+    return batchJob;
+  }
+
+  async getBatchJob(batchJobId: string): Promise<BatchJob | null> {
+    const command = new GetItemCommand({
+      TableName: this.batchTableName,
+      Key: marshall({ batchJobId }),
+      ConsistentRead: true
+    });
+
+    const response = await this.client.send(command);
+
+    if (!response.Item) {
+      return null;
+    }
+
+    return unmarshall(response.Item) as BatchJob;
+  }
+
+  async updateBatchJobStatus(
+    batchJobId: string,
+    status: JobStatusType,
+    updates: Partial<Pick<BatchJob, 'completedCount' | 'error' | 'childJobIds'>> = {}
+  ): Promise<BatchJob> {
+    const now = new Date().toISOString();
+
+    let updateExpression = 'SET #status = :status, #updatedAt = :updatedAt';
+    const expressionAttributeNames: Record<string, string> = {
+      '#status': 'status',
+      '#updatedAt': 'updatedAt'
+    };
+    const expressionAttributeValues: Record<string, unknown> = {
+      ':status': status,
+      ':updatedAt': now
+    };
+
+    // Add conditional updates
+    if (updates.completedCount !== undefined) {
+      updateExpression += ', #completedCount = :completedCount';
+      expressionAttributeNames['#completedCount'] = 'completedCount';
+      expressionAttributeValues[':completedCount'] = updates.completedCount;
+    }
+
+    if (updates.childJobIds) {
+      updateExpression += ', #childJobIds = :childJobIds';
+      expressionAttributeNames['#childJobIds'] = 'childJobIds';
+      expressionAttributeValues[':childJobIds'] = updates.childJobIds;
+    }
+
+    if (updates.error) {
+      updateExpression += ', #error = :error';
+      expressionAttributeNames['#error'] = 'error';
+      expressionAttributeValues[':error'] = updates.error;
+    }
+
+    const command = new UpdateItemCommand({
+      TableName: this.batchTableName,
+      Key: marshall({ batchJobId }),
+      UpdateExpression: updateExpression,
+      ExpressionAttributeNames: expressionAttributeNames,
+      ExpressionAttributeValues: marshall(expressionAttributeValues),
+      ConditionExpression: 'attribute_exists(batchJobId)',
+      ReturnValues: 'ALL_NEW'
+    });
+
+    const response = await this.client.send(command);
+
+    if (!response.Attributes) {
+      throw new Error(`Batch job ${batchJobId} not found`);
+    }
+
+    return unmarshall(response.Attributes) as BatchJob;
+  }
+
+  async incrementBatchJobProgress(batchJobId: string): Promise<BatchJob> {
+    const batchJob = await this.getBatchJob(batchJobId);
+    if (!batchJob) {
+      throw new Error(`Batch job ${batchJobId} not found`);
+    }
+
+    const newCompletedCount = batchJob.completedCount + 1;
+    const newStatus = newCompletedCount >= batchJob.totalCount ? JobStatus.COMPLETED : batchJob.status;
+
+    return this.updateBatchJobStatus(batchJobId, newStatus, { completedCount: newCompletedCount });
+  }
+
+  async getJobsByBatchId(batchJobId: string): Promise<Job[]> {
+    // Note: This requires a GSI on batchJobId in the jobs table
+    const command = new QueryCommand({
+      TableName: this.tableName,
+      IndexName: 'BatchJobIdIndex', // GSI name
+      KeyConditionExpression: 'batchJobId = :batchJobId',
+      ExpressionAttributeValues: marshall({
+        ':batchJobId': batchJobId
+      })
+    });
+
+    const response = await this.client.send(command);
+
+    if (!response.Items) {
+      return [];
+    }
+
+    return response.Items.map(item => unmarshall(item) as Job);
   }
 }

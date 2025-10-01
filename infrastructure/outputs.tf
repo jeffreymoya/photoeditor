@@ -1,142 +1,125 @@
-# API Gateway Outputs
+# LocalStack outputs - simplified version for testing
+
+# API Gateway outputs
 output "api_gateway_url" {
-  description = "API Gateway URL"
-  value       = module.api_gateway.stage_invoke_url
+  description = "API Gateway stage invoke URL"
+  value       = "http://localhost:4566/restapis/${aws_api_gateway_rest_api.api.id}/dev/_user_request_"
+  sensitive   = false
 }
 
 output "api_gateway_id" {
-  description = "API Gateway ID"
-  value       = module.api_gateway.api_id
+  description = "API Gateway REST API ID"
+  value       = aws_api_gateway_rest_api.api.id
+  sensitive   = false
 }
 
-# S3 Outputs
+# S3 outputs
 output "temp_bucket_name" {
-  description = "Temporary S3 bucket name"
-  value       = module.s3.temp_bucket_name
+  description = "Name of the temporary S3 bucket"
+  value       = aws_s3_bucket.temp_bucket.bucket
+  sensitive   = false
 }
 
 output "final_bucket_name" {
-  description = "Final S3 bucket name"
-  value       = module.s3.final_bucket_name
+  description = "Name of the final S3 bucket"
+  value       = aws_s3_bucket.final_bucket.bucket
+  sensitive   = false
 }
 
 output "temp_bucket_arn" {
-  description = "Temporary S3 bucket ARN"
-  value       = module.s3.temp_bucket_arn
+  description = "ARN of the temporary S3 bucket"
+  value       = aws_s3_bucket.temp_bucket.arn
+  sensitive   = false
 }
 
 output "final_bucket_arn" {
-  description = "Final S3 bucket ARN"
-  value       = module.s3.final_bucket_arn
+  description = "ARN of the final S3 bucket"
+  value       = aws_s3_bucket.final_bucket.arn
+  sensitive   = false
 }
 
-# DynamoDB Outputs
+# DynamoDB outputs
 output "jobs_table_name" {
-  description = "DynamoDB jobs table name"
-  value       = module.dynamodb.table_name
+  description = "Name of the DynamoDB jobs table"
+  value       = aws_dynamodb_table.jobs.name
+  sensitive   = false
 }
 
 output "jobs_table_arn" {
-  description = "DynamoDB jobs table ARN"
-  value       = module.dynamodb.table_arn
+  description = "ARN of the DynamoDB jobs table"
+  value       = aws_dynamodb_table.jobs.arn
+  sensitive   = false
 }
 
-# SQS Outputs
+# SQS outputs
 output "queue_url" {
-  description = "SQS queue URL"
-  value       = module.sqs.queue_url
+  description = "URL of the SQS processing queue"
+  value       = aws_sqs_queue.processing.id
+  sensitive   = false
 }
 
 output "queue_arn" {
-  description = "SQS queue ARN"
-  value       = module.sqs.queue_arn
+  description = "ARN of the SQS processing queue"
+  value       = aws_sqs_queue.processing.arn
+  sensitive   = false
 }
 
 output "dlq_url" {
-  description = "SQS dead letter queue URL"
-  value       = module.sqs.dlq_url
+  description = "URL of the SQS dead letter queue"
+  value       = aws_sqs_queue.dlq.id
+  sensitive   = false
 }
 
 output "dlq_arn" {
-  description = "SQS dead letter queue ARN"
-  value       = module.sqs.dlq_arn
+  description = "ARN of the SQS dead letter queue"
+  value       = aws_sqs_queue.dlq.arn
+  sensitive   = false
 }
 
-# Lambda Outputs
+# Lambda outputs
 output "lambda_function_arns" {
-  description = "Lambda function ARNs"
+  description = "ARNs of Lambda functions"
   value = {
-    presign = module.lambda.presign_function_arn
-    status  = module.lambda.status_function_arn
-    worker  = module.lambda.worker_function_arn
+    presign = aws_lambda_function.presign.arn
+    status  = aws_lambda_function.status.arn
+    worker  = aws_lambda_function.worker.arn
   }
+  sensitive = false
 }
 
 output "lambda_function_names" {
-  description = "Lambda function names"
+  description = "Names of Lambda functions"
   value = {
-    presign = module.lambda.presign_function_name
-    status  = module.lambda.status_function_name
-    worker  = module.lambda.worker_function_name
+    presign = aws_lambda_function.presign.function_name
+    status  = aws_lambda_function.status.function_name
+    worker  = aws_lambda_function.worker.function_name
   }
+  sensitive = false
 }
 
-# SNS Outputs
+# SNS outputs
 output "sns_topic_arn" {
-  description = "SNS topic ARN for notifications"
-  value       = module.sns.topic_arn
+  description = "ARN of the SNS topic"
+  value       = aws_sns_topic.notifications.arn
+  sensitive   = false
 }
 
-# KMS Outputs
-output "kms_key_id" {
-  description = "KMS key ID for encryption"
-  value       = module.kms.key_id
-}
-
-output "kms_key_arn" {
-  description = "KMS key ARN for encryption"
-  value       = module.kms.key_arn
-}
-
-output "kms_alias_arn" {
-  description = "KMS key alias ARN"
-  value       = module.kms.alias_arn
-}
-
-# SSM Parameter Outputs
-output "ssm_parameters" {
-  description = "SSM parameter names for configuration"
-  value = {
-    gemini_api_key        = aws_ssm_parameter.gemini_api_key.name
-    seedream_api_key      = aws_ssm_parameter.seedream_api_key.name
-    gemini_endpoint       = aws_ssm_parameter.gemini_endpoint.name
-    seedream_endpoint     = aws_ssm_parameter.seedream_endpoint.name
-    enable_stub_providers = aws_ssm_parameter.enable_stub_providers.name
-  }
-}
-
-# Environment Configuration
+# Environment configuration for mobile app
 output "environment_config" {
-  description = "Environment configuration for applications"
+  description = "Environment configuration for mobile app"
   value = {
-    environment  = var.environment
-    region       = var.region
-    account_id   = local.account_id
-    project_name = var.project_name
-
-    # Service endpoints
-    api_url = module.api_gateway.stage_invoke_url
-
-    # Resource names
-    temp_bucket  = module.s3.temp_bucket_name
-    final_bucket = module.s3.final_bucket_name
-    jobs_table   = module.dynamodb.table_name
-    queue_url    = module.sqs.queue_url
-    sns_topic    = module.sns.topic_arn
-
-    # Configuration parameters
-    kms_key_id         = module.kms.key_id
-    log_retention_days = var.log_retention_days
+    region           = var.region
+    environment      = var.environment
+    api_url          = "http://localhost:4566/restapis/${aws_api_gateway_rest_api.api.id}/dev/_user_request_"
+    temp_bucket      = aws_s3_bucket.temp_bucket.bucket
+    final_bucket     = aws_s3_bucket.final_bucket.bucket
+    jobs_table       = aws_dynamodb_table.jobs.name
+    queue_url        = aws_sqs_queue.processing.id
+    sns_topic        = aws_sns_topic.notifications.arn
+    aws_endpoint_url = "http://localhost:4566"
+    gemini_endpoint  = var.gemini_api_endpoint
+    seedream_endpoint = var.seedream_api_endpoint
+    enable_stub_providers = var.enable_stub_providers
   }
   sensitive = false
 }

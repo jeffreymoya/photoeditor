@@ -37,7 +37,7 @@ export const AWS_CONFIG = {
 
 export const PROVIDER_CONFIG = {
   GEMINI: {
-    MODEL: 'gemini-1.5-flash',
+    MODEL: 'gemini-1.5-flash-8b',
     DEFAULT_PROMPT: 'Analyze this image and provide a detailed description for photo editing purposes.',
     TIMEOUT_MS: 30000,
     MAX_RETRIES: 3

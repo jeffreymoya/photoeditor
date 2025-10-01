@@ -1,0 +1,53 @@
+# LocalStack configuration for local development
+project_name = "photoeditor"
+environment  = "dev"
+region       = "us-east-1"
+
+# VPC Configuration
+vpc_cidr             = "10.0.0.0/16"
+public_subnet_cidrs  = ["10.0.1.0/24", "10.0.2.0/24"]
+private_subnet_cidrs = ["10.0.10.0/24", "10.0.11.0/24"]
+enable_nat_gateway   = false  # Disable for LocalStack
+enable_s3_endpoint   = false  # LocalStack doesn't need VPC endpoints
+enable_dynamodb_endpoint = false
+
+# Storage Configuration
+temp_bucket_retention_days   = 1
+final_bucket_transition_days = 30
+abort_multipart_days        = 1
+
+# DynamoDB Configuration
+job_ttl_days         = 7
+
+# Lambda Configuration
+lambda_timeout           = 300
+lambda_memory_size       = 512
+lambda_reserved_concurrency = 10
+enable_xray_tracing     = false  # Disable for LocalStack
+log_retention_days      = 7
+
+# API Gateway Configuration
+api_throttle_rate_limit  = 1000
+api_throttle_burst_limit = 2000
+
+# SQS Configuration
+sqs_visibility_timeout     = 300
+sqs_message_retention_days = 14
+sqs_max_receive_count     = 3
+
+# External API Configuration (using stub providers for LocalStack)
+gemini_api_endpoint   = "http://localhost:3001/mock-gemini"
+seedream_api_endpoint = "http://localhost:3001/mock-seedream"
+enable_stub_providers = true
+
+# Cost Management (disabled for LocalStack)
+monthly_budget_limit        = 100
+budget_notification_emails  = ["test@example.com"]
+
+# Tags
+tags = {
+  Project     = "PhotoEditor"
+  Environment = "LocalStack"
+  ManagedBy   = "Terraform"
+  LocalDev    = "true"
+}

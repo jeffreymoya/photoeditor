@@ -1,4 +1,4 @@
-import { GeminiAnalysisRequest, GeminiAnalysisResponse, ProviderResponse } from '@photoeditor/shared';
+import { GeminiAnalysisRequest, ProviderResponse } from '@photoeditor/shared';
 
 export interface AnalysisProvider {
   analyzeImage(request: GeminiAnalysisRequest): Promise<ProviderResponse>;

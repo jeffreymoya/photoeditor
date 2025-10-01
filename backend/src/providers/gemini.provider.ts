@@ -54,7 +54,7 @@ export class GeminiProvider extends BaseProvider implements AnalysisProvider {
         throw new Error(`Gemini API error: ${response.status} ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as any;
 
       if (!data.candidates || data.candidates.length === 0) {
         throw new Error('No analysis returned from Gemini');
@@ -63,7 +63,7 @@ export class GeminiProvider extends BaseProvider implements AnalysisProvider {
       const analysis = data.candidates[0].content.parts[0].text;
       const confidence = data.candidates[0].finishReason === 'STOP' ? 0.9 : 0.7;
 
-      return {
+      const payload: GeminiAnalysisResponse = {
         analysis,
         confidence,
         metadata: {
@@ -71,8 +71,10 @@ export class GeminiProvider extends BaseProvider implements AnalysisProvider {
           finishReason: data.candidates[0].finishReason,
           safetyRatings: data.candidates[0].safetyRatings
         }
-      } as GeminiAnalysisResponse;
-    }, 'analyzeImage');
+      };
+
+      return payload;
+    });
   }
 
   private async fetchImageAsBase64(imageUrl: string): Promise<string> {

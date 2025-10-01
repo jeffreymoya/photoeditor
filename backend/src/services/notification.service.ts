@@ -1,5 +1,5 @@
 import { SNSClient, PublishCommand } from '@aws-sdk/client-sns';
-import { JobStatusType, Job } from '@photoeditor/shared';
+import { JobStatusType, Job, BatchJob } from '@photoeditor/shared';
 
 export interface NotificationPayload {
   jobId: string;
@@ -138,6 +138,65 @@ export class NotificationService {
         jobId: {
           DataType: 'String',
           StringValue: jobId
+        },
+        status: {
+          DataType: 'String',
+          StringValue: 'COMPLETED'
+        }
+      }
+    });
+
+    await this.snsClient.send(command);
+  }
+
+  async sendBatchJobCompletionNotification(batchJob: BatchJob): Promise<void> {
+    const payload: NotificationPayload = {
+      jobId: batchJob.batchJobId, // Use batchJobId as jobId for consistency
+      userId: batchJob.userId,
+      status: 'COMPLETED',
+      message: `All ${batchJob.totalCount} photos have been processed successfully!`,
+      timestamp: batchJob.updatedAt,
+      data: {
+        batchJobId: batchJob.batchJobId,
+        totalCount: batchJob.totalCount,
+        sharedPrompt: batchJob.sharedPrompt
+      }
+    };
+
+    const fcmNotification: FCMNotification = {
+      title: 'Photo Editor - Batch Complete!',
+      body: `All ${batchJob.totalCount} photos are ready for download`,
+      data: {
+        batchJobId: batchJob.batchJobId,
+        status: 'COMPLETED',
+        action: 'view_batch',
+        totalCount: batchJob.totalCount.toString()
+      }
+    };
+
+    const snsMessage = {
+      default: JSON.stringify(payload),
+      GCM: JSON.stringify({
+        notification: fcmNotification,
+        data: {
+          ...fcmNotification.data,
+          type: 'batch_completion'
+        }
+      })
+    };
+
+    const command = new PublishCommand({
+      TopicArn: this.topicArn,
+      Message: JSON.stringify(snsMessage),
+      MessageStructure: 'json',
+      MessageAttributes: {
+        userId: {
+          DataType: 'String',
+          StringValue: batchJob.userId
+        },
+        batchJobId: {
+          DataType: 'String',
+          StringValue: batchJob.batchJobId
         },
         status: {
           DataType: 'String',

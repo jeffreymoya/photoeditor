@@ -13,13 +13,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { apiService } from '../services/ApiService';
+import { useAppSelector } from '@/store';
 
 export const EditScreen = () => {
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const selectedImages = useAppSelector(state => state.image.selectedImages);
   const [prompt, setPrompt] = useState('');
+  const [individualPrompts, setIndividualPrompts] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [resultUrl, setResultUrl] = useState<string | null>(null);
+  const [resultUrls, setResultUrls] = useState<string[]>([]);
+  const [batchJobId, setBatchJobId] = useState<string | null>(null);
 
   const selectImage = async () => {
     // Request permission
@@ -45,14 +48,14 @@ export const EditScreen = () => {
     }
   };
 
-  const processImage = async () => {
-    if (!selectedImage) {
-      Alert.alert('Error', 'Please select an image first');
+  const processBatchImages = async () => {
+    if (selectedImages.length === 0) {
+      Alert.alert('Error', 'Please select at least one image');
       return;
     }
 
     if (!prompt.trim()) {
-      Alert.alert('Error', 'Please enter a prompt describing how you want to edit the image');
+      Alert.alert('Error', 'Please enter a prompt describing how you want to edit the images');
       return;
     }
 
@@ -60,24 +63,41 @@ export const EditScreen = () => {
       setIsProcessing(true);
       setProgress(0);
 
-      // Get file info (simplified for demo - in real app you'd get actual file size)
-      const fileName = `image_${Date.now()}.jpg`;
-      const fileSize = 1024 * 1024; // Placeholder size
+      if (selectedImages.length === 1) {
+        // Single image processing (backward compatibility)
+        const image = selectedImages[0];
+        const fileName = image.fileName || `image_${Date.now()}.jpg`;
+        const fileSize = image.fileSize || 1024 * 1024; // Placeholder size
 
-      const downloadUrl = await apiService.processImage(
-        selectedImage,
-        fileName,
-        fileSize,
-        prompt,
-        (progressValue) => {
-          setProgress(progressValue);
-        }
-      );
+        const downloadUrl = await apiService.processImage(
+          image.uri,
+          fileName,
+          fileSize,
+          prompt,
+          (progressValue) => {
+            setProgress(progressValue);
+          }
+        );
 
-      setResultUrl(downloadUrl);
-      Alert.alert('Success', 'Your image has been processed successfully!');
+        setResultUrls([downloadUrl]);
+        Alert.alert('Success', 'Your image has been processed successfully!');
+      } else {
+        // Batch processing
+        const downloadUrls = await apiService.processBatchImages(
+          selectedImages,
+          prompt,
+          individualPrompts.length > 0 ? individualPrompts : undefined,
+          (progressValue, batchId) => {
+            setProgress(progressValue);
+            if (batchId) setBatchJobId(batchId);
+          }
+        );
+
+        setResultUrls(downloadUrls);
+        Alert.alert('Success', `All ${selectedImages.length} images have been processed successfully!`);
+      }
     } catch (error) {
-      Alert.alert('Error', `Failed to process image: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      Alert.alert('Error', `Failed to process images: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsProcessing(false);
       setProgress(0);
@@ -88,20 +108,29 @@ export const EditScreen = () => {
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <Text style={styles.title}>AI Photo Editor</Text>
-        <Text style={styles.subtitle}>Upload a photo and describe your desired edits</Text>
+        <Text style={styles.subtitle}>
+          {selectedImages.length === 0
+            ? 'Upload photos and describe your desired edits'
+            : `${selectedImages.length} image${selectedImages.length > 1 ? 's' : ''} selected`
+          }
+        </Text>
 
         {/* Image Selection */}
         <View style={styles.imageSection}>
-          {selectedImage ? (
-            <Image source={{ uri: selectedImage }} style={styles.selectedImage} />
+          {selectedImages.length > 0 ? (
+            <ScrollView horizontal style={styles.imageGrid} showsHorizontalScrollIndicator={false}>
+              {selectedImages.map((image, index) => (
+                <Image key={index} source={{ uri: image.uri }} style={styles.selectedImage} />
+              ))}
+            </ScrollView>
           ) : (
             <View style={styles.imagePlaceholder}>
-              <Text style={styles.placeholderText}>No image selected</Text>
+              <Text style={styles.placeholderText}>No images selected</Text>
             </View>
           )}
           <TouchableOpacity style={styles.selectButton} onPress={selectImage}>
             <Text style={styles.buttonText}>
-              {selectedImage ? 'Change Image' : 'Select Image'}
+              {selectedImages.length > 0 ? 'Change Images' : 'Select Images'}
             </Text>
           </TouchableOpacity>
         </View>
@@ -124,34 +153,46 @@ export const EditScreen = () => {
         <TouchableOpacity
           style={[
             styles.processButton,
-            (!selectedImage || !prompt.trim() || isProcessing) && styles.disabledButton,
+            (selectedImages.length === 0 || !prompt.trim() || isProcessing) && styles.disabledButton,
           ]}
-          onPress={processImage}
-          disabled={!selectedImage || !prompt.trim() || isProcessing}
+          onPress={processBatchImages}
+          disabled={selectedImages.length === 0 || !prompt.trim() || isProcessing}
         >
           {isProcessing ? (
             <View style={styles.processingContent}>
               <ActivityIndicator color="white" size="small" />
-              <Text style={styles.buttonText}>Processing... {Math.round(progress)}%</Text>
+              <Text style={styles.buttonText}>
+                Processing {selectedImages.length > 1 ? 'Batch' : 'Image'}... {Math.round(progress)}%
+              </Text>
             </View>
           ) : (
-            <Text style={styles.buttonText}>Process Image</Text>
+            <Text style={styles.buttonText}>
+              Process {selectedImages.length > 1 ? `${selectedImages.length} Images` : 'Image'}
+            </Text>
           )}
         </TouchableOpacity>
 
         {/* Result */}
-        {resultUrl && (
+        {resultUrls.length > 0 && (
           <View style={styles.resultSection}>
-            <Text style={styles.resultTitle}>Processed Image Ready!</Text>
+            <Text style={styles.resultTitle}>
+              {resultUrls.length > 1 ? 'All Images Processed!' : 'Image Processed!'}
+            </Text>
             <TouchableOpacity
               style={styles.downloadButton}
               onPress={() => {
-                Alert.alert('Download', 'Image is ready for download', [
-                  { text: 'OK', style: 'default' }
-                ]);
+                Alert.alert(
+                  'Download',
+                  resultUrls.length > 1
+                    ? `${resultUrls.length} images are ready for download`
+                    : 'Image is ready for download',
+                  [{ text: 'OK', style: 'default' }]
+                );
               }}
             >
-              <Text style={styles.buttonText}>Download</Text>
+              <Text style={styles.buttonText}>
+                Download {resultUrls.length > 1 ? `${resultUrls.length} Images` : 'Image'}
+              </Text>
             </TouchableOpacity>
           </View>
         )}
@@ -188,11 +229,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 30,
   },
-  selectedImage: {
-    width: 300,
-    height: 300,
-    borderRadius: 12,
+  imageGrid: {
+    flexDirection: 'row',
     marginBottom: 16,
+  },
+  selectedImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 12,
+    marginRight: 12,
     resizeMode: 'cover',
   },
   imagePlaceholder: {

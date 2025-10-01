@@ -1,10 +1,10 @@
 import { SQSEvent, SQSRecord, Context } from 'aws-lambda';
 import { Logger } from '@aws-lambda-powertools/logger';
-import { Metrics } from '@aws-lambda-powertools/metrics';
+import { Metrics, MetricUnits } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { JobService, S3Service, NotificationService, ConfigService, BootstrapService } from '../services';
 import { ProviderFactory } from '../providers/factory';
-import { S3Config, JobStatus } from '@photoeditor/shared';
+import { S3Config, JobStatus, GeminiAnalysisResponse, SeedreamEditingResponse } from '@photoeditor/shared';
 
 const logger = new Logger();
 const metrics = new Metrics();
@@ -73,7 +73,12 @@ async function processS3Event(record: SQSRecord): Promise<void> {
 
     // Get the job to retrieve the prompt
     const job = await jobService.getJob(jobId);
-    const userPrompt = job?.prompt || 'Analyze this image and provide detailed suggestions for photo editing and enhancement.';
+    if (!job) {
+      logger.error('Job not found', { jobId, userId });
+      return;
+    }
+
+    const userPrompt = job.prompt || 'Analyze this image and provide detailed suggestions for photo editing and enhancement.';
 
     // First optimize the uploaded image before analysis
     const optimizedKey = objectKey.replace('temp/', 'optimized/');
@@ -99,9 +104,10 @@ async function processS3Event(record: SQSRecord): Promise<void> {
     const editingProvider = providerFactory.getEditingProvider();
 
     // Edit the image based on analysis
+    const analysisData = analysisResult.success ? analysisResult.data as GeminiAnalysisResponse : null;
     const editingRequest = {
       imageUrl: optimizedUrl,
-      analysis: (analysisResult.success && analysisResult.data?.analysis) || 'Enhance and improve this image',
+      analysis: analysisData?.analysis || 'Enhance and improve this image',
       editingInstructions: 'Apply professional photo enhancements based on the analysis'
     };
     const editedImageResult = await editingProvider.editImage(editingRequest);
@@ -110,8 +116,9 @@ async function processS3Event(record: SQSRecord): Promise<void> {
     const finalKey = keyStrategy.generateFinalKey(userId, jobId, parsedKey.fileName);
 
     // Download the edited image and upload to final bucket
-    if (editedImageResult.success && editedImageResult.data?.editedImageUrl) {
-      const editedImageResponse = await fetch(editedImageResult.data.editedImageUrl);
+    const editedImageData = editedImageResult.success ? editedImageResult.data as SeedreamEditingResponse : null;
+    if (editedImageResult.success && editedImageData?.editedImageUrl) {
+      const editedImageResponse = await fetch(editedImageData.editedImageUrl);
       const editedImageBuffer = await editedImageResponse.arrayBuffer();
 
       await s3Service.uploadObject(
@@ -128,14 +135,38 @@ async function processS3Event(record: SQSRecord): Promise<void> {
     // Mark job as completed
     const completedJob = await jobService.markJobCompleted(jobId, finalKey);
 
-    // Send notification
+    // Handle batch job progress if this is part of a batch
+    if (job.batchJobId) {
+      try {
+        const updatedBatchJob = await jobService.incrementBatchJobProgress(job.batchJobId);
+        logger.info('Updated batch job progress', {
+          batchJobId: job.batchJobId,
+          completedCount: updatedBatchJob.completedCount,
+          totalCount: updatedBatchJob.totalCount,
+          isComplete: updatedBatchJob.status === JobStatus.COMPLETED
+        });
+
+        // Send batch completion notification if all jobs are done
+        if (updatedBatchJob.status === JobStatus.COMPLETED) {
+          await notificationService.sendBatchJobCompletionNotification(updatedBatchJob);
+        }
+      } catch (batchError) {
+        logger.error('Failed to update batch job progress', {
+          error: batchError as Error,
+          batchJobId: job.batchJobId,
+          jobId
+        });
+      }
+    }
+
+    // Send individual job notification
     await notificationService.sendJobStatusNotification(completedJob);
 
     // Clean up temp and optimized objects
     await s3Service.deleteObject(bucketName, objectKey);
     await s3Service.deleteObject(bucketName, optimizedKey);
 
-    metrics.addMetric('JobProcessed', 'Count', 1);
+    metrics.addMetric('JobProcessed', MetricUnits.Count, 1);
     logger.info('Job processing completed', { jobId, userId });
 
   } catch (error) {
@@ -148,15 +179,17 @@ async function processS3Event(record: SQSRecord): Promise<void> {
       logger.error('Failed to notify job failure', { notifyError: notifyError as Error, jobId });
     }
 
-    metrics.addMetric('JobProcessingError', 'Count', 1);
+    metrics.addMetric('JobProcessingError', MetricUnits.Count, 1);
     throw error;
   }
 }
 
-export const handler = async (event: SQSEvent, context: Context): Promise<void> => {
+export const handler = async (event: SQSEvent, _context: Context): Promise<void> => {
   const segment = tracer.getSegment();
   const subsegment = segment?.addNewSubsegment('worker-handler');
-  tracer.setSegment(subsegment);
+  if (subsegment) {
+    tracer.setSegment(subsegment);
+  }
 
   try {
     await initializeServices();
@@ -169,10 +202,12 @@ export const handler = async (event: SQSEvent, context: Context): Promise<void> 
 
   } catch (error) {
     logger.error('Worker handler error', { error: error as Error });
-    metrics.addMetric('WorkerError', 'Count', 1);
+    metrics.addMetric('WorkerError', MetricUnits.Count, 1);
     throw error;
   } finally {
     subsegment?.close();
-    tracer.setSegment(segment);
+    if (segment) {
+      tracer.setSegment(segment);
+    }
   }
 };

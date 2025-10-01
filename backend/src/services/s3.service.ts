@@ -101,7 +101,7 @@ export class S3Service {
       Key: destKey,
       CopySource: `${sourceBucket}/${sourceKey}`,
       ServerSideEncryption: 'aws:kms',
-      ServerSideEncryptionKeyId: process.env.KMS_KEY_ID,
+      SSEKMSKeyId: process.env.KMS_KEY_ID,
       Metadata: {
         processedAt: new Date().toISOString(),
         source: 'photo-editor'
@@ -182,14 +182,12 @@ export class S3Service {
 
       const response = await this.client.send(command);
 
-      return {
-        bucket,
-        key,
-        etag: response.ETag,
-        size: response.ContentLength,
-        lastModified: response.LastModified,
-        contentType: response.ContentType
-      };
+      const result: S3Object = { bucket, key };
+      if (response.ETag) result.etag = response.ETag;
+      if (response.ContentLength) result.size = response.ContentLength;
+      if (response.LastModified) result.lastModified = response.LastModified;
+      if (response.ContentType) result.contentType = response.ContentType;
+      return result;
     } catch (error) {
       if ((error as any).name === 'NoSuchKey') {
         return null;

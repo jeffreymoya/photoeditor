@@ -1,6 +1,6 @@
 import { APIGatewayProxyEventV2, APIGatewayProxyResultV2, Context } from 'aws-lambda';
 import { Logger } from '@aws-lambda-powertools/logger';
-import { Metrics } from '@aws-lambda-powertools/metrics';
+import { Metrics, MetricUnits } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { JobService, S3Service } from '../services';
 import { S3Config } from '@photoeditor/shared';
@@ -33,7 +33,7 @@ async function initializeServices(): Promise<void> {
 
 export const handler = async (
   event: APIGatewayProxyEventV2,
-  context: Context
+  _context: Context
 ): Promise<APIGatewayProxyResultV2> => {
   const segment = tracer.getSegment();
   const subsegment = segment?.addNewSubsegment('download-handler');
@@ -89,7 +89,7 @@ export const handler = async (
       3600
     );
 
-    metrics.addMetric('DownloadGenerated', 'Count', 1);
+    metrics.addMetric('DownloadGenerated', MetricUnits.Count, 1);
     logger.info('Download URL generated', { jobId });
 
     return {
@@ -105,7 +105,7 @@ export const handler = async (
 
   } catch (error) {
     logger.error('Error processing download request', { error: error as Error });
-    metrics.addMetric('DownloadError', 'Count', 1);
+    metrics.addMetric('DownloadError', MetricUnits.Count, 1);
 
     return {
       statusCode: 500,

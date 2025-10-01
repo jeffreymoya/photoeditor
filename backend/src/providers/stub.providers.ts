@@ -26,15 +26,17 @@ export class StubAnalysisProvider extends BaseProvider implements AnalysisProvid
       // Simulate processing delay
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      return {
+      const response: GeminiAnalysisResponse = {
         analysis: `This is a simulated analysis of the image at ${request.imageUrl}. The image appears to be a photograph that could benefit from enhanced lighting, improved contrast, and color correction. The composition shows good framing and the subject matter is clear.`,
         confidence: 0.95,
         metadata: {
           model: 'stub-analysis-v1',
           processingTime: 500
         }
-      } as GeminiAnalysisResponse;
-    }, 'analyzeImage');
+      };
+
+      return response;
+    });
   }
 
   getName(): string {
@@ -63,7 +65,7 @@ export class StubEditingProvider extends BaseProvider implements EditingProvider
       await new Promise(resolve => setTimeout(resolve, 1500));
 
       // Return the original image URL as "edited" for stub
-      return {
+      const response: SeedreamEditingResponse = {
         editedImageUrl: request.imageUrl,
         processingTime: 1500,
         metadata: {
@@ -73,8 +75,10 @@ export class StubEditingProvider extends BaseProvider implements EditingProvider
           original_analysis: request.analysis,
           editing_instructions: request.editingInstructions
         }
-      } as SeedreamEditingResponse;
-    }, 'editImage');
+      };
+
+      return response;
+    });
   }
 
   getName(): string {

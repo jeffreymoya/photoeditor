@@ -6,14 +6,18 @@
   "scripts": {
     "build": "tsc",
     "build:lambdas": "npm run clean && npm run build:lambda:presign && npm run build:lambda:status && npm run build:lambda:worker",
-    "build:lambda:presign": "esbuild src/lambdas/presign.ts --bundle --outdir=dist/lambdas/presign --platform=node --target=node20 --format=cjs --external:@aws-sdk/* --external:zod --minify",
-    "build:lambda:status": "esbuild src/lambdas/status.ts --bundle --outdir=dist/lambdas/status --platform=node --target=node20 --format=cjs --external:@aws-sdk/* --external:zod --minify",
-    "build:lambda:worker": "esbuild src/lambdas/worker.ts --bundle --outdir=dist/lambdas/worker --platform=node --target=node20 --format=cjs --external:@aws-sdk/* --external:zod --minify",
+    "build:lambda:presign": "esbuild src/lambdas/presign.ts --bundle --outdir=dist/lambdas/presign --platform=node --target=node20 --format=cjs --external:@aws-sdk/* --external:sharp --minify",
+    "build:lambda:status": "esbuild src/lambdas/status.ts --bundle --outdir=dist/lambdas/status --platform=node --target=node20 --format=cjs --external:@aws-sdk/* --external:sharp --minify",
+    "build:lambda:worker": "esbuild src/lambdas/worker.ts --bundle --outdir=dist/lambdas/worker --platform=node --target=node20 --format=cjs --external:@aws-sdk/* --external:sharp --minify",
     "dev": "tsc --watch",
     "lint": "eslint src/**/*.ts",
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
+    "test:build": "jest tests/build",
+    "test:unit": "jest tests/unit",
+    "test:import": "jest tests/unit/lambdas/import-validation.test.js",
+    "test:pre-e2e": "npm run test:build && npm run test:import",
     "clean": "rm -rf dist"
   },
   "dependencies": {
@@ -27,6 +31,7 @@
     "@aws-sdk/s3-request-presigner": "^3.478.0",
     "@aws-sdk/util-dynamodb": "^3.478.0",
     "@photoeditor/shared": "file:../shared",
+    "sharp": "^0.34.4",
     "uuid": "^9.0.1",
     "zod": "^3.22.4"
   },

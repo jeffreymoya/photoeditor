@@ -54,3 +54,4 @@ crash.log
 
 # Deployment bundles
 /tmp/
+.npm-cache/

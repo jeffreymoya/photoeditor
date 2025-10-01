@@ -1,0 +1,59 @@
+{
+  "$schema": "https://raw.githubusercontent.com/sverweij/dependency-cruiser/main/src/schema/configuration.schema.json",
+  "forbidden": [
+    {
+      "name": "no-circular",
+      "severity": "error",
+      "comment": "Circular dependencies risk runtime issues and hamper refactors.",
+      "from": {},
+      "to": {
+        "circular": true
+      }
+    },
+    {
+      "name": "backend-services-no-handlers",
+      "severity": "error",
+      "comment": "Services expose logic to handlers; they must not import the lambda layer.",
+      "from": {
+        "path": "^backend/src/services"
+      },
+      "to": {
+        "path": "^backend/src/lambdas"
+      }
+    },
+    {
+      "name": "backend-providers-isolated",
+      "severity": "error",
+      "comment": "Providers are lowest-level adapters and must not depend on higher layers.",
+      "from": {
+        "path": "^backend/src/providers"
+      },
+      "to": {
+        "path": "^backend/src/(lambdas|services)"
+      }
+    },
+    {
+      "name": "backend-handlers-no-providers",
+      "severity": "error",
+      "comment": "Handlers should resolve dependencies through services instead of talking to providers.",
+      "from": {
+        "path": "^backend/src/lambdas"
+      },
+      "to": {
+        "path": "^backend/src/providers"
+      }
+    }
+  ],
+  "options": {
+    "includeOnly": "^backend/src|^shared|^mobile/src",
+    "tsConfig": {
+      "fileName": "./tooling/tsconfig.dependency-cruiser.json"
+    },
+    "doNotFollow": {
+      "path": "node_modules"
+    },
+    "exclude": {
+      "path": "dist|__tests__|\\.test\\.ts$|\\.spec\\.ts$"
+    }
+  }
+}

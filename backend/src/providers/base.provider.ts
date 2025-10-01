@@ -7,10 +7,7 @@ export abstract class BaseProvider {
     this.config = config;
   }
 
-  protected async makeRequest<T>(
-    request: () => Promise<T>,
-    operation: string
-  ): Promise<ProviderResponse> {
+  protected async makeRequest<T>(request: () => Promise<T>): Promise<ProviderResponse> {
     const startTime = Date.now();
     const timestamp = new Date().toISOString();
 

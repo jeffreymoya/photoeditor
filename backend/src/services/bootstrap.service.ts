@@ -20,11 +20,25 @@ export class BootstrapService {
       const config: ProviderFactoryConfig = {
         analysis: {
           provider: 'stub',
-          config: { endpoint: 'stub', apiKey: 'stub' }
+          config: {
+            name: 'stub-analysis',
+            baseUrl: 'https://stub.endpoint',
+            apiKey: 'stub',
+            timeout: 30000,
+            retries: 3,
+            enabled: true
+          }
         },
         editing: {
           provider: 'stub',
-          config: { endpoint: 'stub', apiKey: 'stub' }
+          config: {
+            name: 'stub-editing',
+            baseUrl: 'https://stub.endpoint',
+            apiKey: 'stub',
+            timeout: 30000,
+            retries: 3,
+            enabled: true
+          }
         }
       };
 

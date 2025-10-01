@@ -28,6 +28,50 @@ const JobStatusSchema = z.object({
   finalS3Key: z.string().optional(),
 });
 
+// Batch processing schemas
+const FileUploadSchema = z.object({
+  fileName: z.string(),
+  contentType: z.string(),
+  fileSize: z.number(),
+});
+
+const BatchUploadRequestSchema = z.object({
+  files: z.array(FileUploadSchema),
+  sharedPrompt: z.string(),
+  individualPrompts: z.array(z.string().optional()).optional(),
+});
+
+const BatchUploadResponseSchema = z.object({
+  batchJobId: z.string(),
+  uploads: z.array(z.object({
+    presignedUrl: z.string(),
+    s3Key: z.string(),
+    expiresAt: z.string(),
+  })),
+  childJobIds: z.array(z.string()),
+});
+
+const BatchJobStatusSchema = z.object({
+  batchJobId: z.string(),
+  status: z.enum(['QUEUED', 'PROCESSING', 'EDITING', 'COMPLETED', 'FAILED']),
+  completedCount: z.number(),
+  totalCount: z.number(),
+  childJobIds: z.array(z.string()),
+  error: z.string().optional(),
+});
+
+// Device token registration schema
+const DeviceTokenRegistrationSchema = z.object({
+  expoPushToken: z.string(),
+  platform: z.enum(['ios', 'android']),
+  deviceId: z.string(),
+});
+
+const DeviceTokenResponseSchema = z.object({
+  success: z.boolean(),
+  message: z.string(),
+});
+
 class ApiService {
   private baseUrl: string;
 
@@ -178,6 +222,159 @@ class ApiService {
     }
 
     throw new Error('Processing timeout - please check job status later');
+  }
+
+  // Batch processing methods
+  async requestBatchPresignedUrls(
+    files: Array<{ fileName: string; fileSize: number }>,
+    sharedPrompt: string,
+    individualPrompts?: string[]
+  ) {
+    const requestBody = BatchUploadRequestSchema.parse({
+      files: files.map(file => ({
+        fileName: file.fileName,
+        contentType: 'image/jpeg',
+        fileSize: file.fileSize,
+      })),
+      sharedPrompt,
+      individualPrompts,
+    });
+
+    const response = await this.makeRequest('/presign', {
+      method: 'POST',
+      body: JSON.stringify(requestBody),
+    });
+
+    const data = await response.json();
+    return BatchUploadResponseSchema.parse(data);
+  }
+
+  async getBatchJobStatus(batchJobId: string) {
+    const response = await this.makeRequest(`/batch-status/${batchJobId}`);
+    const data = await response.json();
+    return BatchJobStatusSchema.parse(data);
+  }
+
+  async processBatchImages(
+    images: Array<{ uri: string; fileName?: string; fileSize?: number }>,
+    sharedPrompt: string,
+    individualPrompts?: string[],
+    onProgress?: (progress: number, batchJobId?: string) => void
+  ): Promise<string[]> {
+    try {
+      // Prepare file info
+      const files = images.map((image, index) => ({
+        fileName: image.fileName || `image_${Date.now()}_${index}.jpg`,
+        fileSize: image.fileSize || 1024 * 1024, // 1MB default
+      }));
+
+      // Step 1: Request batch presigned URLs
+      const batchResponse = await this.requestBatchPresignedUrls(
+        files,
+        sharedPrompt,
+        individualPrompts
+      );
+
+      onProgress?.(10, batchResponse.batchJobId);
+
+      // Step 2: Upload all images in parallel
+      await Promise.all(
+        images.map((image, index) =>
+          this.uploadImage(batchResponse.uploads[index].presignedUrl, image.uri)
+        )
+      );
+
+      onProgress?.(30, batchResponse.batchJobId);
+
+      // Step 3: Poll for batch completion
+      return await this.pollBatchJobCompletion(
+        batchResponse.batchJobId,
+        batchResponse.childJobIds,
+        onProgress
+      );
+    } catch (error) {
+      throw new Error(
+        `Failed to process batch: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+
+  private async pollBatchJobCompletion(
+    batchJobId: string,
+    childJobIds: string[],
+    onProgress?: (progress: number, batchJobId?: string) => void
+  ): Promise<string[]> {
+    const maxAttempts = 240; // 20 minutes at 5-second intervals
+    const pollInterval = 5000; // 5 seconds
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const batchJob = await this.getBatchJobStatus(batchJobId);
+
+        // Calculate progress based on completed jobs
+        const baseProgress = 30; // Already uploaded
+        const processingProgress = (batchJob.completedCount / batchJob.totalCount) * 65;
+        const totalProgress = Math.min(baseProgress + processingProgress, 95);
+
+        onProgress?.(totalProgress, batchJobId);
+
+        if (batchJob.status === 'COMPLETED') {
+          onProgress?.(100, batchJobId);
+
+          // Get download URLs for all completed jobs
+          const downloadUrls = await Promise.all(
+            childJobIds.map(jobId => `${this.baseUrl}/download/${jobId}`)
+          );
+
+          return downloadUrls;
+        }
+
+        if (batchJob.status === 'FAILED') {
+          throw new Error(batchJob.error || 'Batch processing failed');
+        }
+
+        // Wait before next poll
+        await new Promise((resolve) => setTimeout(resolve, pollInterval));
+      } catch (error) {
+        if (attempt === maxAttempts - 1) {
+          throw error;
+        }
+        // Continue polling on temporary errors
+        await new Promise((resolve) => setTimeout(resolve, pollInterval));
+      }
+    }
+
+    throw new Error('Batch processing timeout - please check job status later');
+  }
+
+  // Device token registration
+  async registerDeviceToken(
+    expoPushToken: string,
+    platform: 'ios' | 'android',
+    deviceId: string
+  ): Promise<{ success: boolean; message: string }> {
+    const requestBody = DeviceTokenRegistrationSchema.parse({
+      expoPushToken,
+      platform,
+      deviceId,
+    });
+
+    const response = await this.makeRequest('/device-token', {
+      method: 'POST',
+      body: JSON.stringify(requestBody),
+    });
+
+    const data = await response.json();
+    return DeviceTokenResponseSchema.parse(data);
+  }
+
+  async deactivateDeviceToken(deviceId: string): Promise<{ success: boolean; message: string }> {
+    const response = await this.makeRequest(`/device-token?deviceId=${encodeURIComponent(deviceId)}`, {
+      method: 'DELETE',
+    });
+
+    const data = await response.json();
+    return DeviceTokenResponseSchema.parse(data);
   }
 
   // Utility method for testing API connectivity

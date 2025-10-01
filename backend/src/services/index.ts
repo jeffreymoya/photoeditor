@@ -5,3 +5,4 @@ export * from './notification.service';
 export * from './presign.service';
 export * from './config.service';
 export * from './bootstrap.service';
+export * from './deviceToken.service';

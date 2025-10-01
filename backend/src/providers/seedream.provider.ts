@@ -41,13 +41,13 @@ export class SeedreamProvider extends BaseProvider implements EditingProvider {
         throw new Error(`Seedream API error: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as any;
 
       if (!data.edited_image_url) {
         throw new Error('No edited image URL returned from Seedream');
       }
 
-      return {
+      const transformed: SeedreamEditingResponse = {
         editedImageUrl: data.edited_image_url,
         processingTime: data.processing_time,
         metadata: {
@@ -57,8 +57,10 @@ export class SeedreamProvider extends BaseProvider implements EditingProvider {
           dimensions: data.dimensions,
           credits_used: data.credits_used
         }
-      } as SeedreamEditingResponse;
-    }, 'editImage');
+      };
+
+      return transformed;
+    });
   }
 
   getName(): string {

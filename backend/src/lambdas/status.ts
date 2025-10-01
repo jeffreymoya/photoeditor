@@ -1,6 +1,6 @@
 import { APIGatewayProxyEventV2, APIGatewayProxyResultV2, Context } from 'aws-lambda';
 import { Logger } from '@aws-lambda-powertools/logger';
-import { Metrics } from '@aws-lambda-powertools/metrics';
+import { Metrics, MetricUnits } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { JobService } from '../services';
 
@@ -21,11 +21,13 @@ async function initializeServices(): Promise<void> {
 
 export const handler = async (
   event: APIGatewayProxyEventV2,
-  context: Context
+  _context: Context
 ): Promise<APIGatewayProxyResultV2> => {
   const segment = tracer.getSegment();
   const subsegment = segment?.addNewSubsegment('status-handler');
-  tracer.setSegment(subsegment);
+  if (subsegment) {
+    tracer.setSegment(subsegment);
+  }
 
   try {
     await initializeServices();
@@ -52,7 +54,7 @@ export const handler = async (
       };
     }
 
-    metrics.addMetric('JobStatusFetched', 'Count', 1);
+    metrics.addMetric('JobStatusFetched', MetricUnits.Count, 1);
 
     const response = {
       jobId: job.jobId,
@@ -72,7 +74,7 @@ export const handler = async (
 
   } catch (error) {
     logger.error('Error fetching job status', { error: error as Error });
-    metrics.addMetric('JobStatusError', 'Count', 1);
+    metrics.addMetric('JobStatusError', MetricUnits.Count, 1);
 
     return {
       statusCode: 500,
@@ -81,6 +83,8 @@ export const handler = async (
     };
   } finally {
     subsegment?.close();
-    tracer.setSegment(segment);
+    if (segment) {
+      tracer.setSegment(segment);
+    }
   }
 };

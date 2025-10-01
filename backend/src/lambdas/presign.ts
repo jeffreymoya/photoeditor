@@ -1,9 +1,9 @@
 import { APIGatewayProxyEventV2, APIGatewayProxyResultV2, Context } from 'aws-lambda';
 import { Logger } from '@aws-lambda-powertools/logger';
-import { Metrics } from '@aws-lambda-powertools/metrics';
+import { Metrics, MetricUnits } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { JobService, PresignService, S3Service, ConfigService, BootstrapService } from '../services';
-import { S3Config, PresignUploadRequest, PresignUploadRequestSchema } from '@photoeditor/shared';
+import { S3Config, PresignUploadRequestSchema, BatchUploadRequestSchema } from '@photoeditor/shared';
 
 const logger = new Logger();
 const metrics = new Metrics();
@@ -28,7 +28,8 @@ async function initializeServices(): Promise<void> {
     presignExpiration: 3600
   };
 
-  const jobService = new JobService(jobsTableName, region);
+  const batchTableName = process.env.BATCH_TABLE_NAME;
+  const jobService = new JobService(jobsTableName, region, batchTableName);
   const s3Service = new S3Service(s3Config);
   const configService = new ConfigService(region, projectName, environment);
 
@@ -41,11 +42,13 @@ async function initializeServices(): Promise<void> {
 
 export const handler = async (
   event: APIGatewayProxyEventV2,
-  context: Context
+  _context: Context
 ): Promise<APIGatewayProxyResultV2> => {
   const segment = tracer.getSegment();
   const subsegment = segment?.addNewSubsegment('presign-handler');
-  tracer.setSegment(subsegment);
+  if (subsegment) {
+    tracer.setSegment(subsegment);
+  }
 
   try {
     await initializeServices();
@@ -59,27 +62,51 @@ export const handler = async (
       };
     }
 
-    const userId = event.requestContext.authorizer?.claims?.sub || 'anonymous';
+    // For APIGatewayProxyEventV2, we need to get user from JWT claims differently
+    const userId = (event.requestContext as any)?.authorizer?.jwt?.claims?.sub || 'anonymous';
     const body = JSON.parse(event.body);
 
-    // Validate request body
-    const validatedRequest = PresignUploadRequestSchema.parse(body);
+    // Check if this is a batch upload request (has 'files' array) or single upload
+    if (Array.isArray(body.files)) {
+      // Batch upload
+      const validatedRequest = BatchUploadRequestSchema.parse(body);
 
-    logger.info('Generating presigned URL', { userId, fileName: validatedRequest.fileName });
+      logger.info('Generating batch presigned URLs', {
+        userId,
+        fileCount: validatedRequest.files.length,
+        sharedPrompt: validatedRequest.sharedPrompt
+      });
 
-    const response = await presignService.generatePresignedUpload(userId, validatedRequest);
+      const response = await presignService.generateBatchPresignedUpload(userId, validatedRequest);
 
-    metrics.addMetric('PresignedUrlGenerated', 'Count', 1);
+      metrics.addMetric('BatchPresignedUrlsGenerated', MetricUnits.Count, 1);
+      metrics.addMetric('FilesInBatch', MetricUnits.Count, validatedRequest.files.length);
 
-    return {
-      statusCode: 200,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(response)
-    };
+      return {
+        statusCode: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(response)
+      };
+    } else {
+      // Single upload (backward compatibility)
+      const validatedRequest = PresignUploadRequestSchema.parse(body);
+
+      logger.info('Generating presigned URL', { userId, fileName: validatedRequest.fileName });
+
+      const response = await presignService.generatePresignedUpload(userId, validatedRequest);
+
+      metrics.addMetric('PresignedUrlGenerated', MetricUnits.Count, 1);
+
+      return {
+        statusCode: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(response)
+      };
+    }
 
   } catch (error) {
     logger.error('Error generating presigned URL', { error: error as Error });
-    metrics.addMetric('PresignedUrlError', 'Count', 1);
+    metrics.addMetric('PresignedUrlError', MetricUnits.Count, 1);
 
     return {
       statusCode: 500,
@@ -88,6 +115,8 @@ export const handler = async (
     };
   } finally {
     subsegment?.close();
-    tracer.setSegment(segment);
+    if (segment) {
+      tracer.setSegment(segment);
+    }
   }
 };

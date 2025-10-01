@@ -1,4 +1,4 @@
-import { SeedreamEditingRequest, SeedreamEditingResponse, ProviderResponse } from '@photoeditor/shared';
+import { SeedreamEditingRequest, ProviderResponse } from '@photoeditor/shared';
 
 export interface EditingProvider {
   editImage(request: SeedreamEditingRequest): Promise<ProviderResponse>;

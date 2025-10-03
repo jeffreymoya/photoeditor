@@ -1,0 +1,18 @@
+#!/bin/sh
+set -e
+
+echo "Running pre-commit checks..."
+
+# Check Terraform formatting
+echo "Checking Terraform formatting..."
+terraform fmt -recursive -check infrastructure/
+
+# Run typecheck for backend
+echo "Running typecheck for backend..."
+npm run typecheck --prefix backend
+
+# Run typecheck for shared
+echo "Running typecheck for shared..."
+npm run typecheck --prefix shared
+
+echo "All pre-commit checks passed!"

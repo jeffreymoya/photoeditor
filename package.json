@@ -7,10 +7,12 @@
     "stage:a:lint": "npm run lint --prefix backend && npm run lint --prefix mobile && npm run lint --prefix shared",
     "stage:a:dependencies": "dependency-cruiser backend/src shared mobile/src --config tooling/dependency-rules.json",
     "stage:a:dead-exports": "ts-prune -p backend/tsconfig.json && ts-prune -p mobile/tsconfig.json && ts-prune -p shared/tsconfig.json",
-    "stage:a:duplication": "jscpd --threshold 5 backend/src mobile/src shared"
+    "stage:a:duplication": "jscpd --threshold 5 backend/src mobile/src shared",
+    "prepare": "husky"
   },
   "devDependencies": {
     "dependency-cruiser": "^17.0.1",
+    "husky": "^9.1.7",
     "jscpd": "^4.0.5",
     "ts-prune": "^0.10.3",
     "typescript": "^5.3.0"

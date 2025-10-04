@@ -16,25 +16,25 @@ output "api_gateway_id" {
 # S3 outputs
 output "temp_bucket_name" {
   description = "Name of the temporary S3 bucket"
-  value       = aws_s3_bucket.temp_bucket.bucket
+  value       = module.s3.temp_bucket_name
   sensitive   = false
 }
 
 output "final_bucket_name" {
   description = "Name of the final S3 bucket"
-  value       = aws_s3_bucket.final_bucket.bucket
+  value       = module.s3.final_bucket_name
   sensitive   = false
 }
 
 output "temp_bucket_arn" {
   description = "ARN of the temporary S3 bucket"
-  value       = aws_s3_bucket.temp_bucket.arn
+  value       = module.s3.temp_bucket_arn
   sensitive   = false
 }
 
 output "final_bucket_arn" {
   description = "ARN of the final S3 bucket"
-  value       = aws_s3_bucket.final_bucket.arn
+  value       = module.s3.final_bucket_arn
   sensitive   = false
 }
 
@@ -54,25 +54,25 @@ output "jobs_table_arn" {
 # SQS outputs
 output "queue_url" {
   description = "URL of the SQS processing queue"
-  value       = aws_sqs_queue.processing.id
+  value       = module.sqs.queue_url
   sensitive   = false
 }
 
 output "queue_arn" {
   description = "ARN of the SQS processing queue"
-  value       = aws_sqs_queue.processing.arn
+  value       = module.sqs.queue_arn
   sensitive   = false
 }
 
 output "dlq_url" {
   description = "URL of the SQS dead letter queue"
-  value       = aws_sqs_queue.dlq.id
+  value       = module.sqs.dlq_url
   sensitive   = false
 }
 
 output "dlq_arn" {
   description = "ARN of the SQS dead letter queue"
-  value       = aws_sqs_queue.dlq.arn
+  value       = module.sqs.dlq_arn
   sensitive   = false
 }
 
@@ -100,7 +100,7 @@ output "lambda_function_names" {
 # SNS outputs
 output "sns_topic_arn" {
   description = "ARN of the SNS topic"
-  value       = aws_sns_topic.notifications.arn
+  value       = module.sns.topic_arn
   sensitive   = false
 }
 
@@ -108,17 +108,17 @@ output "sns_topic_arn" {
 output "environment_config" {
   description = "Environment configuration for mobile app"
   value = {
-    region           = var.region
-    environment      = var.environment
-    api_url          = "http://localhost:4566/restapis/${aws_api_gateway_rest_api.api.id}/dev/_user_request_"
-    temp_bucket      = aws_s3_bucket.temp_bucket.bucket
-    final_bucket     = aws_s3_bucket.final_bucket.bucket
-    jobs_table       = aws_dynamodb_table.jobs.name
-    queue_url        = aws_sqs_queue.processing.id
-    sns_topic        = aws_sns_topic.notifications.arn
-    aws_endpoint_url = "http://localhost:4566"
-    gemini_endpoint  = var.gemini_api_endpoint
-    seedream_endpoint = var.seedream_api_endpoint
+    region                = var.region
+    environment           = var.environment
+    api_url               = "http://localhost:4566/restapis/${aws_api_gateway_rest_api.api.id}/dev/_user_request_"
+    temp_bucket           = module.s3.temp_bucket_name
+    final_bucket          = module.s3.final_bucket_name
+    jobs_table            = aws_dynamodb_table.jobs.name
+    queue_url             = module.sqs.queue_url
+    sns_topic             = module.sns.topic_arn
+    aws_endpoint_url      = "http://localhost:4566"
+    gemini_endpoint       = var.gemini_api_endpoint
+    seedream_endpoint     = var.seedream_api_endpoint
     enable_stub_providers = var.enable_stub_providers
   }
   sensitive = false

@@ -7,11 +7,11 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { store } from '@/store';
 import { AppNavigator } from '@/navigation/AppNavigator';
-import { NotificationService } from '@/services/NotificationService';
+import { notificationService } from '@/services/NotificationService';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 // Initialize notification service
-NotificationService.initialize();
+notificationService.initialize();
 
 export default function App() {
   return (

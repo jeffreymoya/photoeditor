@@ -51,6 +51,12 @@ variable "abort_multipart_days" {
   default     = 7
 }
 
+variable "enable_lifecycle_configuration" {
+  description = "Whether lifecycle rules should be configured on buckets"
+  type        = bool
+  default     = true
+}
+
 variable "tags" {
   description = "Tags to apply to resources"
   type        = map(string)

@@ -1,0 +1,14 @@
+{
+  "plugins": ["jest"],
+  "overrides": [
+    {
+      "files": ["**/*.{test,spec}.{ts,tsx,js}"],
+      "extends": ["plugin:jest/recommended"],
+      "rules": {
+        "jest/no-focused-tests": "error",
+        "jest/no-disabled-tests": "warn",
+        "jest/valid-expect": "error"
+      }
+    }
+  ]
+}

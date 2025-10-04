@@ -7,7 +7,7 @@ export interface NotificationPayload {
   status: JobStatusType;
   message: string;
   timestamp: string;
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
 }
 
 export interface FCMNotification {

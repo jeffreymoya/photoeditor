@@ -15,6 +15,7 @@ enable_dynamodb_endpoint = false
 temp_bucket_retention_days   = 1
 final_bucket_transition_days = 30
 abort_multipart_days        = 1
+enable_s3_lifecycle         = false
 
 # DynamoDB Configuration
 job_ttl_days         = 7

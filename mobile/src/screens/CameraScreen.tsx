@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
-  Dimensions,
 } from 'react-native';
 import { Camera, CameraType } from 'expo-camera';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,8 +13,6 @@ import * as ImagePicker from 'expo-image-picker';
 
 import { useAppDispatch } from '@/store';
 import { addSelectedImage } from '@/store/slices/imageSlice';
-
-const { width: screenWidth } = Dimensions.get('window');
 
 export const CameraScreen = ({ navigation }: any) => {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
@@ -56,7 +53,7 @@ export const CameraScreen = ({ navigation }: any) => {
 
         dispatch(addSelectedImage(imageAsset));
         navigation.navigate('Edit');
-      } catch (error) {
+      } catch {
         Alert.alert('Error', 'Failed to take picture');
       }
     }
@@ -101,7 +98,7 @@ export const CameraScreen = ({ navigation }: any) => {
   if (hasPermission === false) {
     return (
       <SafeAreaView style={styles.permissionContainer}>
-        <Ionicons name="camera-off" size={64} color="#86868b" />
+        <Ionicons name="camera-outline" size={64} color="#86868b" />
         <Text style={styles.permissionTitle}>Camera access needed</Text>
         <Text style={styles.permissionText}>
           Please enable camera permission in settings to take photos

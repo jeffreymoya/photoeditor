@@ -44,46 +44,87 @@ export class BootstrapService {
 
       factory.initialize(config);
     } else {
-      // Use real providers with configuration from SSM
-      const [geminiApiKey, seedreamApiKey, geminiEndpoint, seedreamEndpoint] = await Promise.all([
-        this.configService.getGeminiApiKey(),
-        this.configService.getSeedreamApiKey(),
-        this.configService.getGeminiEndpoint(),
-        this.configService.getSeedreamEndpoint()
+      // Fetch provider names from SSM
+      const [analysisProviderName, editingProviderName] = await Promise.all([
+        this.configService.getAnalysisProviderName(),
+        this.configService.getEditingProviderName()
       ]);
 
-      if (!geminiApiKey || !seedreamApiKey) {
-        throw new Error('Provider API keys not configured in SSM');
+      // Validate provider names
+      const validAnalysisProviders = ['gemini'];
+      const validEditingProviders = ['seedream'];
+
+      if (!validAnalysisProviders.includes(analysisProviderName)) {
+        throw new Error(
+          `Invalid analysis provider: ${analysisProviderName}. Valid options: ${validAnalysisProviders.join(', ')}`
+        );
       }
 
+      if (!validEditingProviders.includes(editingProviderName)) {
+        throw new Error(
+          `Invalid editing provider: ${editingProviderName}. Valid options: ${validEditingProviders.join(', ')}`
+        );
+      }
+
+      // Fetch provider configurations based on selected providers
       const config: ProviderFactoryConfig = {
-        analysis: {
-          provider: 'gemini',
-          config: {
-            name: 'Gemini',
-            baseUrl: geminiEndpoint || 'https://generativelanguage.googleapis.com',
-            apiKey: geminiApiKey,
-            timeout: 30000,
-            retries: 3,
-            enabled: true
-          } as ProviderConfig
-        },
-        editing: {
-          provider: 'seedream',
-          config: {
-            name: 'Seedream',
-            baseUrl: seedreamEndpoint || 'https://api.seedream.com',
-            apiKey: seedreamApiKey,
-            timeout: 60000,
-            retries: 3,
-            enabled: true
-          } as ProviderConfig
-        }
+        analysis: await this.getAnalysisProviderConfig(analysisProviderName as 'gemini'),
+        editing: await this.getEditingProviderConfig(editingProviderName as 'seedream')
       };
 
       factory.initialize(config);
     }
 
     return factory;
+  }
+
+  private async getAnalysisProviderConfig(
+    provider: 'gemini'
+  ): Promise<{ provider: 'gemini'; config: ProviderConfig }> {
+    const [apiKey, endpoint] = await Promise.all([
+      this.configService.getGeminiApiKey(),
+      this.configService.getGeminiEndpoint()
+    ]);
+
+    if (!apiKey) {
+      throw new Error(`${provider} API key not configured in SSM`);
+    }
+
+    return {
+      provider,
+      config: {
+        name: 'Gemini',
+        baseUrl: endpoint || 'https://generativelanguage.googleapis.com',
+        apiKey,
+        timeout: 30000,
+        retries: 3,
+        enabled: true
+      } as ProviderConfig
+    };
+  }
+
+  private async getEditingProviderConfig(
+    provider: 'seedream'
+  ): Promise<{ provider: 'seedream'; config: ProviderConfig }> {
+    const [apiKey, endpoint] = await Promise.all([
+      this.configService.getSeedreamApiKey(),
+      this.configService.getSeedreamEndpoint()
+    ]);
+
+    if (!apiKey) {
+      throw new Error(`${provider} API key not configured in SSM`);
+    }
+
+    return {
+      provider,
+      config: {
+        name: 'Seedream',
+        baseUrl: endpoint || 'https://api.seedream.com',
+        apiKey,
+        timeout: 60000,
+        retries: 3,
+        enabled: true
+      } as ProviderConfig
+    };
   }
 }

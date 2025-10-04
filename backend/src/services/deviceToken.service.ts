@@ -46,8 +46,8 @@ export class DeviceTokenService {
 
     try {
       await this.client.send(command);
-    } catch (error: any) {
-      if (error.name === 'ConditionalCheckFailedException') {
+    } catch (error: unknown) {
+      if ((error as { name: string }).name === 'ConditionalCheckFailedException') {
         // Device already exists, update it instead
         return this.updateDeviceToken(userId, registration);
       }

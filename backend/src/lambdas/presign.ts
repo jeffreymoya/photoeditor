@@ -63,7 +63,9 @@ export const handler = async (
     }
 
     // For APIGatewayProxyEventV2, we need to get user from JWT claims differently
-    const userId = (event.requestContext as any)?.authorizer?.jwt?.claims?.sub || 'anonymous';
+    interface JWTClaims { sub?: string; [key: string]: unknown; }
+    interface JWTAuthorizer { jwt?: { claims?: JWTClaims; }; }
+    const userId = ((event.requestContext as { authorizer?: JWTAuthorizer }).authorizer?.jwt?.claims?.sub) || 'anonymous';
     const body = JSON.parse(event.body);
 
     // Check if this is a batch upload request (has 'files' array) or single upload

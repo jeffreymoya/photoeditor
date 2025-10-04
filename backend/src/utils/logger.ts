@@ -6,6 +6,13 @@ export interface LogContext {
   userId?: string;
   operation?: string;
   correlationId?: string;
+  timestamp?: string;
+  event?: string;
+  duration?: number;
+  previousStatus?: string;
+  newStatus?: string;
+  provider?: string;
+  success?: boolean;
 }
 
 export interface ErrorContext extends LogContext {
@@ -19,9 +26,10 @@ class AppLogger {
   private logger: Logger;
 
   constructor() {
+    const logLevel = process.env.LOG_LEVEL || 'INFO';
     this.logger = new Logger({
       serviceName: 'photo-editor-backend',
-      logLevel: process.env.LOG_LEVEL || 'INFO',
+      logLevel: logLevel as 'DEBUG' | 'INFO' | 'WARN' | 'ERROR',
       persistentLogAttributes: {
         environment: process.env.NODE_ENV || 'development',
         version: process.env.APP_VERSION || '1.0.0'
@@ -59,7 +67,7 @@ class AppLogger {
       operation,
       timestamp: new Date().toISOString(),
       event: 'request_start'
-    });
+    } as LogContext);
   }
 
   requestEnd(operation: string, duration: number, context?: LogContext): void {
@@ -69,7 +77,7 @@ class AppLogger {
       duration,
       timestamp: new Date().toISOString(),
       event: 'request_end'
-    });
+    } as LogContext);
   }
 
   jobStatusChange(
@@ -84,7 +92,7 @@ class AppLogger {
       previousStatus,
       newStatus,
       event: 'job_status_change'
-    });
+    } as LogContext);
   }
 
   providerCall(
@@ -111,7 +119,7 @@ class AppLogger {
     }
   }
 
-  private formatContext(context?: LogContext): Record<string, any> {
+  private formatContext(context?: LogContext): Record<string, unknown> {
     if (!context) return {};
 
     return Object.entries(context).reduce((acc, [key, value]) => {
@@ -119,10 +127,10 @@ class AppLogger {
         acc[key] = value;
       }
       return acc;
-    }, {} as Record<string, any>);
+    }, {} as Record<string, unknown>);
   }
 
-  private extractErrorInfo(error: Error | string): Record<string, any> {
+  private extractErrorInfo(error: Error | string): Record<string, unknown> {
     if (typeof error === 'string') {
       return { message: error };
     }
@@ -131,14 +139,22 @@ class AppLogger {
       name: error.name,
       message: error.message,
       stack: error.stack,
-      ...(error as any).cause && { cause: error.cause }
+      ...('cause' in error && error.cause !== undefined && { cause: error.cause })
     };
   }
 
   // Create child logger with persistent context
   child(persistentContext: LogContext): AppLogger {
     const childLogger = new AppLogger();
-    childLogger.logger = this.logger.child(persistentContext);
+    childLogger.logger = new Logger({
+      serviceName: 'photo-editor-backend',
+      logLevel: process.env.LOG_LEVEL as 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' || 'INFO',
+      persistentLogAttributes: {
+        environment: process.env.NODE_ENV || 'development',
+        version: process.env.APP_VERSION || '1.0.0',
+        ...this.formatContext(persistentContext)
+      }
+    });
     return childLogger;
   }
 }

@@ -145,7 +145,7 @@ export class S3Service {
     });
 
     const response = await this.client.send(getCommand);
-    const imageBuffer = await this.streamToBuffer(response.Body as any);
+    const imageBuffer = await this.streamToBuffer(response.Body as NodeJS.ReadableStream);
 
     // Optimize the image using Sharp
     const optimizedBuffer = await sharp(imageBuffer)
@@ -164,7 +164,7 @@ export class S3Service {
     await this.uploadObject(destBucket, destKey, optimizedBuffer, 'image/jpeg');
   }
 
-  private async streamToBuffer(stream: any): Promise<Buffer> {
+  private async streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
     const chunks: Buffer[] = [];
     return new Promise((resolve, reject) => {
       stream.on('data', (chunk: Buffer) => chunks.push(chunk));
@@ -189,7 +189,7 @@ export class S3Service {
       if (response.ContentType) result.contentType = response.ContentType;
       return result;
     } catch (error) {
-      if ((error as any).name === 'NoSuchKey') {
+      if ((error as { name: string }).name === 'NoSuchKey') {
         return null;
       }
       throw error;

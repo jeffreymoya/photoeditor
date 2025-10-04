@@ -50,6 +50,12 @@ variable "abort_multipart_days" {
   default     = 7
 }
 
+variable "enable_s3_lifecycle" {
+  description = "Toggle S3 lifecycle rules (disable for LocalStack compatibility)"
+  type        = bool
+  default     = true
+}
+
 # Lambda Configuration
 variable "lambda_timeout" {
   description = "Lambda function timeout in seconds"

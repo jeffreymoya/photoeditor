@@ -76,8 +76,9 @@ class ApiService {
   private baseUrl: string;
 
   constructor() {
-    // Default to development endpoint, can be changed in settings
-    this.baseUrl = 'https://api.photoeditor.dev';
+    // Default to development endpoint; allow override via Expo public env var
+    // The Makefile passes EXPO_PUBLIC_API_BASE_URL to point the app at LocalStack API
+    this.baseUrl = process.env.EXPO_PUBLIC_API_BASE_URL || 'https://api.photoeditor.dev';
   }
 
   async setBaseUrl(url: string) {
@@ -226,7 +227,7 @@ class ApiService {
 
   // Batch processing methods
   async requestBatchPresignedUrls(
-    files: Array<{ fileName: string; fileSize: number }>,
+    files: { fileName: string; fileSize: number }[],
     sharedPrompt: string,
     individualPrompts?: string[]
   ) {
@@ -256,7 +257,7 @@ class ApiService {
   }
 
   async processBatchImages(
-    images: Array<{ uri: string; fileName?: string; fileSize?: number }>,
+    images: { uri: string; fileName?: string; fileSize?: number }[],
     sharedPrompt: string,
     individualPrompts?: string[],
     onProgress?: (progress: number, batchJobId?: string) => void

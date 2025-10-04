@@ -41,7 +41,7 @@ export class SeedreamProvider extends BaseProvider implements EditingProvider {
         throw new Error(`Seedream API error: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
-      const data = await response.json() as any;
+      const data = await response.json() as { edited_image_url?: string, processing_time?: number, format?: string, quality?: string, dimensions?: unknown, credits_used?: number };
 
       if (!data.edited_image_url) {
         throw new Error('No edited image URL returned from Seedream');

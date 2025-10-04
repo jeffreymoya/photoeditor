@@ -1,0 +1,69 @@
+# Gitleaks configuration for photoeditor project
+# https://github.com/gitleaks/gitleaks
+
+title = "Gitleaks Security Configuration"
+
+# Rules define what patterns gitleaks will search for
+[extend]
+useDefault = true
+
+# Allowlist - exceptions for known false positives
+[allowlist]
+description = "Global allowlist for false positives"
+
+# Paths to ignore
+paths = [
+  '''backend/tests/fixtures/.*''',
+  '''.*\.test\.(ts|js)$''',
+  '''.*\.spec\.(ts|js)$''',
+  '''changelog/.*''',
+  '''docs/.*\.md$''',
+  '''README\.md''',
+  '''node_modules/.*''',
+  '''.npm-cache/.*''',
+  '''.*\.npm-cache/.*''',
+  '''backend/dist/.*''',
+  '''shared/dist/.*''',
+  '''mobile/dist/.*''',
+  '''build/.*''',
+  '''.terraform/.*''',
+  '''coverage/.*''',
+  '''.*\.tfstate$''',
+  '''.*\.tfstate\.backup$''',
+]
+
+# Regex patterns to ignore
+regexes = [
+  '''(example|sample|template|placeholder)''',
+  '''localstack''',
+  '''localhost:4566''',
+  '''127\.0\.0\.1:4566''',
+]
+
+# Commits to ignore (if needed, add specific commit SHAs)
+# commits = []
+
+# Custom rules for specific secrets
+[[rules]]
+id = "aws-access-key"
+description = "AWS Access Key ID"
+regex = '''(?i)(A3T[A-Z0-9]|AKIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|ASIA)[A-Z0-9]{16}'''
+tags = ["key", "AWS"]
+
+[[rules]]
+id = "aws-secret-key"
+description = "AWS Secret Access Key"
+regex = '''(?i)aws(.{0,20})?['\"][0-9a-zA-Z\/+]{40}['\"]'''
+tags = ["key", "AWS"]
+
+[[rules]]
+id = "github-token"
+description = "GitHub Personal Access Token"
+regex = '''ghp_[0-9a-zA-Z]{36}'''
+tags = ["key", "GitHub"]
+
+[[rules]]
+id = "generic-api-key"
+description = "Generic API Key"
+regex = '''(?i)(api[_-]?key|apikey|api[_-]?secret)['\"\s:=]+[0-9a-zA-Z\-_]{20,}'''
+tags = ["key", "API"]

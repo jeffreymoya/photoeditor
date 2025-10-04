@@ -1,6 +1,7 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
+  rootDir: '.',
   testMatch: [
     '<rootDir>/tests/**/*.test.js',
     '<rootDir>/tests/**/*.test.ts'
@@ -10,9 +11,17 @@ module.exports = {
     '!src/**/*.d.ts',
   ],
   coverageDirectory: 'coverage',
-  coverageReporters: ['text', 'lcov', 'html'],
+  coverageReporters: ['text', 'lcov', 'json'],
+  coverageThreshold: {
+    global: {
+      statements: 70,
+      branches: 60,
+      functions: 70,
+      lines: 70
+    }
+  },
   verbose: true,
-  testTimeout: 30000,
+  testTimeout: 10000, // Unit default; raise in integration suites only
 
   // Set up environment variables for tests
   setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],
@@ -24,13 +33,30 @@ module.exports = {
 
   // Transform configuration
   transform: {
-    '^.+\\.ts$': 'ts-jest',
+    '^.+\\.ts$': ['ts-jest', {
+      tsconfig: {
+        exactOptionalPropertyTypes: false,
+        rootDir: '.',
+        outDir: './dist'
+      }
+    }],
     '^.+\\.js$': 'babel-jest'
   },
 
   // Test patterns
   testPathIgnorePatterns: [
     '/node_modules/',
-    '/dist/'
+    '/dist/',
+    '<rootDir>/build/',
+    '/tmp/'
+  ],
+
+  // JUnit reporting for CI
+  reporters: [
+    'default',
+    ['jest-junit', {
+      outputDirectory: '<rootDir>/tmp/test-results',
+      outputName: 'junit.xml'
+    }]
   ]
 };

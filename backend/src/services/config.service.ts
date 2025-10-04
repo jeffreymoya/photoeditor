@@ -25,7 +25,7 @@ export class ConfigService {
       const response = await this.ssmClient.send(command);
       return response.Parameter?.Value || null;
     } catch (error) {
-      if ((error as any).name === 'ParameterNotFound') {
+      if ((error as { name: string }).name === 'ParameterNotFound') {
         return null;
       }
       throw error;
@@ -51,5 +51,15 @@ export class ConfigService {
 
   async getSeedreamEndpoint(): Promise<string | null> {
     return this.getParameter('seedream/endpoint');
+  }
+
+  async getAnalysisProviderName(): Promise<string> {
+    const providerName = await this.getParameter('providers/analysis');
+    return providerName || 'gemini'; // Default to 'gemini' if not set
+  }
+
+  async getEditingProviderName(): Promise<string> {
+    const providerName = await this.getParameter('providers/editing');
+    return providerName || 'seedream'; // Default to 'seedream' if not set
   }
 }

@@ -37,7 +37,7 @@ const TabNavigator = () => (
             iconName = focused ? 'settings' : 'settings-outline';
             break;
           default:
-            iconName = 'circle';
+            iconName = 'help-circle';
         }
 
         return <Ionicons name={iconName} size={size} color={color} />;

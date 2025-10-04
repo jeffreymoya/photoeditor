@@ -54,7 +54,7 @@ export class GeminiProvider extends BaseProvider implements AnalysisProvider {
         throw new Error(`Gemini API error: ${response.status} ${response.statusText}`);
       }
 
-      const data = await response.json() as any;
+      const data = await response.json() as { candidates?: Array<{ content: { parts: Array<{ text: string }> }, finishReason: string, safetyRatings?: unknown }> };
 
       if (!data.candidates || data.candidates.length === 0) {
         throw new Error('No analysis returned from Gemini');

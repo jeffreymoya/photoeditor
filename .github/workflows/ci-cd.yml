@@ -145,6 +145,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for gitleaks
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
@@ -158,6 +160,26 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: 'trivy-results.sarif'
+
+      - name: Run tfsec on infrastructure
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: infrastructure
+          soft_fail: false
+          format: sarif
+          sarif_file: tfsec-results.sarif
+
+      - name: Upload tfsec results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: tfsec-results.sarif
+
+      - name: Run gitleaks secret scanner
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
 
   # Deploy to development environment
   deploy-dev:

@@ -32,6 +32,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "temp" {
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "temp" {
+  count  = var.enable_lifecycle_configuration ? 1 : 0
   bucket = aws_s3_bucket.temp.id
 
   rule {
@@ -107,6 +108,7 @@ resource "aws_s3_bucket_versioning" "final" {
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "final" {
+  count  = var.enable_lifecycle_configuration ? 1 : 0
   bucket = aws_s3_bucket.final.id
 
   rule {
@@ -166,6 +168,7 @@ resource "aws_s3_bucket_public_access_block" "access_logs" {
 }
 
 resource "aws_s3_bucket_lifecycle_configuration" "access_logs" {
+  count  = var.enable_lifecycle_configuration ? 1 : 0
   bucket = aws_s3_bucket.access_logs.id
 
   rule {

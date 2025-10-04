@@ -12,6 +12,7 @@ region       = "us-east-1"
 temp_bucket_retention_days    = 2
 final_bucket_transition_days  = 30
 abort_multipart_days          = 7
+enable_s3_lifecycle          = true
 
 # Lambda Configuration
 lambda_timeout           = 300

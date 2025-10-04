@@ -18,11 +18,11 @@ import { useAppSelector } from '@/store';
 export const EditScreen = () => {
   const selectedImages = useAppSelector(state => state.image.selectedImages);
   const [prompt, setPrompt] = useState('');
-  const [individualPrompts, setIndividualPrompts] = useState<string[]>([]);
+  const [individualPrompts] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [resultUrls, setResultUrls] = useState<string[]>([]);
-  const [batchJobId, setBatchJobId] = useState<string | null>(null);
+  const [, setBatchJobId] = useState<string | null>(null);
 
   const selectImage = async () => {
     // Request permission
@@ -43,8 +43,9 @@ export const EditScreen = () => {
     const result = await ImagePicker.launchImageLibraryAsync(options);
 
     if (!result.canceled && result.assets[0]) {
-      setSelectedImage(result.assets[0].uri);
-      setResultUrl(null); // Reset result when selecting new image
+      // TODO: Dispatch action to Redux store to add image to selectedImages
+      // For now, image selection logic needs to be implemented via Redux actions
+      setResultUrls([]); // Reset results when selecting new image
     }
   };
 
@@ -83,8 +84,14 @@ export const EditScreen = () => {
         Alert.alert('Success', 'Your image has been processed successfully!');
       } else {
         // Batch processing
+        const mappedImages = selectedImages.map(img => ({
+          uri: img.uri,
+          fileName: img.fileName ?? undefined,
+          fileSize: img.fileSize ?? undefined,
+        }));
+
         const downloadUrls = await apiService.processBatchImages(
-          selectedImages,
+          mappedImages,
           prompt,
           individualPrompts.length > 0 ? individualPrompts : undefined,
           (progressValue, batchId) => {

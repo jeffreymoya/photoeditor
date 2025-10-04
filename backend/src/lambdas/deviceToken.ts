@@ -26,13 +26,16 @@ export const handler = async (
 ): Promise<APIGatewayProxyResultV2> => {
   const segment = tracer.getSegment();
   const subsegment = segment?.addNewSubsegment('device-token-handler');
-  tracer.setSegment(subsegment);
+  if (subsegment) {
+    tracer.setSegment(subsegment);
+  }
 
   try {
     await initializeServices();
 
     const httpMethod = event.requestContext.http.method;
-    const userId = event.requestContext.authorizer?.claims?.sub || 'anonymous';
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const userId = (event.requestContext as any).authorizer?.claims?.sub || 'anonymous';
 
     if (httpMethod === 'POST') {
       return await handleRegisterDeviceToken(event, userId);
@@ -57,7 +60,9 @@ export const handler = async (
     };
   } finally {
     subsegment?.close();
-    tracer.setSegment(segment);
+    if (segment) {
+      tracer.setSegment(segment);
+    }
   }
 };
 

@@ -15,7 +15,7 @@ provider "aws" {
   region                      = var.region
   access_key                  = "test"
   secret_key                  = "test"
-  s3_use_path_style          = true
+  s3_use_path_style           = true
   skip_credentials_validation = true
   skip_metadata_api_check     = true
   skip_requesting_account_id  = true
@@ -65,31 +65,61 @@ locals {
   api_name = "${local.common_name}-api"
 
   lambda_names = {
-    presign = "${local.common_name}-presign"
-    status  = "${local.common_name}-status"
-    worker  = "${local.common_name}-worker"
+    presign  = "${local.common_name}-presign"
+    status   = "${local.common_name}-status"
+    worker   = "${local.common_name}-worker"
+    download = "${local.common_name}-download"
   }
 }
 
-# For LocalStack, we'll create simplified resources without VPC complexities
+# KMS Module - Create KMS key for encryption
+module "kms" {
+  source = "./modules/kms"
 
-# S3 buckets (simplified for LocalStack)
-resource "aws_s3_bucket" "temp_bucket" {
-  bucket = local.temp_bucket_name
+  environment  = var.environment
+  project_name = var.project_name
+  description  = "KMS key for ${local.common_name} photo editor"
+
+  allowed_services = [
+    "s3.amazonaws.com",
+    "dynamodb.amazonaws.com",
+    "sqs.amazonaws.com",
+    "sns.amazonaws.com",
+    "lambda.amazonaws.com"
+  ]
+
+  tags = var.tags
 }
 
-resource "aws_s3_bucket" "final_bucket" {
-  bucket = local.final_bucket_name
+# S3 Module - Temp and Final buckets with encryption, lifecycle, logging
+module "s3" {
+  source = "./modules/s3"
+
+  environment       = var.environment
+  project_name      = var.project_name
+  common_name       = local.common_name
+  account_id        = local.account_id
+  temp_bucket_name  = local.temp_bucket_name
+  final_bucket_name = local.final_bucket_name
+  kms_key_id        = module.kms.key_id
+
+  temp_retention_days            = var.temp_bucket_retention_days
+  final_transition_days          = var.final_bucket_transition_days
+  abort_multipart_days           = var.abort_multipart_days
+  enable_lifecycle_configuration = var.enable_s3_lifecycle
+
+  tags = var.tags
 }
 
-# DynamoDB table
+# DynamoDB tables - kept inline for LocalStack schema compatibility
+# The module uses job_id but our code uses jobId
 resource "aws_dynamodb_table" "jobs" {
-  name           = local.jobs_table_name
-  billing_mode   = "PAY_PER_REQUEST"
-  hash_key       = "id"
+  name         = local.jobs_table_name
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "jobId"
 
   attribute {
-    name = "id"
+    name = "jobId"
     type = "S"
   }
 
@@ -101,7 +131,6 @@ resource "aws_dynamodb_table" "jobs" {
   tags = var.tags
 }
 
-# DynamoDB table for batch jobs (used by batch upload flow)
 resource "aws_dynamodb_table" "jobs_batches" {
   name         = "${local.jobs_table_name}-batches"
   billing_mode = "PAY_PER_REQUEST"
@@ -120,28 +149,40 @@ resource "aws_dynamodb_table" "jobs_batches" {
   tags = var.tags
 }
 
-# SQS queue
-resource "aws_sqs_queue" "processing" {
-  name                      = "${local.common_name}-processing"
-  visibility_timeout_seconds = var.sqs_visibility_timeout
-  message_retention_seconds = var.sqs_message_retention_days * 24 * 3600
+# SNS Module - Notifications topic
+module "sns" {
+  source = "./modules/sns"
+
+  environment  = var.environment
+  project_name = var.project_name
+  common_name  = local.common_name
+  kms_key_id   = module.kms.key_id
+
+  # LocalStack doesn't fully support mobile push notifications
+  ios_certificate_arn = ""
+  android_api_key     = ""
 
   tags = var.tags
 }
 
-# SQS DLQ
-resource "aws_sqs_queue" "dlq" {
-  name = "${local.common_name}-dlq"
+# SQS Module - Processing queue and DLQ with encryption
+module "sqs" {
+  source = "./modules/sqs"
+
+  environment  = var.environment
+  project_name = var.project_name
+  common_name  = local.common_name
+  account_id   = local.account_id
+  kms_key_id   = module.kms.key_id
+
+  visibility_timeout     = var.sqs_visibility_timeout
+  message_retention_days = var.sqs_message_retention_days
+  max_receive_count      = var.sqs_max_receive_count
+
   tags = var.tags
 }
 
-# SNS topic
-resource "aws_sns_topic" "notifications" {
-  name = "${local.common_name}-notifications"
-  tags = var.tags
-}
-
-# Lambda execution role
+# Lambda execution role - shared for LocalStack simplicity
 resource "aws_iam_role" "lambda_execution_role" {
   name = "${local.common_name}-lambda-execution-role"
 
@@ -185,8 +226,8 @@ resource "aws_iam_role_policy" "lambda_policy" {
           "s3:DeleteObject"
         ]
         Resource = [
-          "${aws_s3_bucket.temp_bucket.arn}/*",
-          "${aws_s3_bucket.final_bucket.arn}/*"
+          "${module.s3.temp_bucket_arn}/*",
+          "${module.s3.final_bucket_arn}/*"
         ]
       },
       {
@@ -208,11 +249,12 @@ resource "aws_iam_role_policy" "lambda_policy" {
         Action = [
           "sqs:SendMessage",
           "sqs:ReceiveMessage",
-          "sqs:DeleteMessage"
+          "sqs:DeleteMessage",
+          "sqs:GetQueueAttributes"
         ]
         Resource = [
-          aws_sqs_queue.processing.arn,
-          aws_sqs_queue.dlq.arn
+          module.sqs.queue_arn,
+          module.sqs.dlq_arn
         ]
       },
       {
@@ -220,28 +262,37 @@ resource "aws_iam_role_policy" "lambda_policy" {
         Action = [
           "sns:Publish"
         ]
-        Resource = aws_sns_topic.notifications.arn
+        Resource = module.sns.topic_arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameter",
+          "ssm:GetParameters"
+        ]
+        Resource = "arn:aws:ssm:*:*:parameter/${local.common_name}/*"
       }
     ]
   })
 }
 
-# Lambda functions
+# Lambda functions - kept inline for LocalStack compatibility
+# The lambda module uses archive_file which doesn't work with pre-built zips
 resource "aws_lambda_function" "presign" {
-  filename         = "../backend/dist/lambdas/presign/presign.zip"
-  function_name    = local.lambda_names.presign
-  role            = aws_iam_role.lambda_execution_role.arn
-  handler         = "presign.handler"
-  runtime         = "nodejs20.x"
-  timeout         = var.lambda_timeout
-  memory_size     = var.lambda_memory_size
+  filename      = "../backend/dist/lambdas/presign/presign.zip"
+  function_name = local.lambda_names.presign
+  role          = aws_iam_role.lambda_execution_role.arn
+  handler       = "presign.handler"
+  runtime       = "nodejs20.x"
+  timeout       = var.lambda_timeout
+  memory_size   = var.lambda_memory_size
 
   environment {
     variables = {
-      PROJECT_NAME     = var.project_name
-      NODE_ENV         = var.environment
-      TEMP_BUCKET_NAME  = aws_s3_bucket.temp_bucket.bucket
-      FINAL_BUCKET_NAME = aws_s3_bucket.final_bucket.bucket
+      PROJECT_NAME      = var.project_name
+      NODE_ENV          = var.environment
+      TEMP_BUCKET_NAME  = module.s3.temp_bucket_name
+      FINAL_BUCKET_NAME = module.s3.final_bucket_name
       JOBS_TABLE_NAME   = aws_dynamodb_table.jobs.name
     }
   }
@@ -250,18 +301,18 @@ resource "aws_lambda_function" "presign" {
 }
 
 resource "aws_lambda_function" "status" {
-  filename         = "../backend/dist/lambdas/status/status.zip"
-  function_name    = local.lambda_names.status
-  role            = aws_iam_role.lambda_execution_role.arn
-  handler         = "status.handler"
-  runtime         = "nodejs20.x"
-  timeout         = var.lambda_timeout
-  memory_size     = var.lambda_memory_size
+  filename      = "../backend/dist/lambdas/status/status.zip"
+  function_name = local.lambda_names.status
+  role          = aws_iam_role.lambda_execution_role.arn
+  handler       = "status.handler"
+  runtime       = "nodejs20.x"
+  timeout       = var.lambda_timeout
+  memory_size   = var.lambda_memory_size
 
   environment {
     variables = {
-      PROJECT_NAME   = var.project_name
-      NODE_ENV       = var.environment
+      PROJECT_NAME    = var.project_name
+      NODE_ENV        = var.environment
       JOBS_TABLE_NAME = aws_dynamodb_table.jobs.name
     }
   }
@@ -270,32 +321,54 @@ resource "aws_lambda_function" "status" {
 }
 
 resource "aws_lambda_function" "worker" {
-  filename         = "../backend/dist/lambdas/worker/worker.zip"
-  function_name    = local.lambda_names.worker
-  role            = aws_iam_role.lambda_execution_role.arn
-  handler         = "worker.handler"
-  runtime         = "nodejs20.x"
-  timeout         = var.lambda_timeout
-  memory_size     = var.lambda_memory_size
+  filename      = "../backend/dist/lambdas/worker/worker.zip"
+  function_name = local.lambda_names.worker
+  role          = aws_iam_role.lambda_execution_role.arn
+  handler       = "worker.handler"
+  runtime       = "nodejs20.x"
+  timeout       = var.lambda_timeout
+  memory_size   = var.lambda_memory_size
 
   environment {
     variables = {
-      PROJECT_NAME     = var.project_name
-      NODE_ENV         = var.environment
-      TEMP_BUCKET_NAME  = aws_s3_bucket.temp_bucket.bucket
-      FINAL_BUCKET_NAME = aws_s3_bucket.final_bucket.bucket
+      PROJECT_NAME      = var.project_name
+      NODE_ENV          = var.environment
+      TEMP_BUCKET_NAME  = module.s3.temp_bucket_name
+      FINAL_BUCKET_NAME = module.s3.final_bucket_name
       JOBS_TABLE_NAME   = aws_dynamodb_table.jobs.name
-      SNS_TOPIC_ARN     = aws_sns_topic.notifications.arn
+      SNS_TOPIC_ARN     = module.sns.topic_arn
     }
   }
 
   tags = var.tags
 }
 
-# API Gateway
+resource "aws_lambda_function" "download" {
+  filename      = "../backend/dist/lambdas/download/download.zip"
+  function_name = local.lambda_names.download
+  role          = aws_iam_role.lambda_execution_role.arn
+  handler       = "download.handler"
+  runtime       = "nodejs20.x"
+  timeout       = var.lambda_timeout
+  memory_size   = var.lambda_memory_size
+
+  environment {
+    variables = {
+      PROJECT_NAME      = var.project_name
+      NODE_ENV          = var.environment
+      TEMP_BUCKET_NAME  = module.s3.temp_bucket_name
+      FINAL_BUCKET_NAME = module.s3.final_bucket_name
+      JOBS_TABLE_NAME   = aws_dynamodb_table.jobs.name
+    }
+  }
+
+  tags = var.tags
+}
+
+# API Gateway - kept inline for LocalStack compatibility (REST API v1)
+# The api-gateway module uses HTTP API v2 which has different routing
 resource "aws_api_gateway_rest_api" "api" {
   name = local.api_name
-
   tags = var.tags
 }
 
@@ -345,7 +418,6 @@ resource "aws_api_gateway_integration" "status_integration" {
   uri                     = aws_lambda_function.status.invoke_arn
 }
 
-# Add /status/{jobId} resource so the status function can read the path parameter
 resource "aws_api_gateway_resource" "status_item" {
   rest_api_id = aws_api_gateway_rest_api.api.id
   parent_id   = aws_api_gateway_resource.status.id
@@ -369,15 +441,54 @@ resource "aws_api_gateway_integration" "status_item_integration" {
   uri                     = aws_lambda_function.status.invoke_arn
 }
 
+resource "aws_api_gateway_resource" "download" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  parent_id   = aws_api_gateway_rest_api.api.root_resource_id
+  path_part   = "download"
+}
+
+resource "aws_api_gateway_resource" "download_item" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  parent_id   = aws_api_gateway_resource.download.id
+  path_part   = "{jobId}"
+}
+
+resource "aws_api_gateway_method" "download_item_get" {
+  rest_api_id   = aws_api_gateway_rest_api.api.id
+  resource_id   = aws_api_gateway_resource.download_item.id
+  http_method   = "GET"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "download_item_integration" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  resource_id = aws_api_gateway_resource.download_item.id
+  http_method = aws_api_gateway_method.download_item_get.http_method
+
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.download.invoke_arn
+}
+
 resource "aws_api_gateway_deployment" "api_deployment" {
   depends_on = [
     aws_api_gateway_integration.presign_integration,
     aws_api_gateway_integration.status_integration,
     aws_api_gateway_integration.status_item_integration,
+    aws_api_gateway_integration.download_item_integration,
   ]
 
   rest_api_id = aws_api_gateway_rest_api.api.id
-  stage_name  = "dev"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_api_gateway_stage" "dev" {
+  deployment_id = aws_api_gateway_deployment.api_deployment.id
+  rest_api_id   = aws_api_gateway_rest_api.api.id
+  stage_name    = "dev"
 }
 
 # Lambda permissions for API Gateway
@@ -397,9 +508,17 @@ resource "aws_lambda_permission" "status_api_gateway" {
   source_arn    = "${aws_api_gateway_rest_api.api.execution_arn}/*/*"
 }
 
-# Allow S3 to send notifications to SQS and trigger the worker via SQS event source mapping
+resource "aws_lambda_permission" "download_api_gateway" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.download.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.api.execution_arn}/*/*"
+}
+
+# S3 to SQS notification
 resource "aws_sqs_queue_policy" "allow_s3_to_sqs" {
-  queue_url = aws_sqs_queue.processing.id
+  queue_url = module.sqs.queue_id
 
   policy = jsonencode({
     Version = "2012-10-17",
@@ -409,9 +528,9 @@ resource "aws_sqs_queue_policy" "allow_s3_to_sqs" {
         Effect    = "Allow",
         Principal = { Service = "s3.amazonaws.com" },
         Action    = "sqs:SendMessage",
-        Resource  = aws_sqs_queue.processing.arn,
+        Resource  = module.sqs.queue_arn,
         Condition = {
-          ArnLike = { "aws:SourceArn" = aws_s3_bucket.temp_bucket.arn }
+          ArnLike = { "aws:SourceArn" = module.s3.temp_bucket_arn }
         }
       }
     ]
@@ -419,10 +538,10 @@ resource "aws_sqs_queue_policy" "allow_s3_to_sqs" {
 }
 
 resource "aws_s3_bucket_notification" "temp_bucket_notification" {
-  bucket = aws_s3_bucket.temp_bucket.id
+  bucket = module.s3.temp_bucket_id
 
   queue {
-    queue_arn     = aws_sqs_queue.processing.arn
+    queue_arn     = module.sqs.queue_arn
     events        = ["s3:ObjectCreated:*"]
     filter_prefix = "temp/"
   }
@@ -430,8 +549,9 @@ resource "aws_s3_bucket_notification" "temp_bucket_notification" {
   depends_on = [aws_sqs_queue_policy.allow_s3_to_sqs]
 }
 
+# Lambda event source mapping for SQS
 resource "aws_lambda_event_source_mapping" "sqs_trigger" {
-  event_source_arn                   = aws_sqs_queue.processing.arn
+  event_source_arn                   = module.sqs.queue_arn
   function_name                      = aws_lambda_function.worker.arn
   batch_size                         = 1
   maximum_batching_window_in_seconds = 1
@@ -439,7 +559,7 @@ resource "aws_lambda_event_source_mapping" "sqs_trigger" {
   depends_on = [aws_lambda_function.worker]
 }
 
-# SSM Parameters
+# SSM Parameters for provider configuration
 resource "aws_ssm_parameter" "gemini_api_key" {
   name  = "/${local.common_name}/gemini/api-key"
   type  = "SecureString"

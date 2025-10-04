@@ -37,7 +37,9 @@ export const handler = async (
 ): Promise<APIGatewayProxyResultV2> => {
   const segment = tracer.getSegment();
   const subsegment = segment?.addNewSubsegment('download-handler');
-  tracer.setSegment(subsegment);
+  if (subsegment) {
+    tracer.setSegment(subsegment);
+  }
 
   try {
     await initializeServices();
@@ -114,6 +116,8 @@ export const handler = async (
     };
   } finally {
     subsegment?.close();
-    tracer.setSegment(segment);
+    if (segment) {
+      tracer.setSegment(segment);
+    }
   }
 };

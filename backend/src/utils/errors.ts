@@ -21,8 +21,8 @@ export class AppErrorBuilder {
       type: ErrorType.VALIDATION,
       code,
       message,
-      fieldErrors,
-      details,
+      ...(fieldErrors !== undefined && { fieldErrors }),
+      ...(details !== undefined && { details }),
       timestamp: new Date().toISOString(),
       requestId: uuidv4()
     };
@@ -42,8 +42,8 @@ export class AppErrorBuilder {
       code,
       message,
       retryable,
-      providerCode,
-      details,
+      ...(providerCode !== undefined && { providerCode }),
+      ...(details !== undefined && { details }),
       timestamp: new Date().toISOString(),
       requestId: uuidv4()
     };
@@ -59,8 +59,8 @@ export class AppErrorBuilder {
       type: ErrorType.INTERNAL_ERROR,
       code,
       message,
-      stack: error?.stack,
-      context,
+      ...(error?.stack !== undefined && { stack: error.stack }),
+      ...(context !== undefined && { context }),
       timestamp: new Date().toISOString(),
       requestId: uuidv4()
     };
@@ -76,7 +76,7 @@ export class AppErrorBuilder {
       type,
       code,
       message,
-      details,
+      ...(details !== undefined && { details }),
       timestamp: new Date().toISOString(),
       requestId: uuidv4()
     };
@@ -128,7 +128,7 @@ export class ErrorHandler {
   }
 
   static getJobStatus(error: AppError): string | null {
-    return ERROR_JOB_STATUS[error.type] || null;
+    return ERROR_JOB_STATUS[error.type as keyof typeof ERROR_JOB_STATUS] || null;
   }
 
   static toApiResponse(error: AppError) {
@@ -165,8 +165,8 @@ export class ErrorHandler {
 
   static fromError(error: Error, context?: { operation?: string; userId?: string; jobId?: string }): AppError {
     // Try to extract structured error information
-    if ('type' in error && Object.values(ErrorType).includes((error as any).type)) {
-      return error as AppError;
+    if ('type' in error && Object.values(ErrorType).includes((error as Error & Record<'type', unknown>).type as ErrorType)) {
+      return error as unknown as AppError;
     }
 
     // Handle common AWS SDK errors

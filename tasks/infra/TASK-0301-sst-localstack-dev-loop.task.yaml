@@ -1,0 +1,216 @@
+schema_version: "1.0"
+id: TASK-0301
+title: "Establish SST live dev and LocalStack offline loops"
+status: todo
+priority: P1
+complexity: H
+area: infra
+
+description: >-
+  Phase 3 of docs/architecure-refactor-plan.md targets dual development loops: LocalStack for offline
+  emulation and SST for rapid live AWS testing. docs/rubric.md prioritizes portability and
+  maintainability, requiring reproducible environments, secrets bootstrapping via SSM/SSO stubs, and
+  documented observability entry points. Implement the SST app for dev, refine the LocalStack
+  docker-compose stack with seed scripts, wire Make targets, and capture CloudWatch dashboard/Logs
+  Insights examples so engineers can switch between offline and live workflows without manual steps.
+
+outcome: >-
+  `make emu-up` and `make emu-test` spin up LocalStack with seeded resources and SSM/SSO stub
+  secrets for deterministic backend tests, while `make live-dev` deploys the SST stack to a sandbox
+  account with <2s inner loop for the BFF Lambda and documents the resulting CloudWatch dashboards
+  and Logs Insights queries.
+
+scope:
+  in:
+    - infra/sst/**
+    - docker-compose.localstack.yml
+    - scripts/localstack-*.sh
+    - Makefile
+    - backend/package.json (dev scripts as needed)
+    - docs/e2e-tests.md
+    - docs/evidence/observability/**
+  out:
+    - Production Terraform stacks (covered separately)
+    - Mobile build pipelines beyond invoking backend endpoints
+
+context:
+  issues: []
+  related_docs:
+    - docs/architecure-refactor-plan.md
+    - docs/rubric.md
+    - docs/e2e-tests.md
+    - docs/testing-standards.md
+  repo_paths:
+    - docker-compose.localstack.yml
+    - scripts/localstack-setup.sh
+    - scripts/localstack-test.sh
+    - Makefile
+  dependencies:
+    - type: tool
+      name: sst
+      version: "2.x"
+    - type: service
+      name: docker
+      requirement: required
+    - type: service
+      name: aws
+      requirement: sandbox account credentials
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: npm
+      version: "9.x"
+    - name: bash
+      version: any
+    - name: docker
+      version: "24.x"
+    - name: aws-cli
+      version: "2.x"
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep LocalStack scripts deterministic per docs/testing-standards.md.
+    - Parameterize SST stack names to avoid collisions across developers.
+    - SST BFF Lambda must follow handlers → services → adapters layering (STANDARDS.md line 24).
+    - No handler imports @aws-sdk/* or DB clients (adapters only, STANDARDS.md line 32).
+    - Handlers ≤75 LOC and cyclomatic complexity ≤5 (warn ≥8, fail >10, STANDARDS.md lines 36-37).
+    - Services/Adapters ≤200 LOC and cyclomatic complexity ≤8 (warn ≥12, fail >15, STANDARDS.md line 38).
+    - All Lambda functions emit structured JSON logs with correlationId, traceId, requestId, jobId, userId, function, env, version (STANDARDS.md line 72).
+    - API Lambdas must stay outside VPC for cold start optimization (STANDARDS.md line 127).
+    - All S3 buckets must have SSE-KMS encryption (STANDARDS.md line 112).
+    - SQS queues must have DLQ configured with alarms on DLQ inflow >0 for 5m (STANDARDS.md lines 78, 80, 121).
+    - All resources tagged with Project, Env, Owner, CostCenter (STANDARDS.md line 44).
+  prohibited:
+    - Do not deploy SST stacks to shared prod accounts.
+    - Do not rely on ad-hoc manual AWS CLI steps in documentation.
+    - Direct SDK usage in handlers (violates hard fail, STANDARDS.md line 32).
+    - API Lambda VPC attachment (increases cold start, STANDARDS.md line 127).
+    - Breaking API changes without /v{n} versioning (STANDARDS.md line 87).
+    - Default exports in domain/service code (STANDARDS.md line 83).
+    - Secrets stored outside SSM SecureString or Secrets Manager (STANDARDS.md line 41).
+    - S3 buckets without KMS encryption in SST stack (STANDARDS.md line 112).
+    - SQS queues without DLQ configuration (STANDARDS.md line 121).
+
+plan:
+  - id: 1
+    title: Harden LocalStack compose stack
+    details: Ensure services, seed scripts, SSM/SSO stubs, and health checks align with backend expectations.
+    commands:
+      - docker compose -f docker-compose.localstack.yml config
+    expected_files_touched:
+      - docker-compose.localstack.yml
+      - scripts/localstack-setup.sh
+  - id: 2
+    title: Implement SST dev stack
+    details: Scaffold infra/sst app with BFF Lambda, API Gateway, S3/SQS/DDB resources mirroring prod minimal set.
+    commands:
+      - npx sst create
+    expected_files_touched:
+      - infra/sst/**
+  - id: 3
+    title: Create Make targets and npm scripts
+    details: Wire Makefile and package scripts for emu/live workflows with environment detection.
+    commands: []
+    expected_files_touched:
+      - Makefile
+      - backend/package.json
+  - id: 4
+    title: Document workflow, observability, and smoke tests
+    details: Update docs/e2e-tests.md and testing standards with instructions for switching between loops, secrets bootstrap, and capture CloudWatch dashboard/Logs Insights examples in docs/evidence/observability/.
+    commands: []
+    expected_files_touched:
+      - docs/e2e-tests.md
+      - docs/testing-standards.md
+      - docs/evidence/observability/**
+
+acceptance_criteria:
+  # LocalStack environment
+  - `make emu-up` provisions LocalStack with seeded buckets, queues, tables, and SSM/SSO stub secrets; `make emu-test` executes deterministic backend tests without manual tweaks.
+
+  # SST live dev environment
+  - `make live-dev` deploys SST stack that reuses shared contracts, outputs endpoints for smoke tests, and documents resulting CloudWatch dashboards/Logs Insights queries; teardown command is available.
+
+  # Architecture & layering (STANDARDS.md lines 24, 32, 36-38)
+  - BFF Lambda handlers are ≤75 LOC with cyclomatic complexity ≤5.
+  - Handlers follow pattern: handlers → services → adapters (no direct SDK usage in handlers).
+  - No handler files import @aws-sdk/* or database clients (verified by grep).
+  - Services and adapters are ≤200 LOC with cyclomatic complexity ≤8.
+
+  # Observability (STANDARDS.md lines 72, 78-81)
+  - All Lambda functions emit structured JSON logs with correlationId, traceId, requestId, jobId, userId, function, env, version.
+  - SST stack includes CloudWatch alarms for Lambda errors >0 for 5m, API 5XX >1% for 5m, SQS ApproximateAgeOfOldestMessage >120s, and DLQ inflow >0 for 5m.
+  - Log retention configured: Dev 14d (STANDARDS.md line 82).
+
+  # Infrastructure hard fails (STANDARDS.md lines 32, 41, 44, 112, 121, 127)
+  - API Lambdas remain outside VPC (no vpc_config in SST stack).
+  - All S3 buckets use SSE-KMS encryption with customer-managed keys.
+  - All SQS queues have DLQ configured with redrive policy (maxReceiveCount ≤3).
+  - All resources tagged with Project, Env, Owner, CostCenter.
+  - Secrets stored in SSM SecureString (LocalStack stub) or SSM Parameter Store (SST dev).
+
+  # Portability & documentation
+  - Documentation explains prerequisites, secrets bootstrap, commands, troubleshooting, and observability entry points in alignment with rubric portability expectations.
+  - All scripts and stacks run headless in CI/automation contexts (no interactive prompts).
+  - LocalStack seed scripts are idempotent and deterministic (per testing-standards.md).
+
+validation:
+  commands:
+    # LocalStack environment
+    - make emu-up
+    - make emu-test
+    - make emu-down
+
+    # SST live dev environment
+    - make live-dev
+    - make live-test
+    - make live-destroy
+
+    # Hard fail prevention (STANDARDS.md lines 32, 41, 44, 112, 121, 127)
+    - "! grep -r '@aws-sdk' backend/src/lambdas/ || echo 'FAIL: Handlers import @aws-sdk (hard fail)'"
+    - "! grep -r 'new DynamoDBClient\\|new S3Client\\|new SQSClient' backend/src/services/ || echo 'FAIL: Services construct SDK clients (hard fail)'"
+    - "grep -q 'encryption.*kms' infra/sst/**/*.ts || echo 'FAIL: S3 buckets missing KMS encryption'"
+    - "grep -q 'deadLetterQueue' infra/sst/**/*.ts || echo 'FAIL: SQS missing DLQ'"
+    - "! grep -A5 'new Function' infra/sst/**/*.ts | grep vpc || echo 'FAIL: API Lambda in VPC'"
+    - "grep -q 'Project.*Env.*Owner.*CostCenter' infra/sst/**/*.ts || echo 'FAIL: Missing cost tags'"
+
+    # Architecture complexity checks (STANDARDS.md lines 36-38)
+    - npm run lint -- --max-complexity=10 backend/src/lambdas/
+    - npm run lint -- --max-complexity=15 backend/src/services/ backend/src/adapters/
+
+    # Test coverage (testing-standards.md)
+    - npm run test:handlers -- --coverage --coverageThreshold='{"lines":80,"branches":70}'
+    - npm run test:services -- --coverage --coverageThreshold='{"lines":80,"branches":70}'
+
+    # Infrastructure validation (STANDARDS.md line 208)
+    - cd infra/sst && npx sst typecheck
+    - shellcheck scripts/localstack-*.sh
+
+  manual_checks:
+    - Verify LocalStack logs for deterministic startup order and absence of race conditions.
+    - Verify CloudWatch dashboards display metrics for deployed SST stack.
+    - Verify Logs Insights queries return structured JSON logs with correlationId.
+
+  artifacts:
+    - infra/sst/.sst/state
+    - docs/evidence/observability/cloudwatch-dashboard.png
+    - docs/evidence/observability/logs-insights-query.txt
+    - docs/evidence/complexity-report.json
+
+deliverables:
+  - infra/sst/**
+  - docker-compose.localstack.yml (updated)
+  - scripts/localstack-setup.sh / scripts/localstack-test.sh
+  - Makefile (updated)
+  - docs/e2e-tests.md / docs/testing-standards.md updates
+
+risks:
+  - description: SST deployments could drift from Terraform naming conventions.
+    mitigation: Parameterize resource names per plan and document mapping between SST and Terraform outputs.

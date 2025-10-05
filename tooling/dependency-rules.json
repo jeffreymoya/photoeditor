@@ -42,6 +42,40 @@
       "to": {
         "path": "^backend/src/providers"
       }
+    },
+    {
+      "name": "shared-package-framework-agnostic",
+      "severity": "error",
+      "comment": "Shared package must remain framework-agnostic (STANDARDS.md line 64).",
+      "from": {
+        "path": "^shared"
+      },
+      "to": {
+        "path": "^(react|react-native|@nestjs|express|@aws-sdk)"
+      }
+    },
+    {
+      "name": "mobile-no-cross-feature-imports",
+      "severity": "error",
+      "comment": "Mobile features must not import from each other; use shared/public APIs (STANDARDS.md line 52).",
+      "from": {
+        "path": "^mobile/src/features/([^/]+)"
+      },
+      "to": {
+        "path": "^mobile/src/features/(?!$1)[^/]+/(?!public)",
+        "pathNot": "^mobile/src/features/[^/]+/public"
+      }
+    },
+    {
+      "name": "no-lateral-imports",
+      "severity": "error",
+      "comment": "No lateral imports between layers (STANDARDS.md line 24).",
+      "from": {
+        "path": "^(backend/src|mobile/src)/(services|adapters|providers)/[^/]+"
+      },
+      "to": {
+        "path": "^\\1/\\2/(?!.*$)"
+      }
     }
   ],
   "options": {
@@ -54,6 +88,15 @@
     },
     "exclude": {
       "path": "dist|__tests__|\\.test\\.ts$|\\.spec\\.ts$"
+    },
+    "reporterOptions": {
+      "dot": {
+        "collapsePattern": "node_modules/[^/]+"
+      },
+      "metrics": {
+        "hideModules": true,
+        "hideFolders": true
+      }
     }
   }
 }

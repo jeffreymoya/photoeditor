@@ -1,0 +1,163 @@
+schema_version: "1.0"
+id: TASK-0106
+title: "Extract backend core library for shared Nest and worker wiring"
+status: in_progress
+priority: P1
+complexity: M
+area: backend
+
+description: >-
+  Phase 2 of docs/architecure-refactor-plan.md requires consolidating provider/config factories into
+  `backend/libs/core` so the Nest BFF and standalone workers stay in sync, aligning with the
+  maintainability and reusability criteria in docs/rubric.md. Current Lambda handlers duplicate AWS
+  client setup and provider selection logic, making it hard to enforce consistent retries, logging,
+  feature flag toggles, and idempotent worker behaviour. Extract reusable modules for AWS clients,
+  provider strategies (real + stub), job services, and idempotency/DLQ helpers, then rewire workers to
+  consume the shared core without pulling in Nest runtime code.
+
+outcome: >-
+  A `backend/libs/core` package exposes factories, provider strategies (real + stub), feature flag
+  toggles, and idempotency/DLQ helpers that both the Nest BFF and async Lambdas import, eliminating
+  duplicated wiring while enabling safe provider swaps from one place.
+
+scope:
+  in:
+    - backend/libs/core/**
+    - backend/libs/core/providers/**
+    - backend/libs/core/idempotency/**
+    - backend/src/lambdas/*.ts
+    - backend/workers/**
+    - backend/package.json (path mappings)
+    - tooling/dependency-rules.json
+    - backend/tests/** (unit/integration for core modules)
+  out:
+    - Business logic inside provider implementations (Gemini/Seedream behavior stays unchanged)
+    - Terraform or SST infrastructure code
+    - "Direct SDK usage in handlers (STANDARDS.md line 32, hard fail)"
+    - "Breaking API changes without /v{n} version bump (STANDARDS.md line 40)"
+    - "Nest DI runtime in workers (violates shared core purity)"
+    - "Feature flag implementations >90 days (STANDARDS.md line 90)"
+    - "Mutable singleton state in shared modules (STANDARDS.md line 59)"
+    - "Default exports in domain/service code (STANDARDS.md line 82)"
+
+context:
+  issues: []
+  related_docs:
+    - docs/architecure-refactor-plan.md
+    - docs/rubric.md
+    - docs/testing-standards.md
+  repo_paths:
+    - backend/src/lambdas/worker.ts
+    - backend/src/services/**
+    - backend/tests/unit/services/**
+  dependencies:
+    - type: package
+      name: @aws-sdk/client-s3
+      version: existing
+    - type: package
+      name: @aws-sdk/client-sqs
+      version: existing
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: npm
+      version: "9.x"
+    - name: bash
+      version: any
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep shared core free of Nest-specific dependencies to support workers.
+    - Ensure TypeScript path aliases and dependency rules satisfy docs/rubric.md modularity gates.
+    - "Handlers → services → adapters: no lateral imports, no cycles (STANDARDS.md line 24)"
+    - "No 'new' of SDK/DB clients in services/handlers; use adapter factories or DI (STANDARDS.md line 25)"
+    - "Handlers ≤75 LOC, cyclomatic complexity ≤5, fail >10 (STANDARDS.md line 36)"
+    - "Services/Adapters ≤200 LOC, cyclomatic complexity ≤8, fail >15 (STANDARDS.md line 37)"
+    - "Module complexity sum ≤50 (STANDARDS.md line 38)"
+    - "Structured logs with correlationId, traceId, requestId, jobId (STANDARDS.md line 71)"
+  prohibited:
+    - Do not introduce runtime coupling between BFF and workers (e.g., Nest DI in workers).
+    - Do not break existing tests without replacing coverage.
+    - "No handler imports @aws-sdk/* or DB clients (STANDARDS.md line 32, hard fail)"
+    - "No dependency cycles anywhere (STANDARDS.md line 24, hard fail)"
+    - "No singleton mutable state (STANDARDS.md line 59)"
+    - "No default exports in domain code (STANDARDS.md line 82)"
+    - "No construction of SDK/DB clients outside adapters (STANDARDS.md line 25, hard fail)"
+
+plan:
+  - id: 1
+    title: Inventory duplicated wiring
+    details: Locate repeated AWS client setup, provider selection, and config code across lambdas/workers.
+    commands:
+      - rg -n "Gemini" backend/src -g '*.ts'
+      - rg -n "Seedream" backend/src -g '*.ts'
+    expected_files_touched: []
+  - id: 2
+    title: Create shared core modules
+    details: Implement factories, configuration loaders, provider strategy interfaces (real + stub), feature flag toggles, and idempotency/DLQ helpers under backend/libs/core with strict exports.
+    commands: []
+    expected_files_touched:
+      - backend/libs/core/**
+  - id: 3
+    title: Rewire lambdas and workers
+    details: Update handlers to import from shared core modules, ensuring dependency rules still pass.
+    commands: []
+    expected_files_touched:
+      - backend/src/lambdas/*.ts
+      - backend/workers/**
+  - id: 4
+    title: Update tests and dependency enforcement
+    details: Adjust unit/integration tests and dependency-cruiser config to reflect new module boundaries per rubric.
+    commands: []
+    expected_files_touched:
+      - backend/tests/**
+      - tooling/dependency-rules.json
+
+acceptance_criteria:
+  - `backend/libs/core` exposes factories for AWS clients, provider strategies (real + stub), feature flag toggles, job services, and idempotency/DLQ helpers consumed by both BFF and workers.
+  - No Lambda handler instantiates AWS clients or provider adapters directly; all imports flow through shared core modules.
+  - Integration/unit tests cover provider swap behaviour (real↔stub) and worker idempotency/DLQ handling, and dependency rules/CI succeed with the new module layout.
+  - Provider swap configuration (real/stub/beta) lives in shared core with a single source of truth and has contract tests verifying payload compatibility.
+  - "Handlers ≤75 LOC and cyclomatic complexity ≤5 (STANDARDS.md line 36, hard fail >10)"
+  - "Services/Adapters ≤200 LOC and cyclomatic complexity ≤8 (STANDARDS.md line 37, hard fail >15)"
+  - "Module complexity sum ≤50 (STANDARDS.md line 38, hard fail)"
+  - "No handler imports @aws-sdk/* (STANDARDS.md line 32, verified by grep)"
+  - "dependency-cruiser passes: no cycles, no lateral imports, handlers→services→adapters enforced (STANDARDS.md line 24, 33)"
+  - "Shared core has no Nest-specific runtime dependencies (supports pure worker execution)"
+  - "Structured JSON logs with correlationId, traceId, requestId, jobId in all handlers/workers (STANDARDS.md line 71)"
+  - "Service layer test coverage: Lines ≥80%, Branch ≥70%, Mutation ≥60% (STANDARDS.md lines 98-100)"
+  - "Adapter layer test coverage: Lines ≥80%, Branch ≥70%, Mutation ≥60% (STANDARDS.md lines 99-100)"
+  - "Contract tests verify provider swap compatibility (old client ↔ new server, STANDARDS.md line 101)"
+  - "Idempotency tests demonstrate duplicate message handling with conditional writes (STANDARDS.md line 102)"
+  - "Fan-in ≤15, fan-out ≤12 per module (STANDARDS.md line 56)"
+  - "TSDoc coverage ≥70% for exported APIs (STANDARDS.md line 83)"
+  - "Each service/adapter README includes: Responsibility, Invariants, Edge-Cases, Local-Test, ADR links (STANDARDS.md line 83)"
+
+validation:
+  commands:
+    - npm run typecheck --prefix backend
+    - npm run lint --prefix backend
+    - npm run test:unit --prefix backend
+    - npm run test:integration --prefix backend -- shared-core
+  manual_checks:
+    - Review dependency-cruiser output to confirm layering is enforced.
+  artifacts:
+    - backend/libs/core/README.md (optional)
+
+deliverables:
+  - backend/libs/core/**
+  - backend/src/lambdas/*.ts (updated)
+  - backend/workers/** (updated)
+  - tooling/dependency-rules.json (updated)
+
+risks:
+  - description: Shared core abstraction errors could break worker runtime behavior.
+    mitigation: Keep changes incremental, add regression tests, and validate against LocalStack before merging.

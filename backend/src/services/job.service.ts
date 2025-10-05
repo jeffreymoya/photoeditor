@@ -2,16 +2,18 @@ import { DynamoDBClient, PutItemCommand, GetItemCommand, UpdateItemCommand, Quer
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { Job, JobStatus, JobStatusType, CreateJobRequest, APP_CONFIG, BatchJob, CreateBatchJobRequest } from '@photoeditor/shared';
 import { v4 as uuidv4 } from 'uuid';
+import { createDynamoDBClient } from '../libs/aws-clients';
 
 export class JobService {
   private client: DynamoDBClient;
   private tableName: string;
   private batchTableName: string;
 
-  constructor(tableName: string, region: string, batchTableName?: string) {
+  constructor(tableName: string, region: string, batchTableName?: string, client?: DynamoDBClient) {
     this.tableName = tableName;
     this.batchTableName = batchTableName || `${tableName}-batches`;
-    this.client = new DynamoDBClient({ region });
+    // Use provided client or create one via factory (STANDARDS.md line 26)
+    this.client = client || createDynamoDBClient(region);
   }
 
   async createJob(request: CreateJobRequest): Promise<Job> {

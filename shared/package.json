@@ -10,7 +10,8 @@
     "lint": "eslint {constants,schemas,types}/**/*.ts *.ts",
     "typecheck": "tsc --noEmit",
     "test": "jest",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "api-extractor": "api-extractor run --local --verbose"
   },
   "dependencies": {
     "zod": "^3.22.4"

@@ -2,12 +2,13 @@ import { S3Client, GetObjectCommand, PutObjectCommand, DeleteObjectCommand, Copy
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { S3Config, S3KeyStrategy, S3Object, PresignedUpload, APP_CONFIG } from '@photoeditor/shared';
 import sharp from 'sharp';
+import { createS3Client } from '../libs/aws-clients';
 
 export class S3KeyStrategyImpl implements S3KeyStrategy {
   generateTempKey(userId: string, jobId: string, fileName: string): string {
     const timestamp = Date.now();
     const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
-    return `temp/${userId}/${jobId}/${timestamp}-${sanitizedFileName}`;
+    return `uploads/${userId}/${jobId}/${timestamp}-${sanitizedFileName}`;
   }
 
   generateFinalKey(userId: string, jobId: string, fileName: string): string {
@@ -16,7 +17,7 @@ export class S3KeyStrategyImpl implements S3KeyStrategy {
   }
 
   parseTempKey(key: string): { userId: string; jobId: string; fileName: string } | null {
-    const match = key.match(/^temp\/([^/]+)\/([^/]+)\/\d+-(.+)$/);
+    const match = key.match(/^uploads\/([^/]+)\/([^/]+)\/\d+-(.+)$/);
     if (!match) return null;
 
     return {
@@ -43,9 +44,10 @@ export class S3Service {
   private config: S3Config;
   private keyStrategy: S3KeyStrategy;
 
-  constructor(config: S3Config) {
+  constructor(config: S3Config, client?: S3Client) {
     this.config = config;
-    this.client = new S3Client({ region: config.region });
+    // Use provided client or create one via factory (STANDARDS.md line 26)
+    this.client = client || createS3Client(config.region);
     this.keyStrategy = new S3KeyStrategyImpl();
   }
 

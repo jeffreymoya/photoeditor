@@ -15,11 +15,13 @@ module.exports = {
   ignorePatterns: ['dist', 'node_modules'],
   rules: {
     '@typescript-eslint/explicit-function-return-type': 'off',
-    '@typescript-eslint/no-explicit-any': 'warn',
+    '@typescript-eslint/no-explicit-any': 'error',
     '@typescript-eslint/no-unused-vars': [
       'error',
       { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }
-    ]
+    ],
+    'complexity': ['warn', { max: 10 }],
+    'max-lines-per-function': ['warn', { max: 200, skipBlankLines: true, skipComments: true }]
   },
   overrides: [
     {

@@ -1,0 +1,143 @@
+schema_version: "1.0"
+id: TASK-0501
+title: "Document runbooks and observability hardening for Stage 1"
+status: todo
+priority: P1
+complexity: M
+area: ops
+
+description: >-
+  Phase 5 of docs/architecure-refactor-plan.md calls for DLQ replay tooling, runbooks, observability
+  hardening, X-Ray traces, performance tuning, Stage 1 architecture/data/API docs, six ADRs, and the
+  scoring worksheet. docs/rubric.md requires operational readiness (structured logs, alarms,
+  runbooks, evidence) before exiting Stage 1. Create runbooks for DLQ drain, provider swap drills,
+  and alarm response; document CloudWatch dashboards/Logs Insights/X-Ray traces; capture performance
+  tuning results; and ensure architecture documentation, ADRs, and the Stage 1 scoring worksheet are
+  checked in.
+
+outcome: >-
+  On-call engineers can follow documented runbooks to replay DLQ jobs, toggle provider strategies via
+  SSM, interpret dashboards and X-Ray traces, confirm tuned performance baselines, and reference the
+  Stage 1 architecture/data/API docs, ADR set, and scoring worksheet with linked evidence.
+
+scope:
+  in:
+    - docs/ops/runbooks/**
+    - docs/evidence/**
+    - docs/architecure-refactor-plan.md (cross-reference updates)
+    - docs/rubric.md (link evidence)
+    - scripts/dlq-replay.sh (if needed)
+    - docs/architecture/**
+    - docs/data-model/**
+    - docs/api/**
+    - docs/adr/**
+    - docs/stage1-scoring.md
+  out:
+    - Terraform or SST changes (covered in other tasks)
+    - Mobile application changes
+
+context:
+  issues: []
+  related_docs:
+    - docs/architecure-refactor-plan.md
+    - docs/rubric.md
+    - docs/testing-standards.md
+    - docs/e2e-tests.md
+  repo_paths:
+    - docs/evidence/**
+    - docs/ops/**
+    - scripts/**
+  dependencies:
+    - type: tool
+      name: aws-cli
+      version: "2.x"
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: aws-cli
+      version: "2.x"
+    - name: bash
+      version: any
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep runbooks concise with numbered steps and verification checks per rubric analyzability.
+    - Include rollback procedures and Owner contact info where applicable.
+    - Document alarms per STANDARDS.md (Lambda Errors >0 for 5m, API 5XX >1%, SQS ApproximateAgeOfOldestMessage >120s, DLQ inflow >0).
+    - Capture structured log examples with correlationId, traceId, requestId, jobId, userId, function, env, version.
+    - Document W3C traceparent propagation end-to-end (mobile → API → worker → downstream).
+    - Include retention policies (Prod 90d, Staging 30d, Dev 14d).
+    - Ensure cost tags (Project, Env, Owner, CostCenter) are documented for all resources.
+  prohibited:
+    - Do not store secrets or account numbers in docs.
+    - Do not automate destructive actions without explicit safety checks.
+    - Do not recommend handler imports of @aws-sdk/* (adapters only).
+    - Do not place API Lambdas in VPC without ADR (cold start impact).
+
+plan:
+  - id: 1
+    title: Inventory required operational procedures
+    details: Review plan acceptance criteria and rubric to list needed runbooks/dashboards.
+    commands:
+      - rg -n "runbook" docs/architecure-refactor-plan.md
+    expected_files_touched: []
+  - id: 2
+    title: Draft DLQ replay and provider swap guides
+    details: Write scripted and manual steps covering SSM toggles, DLQ drains, validation tests, and capture supporting X-Ray dashboards and performance tuning notes.
+    commands: []
+    expected_files_touched:
+      - docs/ops/runbooks/dlq-replay.md
+      - docs/ops/runbooks/provider-swap.md
+      - scripts/dlq-replay.sh
+  - id: 3
+    title: Capture observability and performance evidence
+    details: Document CloudWatch dashboards, Logs Insights queries, X-Ray traces, latency/perf tuning baselines, and link artifacts in docs/evidence/.
+    commands: []
+    expected_files_touched:
+      - docs/evidence/observability/**
+  - id: 4
+    title: Publish architecture docs, ADRs, and scoring worksheet
+    details: Produce Stage 1 architecture/data/API docs, author/collect ≥6 ADRs covering the mandated topics, update the scoring worksheet, and cross-link rubric references so Stage 1 assessment includes new evidence.
+    commands: []
+    expected_files_touched:
+      - docs/architecture/**
+      - docs/data-model/**
+      - docs/api/**
+      - docs/adr/**
+      - docs/stage1-scoring.md
+      - docs/rubric.md
+      - docs/architecure-refactor-plan.md
+
+acceptance_criteria:
+  - Runbooks exist for DLQ replay, provider swap drill, and alarm triage with prerequisites, steps, validation, and point to supporting X-Ray/performance evidence.
+  - Scripts or commands referenced by runbooks are checked into `scripts/` and validated against sandbox/dev environments.
+  - Observability documentation captures CloudWatch dashboards, Logs Insights queries, X-Ray traces, and tuned latency/concurrency baselines in docs/evidence/.
+  - Stage 1 architecture diagram, data model, and API contract docs are published alongside ≥6 ADRs covering the required decisions and a completed Stage 1 scoring worksheet linked from rubric/plan references.
+
+validation:
+  commands:
+    - ./scripts/dlq-replay.sh --help
+    - aws cloudwatch describe-alarms --alarm-names <placeholder> || true
+  manual_checks:
+    - Tabletop run of provider swap drill following the documented steps.
+  artifacts:
+    - docs/evidence/observability/*.md
+
+deliverables:
+  - docs/ops/runbooks/dlq-replay.md
+  - docs/ops/runbooks/provider-swap.md
+  - scripts/dlq-replay.sh
+  - docs/evidence/observability/**
+  - docs/rubric.md (references updated)
+
+risks:
+  - description: Runbooks may become stale if infrastructure naming changes.
+    mitigation: Include owner/responsible party and review cadence notes inside each document.

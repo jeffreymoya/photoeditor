@@ -1,0 +1,279 @@
+schema_version: "1.0"
+id: TASK-0401
+title: "Enforce mobile layering and shared upload kit"
+status: todo
+priority: P1
+complexity: M
+area: mobile
+
+description: >-
+  Section 3.4 of docs/architecure-refactor-plan.md defines the mobile layering model (screens →
+  feature modules → shared UI → utilities/hooks) and mandates a resilient upload kit with retry,
+  offline persistence, and shared preprocessing. docs/rubric.md weights maintainability and
+  reusability, requiring shared upload primitives, lint guards, and deterministic offline behaviour.
+  The current mobile project mixes feature logic across folders, duplicates upload handling, and
+  lacks the documented resilience. Introduce eslint/import-boundary rules, refactor upload flows to
+  use a shared kit, and deliver the offline and preprocessing capabilities.
+
+outcome: >-
+  Mobile app imports follow the documented layering boundaries, shared upload primitives (with retry,
+  backoff, pause/resume, and network guards) are reused across all upload-capable screens, image
+  preprocessing is centralized, and offline persistence via `react-query` keeps upload and status
+  flows resilient across connectivity changes.
+
+scope:
+  in:
+    - mobile/app/screens/**
+    - mobile/app/features/**
+    - mobile/app/components/ui/**
+    - mobile/app/lib/**
+    - mobile/.eslintrc.js
+    - mobile/tsconfig.json
+    - tooling/dependency-rules.json (mobile section)
+    - mobile/app/features/upload/kit/**
+    - mobile/app/lib/upload/**
+    - mobile/package.json (test scripts and dependencies)
+  out:
+    - Backend or shared contract changes
+    - React Native navigation configuration beyond module boundaries
+    - Cross-feature imports (violates STANDARDS.md line 53)
+    - Deep imports into feature internals (use /public API only per STANDARDS.md line 26)
+    - Inline raw tokens (must use ui-tokens package per STANDARDS.md line 161)
+    - Circular dependencies (hard fail per STANDARDS.md line 33)
+    - Module complexity >50 sum CC (hard fail per STANDARDS.md line 38)
+    - Exceeding fan-in (>15) or fan-out (>12) limits (STANDARDS.md line 56)
+    - Manual-only tests without CI automation (testing-standards.md line 296)
+
+context:
+  issues: []
+  related_docs:
+    - docs/architecure-refactor-plan.md
+    - docs/rubric.md
+    - docs/testing-standards.md
+  repo_paths:
+    - mobile/.eslintrc.js
+    - mobile/app/**
+    - tooling/dependency-rules.json
+  dependencies:
+    - type: package
+      name: eslint-plugin-boundaries
+      version: latest compatible
+    - type: package
+      name: storybook
+      version: optional
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: npm
+      version: "9.x"
+    - name: bash
+      version: any
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Follow docs/rubric.md modularity anchors (no cross-feature imports, reuse UI primitives).
+    - Keep refactors incremental with adequate unit/component test coverage.
+    - Enforce STANDARDS.md mobile layering (screens → feature components → shared UI → hooks).
+    - No cross-feature imports; consume only feature /public API surfaces.
+    - Ban inline raw tokens; use ui-tokens package exclusively.
+    - Complexity budgets: components/hooks ≤200 LOC, warn at CC ≥12, fail at CC >15.
+    - Module complexity: fail at sum CC >50 per module.
+    - Fan-in ≤15, fan-out ≤12 per module (warn at 80%).
+    - TSDoc coverage: target 70%, warn 60%, fail 50% for exported hooks/utilities.
+    - dependency-cruiser must enforce layering and cycle ban (hard fail).
+  prohibited:
+    - Do not bypass lint rules with large ignore blocks.
+    - Do not modify backend contracts in this task.
+    - No circular dependencies anywhere in mobile codebase.
+    - No deep imports into features (e.g., mobile/app/features/upload/internal/*).
+
+plan:
+  - id: 1
+    title: Map current import graph and baseline metrics
+    details: >-
+      Generate dependency graph to identify layering violations and duplicate upload logic.
+      Capture baseline metrics for SDI, fan-in/out, propagation cost, and coupling to track
+      improvement per STANDARDS.md lines 88-89, 219.
+    commands:
+      - dependency-cruiser mobile/app --config tooling/dependency-rules.json --output-type dot | dot -T png -o docs/evidence/import-graph-baseline.png
+      - npm run analyze:coupling --prefix mobile > docs/evidence/coupling-baseline.json
+    expected_files_touched:
+      - docs/evidence/import-graph-baseline.png
+      - docs/evidence/coupling-baseline.json
+  - id: 2
+    title: Implement lint/import guardrails
+    details: >-
+      Configure eslint-plugin-boundaries to enforce mobile layering (screens → features → shared UI → hooks).
+      Update tsconfig paths to support feature /public API surfaces. Configure dependency-cruiser to
+      enforce cycle ban (hard fail per STANDARDS.md line 33), fan-in ≤15, fan-out ≤12 (STANDARDS.md line 56).
+    commands:
+      - npm install --save-dev eslint-plugin-boundaries --prefix mobile
+      - dependency-cruiser mobile/app --config tooling/dependency-rules.json --validate
+    expected_files_touched:
+      - mobile/.eslintrc.js
+      - mobile/tsconfig.json
+      - tooling/dependency-rules.json
+      - mobile/package.json
+  - id: 3
+    title: Refactor upload flows to resilient shared kit
+    details: >-
+      Centralize presign/upload/polling hooks with retry/exponential backoff (STANDARDS.md line 151).
+      Implement NetInfo-based pause/resume for connectivity changes (STANDARDS.md line 154).
+      Create shared preprocessing module (≤4096px, HEIC→JPEG fallback per STANDARDS.md line 151).
+      Ensure all UI primitives use ui-tokens package (STANDARDS.md line 161).
+      Expose feature via /public API to prevent deep imports (STANDARDS.md line 26).
+      Keep module complexity ≤50 sum CC and components ≤200 LOC (STANDARDS.md lines 38, 79).
+    commands:
+      - npm run lint -- --max-complexity=15 --prefix mobile
+      - npm run test --prefix mobile -- --coverage
+      - dependency-cruiser mobile/app --config tooling/dependency-rules.json --validate
+    expected_files_touched:
+      - mobile/app/features/upload/public/index.ts
+      - mobile/app/features/upload/hooks/**
+      - mobile/app/features/upload/components/**
+      - mobile/app/lib/upload/preprocessing.ts
+      - mobile/app/components/ui/** (using ui-tokens)
+      - mobile/app/screens/**
+  - id: 4
+    title: Add tests, automation, and documentation
+    details: >-
+      Add component/unit tests for shared upload primitives (≥70% lines, ≥60% branches per STANDARDS.md lines 99, 139).
+      Mutation tests for upload hooks (≥50% per STANDARDS.md line 100).
+      TSDoc coverage ≥70% for exported APIs (STANDARDS.md line 83).
+      Create README for mobile/app/features/upload with Responsibility, Invariants, Edge-Cases, Local-Test (STANDARDS.md line 84).
+      Update package.json with test scripts (test:mutation, analyze:coupling, knip).
+      Generate evidence bundle (import graph, coupling histogram, mutation reports, reuse ratio per STANDARDS.md lines 236-244).
+    commands:
+      - npm run test --prefix mobile -- --coverage
+      - npm run test:mutation --prefix mobile -- --threshold 50
+      - npx typedoc --validation.notDocumented mobile/app/features/upload
+      - npm run analyze:coupling --prefix mobile > docs/evidence/coupling-final.json
+      - dependency-cruiser mobile/app --config tooling/dependency-rules.json --output-type dot | dot -T png -o docs/evidence/import-graph.png
+    expected_files_touched:
+      - mobile/package.json
+      - mobile/app/features/upload/README.md
+      - mobile/app/features/upload/__tests__/**
+      - mobile/app/lib/upload/__tests__/**
+      - docs/evidence/import-graph.png
+      - docs/evidence/coupling-final.json
+      - docs/evidence/mutation-reports/upload-hooks.html
+      - docs/evidence/coverage-reports/mobile-upload.html
+      - docs/evidence/reuse-ratio.json
+
+acceptance_criteria:
+  # Modularity (STANDARDS.md lines 49-60)
+  - ESLint/import-boundary rules prevent cross-layer imports; CI fails on violations.
+  - dependency-cruiser enforces layering (screens → features → shared UI → hooks) with zero cycles.
+  - No cross-feature imports; features expose only /public API surfaces.
+  - Fan-in ≤15, fan-out ≤12 per module (warn at 80%).
+  - Module complexity ≤50 sum CC (fail if exceeded).
+
+  # Reusability (STANDARDS.md lines 62-68)
+  - Shared upload kit (hooks + UI) is consumed by every upload-capable screen and implements retry with exponential backoff, pause/resume, metered network checks, and status polling per plan.
+  - Image preprocessing (≤4096px, HEIC→JPEG) lives in a shared module that all capture/pick flows reuse.
+  - Reuse ratio ≥60% for new upload utilities (≥3 consumers for shared primitives).
+  - All upload UI primitives sourced from ui-tokens package; no inline raw tokens.
+
+  # Testability (STANDARDS.md lines 95-104)
+  - Component/unit tests cover shared primitives, upload resilience behaviours, offline cache rehydration, and error surfacing.
+  - Mutation score ≥50% for top mobile upload hooks.
+  - Test coverage: lines ≥70%, branches ≥60% for shared upload kit and hooks.
+  - Offline persistence uses deterministic react-query keys; tested with network state mocking.
+
+  # Analysability (STANDARDS.md lines 70-84)
+  - TSDoc coverage ≥70% for exported hooks and utilities (warn at 60%, fail at 50%).
+  - README present for mobile/app/features/upload with: Responsibility, Invariants, Edge-Cases, Local-Test.
+
+  # Usability (STANDARDS.md lines 148-155)
+  - Upload flows include background retry/backoff/resume, HEIC→JPEG fallback, 4096px cap.
+  - NetInfo-based pause/resume on connectivity changes.
+  - Optimistic updates with sync queue for offline scenarios.
+
+validation:
+  commands:
+    # Layering and cycle enforcement (STANDARDS.md line 33, 218)
+    - dependency-cruiser mobile/app --config tooling/dependency-rules.json --validate
+
+    # Linting with complexity checks (STANDARDS.md lines 34-38)
+    - npm run lint --prefix mobile
+    - npm run lint -- --max-complexity=15 --prefix mobile
+
+    # Type safety
+    - npm run typecheck --prefix mobile
+
+    # Test coverage (STANDARDS.md lines 95-104, testing-standards.md lines 82-95)
+    - npm run test --prefix mobile -- --coverage --coverageThreshold='{"global":{"lines":70,"branches":60}}'
+
+    # Mutation testing (STANDARDS.md line 100)
+    - npm run test:mutation --prefix mobile -- --threshold 50
+
+    # Dead code detection (STANDARDS.md line 227)
+    - npx knip --config mobile/knip.json
+
+    # TSDoc coverage (STANDARDS.md line 83)
+    - npx typedoc --validation.notDocumented --excludePrivate mobile/app/features/upload mobile/app/lib/upload
+
+    # Fan-in/fan-out check (STANDARDS.md line 56, 219)
+    - npm run analyze:coupling --prefix mobile
+
+  manual_checks:
+    - Review Storybook or equivalent usage to confirm shared primitives have ≥3 consumers.
+    - Verify reuse ratio ≥60% for new upload utilities.
+    - Confirm no inline raw tokens (ui-tokens package used exclusively).
+
+  artifacts:
+    - docs/evidence/import-graph.png
+    - docs/evidence/dependency-cruiser-report.html
+    - docs/evidence/fan-in-out-histogram.png
+    - docs/evidence/mutation-reports/upload-hooks.html
+    - docs/evidence/reuse-ratio.json
+
+deliverables:
+  # Configuration
+  - mobile/.eslintrc.js (updated with eslint-plugin-boundaries)
+  - mobile/tsconfig.json (updated with path aliases for layering)
+  - tooling/dependency-rules.json (updated with mobile layering rules)
+
+  # Code artifacts
+  - mobile/app/features/upload/public/index.ts (feature public API)
+  - mobile/app/features/upload/** (refactored resilient upload kit)
+  - mobile/app/components/ui/** (shared primitives from ui-tokens)
+  - mobile/app/lib/upload/** (preprocessing utilities)
+
+  # Documentation (STANDARDS.md lines 83-84, 236-244)
+  - mobile/app/features/upload/README.md (responsibility, invariants, edge-cases, local-test)
+
+  # Evidence Bundle (STANDARDS.md lines 236-244)
+  - docs/evidence/import-graph.png (layering visualization)
+  - docs/evidence/dependency-cruiser-report.html (layering validation)
+  - docs/evidence/fan-in-out-histogram.png (coupling metrics)
+  - docs/evidence/mutation-reports/upload-hooks.html (≥50% mutation score)
+  - docs/evidence/reuse-ratio.json (≥60% for new utilities)
+  - docs/evidence/coverage-reports/mobile-upload.html (≥70% lines, ≥60% branches)
+
+risks:
+  - description: Broad refactor could destabilize mobile features or introduce regressions.
+    mitigation: Incrementally migrate screens, rely on component tests, and stage work behind feature flags if needed.
+
+  - description: Structural Debt Index (SDI) delta >10% could trigger warnings, >20% requires ADR (STANDARDS.md line 89).
+    mitigation: Monitor coupling metrics (fan-in/out, propagation cost) during refactor; ensure SDI trend shows improvement from consolidating upload logic.
+
+  - description: Change-Impact Fitness delta >20% in core mobile modules could require ADR (STANDARDS.md line 88).
+    mitigation: Limit propagation cost by keeping feature boundaries strict; refactor incrementally to avoid large coupling spikes.
+
+  - description: Circular dependencies could emerge during layering refactor, causing hard fail (STANDARDS.md line 33).
+    mitigation: Run dependency-cruiser after each plan step; enforce feature /public API to prevent accidental cycles.
+
+  - description: Module complexity >50 sum CC could cause hard fail (STANDARDS.md line 38).
+    mitigation: Split large upload modules into focused units (hooks, UI, preprocessing, network); verify with complexity linting.
+
+  - description: Test flake rate >1% for >7 days blocks merges (STANDARDS.md line 104, 232).
+    mitigation: Use deterministic react-query keys and NetInfo mocks; quarantine flaky tests immediately; track flake rate in CI.

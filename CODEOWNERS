@@ -1,0 +1,39 @@
+# CODEOWNERS
+# This file defines required reviewers for critical code paths and shared contract surfaces.
+# Lines starting with '#' are comments.
+# Each line is a file pattern followed by one or more owners.
+
+# Global fallback - all files require at least one review
+* @photoeditor/eng
+
+# Shared contracts and packages - require architecture review
+/shared/ @photoeditor/architects @photoeditor/backend-leads
+/packages/contracts/ @photoeditor/architects @photoeditor/backend-leads
+/packages/fp-core/ @photoeditor/architects
+/packages/error/ @photoeditor/architects
+/packages/observability/ @photoeditor/architects
+
+# Backend core libraries - require backend lead review
+/backend/libs/core/ @photoeditor/backend-leads @photoeditor/architects
+/backend/libs/aws-clients.ts @photoeditor/backend-leads
+
+# Mobile upload kit - require mobile and backend review
+/mobile/app/features/upload/ @photoeditor/mobile-leads @photoeditor/backend-leads
+
+# Infrastructure and deployment - require infra review
+/infrastructure/ @photoeditor/infra-leads
+/terraform/ @photoeditor/infra-leads
+/.github/workflows/ @photoeditor/infra-leads @photoeditor/eng
+
+# Security and compliance - require security review
+/.gitleaks.toml @photoeditor/security
+/CODEOWNERS @photoeditor/architects
+
+# Architecture standards - require architecture board approval
+/STANDARDS.md @photoeditor/architects
+/adr/ @photoeditor/architects
+/docs/architecture/ @photoeditor/architects
+
+# Database migrations - require data review
+/backend/migrations/ @photoeditor/backend-leads @photoeditor/data-leads
+/infrastructure/dynamodb/ @photoeditor/backend-leads @photoeditor/data-leads

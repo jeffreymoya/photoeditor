@@ -2,7 +2,7 @@ import { DynamoDBClient, PutItemCommand, GetItemCommand, UpdateItemCommand, Quer
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { Job, JobStatus, JobStatusType, CreateJobRequest, APP_CONFIG, BatchJob, CreateBatchJobRequest } from '@photoeditor/shared';
 import { v4 as uuidv4 } from 'uuid';
-import { createDynamoDBClient } from '../libs/aws-clients';
+import { createDynamoDBClient } from '@backend/core';
 
 export class JobService {
   private client: DynamoDBClient;

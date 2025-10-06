@@ -1,6 +1,7 @@
 import { DynamoDBClient, PutItemCommand, GetItemCommand, UpdateItemCommand, DeleteItemCommand } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { DeviceTokenRegistration } from '@photoeditor/shared';
+import { createDynamoDBClient } from '@backend/core';
 
 export interface DeviceToken {
   userId: string;
@@ -16,9 +17,10 @@ export class DeviceTokenService {
   private client: DynamoDBClient;
   private tableName: string;
 
-  constructor(tableName: string, region: string) {
+  constructor(tableName: string, region: string, client?: DynamoDBClient) {
     this.tableName = tableName;
-    this.client = new DynamoDBClient({ region });
+    // Use provided client or create one via factory (STANDARDS.md line 32)
+    this.client = client || createDynamoDBClient(region);
   }
 
   async registerDeviceToken(

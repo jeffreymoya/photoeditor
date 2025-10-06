@@ -1,0 +1,356 @@
+openapi: 3.0.3
+info:
+  title: Photo Editor API
+  description: |
+    Core API endpoints for the Photo Editor application.
+    This spec defines the contract for presign upload and job status endpoints.
+  version: 1.0.0
+  contact:
+    name: API Support
+servers:
+  - url: http://localhost:4566
+    description: LocalStack development server
+  - url: https://api.photoeditor.dev
+    description: Development environment
+  - url: https://api.photoeditor.com
+    description: Production environment
+
+paths:
+  /upload/presign:
+    post:
+      summary: Generate presigned upload URL
+      description: |
+        Generate a presigned URL for uploading an image to S3. Supports both single
+        file upload (legacy) and batch upload (multiple files with shared/individual prompts).
+      operationId: generatePresignedUrl
+      tags:
+        - Upload
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/PresignUploadRequest'
+                - $ref: '#/components/schemas/BatchUploadRequest'
+            examples:
+              singleUpload:
+                summary: Single file upload
+                value:
+                  fileName: "vacation.jpg"
+                  contentType: "image/jpeg"
+                  fileSize: 2097152
+                  prompt: "Make this photo more vibrant"
+              batchUpload:
+                summary: Batch upload with shared prompt
+                value:
+                  files:
+                    - fileName: "photo1.jpg"
+                      contentType: "image/jpeg"
+                      fileSize: 2097152
+                    - fileName: "photo2.png"
+                      contentType: "image/png"
+                      fileSize: 1048576
+                  sharedPrompt: "Make these photos more vibrant"
+                  individualPrompts:
+                    - "Add vintage filter"
+                    - "Enhance colors"
+      responses:
+        '200':
+          description: Presigned URL(s) generated successfully
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/PresignUploadResponse'
+                  - $ref: '#/components/schemas/BatchUploadResponse'
+              examples:
+                singleUploadResponse:
+                  summary: Single upload response
+                  value:
+                    jobId: "550e8400-e29b-41d4-a716-446655440000"
+                    presignedUrl: "https://s3.amazonaws.com/temp-bucket/uploads/..."
+                    s3Key: "uploads/550e8400-e29b-41d4-a716-446655440000/vacation.jpg"
+                    expiresAt: "2025-10-04T12:00:00Z"
+                batchUploadResponse:
+                  summary: Batch upload response
+                  value:
+                    batchJobId: "660e8400-e29b-41d4-a716-446655440001"
+                    uploads:
+                      - presignedUrl: "https://s3.amazonaws.com/temp-bucket/uploads/..."
+                        s3Key: "uploads/550e8400-e29b-41d4-a716-446655440000/photo1.jpg"
+                        expiresAt: "2025-10-04T12:00:00Z"
+                      - presignedUrl: "https://s3.amazonaws.com/temp-bucket/uploads/..."
+                        s3Key: "uploads/550e8400-e29b-41d4-a716-446655440001/photo2.png"
+                        expiresAt: "2025-10-04T12:00:00Z"
+                    childJobIds:
+                      - "550e8400-e29b-41d4-a716-446655440000"
+                      - "550e8400-e29b-41d4-a716-446655440001"
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Request body required"
+        '401':
+          description: Unauthorized - missing or invalid authentication
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Internal server error"
+
+  /jobs/{jobId}:
+    get:
+      summary: Get job status
+      description: Retrieve the current status of a processing job
+      operationId: getJobStatus
+      tags:
+        - Jobs
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: jobId
+          in: path
+          required: true
+          description: The unique identifier for the job
+          schema:
+            type: string
+            format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+      responses:
+        '200':
+          description: Job status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobStatusResponse'
+              example:
+                jobId: "550e8400-e29b-41d4-a716-446655440000"
+                status: "COMPLETED"
+                createdAt: "2025-10-04T10:00:00Z"
+                updatedAt: "2025-10-04T10:05:00Z"
+                tempS3Key: "uploads/550e8400-e29b-41d4-a716-446655440000/vacation.jpg"
+                finalS3Key: "final/550e8400-e29b-41d4-a716-446655440000/vacation_edited.jpg"
+        '400':
+          description: Missing or invalid job ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Job ID required"
+        '404':
+          description: Job not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Job not found"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Internal server error"
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token from authentication provider
+
+  schemas:
+    FileUpload:
+      type: object
+      required:
+        - fileName
+        - contentType
+        - fileSize
+      properties:
+        fileName:
+          type: string
+          minLength: 1
+          description: Name of the file to upload
+          example: "vacation.jpg"
+        contentType:
+          type: string
+          pattern: '^image/(jpeg|png|heic|webp)$'
+          description: MIME type of the image
+          example: "image/jpeg"
+        fileSize:
+          type: integer
+          minimum: 1
+          maximum: 52428800
+          description: Size of the file in bytes (max 50MB)
+          example: 2097152
+
+    PresignUploadRequest:
+      allOf:
+        - $ref: '#/components/schemas/FileUpload'
+        - type: object
+          properties:
+            prompt:
+              type: string
+              minLength: 1
+              description: Optional editing instructions for the image
+              example: "Make this photo more vibrant"
+
+    BatchUploadRequest:
+      type: object
+      required:
+        - files
+        - sharedPrompt
+      properties:
+        files:
+          type: array
+          minItems: 1
+          maxItems: 10
+          description: Array of files to upload (max 10)
+          items:
+            $ref: '#/components/schemas/FileUpload'
+        sharedPrompt:
+          type: string
+          minLength: 1
+          description: Shared editing prompt for all images in the batch
+          example: "Make these photos more vibrant"
+        individualPrompts:
+          type: array
+          description: Optional array of per-image prompts
+          items:
+            type: string
+          example: ["Add vintage filter", "Enhance colors"]
+
+    PresignedUpload:
+      type: object
+      required:
+        - presignedUrl
+        - s3Key
+        - expiresAt
+      properties:
+        presignedUrl:
+          type: string
+          format: uri
+          description: Presigned URL for uploading to S3
+          example: "https://s3.amazonaws.com/temp-bucket/uploads/..."
+        s3Key:
+          type: string
+          description: S3 key where the file will be stored
+          example: "uploads/550e8400-e29b-41d4-a716-446655440000/vacation.jpg"
+        expiresAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp when the presigned URL expires
+          example: "2025-10-04T12:00:00Z"
+
+    PresignUploadResponse:
+      allOf:
+        - $ref: '#/components/schemas/PresignedUpload'
+        - type: object
+          required:
+            - jobId
+          properties:
+            jobId:
+              type: string
+              format: uuid
+              description: Unique job identifier for tracking the upload
+              example: "550e8400-e29b-41d4-a716-446655440000"
+
+    BatchUploadResponse:
+      type: object
+      required:
+        - batchJobId
+        - uploads
+        - childJobIds
+      properties:
+        batchJobId:
+          type: string
+          format: uuid
+          description: Unique batch job identifier
+          example: "660e8400-e29b-41d4-a716-446655440001"
+        uploads:
+          type: array
+          description: Array of presigned upload URLs, one per file
+          items:
+            $ref: '#/components/schemas/PresignedUpload'
+        childJobIds:
+          type: array
+          description: Individual job IDs for each file in the batch
+          items:
+            type: string
+            format: uuid
+          example:
+            - "550e8400-e29b-41d4-a716-446655440000"
+            - "550e8400-e29b-41d4-a716-446655440001"
+
+    JobStatusResponse:
+      type: object
+      required:
+        - jobId
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        jobId:
+          type: string
+          format: uuid
+          description: Unique job identifier
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        status:
+          type: string
+          enum:
+            - QUEUED
+            - PROCESSING
+            - EDITING
+            - COMPLETED
+            - FAILED
+          description: Current status of the job
+          example: "COMPLETED"
+        createdAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp when the job was created
+          example: "2025-10-04T10:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp when the job was last updated
+          example: "2025-10-04T10:05:00Z"
+        tempS3Key:
+          type: string
+          description: S3 key for the uploaded temporary file
+          example: "uploads/550e8400-e29b-41d4-a716-446655440000/vacation.jpg"
+        finalS3Key:
+          type: string
+          description: S3 key for the final processed file
+          example: "final/550e8400-e29b-41d4-a716-446655440000/vacation_edited.jpg"
+        error:
+          type: string
+          description: Error message if the job failed
+          example: "Processing failed: insufficient memory"
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+          example: "Internal server error"

@@ -1,0 +1,332 @@
+/**
+ * API Stack - HTTP API Gateway, BFF Lambda, Worker Lambda
+ *
+ * STANDARDS.md compliance:
+ * - API Lambdas outside VPC (line 127)
+ * - Handlers ≤75 LOC, complexity ≤5 (line 36)
+ * - No handler imports @aws-sdk/* (line 32)
+ * - Lambda errors >0 for 5m alarm (line 76)
+ * - API 5XX >1% for 5m alarm (line 77)
+ * - Structured JSON logs with correlationId, traceId, etc. (line 72)
+ * - Log retention: Dev 14d (line 82)
+ */
+
+interface ApiStackProps {
+  tempBucket: sst.aws.Bucket;
+  finalBucket: sst.aws.Bucket;
+  jobsTable: sst.aws.Dynamo;
+  processingQueue: sst.aws.Queue;
+  notificationTopic: sst.aws.SnsTopic;
+  kmsKey: aws.kms.Key;
+}
+
+export default function ApiStack(props: ApiStackProps) {
+  const { tempBucket, finalBucket, jobsTable, processingQueue, notificationTopic, kmsKey } = props;
+
+  // Lambda environment variables (shared)
+  const lambdaEnv = {
+    NODE_ENV: $app.stage === "production" ? "production" : "development",
+    STAGE: $app.stage,
+    TEMP_BUCKET_NAME: tempBucket.name,
+    FINAL_BUCKET_NAME: finalBucket.name,
+    JOBS_TABLE_NAME: jobsTable.name,
+    PROCESSING_QUEUE_URL: processingQueue.url,
+    NOTIFICATION_TOPIC_ARN: notificationTopic.arn,
+    LOG_LEVEL: "info",
+    POWERTOOLS_SERVICE_NAME: "photoeditor-api",
+    POWERTOOLS_METRICS_NAMESPACE: "PhotoEditor",
+  };
+
+  // BFF Lambda - handles presign, status, download
+  const bffFunction = new sst.aws.Function("BffFunction", {
+    handler: "backend/src/lambdas/presign.handler",
+    runtime: "nodejs20.x",
+    timeout: "30 seconds",
+    memory: "256 MB",
+    environment: lambdaEnv,
+    permissions: [
+      {
+        actions: ["s3:PutObject", "s3:GetObject"],
+        resources: [tempBucket.arn, `${tempBucket.arn}/*`, finalBucket.arn, `${finalBucket.arn}/*`],
+      },
+      {
+        actions: ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:Query"],
+        resources: [jobsTable.arn, `${jobsTable.arn}/index/*`],
+      },
+      {
+        actions: ["sqs:SendMessage"],
+        resources: [processingQueue.arn],
+      },
+      {
+        actions: ["kms:Decrypt", "kms:GenerateDataKey"],
+        resources: [kmsKey.arn],
+      },
+    ],
+    // No VPC configuration (STANDARDS.md line 127)
+    transform: {
+      function: {
+        tags: {
+          Project: "PhotoEditor",
+          Env: $app.stage,
+          Owner: "DevTeam",
+          CostCenter: "Engineering",
+          Function: "BFF",
+        },
+      },
+    },
+  });
+
+  // Status Lambda - lightweight status check
+  const statusFunction = new sst.aws.Function("StatusFunction", {
+    handler: "backend/src/lambdas/status.handler",
+    runtime: "nodejs20.x",
+    timeout: "10 seconds",
+    memory: "128 MB",
+    environment: lambdaEnv,
+    permissions: [
+      {
+        actions: ["dynamodb:GetItem", "dynamodb:Query"],
+        resources: [jobsTable.arn, `${jobsTable.arn}/index/*`],
+      },
+      {
+        actions: ["kms:Decrypt"],
+        resources: [kmsKey.arn],
+      },
+    ],
+    transform: {
+      function: {
+        tags: {
+          Project: "PhotoEditor",
+          Env: $app.stage,
+          Owner: "DevTeam",
+          CostCenter: "Engineering",
+          Function: "Status",
+        },
+      },
+    },
+  });
+
+  // Download Lambda - presigned download URLs
+  const downloadFunction = new sst.aws.Function("DownloadFunction", {
+    handler: "backend/src/lambdas/download.handler",
+    runtime: "nodejs20.x",
+    timeout: "10 seconds",
+    memory: "128 MB",
+    environment: lambdaEnv,
+    permissions: [
+      {
+        actions: ["s3:GetObject"],
+        resources: [finalBucket.arn, `${finalBucket.arn}/*`],
+      },
+      {
+        actions: ["dynamodb:GetItem"],
+        resources: [jobsTable.arn],
+      },
+      {
+        actions: ["kms:Decrypt"],
+        resources: [kmsKey.arn],
+      },
+    ],
+    transform: {
+      function: {
+        tags: {
+          Project: "PhotoEditor",
+          Env: $app.stage,
+          Owner: "DevTeam",
+          CostCenter: "Engineering",
+          Function: "Download",
+        },
+      },
+    },
+  });
+
+  // Worker Lambda - processes jobs from SQS
+  const workerFunction = new sst.aws.Function("WorkerFunction", {
+    handler: "backend/src/lambdas/worker.handler",
+    runtime: "nodejs20.x",
+    timeout: "5 minutes",
+    memory: "512 MB",
+    environment: lambdaEnv,
+    permissions: [
+      {
+        actions: ["s3:GetObject", "s3:PutObject"],
+        resources: [tempBucket.arn, `${tempBucket.arn}/*`, finalBucket.arn, `${finalBucket.arn}/*`],
+      },
+      {
+        actions: ["dynamodb:GetItem", "dynamodb:UpdateItem"],
+        resources: [jobsTable.arn],
+      },
+      {
+        actions: ["sns:Publish"],
+        resources: [notificationTopic.arn],
+      },
+      {
+        actions: ["kms:Decrypt", "kms:GenerateDataKey"],
+        resources: [kmsKey.arn],
+      },
+    ],
+    transform: {
+      function: {
+        tags: {
+          Project: "PhotoEditor",
+          Env: $app.stage,
+          Owner: "DevTeam",
+          CostCenter: "Engineering",
+          Function: "Worker",
+        },
+      },
+    },
+  });
+
+  // SQS event source mapping for worker
+  new aws.lambda.EventSourceMapping("WorkerEventSource", {
+    eventSourceArn: processingQueue.arn,
+    functionName: workerFunction.name,
+    batchSize: 10,
+    maximumBatchingWindowInSeconds: 5,
+  });
+
+  // HTTP API Gateway
+  const httpApi = new sst.aws.ApiGatewayV2("PhotoEditorApi", {
+    cors: {
+      allowOrigins: ["http://localhost:19000", "http://localhost:19006"],
+      allowMethods: ["GET", "POST", "PUT", "DELETE"],
+      allowHeaders: ["Content-Type", "Authorization", "x-correlation-id", "traceparent"],
+    },
+    transform: {
+      api: {
+        tags: {
+          Project: "PhotoEditor",
+          Env: $app.stage,
+          Owner: "DevTeam",
+          CostCenter: "Engineering",
+        },
+      },
+    },
+  });
+
+  // API Routes
+  httpApi.route("POST /presign", bffFunction.arn);
+  httpApi.route("GET /status/{jobId}", statusFunction.arn);
+  httpApi.route("GET /download/{jobId}", downloadFunction.arn);
+
+  // Lambda permission for API Gateway to invoke functions
+  new aws.lambda.Permission("BffInvokePermission", {
+    action: "lambda:InvokeFunction",
+    function: bffFunction.name,
+    principal: "apigateway.amazonaws.com",
+    sourceArn: $interpolate`${httpApi.executionArn}/*/*`,
+  });
+
+  new aws.lambda.Permission("StatusInvokePermission", {
+    action: "lambda:InvokeFunction",
+    function: statusFunction.name,
+    principal: "apigateway.amazonaws.com",
+    sourceArn: $interpolate`${httpApi.executionArn}/*/*`,
+  });
+
+  new aws.lambda.Permission("DownloadInvokePermission", {
+    action: "lambda:InvokeFunction",
+    function: downloadFunction.name,
+    principal: "apigateway.amazonaws.com",
+    sourceArn: $interpolate`${httpApi.executionArn}/*/*`,
+  });
+
+  // CloudWatch Log Groups with retention (Dev 14d per STANDARDS.md line 82)
+  new aws.cloudwatch.LogGroup("BffLogGroup", {
+    name: `/aws/lambda/${bffFunction.name}`,
+    retentionInDays: $app.stage === "production" ? 90 : 14,
+    tags: {
+      Project: "PhotoEditor",
+      Env: $app.stage,
+      Owner: "DevTeam",
+      CostCenter: "Engineering",
+    },
+  });
+
+  new aws.cloudwatch.LogGroup("StatusLogGroup", {
+    name: `/aws/lambda/${statusFunction.name}`,
+    retentionInDays: $app.stage === "production" ? 90 : 14,
+    tags: {
+      Project: "PhotoEditor",
+      Env: $app.stage,
+      Owner: "DevTeam",
+      CostCenter: "Engineering",
+    },
+  });
+
+  new aws.cloudwatch.LogGroup("DownloadLogGroup", {
+    name: `/aws/lambda/${downloadFunction.name}`,
+    retentionInDays: $app.stage === "production" ? 90 : 14,
+    tags: {
+      Project: "PhotoEditor",
+      Env: $app.stage,
+      Owner: "DevTeam",
+      CostCenter: "Engineering",
+    },
+  });
+
+  new aws.cloudwatch.LogGroup("WorkerLogGroup", {
+    name: `/aws/lambda/${workerFunction.name}`,
+    retentionInDays: $app.stage === "production" ? 90 : 14,
+    tags: {
+      Project: "PhotoEditor",
+      Env: $app.stage,
+      Owner: "DevTeam",
+      CostCenter: "Engineering",
+    },
+  });
+
+  // CloudWatch alarms: Lambda Errors >0 for 5m (STANDARDS.md line 76)
+  new aws.cloudwatch.MetricAlarm("BffErrorAlarm", {
+    name: `photoeditor-${$app.stage}-bff-errors`,
+    comparisonOperator: "GreaterThanThreshold",
+    evaluationPeriods: 1,
+    metricName: "Errors",
+    namespace: "AWS/Lambda",
+    period: 300, // 5 minutes
+    statistic: "Sum",
+    threshold: 0,
+    treatMissingData: "notBreaching",
+    alarmDescription: "Alert when BFF Lambda has errors (STANDARDS.md line 76)",
+    dimensions: {
+      FunctionName: bffFunction.name,
+    },
+    tags: {
+      Project: "PhotoEditor",
+      Env: $app.stage,
+      Owner: "DevTeam",
+      CostCenter: "Engineering",
+    },
+  });
+
+  new aws.cloudwatch.MetricAlarm("WorkerErrorAlarm", {
+    name: `photoeditor-${$app.stage}-worker-errors`,
+    comparisonOperator: "GreaterThanThreshold",
+    evaluationPeriods: 1,
+    metricName: "Errors",
+    namespace: "AWS/Lambda",
+    period: 300, // 5 minutes
+    statistic: "Sum",
+    threshold: 0,
+    treatMissingData: "notBreaching",
+    alarmDescription: "Alert when Worker Lambda has errors (STANDARDS.md line 76)",
+    dimensions: {
+      FunctionName: workerFunction.name,
+    },
+    tags: {
+      Project: "PhotoEditor",
+      Env: $app.stage,
+      Owner: "DevTeam",
+      CostCenter: "Engineering",
+    },
+  });
+
+  return {
+    httpApi,
+    bffFunction,
+    statusFunction,
+    downloadFunction,
+    workerFunction,
+  };
+}

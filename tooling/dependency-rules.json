@@ -67,6 +67,50 @@
       }
     },
     {
+      "name": "mobile-screens-layering",
+      "severity": "error",
+      "comment": "Mobile screens can only import from features (via /public), components, hooks, lib, services, store, utils (STANDARDS.md line 53).",
+      "from": {
+        "path": "^mobile/src/screens"
+      },
+      "to": {
+        "pathNot": "^mobile/src/(features/.*/public|components|hooks|lib|services|store|utils|types|constants|navigation)"
+      }
+    },
+    {
+      "name": "mobile-features-no-screens",
+      "severity": "error",
+      "comment": "Mobile features must not import from screens (STANDARDS.md line 53).",
+      "from": {
+        "path": "^mobile/src/features"
+      },
+      "to": {
+        "path": "^mobile/src/screens"
+      }
+    },
+    {
+      "name": "mobile-shared-ui-limited-imports",
+      "severity": "error",
+      "comment": "Shared UI components can only import from hooks, lib, and utils (STANDARDS.md line 53).",
+      "from": {
+        "path": "^mobile/src/components"
+      },
+      "to": {
+        "path": "^mobile/src/(features|screens|services|store)"
+      }
+    },
+    {
+      "name": "mobile-hooks-limited-imports",
+      "severity": "error",
+      "comment": "Hooks can only import from lib and utils (STANDARDS.md line 53).",
+      "from": {
+        "path": "^mobile/src/hooks"
+      },
+      "to": {
+        "path": "^mobile/src/(features|screens|services|store|components)"
+      }
+    },
+    {
       "name": "no-lateral-imports",
       "severity": "error",
       "comment": "No lateral imports between layers (STANDARDS.md line 24).",

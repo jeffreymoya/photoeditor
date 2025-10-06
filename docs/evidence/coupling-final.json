@@ -1,0 +1,7 @@
+
+> photoeditor-mobile@1.0.0 analyze:coupling
+> node -e "console.log(JSON.stringify({message: 'Coupling analysis placeholder - requires madge or similar tool'}, null, 2))"
+
+{
+  "message": "Coupling analysis placeholder - requires madge or similar tool"
+}

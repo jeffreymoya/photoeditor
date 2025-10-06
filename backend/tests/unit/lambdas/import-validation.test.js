@@ -20,17 +20,35 @@ describe('Lambda Import Smoke Tests', () => {
       const servicesPath = path.join(__dirname, '../../../src/services');
       const services = require(path.join(servicesPath, 'index'));
 
+      // ConfigService and BootstrapService moved to @backend/core
       const expectedServices = [
         'JobService',
         'PresignService',
         'S3Service',
-        'ConfigService',
-        'BootstrapService'
+        'DeviceTokenService',
+        'NotificationService'
       ];
 
       expectedServices.forEach(serviceName => {
         expect(services).toHaveProperty(serviceName);
         expect(typeof services[serviceName]).toBe('function');
+      });
+    });
+
+    test('core library exports expected modules', () => {
+      const core = require('../../../libs/core');
+
+      const expectedExports = [
+        'ConfigService',
+        'BootstrapService',
+        'createS3Client',
+        'createDynamoDBClient',
+        'createSSMClient',
+        'StandardProviderCreator'
+      ];
+
+      expectedExports.forEach(exportName => {
+        expect(core).toHaveProperty(exportName);
       });
     });
   });

@@ -5,7 +5,7 @@
     "module": "CommonJS",
     "declaration": true,
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": ".",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -22,11 +22,14 @@
     "noImplicitOverride": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@backend/core": ["libs/core"],
+      "@backend/core/*": ["libs/core/*"]
     }
   },
   "include": [
-    "src/**/*.ts"
+    "src/**/*.ts",
+    "libs/**/*.ts"
   ],
   "exclude": [
     "node_modules",

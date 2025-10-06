@@ -28,7 +28,9 @@ module.exports = {
 
   // Module resolution
   moduleNameMapper: {
-    '^@photoeditor/shared$': '<rootDir>/../shared'
+    '^@photoeditor/shared$': '<rootDir>/../shared',
+    '^@backend/core$': '<rootDir>/libs/core',
+    '^@backend/core/(.*)$': '<rootDir>/libs/core/$1'
   },
 
   // Transform configuration

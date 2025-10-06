@@ -2,8 +2,14 @@ import { APIGatewayProxyEventV2, APIGatewayProxyResultV2, Context } from 'aws-la
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics, MetricUnits } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { JobService, PresignService, S3Service, ConfigService, BootstrapService } from '../services';
+import { JobService, PresignService, S3Service } from '../services';
 import { S3Config, PresignUploadRequestSchema, BatchUploadRequestSchema } from '@photoeditor/shared';
+import {
+  createSSMClient,
+  ConfigService,
+  BootstrapService,
+  StandardProviderCreator
+} from '@backend/core';
 
 const logger = new Logger();
 const metrics = new Metrics();
@@ -31,12 +37,14 @@ async function initializeServices(): Promise<void> {
   const batchTableName = process.env.BATCH_TABLE_NAME;
   const jobService = new JobService(jobsTableName, region, batchTableName);
   const s3Service = new S3Service(s3Config);
-  const configService = new ConfigService(region, projectName, environment);
 
   presignService = new PresignService(jobService, s3Service);
 
-  // Initialize provider factory
-  const bootstrapService = new BootstrapService(configService);
+  // Initialize provider factory (though not used in presign lambda)
+  const ssmClient = createSSMClient(region);
+  const configService = new ConfigService(ssmClient, projectName, environment);
+  const providerCreator = new StandardProviderCreator();
+  const bootstrapService = new BootstrapService(configService, providerCreator);
   await bootstrapService.initializeProviders();
 }
 

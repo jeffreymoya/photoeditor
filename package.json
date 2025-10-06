@@ -17,9 +17,13 @@
     "analyze:deps": "dependency-cruiser backend/src shared mobile/src --config tooling/dependency-rules.json --output-type dot | dot -T png > docs/evidence/import-graph.png && dependency-cruiser backend/src shared mobile/src --config tooling/dependency-rules.json --output-type metrics",
     "validate:deps": "dependency-cruiser backend/src shared mobile/src --config tooling/dependency-rules.json --output-type html > docs/evidence/dependency-cruiser-report.html && dependency-cruiser backend/src shared mobile/src --config tooling/dependency-rules.json --validate",
     "test:contracts": "jest --testPathPattern='tests/contracts'",
+    "changeset": "changeset",
+    "changeset:version": "changeset version",
+    "changeset:status": "changeset status --since=main",
     "prepare": "husky"
   },
   "devDependencies": {
+    "@changesets/cli": "^2.29.7",
     "@microsoft/api-extractor": "^7.43.0",
     "dependency-cruiser": "^17.0.1",
     "husky": "^9.1.7",

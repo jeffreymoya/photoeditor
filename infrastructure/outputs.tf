@@ -104,6 +104,26 @@ output "sns_topic_arn" {
   sensitive   = false
 }
 
+# CloudWatch Dashboard
+output "cloudwatch_dashboard_name" {
+  description = "Name of the CloudWatch dashboard"
+  value       = module.monitoring.dashboard_name
+  sensitive   = false
+}
+
+output "cloudwatch_dashboard_url" {
+  description = "URL to CloudWatch dashboard"
+  value       = "https://console.aws.amazon.com/cloudwatch/home?region=${var.region}#dashboards:name=${module.monitoring.dashboard_name}"
+  sensitive   = false
+}
+
+# Monitoring Alarms
+output "alarm_sns_topic_arn" {
+  description = "SNS topic ARN for alarm notifications"
+  value       = module.monitoring.alarms_topic_arn
+  sensitive   = false
+}
+
 # Environment configuration for mobile app
 output "environment_config" {
   description = "Environment configuration for mobile app"
@@ -120,6 +140,7 @@ output "environment_config" {
     gemini_endpoint       = var.gemini_api_endpoint
     seedream_endpoint     = var.seedream_api_endpoint
     enable_stub_providers = var.enable_stub_providers
+    dashboard_name        = module.monitoring.dashboard_name
   }
   sensitive = false
 }

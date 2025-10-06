@@ -1,0 +1,75 @@
+{
+  "comment": "KMS Key Policy Template - To be populated with actual policy from deployed resources",
+  "instructions": "Export actual KMS key policy using: aws kms get-key-policy --key-id <KEY_ID> --policy-name default",
+  "requirements": {
+    "env_scoping": "Key policy must restrict decrypt/encrypt to resources with matching aws:ResourceTag/Env",
+    "principle_of_least_privilege": "No Action:* or Resource:* wildcards",
+    "grants": "Grants scoped per environment",
+    "deny_conditions": "Explicit deny for cross-environment access"
+  },
+  "example_policy_structure": {
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Sid": "Enable IAM User Permissions",
+        "Effect": "Allow",
+        "Principal": {
+          "AWS": "arn:aws:iam::ACCOUNT_ID:root"
+        },
+        "Action": "kms:*",
+        "Resource": "*"
+      },
+      {
+        "Sid": "Allow use of the key for S3 encryption",
+        "Effect": "Allow",
+        "Principal": {
+          "Service": "s3.amazonaws.com"
+        },
+        "Action": [
+          "kms:Decrypt",
+          "kms:GenerateDataKey"
+        ],
+        "Resource": "*",
+        "Condition": {
+          "StringEquals": {
+            "aws:ResourceTag/Env": "ENV_NAME"
+          }
+        }
+      },
+      {
+        "Sid": "Allow Lambda to decrypt",
+        "Effect": "Allow",
+        "Principal": {
+          "AWS": "arn:aws:iam::ACCOUNT_ID:role/lambda-execution-role"
+        },
+        "Action": [
+          "kms:Decrypt",
+          "kms:DescribeKey"
+        ],
+        "Resource": "*",
+        "Condition": {
+          "StringEquals": {
+            "aws:ResourceTag/Env": "ENV_NAME"
+          }
+        }
+      },
+      {
+        "Sid": "Deny cross-environment access",
+        "Effect": "Deny",
+        "Principal": "*",
+        "Action": [
+          "kms:Decrypt",
+          "kms:Encrypt"
+        ],
+        "Resource": "*",
+        "Condition": {
+          "StringNotEquals": {
+            "aws:ResourceTag/Env": "ENV_NAME"
+          }
+        }
+      }
+    ]
+  },
+  "last_updated": "TODO",
+  "verified_by": "TODO"
+}

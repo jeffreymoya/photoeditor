@@ -279,13 +279,14 @@ resource "aws_iam_role_policy" "lambda_policy" {
 # Lambda functions - kept inline for LocalStack compatibility
 # The lambda module uses archive_file which doesn't work with pre-built zips
 resource "aws_lambda_function" "presign" {
-  filename      = "../backend/dist/lambdas/presign/presign.zip"
-  function_name = local.lambda_names.presign
-  role          = aws_iam_role.lambda_execution_role.arn
-  handler       = "presign.handler"
-  runtime       = "nodejs20.x"
-  timeout       = var.lambda_timeout
-  memory_size   = var.lambda_memory_size
+  filename                       = "../backend/dist/lambdas/presign/presign.zip"
+  function_name                  = local.lambda_names.presign
+  role                           = aws_iam_role.lambda_execution_role.arn
+  handler                        = "presign.handler"
+  runtime                        = "nodejs20.x"
+  timeout                        = var.lambda_timeout
+  memory_size                    = var.lambda_memory_size
+  reserved_concurrent_executions = var.lambda_reserved_concurrency
 
   environment {
     variables = {
@@ -301,13 +302,14 @@ resource "aws_lambda_function" "presign" {
 }
 
 resource "aws_lambda_function" "status" {
-  filename      = "../backend/dist/lambdas/status/status.zip"
-  function_name = local.lambda_names.status
-  role          = aws_iam_role.lambda_execution_role.arn
-  handler       = "status.handler"
-  runtime       = "nodejs20.x"
-  timeout       = var.lambda_timeout
-  memory_size   = var.lambda_memory_size
+  filename                       = "../backend/dist/lambdas/status/status.zip"
+  function_name                  = local.lambda_names.status
+  role                           = aws_iam_role.lambda_execution_role.arn
+  handler                        = "status.handler"
+  runtime                        = "nodejs20.x"
+  timeout                        = var.lambda_timeout
+  memory_size                    = var.lambda_memory_size
+  reserved_concurrent_executions = var.lambda_reserved_concurrency
 
   environment {
     variables = {
@@ -321,13 +323,14 @@ resource "aws_lambda_function" "status" {
 }
 
 resource "aws_lambda_function" "worker" {
-  filename      = "../backend/dist/lambdas/worker/worker.zip"
-  function_name = local.lambda_names.worker
-  role          = aws_iam_role.lambda_execution_role.arn
-  handler       = "worker.handler"
-  runtime       = "nodejs20.x"
-  timeout       = var.lambda_timeout
-  memory_size   = var.lambda_memory_size
+  filename                       = "../backend/dist/lambdas/worker/worker.zip"
+  function_name                  = local.lambda_names.worker
+  role                           = aws_iam_role.lambda_execution_role.arn
+  handler                        = "worker.handler"
+  runtime                        = "nodejs20.x"
+  timeout                        = var.lambda_timeout
+  memory_size                    = var.lambda_memory_size
+  reserved_concurrent_executions = var.lambda_reserved_concurrency
 
   environment {
     variables = {
@@ -344,13 +347,14 @@ resource "aws_lambda_function" "worker" {
 }
 
 resource "aws_lambda_function" "download" {
-  filename      = "../backend/dist/lambdas/download/download.zip"
-  function_name = local.lambda_names.download
-  role          = aws_iam_role.lambda_execution_role.arn
-  handler       = "download.handler"
-  runtime       = "nodejs20.x"
-  timeout       = var.lambda_timeout
-  memory_size   = var.lambda_memory_size
+  filename                       = "../backend/dist/lambdas/download/download.zip"
+  function_name                  = local.lambda_names.download
+  role                           = aws_iam_role.lambda_execution_role.arn
+  handler                        = "download.handler"
+  runtime                        = "nodejs20.x"
+  timeout                        = var.lambda_timeout
+  memory_size                    = var.lambda_memory_size
+  reserved_concurrent_executions = var.lambda_reserved_concurrency
 
   environment {
     variables = {
@@ -361,6 +365,74 @@ resource "aws_lambda_function" "download" {
       JOBS_TABLE_NAME   = aws_dynamodb_table.jobs.name
     }
   }
+
+  tags = var.tags
+}
+
+# BFF Lambda (NestJS Backend for Frontend) - Future migration target
+# Currently routing through individual lambdas; BFF will consolidate presign/status/download
+resource "aws_lambda_function" "bff" {
+  count                          = var.enable_bff_lambda ? 1 : 0
+  filename                       = "../backend/dist/lambdas/bff/bff.zip"
+  function_name                  = "${local.common_name}-bff"
+  role                           = aws_iam_role.lambda_execution_role.arn
+  handler                        = "handler.handler"
+  runtime                        = "nodejs20.x"
+  timeout                        = var.lambda_timeout
+  memory_size                    = 512 # BFF requires more memory for NestJS runtime
+  reserved_concurrent_executions = var.lambda_reserved_concurrency
+
+  environment {
+    variables = {
+      PROJECT_NAME      = var.project_name
+      NODE_ENV          = var.environment
+      TEMP_BUCKET_NAME  = module.s3.temp_bucket_name
+      FINAL_BUCKET_NAME = module.s3.final_bucket_name
+      JOBS_TABLE_NAME   = aws_dynamodb_table.jobs.name
+      SNS_TOPIC_ARN     = module.sns.topic_arn
+    }
+  }
+
+  tags = merge(var.tags, {
+    Component = "bff"
+    Type      = "api-lambda"
+  })
+}
+
+# CloudWatch Log Groups with retention policies per STANDARDS.md
+# Prod: 90d, Staging: 30d, Dev: 14d
+resource "aws_cloudwatch_log_group" "presign" {
+  name              = "/aws/lambda/${aws_lambda_function.presign.function_name}"
+  retention_in_days = var.log_retention_days
+
+  tags = var.tags
+}
+
+resource "aws_cloudwatch_log_group" "status" {
+  name              = "/aws/lambda/${aws_lambda_function.status.function_name}"
+  retention_in_days = var.log_retention_days
+
+  tags = var.tags
+}
+
+resource "aws_cloudwatch_log_group" "worker" {
+  name              = "/aws/lambda/${aws_lambda_function.worker.function_name}"
+  retention_in_days = var.log_retention_days
+
+  tags = var.tags
+}
+
+resource "aws_cloudwatch_log_group" "download" {
+  name              = "/aws/lambda/${aws_lambda_function.download.function_name}"
+  retention_in_days = var.log_retention_days
+
+  tags = var.tags
+}
+
+resource "aws_cloudwatch_log_group" "bff" {
+  count             = var.enable_bff_lambda ? 1 : 0
+  name              = "/aws/lambda/${aws_lambda_function.bff[0].function_name}"
+  retention_in_days = var.log_retention_days
 
   tags = var.tags
 }
@@ -598,4 +670,69 @@ resource "aws_ssm_parameter" "enable_stub_providers" {
   value = tostring(var.enable_stub_providers)
 
   tags = var.tags
+}
+
+# Monitoring Module - CloudWatch dashboards and alarms
+# Note: API Gateway dashboard uses v2 (HTTP API) metrics
+# Current LocalStack setup uses REST API v1, so dashboard will show limited data in LocalStack
+module "monitoring" {
+  source = "./modules/monitoring"
+
+  environment       = var.environment
+  project_name      = var.project_name
+  common_name       = local.common_name
+  api_gateway_name  = aws_api_gateway_rest_api.api.id
+  api_gateway_stage = aws_api_gateway_stage.dev.stage_name
+  lambda_function_names = [
+    aws_lambda_function.presign.function_name,
+    aws_lambda_function.status.function_name,
+    aws_lambda_function.worker.function_name,
+    aws_lambda_function.download.function_name,
+  ]
+  queue_name    = module.sqs.queue_name
+  dlq_name      = module.sqs.dlq_name
+  sns_topic_arn = module.sns.topic_arn
+
+  tags = var.tags
+}
+
+# API Gateway CloudWatch Logging
+resource "aws_api_gateway_account" "main" {
+  cloudwatch_role_arn = aws_iam_role.api_gateway_cloudwatch.arn
+}
+
+resource "aws_iam_role" "api_gateway_cloudwatch" {
+  name = "${local.common_name}-api-gateway-cloudwatch"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "apigateway.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = var.tags
+}
+
+resource "aws_iam_role_policy_attachment" "api_gateway_cloudwatch" {
+  role       = aws_iam_role.api_gateway_cloudwatch.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
+}
+
+resource "aws_api_gateway_method_settings" "all" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  stage_name  = aws_api_gateway_stage.dev.stage_name
+  method_path = "*/*"
+
+  settings {
+    metrics_enabled    = true
+    logging_level      = var.api_gateway_log_level
+    data_trace_enabled = var.environment == "dev"
+  }
 }

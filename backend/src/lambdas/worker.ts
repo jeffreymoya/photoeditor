@@ -2,9 +2,15 @@ import { SQSEvent, SQSRecord, Context } from 'aws-lambda';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics, MetricUnits } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { JobService, S3Service, NotificationService, ConfigService, BootstrapService } from '../services';
-import { ProviderFactory } from '../providers/factory';
+import { JobService, S3Service, NotificationService } from '../services';
 import { S3Config, JobStatus, GeminiAnalysisResponse, SeedreamEditingResponse } from '@photoeditor/shared';
+import {
+  createSSMClient,
+  ConfigService,
+  BootstrapService,
+  StandardProviderCreator,
+  ProviderFactory
+} from '@backend/core';
 
 const logger = new Logger();
 const metrics = new Metrics();
@@ -37,8 +43,11 @@ async function initializeServices(): Promise<void> {
   s3Service = new S3Service(s3Config);
   notificationService = new NotificationService(snsTopicArn, region);
 
-  const configService = new ConfigService(region, projectName, environment);
-  const bootstrapService = new BootstrapService(configService);
+  // Initialize providers using shared core
+  const ssmClient = createSSMClient(region);
+  const configService = new ConfigService(ssmClient, projectName, environment);
+  const providerCreator = new StandardProviderCreator();
+  const bootstrapService = new BootstrapService(configService, providerCreator);
   providerFactory = await bootstrapService.initializeProviders();
 }
 

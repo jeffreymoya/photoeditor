@@ -1,0 +1,77 @@
+# CloudWatch Logs Insights Queries for PhotoEditor SST Dev Stack
+# STANDARDS.md line 72: Structured JSON logs with correlationId, traceId, requestId, jobId, userId, function, env, version
+
+## Query 1: Structured Logs with Correlation ID
+# View all structured logs with correlation tracking
+fields @timestamp, correlationId, traceId, requestId, jobId, userId, function, env, version, @message
+| filter function = "BFF"
+| sort @timestamp desc
+| limit 100
+
+## Query 2: Lambda Error Tracking
+# Track all Lambda errors with stack traces
+fields @timestamp, @message, error.type, error.message, stack, correlationId
+| filter @message like /ERROR/
+| sort @timestamp desc
+| limit 50
+
+## Query 3: Latency Analysis
+# P95 latency tracking for presign endpoint (STANDARDS.md target: <120ms)
+stats avg(duration) as avg_latency, pct(duration, 50) as p50, pct(duration, 95) as p95, pct(duration, 99) as p99 by bin(5m)
+| filter function = "BFF" and operation = "presign"
+| sort bin(5m) desc
+
+## Query 4: Job Lifecycle Tracking
+# Trace a job from presign to completion
+fields @timestamp, function, operation, jobId, status, correlationId, @message
+| filter jobId = "REPLACE_WITH_JOB_ID"
+| sort @timestamp asc
+
+## Query 5: API Gateway Access Logs
+# Track API requests with status codes and latency
+fields @timestamp, requestId, httpMethod, path, status, latency, ip, userAgent
+| filter httpMethod != ""
+| sort @timestamp desc
+| limit 100
+
+## Query 6: SQS Processing Metrics
+# Monitor SQS message processing and failures
+fields @timestamp, function, messageId, jobId, status, duration, error
+| filter function = "Worker"
+| sort @timestamp desc
+| limit 100
+
+## Query 7: W3C Trace Propagation Validation
+# Verify traceparent header propagation (STANDARDS.md line 72)
+fields @timestamp, traceparent, traceId, spanId, function, @message
+| filter traceparent like /00-/
+| sort @timestamp desc
+| limit 50
+
+## Query 8: DLQ Inflow Analysis
+# Monitor dead letter queue messages (STANDARDS.md line 80 alarm: DLQ inflow >0 for 5m)
+fields @timestamp, messageId, jobId, errorType, errorMessage, retryCount, @message
+| filter function = "DLQ"
+| sort @timestamp desc
+
+## Query 9: Cold Start Performance
+# Track Lambda cold starts and initialization time
+fields @timestamp, @initDuration, @duration, @memorySize, function
+| filter @type = "REPORT"
+| stats avg(@initDuration) as avg_cold_start, max(@initDuration) as max_cold_start, count(*) as cold_starts by function
+
+## Query 10: Cost Attribution by Function
+# Analyze Lambda invocation costs per function
+fields @timestamp, function, @duration, @billedDuration, @memorySize, @maxMemoryUsed
+| filter @type = "REPORT"
+| stats sum(@billedDuration / 1000 * @memorySize / 1024) as gb_seconds, count(*) as invocations by function
+
+# Usage Instructions:
+# 1. Navigate to CloudWatch Logs Insights: https://console.aws.amazon.com/cloudwatch/home#logsV2:logs-insights
+# 2. Select log groups: /aws/lambda/photoeditor-dev-*
+# 3. Copy-paste desired query
+# 4. Adjust time range as needed
+# 5. Run query and analyze results
+
+# MTTP P95 Target (STANDARDS.md line 199): ≤5 minutes from synthetic faults
+# Trace Coverage Target (STANDARDS.md line 222): ≥95% for multi-hop requests

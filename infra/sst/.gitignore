@@ -1,0 +1,14 @@
+# SST
+.sst
+.sst/
+node_modules/
+.env
+.env.local
+
+# TypeScript
+*.tsbuildinfo
+dist/
+
+# Logs
+*.log
+npm-debug.log*

@@ -138,6 +138,23 @@ variable "enable_xray_tracing" {
   default     = true
 }
 
+variable "api_gateway_log_level" {
+  description = "API Gateway logging level (OFF, ERROR, INFO)"
+  type        = string
+  default     = "INFO"
+
+  validation {
+    condition     = can(regex("^(OFF|ERROR|INFO)$", var.api_gateway_log_level))
+    error_message = "API Gateway log level must be one of: OFF, ERROR, INFO."
+  }
+}
+
+variable "enable_bff_lambda" {
+  description = "Enable BFF Lambda (NestJS Backend for Frontend)"
+  type        = bool
+  default     = false
+}
+
 # Cost Management
 variable "monthly_budget_limit" {
   description = "Monthly budget limit in USD"

@@ -81,14 +81,6 @@ export const makeApiEventV2 = (overrides: Partial<APIGatewayProxyEventV2> = {}):
     stage: '$default',
     time: '01/Jan/2024:00:00:00 +0000',
     timeEpoch: 1704067200000,
-    authorizer: {
-      jwt: {
-        claims: {
-          sub: 'test-user-id',
-        },
-        scopes: [],
-      },
-    },
   },
   isBase64Encoded: false,
   ...overrides,

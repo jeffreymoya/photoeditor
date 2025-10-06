@@ -20,6 +20,8 @@ const path = require('path');
 const crypto = require('crypto');
 
 const SHARED_DIST = path.join(__dirname, '../shared/dist');
+const CONTRACTS_CLIENTS = path.join(__dirname, '../docs/contracts/clients');
+const OPENAPI_GENERATED = path.join(__dirname, '../docs/openapi/openapi-generated.yaml');
 const SNAPSHOT_FILE = path.join(__dirname, '../shared/contract-snapshot.json');
 
 function calculateHash(filePath) {
@@ -34,17 +36,25 @@ function generateContractSnapshot() {
   };
 
   // Find all .d.ts and .js files in shared/dist (contract artifacts)
-  function scanDirectory(dir, baseDir = dir) {
+  function scanDirectory(dir, baseDir = dir, label = '') {
+    if (!fs.existsSync(dir)) {
+      return; // Skip if directory doesn't exist
+    }
+
     const entries = fs.readdirSync(dir, { withFileTypes: true });
 
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
 
       if (entry.isDirectory()) {
-        scanDirectory(fullPath, baseDir);
-      } else if (entry.isFile() && (entry.name.endsWith('.d.ts') || entry.name.endsWith('.js'))) {
-        const relativePath = path.relative(baseDir, fullPath);
-        snapshot.files[relativePath] = calculateHash(fullPath);
+        scanDirectory(fullPath, baseDir, label);
+      } else if (entry.isFile()) {
+        const ext = path.extname(entry.name);
+        // Track TypeScript/JavaScript artifacts and generated contract files
+        if (ext === '.d.ts' || ext === '.js' || ext === '.ts' || ext === '.yaml' || ext === '.json') {
+          const relativePath = label ? `${label}/${path.relative(baseDir, fullPath)}` : path.relative(baseDir, fullPath);
+          snapshot.files[relativePath] = calculateHash(fullPath);
+        }
       }
     }
   }
@@ -54,7 +64,19 @@ function generateContractSnapshot() {
     process.exit(2);
   }
 
-  scanDirectory(SHARED_DIST);
+  // Scan shared/dist for built artifacts
+  scanDirectory(SHARED_DIST, SHARED_DIST, 'shared/dist');
+
+  // Scan generated contract artifacts
+  if (fs.existsSync(CONTRACTS_CLIENTS)) {
+    scanDirectory(CONTRACTS_CLIENTS, CONTRACTS_CLIENTS, 'contracts/clients');
+  }
+
+  // Include generated OpenAPI spec if it exists
+  if (fs.existsSync(OPENAPI_GENERATED)) {
+    snapshot.files['openapi/openapi-generated.yaml'] = calculateHash(OPENAPI_GENERATED);
+  }
+
   return snapshot;
 }
 

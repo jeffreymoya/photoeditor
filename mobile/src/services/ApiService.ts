@@ -1,76 +1,16 @@
-import { z } from 'zod';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Import shared schemas if available
-// import { PresignRequestSchema, JobStatusSchema } from '@photoeditor/shared';
-
-// Define schemas locally for now - aligned with backend
-const PresignRequestSchema = z.object({
-  fileName: z.string(),
-  contentType: z.string(),
-  fileSize: z.number(),
-  prompt: z.string().optional(),
-});
-
-const PresignResponseSchema = z.object({
-  jobId: z.string(),
-  presignedUrl: z.string(),
-  s3Key: z.string(),
-  expiresAt: z.string(),
-});
-
-const JobStatusSchema = z.object({
-  jobId: z.string(),
-  status: z.enum(['QUEUED', 'PROCESSING', 'EDITING', 'COMPLETED', 'FAILED']),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-  error: z.string().optional(),
-  finalS3Key: z.string().optional(),
-});
-
-// Batch processing schemas
-const FileUploadSchema = z.object({
-  fileName: z.string(),
-  contentType: z.string(),
-  fileSize: z.number(),
-});
-
-const BatchUploadRequestSchema = z.object({
-  files: z.array(FileUploadSchema),
-  sharedPrompt: z.string(),
-  individualPrompts: z.array(z.string().optional()).optional(),
-});
-
-const BatchUploadResponseSchema = z.object({
-  batchJobId: z.string(),
-  uploads: z.array(z.object({
-    presignedUrl: z.string(),
-    s3Key: z.string(),
-    expiresAt: z.string(),
-  })),
-  childJobIds: z.array(z.string()),
-});
-
-const BatchJobStatusSchema = z.object({
-  batchJobId: z.string(),
-  status: z.enum(['QUEUED', 'PROCESSING', 'EDITING', 'COMPLETED', 'FAILED']),
-  completedCount: z.number(),
-  totalCount: z.number(),
-  childJobIds: z.array(z.string()),
-  error: z.string().optional(),
-});
-
-// Device token registration schema
-const DeviceTokenRegistrationSchema = z.object({
-  expoPushToken: z.string(),
-  platform: z.enum(['ios', 'android']),
-  deviceId: z.string(),
-});
-
-const DeviceTokenResponseSchema = z.object({
-  success: z.boolean(),
-  message: z.string(),
-});
+// Import shared contract schemas (SSOT)
+import {
+  PresignUploadRequestSchema,
+  PresignUploadResponseSchema,
+  BatchUploadRequestSchema,
+  BatchUploadResponseSchema,
+  DeviceTokenRegistrationSchema,
+  DeviceTokenResponseSchema,
+  JobSchema,
+  BatchJobSchema,
+} from '@photoeditor/shared';
 
 class ApiService {
   private baseUrl: string;
@@ -124,7 +64,7 @@ class ApiService {
     fileSize: number,
     prompt?: string
   ): Promise<{ jobId: string; presignedUrl: string; s3Key: string; expiresAt: string }> {
-    const requestBody = PresignRequestSchema.parse({ fileName, contentType, fileSize, prompt });
+    const requestBody = PresignUploadRequestSchema.parse({ fileName, contentType, fileSize, prompt });
 
     const response = await this.makeRequest('/presign', {
       method: 'POST',
@@ -132,7 +72,7 @@ class ApiService {
     });
 
     const data = await response.json();
-    return PresignResponseSchema.parse(data);
+    return PresignUploadResponseSchema.parse(data);
   }
 
   async uploadImage(uploadUrl: string, imageUri: string): Promise<void> {
@@ -152,7 +92,7 @@ class ApiService {
   async getJobStatus(jobId: string) {
     const response = await this.makeRequest(`/status/${jobId}`);
     const data = await response.json();
-    return JobStatusSchema.parse(data);
+    return JobSchema.parse(data);
   }
 
   async processImage(
@@ -253,7 +193,7 @@ class ApiService {
   async getBatchJobStatus(batchJobId: string) {
     const response = await this.makeRequest(`/batch-status/${batchJobId}`);
     const data = await response.json();
-    return BatchJobStatusSchema.parse(data);
+    return BatchJobSchema.parse(data);
   }
 
   async processBatchImages(

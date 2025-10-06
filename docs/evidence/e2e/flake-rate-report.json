@@ -1,0 +1,15 @@
+{
+  "generatedAt": "2025-10-04T00:00:00.000Z",
+  "testSuite": "E2E LocalStack Tests",
+  "summary": {
+    "totalRuns": 0,
+    "totalTests": 0,
+    "flakes": 0,
+    "flakeRatePercent": 0,
+    "threshold": 1,
+    "status": "PENDING",
+    "quarantinedTests": []
+  },
+  "testResults": [],
+  "notes": "Per STANDARDS.md line 104: Auto-quarantine if flake rate >1% for >7 days. This file tracks flakiness across test runs."
+}

@@ -1,0 +1,33 @@
+photo editing app requirements (technology-agnostic)
+- Users can upload one or more photos or use the device camera.
+  - Initial release targets Android (API 24+); iOS support will be scoped later.
+  - App operates on devices with at least 2 GB RAM and a functional camera; offline capture queues uploads when connectivity returns.
+- The mobile app resizes and optimizes images for web delivery before uploading.
+  - Support JPEG, PNG, HEIC, and WebP up to 20 MB each; cap resolution at 4096 px on the longest edge before upload.
+  - Client uploads must be secure and resilient, with three retry attempts and exponential backoff for failed uploads.
+- Uploaded images are stored in a temporary object storage location and automatically expire after 48 hours.
+  - Objects must be encrypted at rest; resources are tagged for cost tracking.
+- Image processing is asynchronous.
+  - New uploads enqueue a processing job; a worker service consumes jobs from a queue to orchestrate processing.
+  - Job metadata persists in a database keyed by job id with status, timestamps, and user reference.
+- AI analysis
+  - The system sends the image and a prompt to an image analysis service.
+  - Prompts include locale-aware instructions and guardrails; failures retry up to two times with jitter, then the job is marked as failed.
+  - API keys and credentials are stored securely and are not exposed to clients.
+- Image editing
+  - The system sends the analysis results, original image location, and editing settings to an image editing service.
+  - Errors trigger a fallback notification urging manual retry.
+- Final assets
+  - The edited image is stored in a final storage location per user with encryption at rest and versioning enabled.
+  - Access is granted via time-limited links.
+  - Lifecycle rules retain final images for 365 days; users may request early deletion which removes both temporary and final artifacts.
+- Data retention and logging
+  - Only the source upload (temporary) and final edited image are stored; no other artifacts are persisted.
+  - Processing writes structured logs and redacts sensitive data; no intermediate outputs persist beyond job records.
+- User notification and progress
+  - The user is notified in-app when the image is done processing.
+  - The UI can poll a status endpoint (e.g., `/jobs/{id}`) for progress states: `QUEUED`, `PROCESSING`, `EDITING`, `COMPLETED`, `FAILED`.
+  - If notification delivery fails after three attempts, the job is flagged for manual follow-up in an ops dashboard.
+- Minimum compliance baseline
+  - All data in transit uses modern TLS; encryption at rest is mandatory; access control follows least privilege with periodic review.
+  - The app displays user consent for image processing, keeps a 90-day audit log retention policy, and documents breach response contacts.

@@ -10,7 +10,7 @@ set -euo pipefail
 # - --claim picks top ready task (or specific path) and sets status: in_progress
 # - --complete sets status: completed and archives to docs/completed-tasks/
 # - --list prints candidates (unchanged columns), still ordered with sequencing
-# - --pick [STATUS] prints the single highest-priority ready task path (default STATUS=todo)
+# - --pick [STATUS] prints the single highest-priority task path (default auto: in_progress first, then ready TODO)
 # - Respects nested subfolders under tasks/, and archived tasks under docs/completed-tasks/
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"/.. && pwd)"
@@ -19,12 +19,12 @@ ARCHIVE_DIR="${ROOT_DIR}/docs/completed-tasks"
 
 usage() {
   cat <<EOF
-Usage: $(basename "$0") [--list | --pick [todo|in_progress|completed] | --claim [TASK_FILE] | --complete [TASK_FILE]]
+Usage: $(basename "$0") [--list | --pick [auto|todo|in_progress|completed] | --claim [TASK_FILE] | --complete [TASK_FILE]]
 
 Examples:
   $(basename "$0") --list
-  $(basename "$0") --pick                # print path to highest-priority TODO task
-  $(basename "$0") --pick in_progress    # print path to highest-priority in_progress task
+  $(basename "$0") --pick                # print path to highest-priority in_progress task, else ready TODO
+  $(basename "$0") --pick in_progress    # explicitly print path to highest-priority in_progress task
   $(basename "$0") --claim               # claim top-priority TODO task
   $(basename "$0") --claim tasks/TASK-0104-edit-screen-cleanup.task.yaml
   $(basename "$0") --complete            # complete current top in_progress task
@@ -81,7 +81,7 @@ task_order() {
   echo "${o:-9999}"
 }
 
-# List candidate tasks with fields: prio_num\tid\tpath\ttitle\tstatus\tready\torder
+# List candidate tasks with fields: status_rank\tprio_num\tid\tpath\ttitle\tstatus\tready\torder
 list_tasks() {
   local completed
   completed="$(completed_ids)"
@@ -95,16 +95,17 @@ list_tasks() {
     readyflag=$( [ "$(is_ready "$f" "$completed")" -eq 1 ] && echo ready || echo blocked )
     ord=$(task_order "$f")
     case "$pr" in P0) pn=0;; P1) pn=1;; P2) pn=2;; *) pn=9;; esac
-    printf "%d\t%s\t%s\t%s\t%s\t%s\t%s\n" "$pn" "${id:-NA}" "$f" "${title:-}" "$status" "$readyflag" "$ord"
-  done | sort -k1,1n -k7,7n -k2,2
+    case "$status" in in_progress) sn=0;; todo) sn=1;; completed) sn=2;; *) sn=3;; esac
+    printf "%d\t%d\t%s\t%s\t%s\t%s\t%s\t%s\n" "$sn" "$pn" "${id:-NA}" "$f" "${title:-}" "$status" "$readyflag" "$ord"
+  done | sort -k1,1n -k2,2n -k8,8n -k3,3
 }
 
 pick_top_todo() {
-  list_tasks | awk -F"\t" '$5=="todo" && $6=="ready" {print $3; exit}'
+  list_tasks | awk -F"\t" '$6=="todo" && $7=="ready" {print $4; exit}'
 }
 
 pick_top_in_progress() {
-  list_tasks | awk -F"\t" '$5=="in_progress" {print $3; exit}'
+  list_tasks | awk -F"\t" '$6=="in_progress" {print $4; exit}'
 }
 
 pick_top_by_status() {
@@ -119,7 +120,7 @@ pick_top_by_status() {
       ;;
     completed)
       # Typically archived to docs/completed-tasks and excluded from list; keep for completeness
-      list_tasks | awk -F"\t" '$5=="completed" {print $3; exit}'
+      list_tasks | awk -F"\t" '$6=="completed" {print $4; exit}'
       ;;
     *)
       echo ""  # invalid handled by caller
@@ -154,17 +155,38 @@ main() {
   local cmd="${1:-}"; shift || true
   case "$cmd" in
     --list)
-      list_tasks | awk -F"\t" '{printf "%s\t%s\t%s\t%s\n", $2, $5, $3, $4}'
+      list_tasks | awk -F"\t" '{printf "%s\t%s\t%s\t%s\n", $3, $6, $4, $5}'
       ;;
     --pick)
-      local status="${1:-todo}"
-      case "$status" in todo|in_progress|completed) ;; *) echo "Invalid status: $status (expected: todo|in_progress|completed)" >&2; exit 2;; esac
-      local file
-      file=$(pick_top_by_status "$status")
+      local requested="${1:-auto}"
+      local status="$requested"
+      local file=""
+      case "$requested" in
+        auto)
+          file=$(pick_top_in_progress)
+          if [ -n "$file" ]; then
+            status="in_progress"
+          else
+            file=$(pick_top_todo)
+            status="todo"
+          fi
+          ;;
+        todo|in_progress|completed)
+          file=$(pick_top_by_status "$requested")
+          ;;
+        *)
+          echo "Invalid status: $requested (expected: auto|todo|in_progress|completed)" >&2
+          exit 2
+          ;;
+      esac
       if [ -n "$file" ]; then
         echo "$file"
       else
-        echo "No $status tasks found" >&2
+        if [ "$requested" = "auto" ]; then
+          echo "No in_progress or todo tasks found" >&2
+        else
+          echo "No $status tasks found" >&2
+        fi
         exit 3
       fi
       ;;

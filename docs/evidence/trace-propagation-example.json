@@ -1,0 +1,41 @@
+{
+  "description": "W3C Trace Propagation Example",
+  "standard": "STANDARDS.md line 72",
+  "trace_flow": [
+    {
+      "layer": "API Gateway",
+      "traceparent": "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01",
+      "component": "HTTP Request"
+    },
+    {
+      "layer": "Presign Lambda Handler",
+      "traceparent": "00-0af7651916cd43dd8448eb211c80319c-0000000000000001-01",
+      "parent_span_id": "b7ad6b7169203331",
+      "component": "handler function"
+    },
+    {
+      "layer": "PresignService",
+      "traceparent": "00-0af7651916cd43dd8448eb211c80319c-0000000000000002-01",
+      "parent_span_id": "0000000000000001",
+      "component": "generatePresignedUpload"
+    },
+    {
+      "layer": "JobService (DynamoDB Adapter)",
+      "traceparent": "00-0af7651916cd43dd8448eb211c80319c-0000000000000003-01",
+      "parent_span_id": "0000000000000002",
+      "component": "createJob"
+    },
+    {
+      "layer": "S3Service (S3 Adapter)",
+      "traceparent": "00-0af7651916cd43dd8448eb211c80319c-0000000000000004-01",
+      "parent_span_id": "0000000000000002",
+      "component": "generatePresignedUpload"
+    }
+  ],
+  "verification": {
+    "trace_id_consistent": true,
+    "parent_child_relationships": "All spans correctly reference parent span IDs",
+    "adapter_isolation": "Trace context propagated through service → adapter layers",
+    "observability_ready": true
+  }
+}

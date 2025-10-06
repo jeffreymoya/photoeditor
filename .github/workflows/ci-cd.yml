@@ -52,6 +52,10 @@ jobs:
       - name: Validate API surface changes
         run: cd shared && npm run api-extractor
 
+      - name: Check for pending changesets (shared contracts governance)
+        run: npm run changeset:status
+        continue-on-error: true
+
   # Test backend services
   test:
     name: Test Backend

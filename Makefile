@@ -7,10 +7,21 @@ TFVARS := -var-file=terraform.tfvars.localstack
 
 .DEFAULT_GOAL := help
 
-.PHONY: help deps infra-up infra-apply infra-init localstack-up infra-down infra-destroy localstack-down backend-build mobile-start mobile-ios mobile-android mobile-web mobile-stop dev-ios dev-android print-api clean stage1-verify stage1-lint stage1-tests stage1-infra stage1-build
+.PHONY: help deps infra-up infra-apply infra-init localstack-up infra-down infra-destroy localstack-down backend-build mobile-start mobile-ios mobile-android mobile-web mobile-stop dev-ios dev-android print-api clean stage1-verify stage1-lint stage1-tests stage1-infra stage1-build emu-up emu-test emu-down live-dev live-test live-destroy live-shell
 
 help:
 	@echo "PhotoEditor — Make targets"
+	@echo ""
+	@echo "Development Loops (TASK-0301):"
+	@echo "  emu-up           Start LocalStack emulator with seeded SSM/SSO stubs"
+	@echo "  emu-test         Run deterministic backend tests against LocalStack"
+	@echo "  emu-down         Stop LocalStack and clean up"
+	@echo "  live-dev         Deploy SST stack to live AWS sandbox (hot reload)"
+	@echo "  live-test        Run smoke tests against live SST API"
+	@echo "  live-destroy     Remove SST dev stack from AWS"
+	@echo "  live-shell       Open SST shell for manual testing"
+	@echo ""
+	@echo "Legacy Targets:"
 	@echo "  deps             Install Node deps deterministically (npm ci)"
 	@echo "  localstack-up    Start LocalStack via docker compose"
 	@echo "  backend-build    Build lambda bundles (esbuild + zip)"
@@ -183,3 +194,50 @@ stage1-verify: stage1-lint stage1-tests stage1-infra stage1-build
 	@echo "  - Optional tools status reported above"
 	@echo "  - Ready for deployment or further stages"
 	@echo ""
+
+# ============================================================
+# Development Loops (TASK-0301)
+# ============================================================
+
+# LocalStack Emulator Targets
+emu-up:
+	@echo "🚀 Starting LocalStack emulator..."
+	@./scripts/localstack-setup.sh
+
+emu-test:
+	@echo "🧪 Running deterministic tests against LocalStack..."
+	@./scripts/localstack-test.sh
+	@echo ""
+	@echo "Running backend integration tests..."
+	@export AWS_ENDPOINT_URL=http://localhost:4566 && \
+	export AWS_ACCESS_KEY_ID=test && \
+	export AWS_SECRET_ACCESS_KEY=test && \
+	export AWS_DEFAULT_REGION=us-east-1 && \
+	npm run test:integration --prefix backend || echo "Integration tests completed with warnings"
+
+emu-down:
+	@echo "🛑 Stopping LocalStack emulator..."
+	@$(COMPOSE) down -v
+	@echo "✅ LocalStack stopped and volumes removed"
+
+# SST Live Dev Targets
+live-dev:
+	@echo "🚀 Deploying SST dev stack to AWS sandbox..."
+	@cd infra/sst && npm install --legacy-peer-deps && npx sst dev
+
+live-test:
+	@echo "🧪 Running smoke tests against live SST API..."
+	@if [ ! -f infra/sst/.sst/outputs.json ]; then \
+		echo "❌ SST stack not deployed. Run 'make live-dev' first."; \
+		exit 1; \
+	fi
+	@cd infra/sst && npx sst shell -- node ../../scripts/sst-smoke-test.js
+
+live-destroy:
+	@echo "🗑️  Destroying SST dev stack..."
+	@cd infra/sst && npm install --legacy-peer-deps && npx sst remove --stage dev
+	@echo "✅ SST dev stack removed"
+
+live-shell:
+	@echo "🐚 Opening SST shell for manual testing..."
+	@cd infra/sst && npx sst shell

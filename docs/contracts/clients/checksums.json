@@ -1,0 +1,15 @@
+{
+  "generated_at": "2025-10-06T05:29:11.214Z",
+  "artifacts": {
+    "openapi-generated.yaml": {
+      "checksum": "659a795cb7be6fcb2f7204e0cebc27428119f59aa7f7756306efebdb3e871160",
+      "size": 16244,
+      "type": "yaml"
+    },
+    "types.ts": {
+      "checksum": "aa56fd5e2ee36b5accd9e601c82439b098177233857c2889f00c7daa27665af3",
+      "size": 2201,
+      "type": "ts"
+    }
+  }
+}

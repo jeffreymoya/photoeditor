@@ -1,5 +1,6 @@
 import { SNSClient, PublishCommand } from '@aws-sdk/client-sns';
 import { JobStatusType, Job, BatchJob } from '@photoeditor/shared';
+import { createSNSClient } from '@backend/core';
 
 export interface NotificationPayload {
   jobId: string;
@@ -20,9 +21,10 @@ export class NotificationService {
   private snsClient: SNSClient;
   private topicArn: string;
 
-  constructor(topicArn: string, region: string) {
+  constructor(topicArn: string, region: string, client?: SNSClient) {
     this.topicArn = topicArn;
-    this.snsClient = new SNSClient({ region });
+    // Use provided client or create one via factory (STANDARDS.md line 32)
+    this.snsClient = client || createSNSClient(region);
   }
 
   async sendJobStatusNotification(job: Job, previousStatus?: JobStatusType): Promise<void> {

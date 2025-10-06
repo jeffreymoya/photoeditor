@@ -1,0 +1,190 @@
+{
+  "dashboardName": "PhotoEditor-Dev-Dashboard",
+  "description": "CloudWatch dashboard for PhotoEditor SST dev stack - STANDARDS.md compliance monitoring",
+  "widgets": [
+    {
+      "type": "metric",
+      "properties": {
+        "title": "Lambda Errors (STANDARDS.md line 76: >0 for 5m alarm)",
+        "metrics": [
+          ["AWS/Lambda", "Errors", { "stat": "Sum", "label": "BFF Errors" }, { "dimensions": { "FunctionName": "photoeditor-dev-BffFunction" } }],
+          ["...", { "dimensions": { "FunctionName": "photoeditor-dev-WorkerFunction" }, "label": "Worker Errors" }],
+          ["...", { "dimensions": { "FunctionName": "photoeditor-dev-StatusFunction" }, "label": "Status Errors" }],
+          ["...", { "dimensions": { "FunctionName": "photoeditor-dev-DownloadFunction" }, "label": "Download Errors" }]
+        ],
+        "period": 300,
+        "stat": "Sum",
+        "region": "us-east-1",
+        "yAxis": {
+          "left": {
+            "min": 0
+          }
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "properties": {
+        "title": "API 5XX Errors (STANDARDS.md line 77: >1% for 5m alarm)",
+        "metrics": [
+          ["AWS/ApiGateway", "5XXError", { "stat": "Sum" }],
+          [".", "Count", { "stat": "Sum", "label": "Total Requests" }]
+        ],
+        "period": 300,
+        "stat": "Sum",
+        "region": "us-east-1",
+        "yAxis": {
+          "left": {
+            "min": 0
+          }
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "properties": {
+        "title": "SQS Queue Age (STANDARDS.md line 78: >120s alarm)",
+        "metrics": [
+          ["AWS/SQS", "ApproximateAgeOfOldestMessage", { "dimensions": { "QueueName": "photoeditor-dev-processing-queue" }, "stat": "Maximum" }]
+        ],
+        "period": 60,
+        "stat": "Maximum",
+        "region": "us-east-1",
+        "yAxis": {
+          "left": {
+            "min": 0
+          }
+        },
+        "annotations": {
+          "horizontal": [
+            {
+              "value": 120,
+              "label": "Alarm Threshold (2 min)",
+              "color": "#d62728"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "properties": {
+        "title": "DLQ Inflow (STANDARDS.md line 80: >0 for 5m alarm)",
+        "metrics": [
+          ["AWS/SQS", "NumberOfMessagesSent", { "dimensions": { "QueueName": "photoeditor-dev-processing-dlq" }, "stat": "Sum" }],
+          [".", "ApproximateNumberOfMessagesVisible", { "dimensions": { "QueueName": "photoeditor-dev-processing-dlq" }, "stat": "Maximum" }]
+        ],
+        "period": 300,
+        "stat": "Sum",
+        "region": "us-east-1",
+        "yAxis": {
+          "left": {
+            "min": 0
+          }
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "properties": {
+        "title": "Lambda Duration P95 (Target: BFF <300ms cold start)",
+        "metrics": [
+          ["AWS/Lambda", "Duration", { "stat": "p95", "dimensions": { "FunctionName": "photoeditor-dev-BffFunction" } }],
+          ["...", { "stat": "p95", "dimensions": { "FunctionName": "photoeditor-dev-WorkerFunction" } }],
+          ["...", { "stat": "p95", "dimensions": { "FunctionName": "photoeditor-dev-StatusFunction" } }],
+          ["...", { "stat": "p95", "dimensions": { "FunctionName": "photoeditor-dev-DownloadFunction" } }]
+        ],
+        "period": 300,
+        "stat": "p95",
+        "region": "us-east-1",
+        "yAxis": {
+          "left": {
+            "min": 0
+          }
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "properties": {
+        "title": "Lambda Invocations",
+        "metrics": [
+          ["AWS/Lambda", "Invocations", { "stat": "Sum", "dimensions": { "FunctionName": "photoeditor-dev-BffFunction" } }],
+          ["...", { "dimensions": { "FunctionName": "photoeditor-dev-WorkerFunction" } }],
+          ["...", { "dimensions": { "FunctionName": "photoeditor-dev-StatusFunction" } }],
+          ["...", { "dimensions": { "FunctionName": "photoeditor-dev-DownloadFunction" } }]
+        ],
+        "period": 300,
+        "stat": "Sum",
+        "region": "us-east-1"
+      }
+    },
+    {
+      "type": "metric",
+      "properties": {
+        "title": "Lambda Concurrent Executions",
+        "metrics": [
+          ["AWS/Lambda", "ConcurrentExecutions", { "stat": "Maximum", "dimensions": { "FunctionName": "photoeditor-dev-WorkerFunction" } }]
+        ],
+        "period": 60,
+        "stat": "Maximum",
+        "region": "us-east-1",
+        "yAxis": {
+          "left": {
+            "min": 0
+          }
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "properties": {
+        "title": "DynamoDB Consumed Capacity",
+        "metrics": [
+          ["AWS/DynamoDB", "ConsumedReadCapacityUnits", { "stat": "Sum", "dimensions": { "TableName": "photoeditor-dev-jobs" } }],
+          [".", "ConsumedWriteCapacityUnits", { "stat": "Sum", "dimensions": { "TableName": "photoeditor-dev-jobs" } }]
+        ],
+        "period": 300,
+        "stat": "Sum",
+        "region": "us-east-1"
+      }
+    },
+    {
+      "type": "metric",
+      "properties": {
+        "title": "S3 Operations",
+        "metrics": [
+          ["AWS/S3", "NumberOfObjects", { "stat": "Average", "dimensions": { "BucketName": "photoeditor-dev-temp-uploads" } }],
+          ["...", { "dimensions": { "BucketName": "photoeditor-dev-final-assets" } }]
+        ],
+        "period": 3600,
+        "stat": "Average",
+        "region": "us-east-1"
+      }
+    },
+    {
+      "type": "log",
+      "properties": {
+        "title": "Recent Errors (Log Insights)",
+        "query": "SOURCE '/aws/lambda/photoeditor-dev-BffFunction'\n| SOURCE '/aws/lambda/photoeditor-dev-WorkerFunction'\n| fields @timestamp, @message, error.type, error.message, correlationId\n| filter @message like /ERROR/\n| sort @timestamp desc\n| limit 20",
+        "region": "us-east-1"
+      }
+    }
+  ],
+  "metadata": {
+    "standards_compliance": {
+      "lambda_errors_alarm": "STANDARDS.md line 76: Lambda Errors >0 for 5m",
+      "api_5xx_alarm": "STANDARDS.md line 77: API 5XX >1% for 5m",
+      "sqs_age_alarm": "STANDARDS.md line 78: SQS ApproximateAgeOfOldestMessage >120s",
+      "dlq_inflow_alarm": "STANDARDS.md line 80: DLQ inflow >0 for 5m",
+      "log_retention": "STANDARDS.md line 82: Dev 14d, Prod 90d",
+      "structured_logging": "STANDARDS.md line 72: correlationId, traceId, requestId, jobId, userId, function, env, version",
+      "cost_tags": "STANDARDS.md line 44: Project, Env, Owner, CostCenter"
+    }
+  },
+  "usage": {
+    "create_dashboard": "aws cloudwatch put-dashboard --dashboard-name PhotoEditor-Dev-Dashboard --dashboard-body file://cloudwatch-dashboard-config.json",
+    "view_dashboard": "https://console.aws.amazon.com/cloudwatch/home?region=us-east-1#dashboards:name=PhotoEditor-Dev-Dashboard",
+    "note": "Adjust FunctionName and QueueName values after SST deployment to match actual resource names"
+  }
+}

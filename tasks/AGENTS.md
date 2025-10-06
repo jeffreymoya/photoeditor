@@ -18,7 +18,8 @@ A single, self-contained specification that tells an LLM exactly what to do, why
 - Be explicit and concrete; avoid ambiguity.
 - Use repo-relative paths (e.g., `src/editor/crop.ts:120`).
 - Include exact commands to run (lint, build, test, demo).
-- Anchor implementation details to `STANDARDS.md` and `docs/testing-standards.md` so tasks inherit repo-wide conventions and validation expectations.
+- Anchor implementation details to the standards that match the task’s taxonomies: cite `standards/global.md` for universal guardrails, refer to `standards/AGENTS.md` for the tier map, then add the file(s) under `standards/` that align with the declared area (e.g., `frontend-tier.md`, `backend-tier.md`, `infrastructure-tier.md`, `shared-contracts-tier.md`, or `cross-cutting.md` for docs/ops/other work). Always include `docs/testing-standards.md` so validation expectations remain explicit.
+- If no existing taxonomy in `standards/` fits the task, author a change request document under `standards/` that proposes the new taxonomy with detailed rationale before finalizing the task file.
 - List acceptance criteria as short, testable bullets.
 - Declare constraints (sandbox, network, approvals, secrets) and assumptions.
 - Keep steps ordered and scoped; note dependencies.

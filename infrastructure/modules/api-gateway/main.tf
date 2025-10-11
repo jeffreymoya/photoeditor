@@ -77,14 +77,28 @@ resource "aws_apigatewayv2_integration" "status" {
   payload_format_version = "2.0"
 }
 
-# Routes
-resource "aws_apigatewayv2_route" "presign" {
+# Routes - v1 versioned (current)
+resource "aws_apigatewayv2_route" "presign_v1" {
+  api_id    = aws_apigatewayv2_api.main.id
+  route_key = "POST /v1/upload/presign"
+  target    = "integrations/${aws_apigatewayv2_integration.presign.id}"
+}
+
+resource "aws_apigatewayv2_route" "status_v1" {
+  api_id    = aws_apigatewayv2_api.main.id
+  route_key = "GET /v1/jobs/{id}"
+  target    = "integrations/${aws_apigatewayv2_integration.status.id}"
+}
+
+# Legacy routes (deprecated, maintained for backward compatibility)
+# These will be sunset on 2026-04-06
+resource "aws_apigatewayv2_route" "presign_legacy" {
   api_id    = aws_apigatewayv2_api.main.id
   route_key = "POST /upload/presign"
   target    = "integrations/${aws_apigatewayv2_integration.presign.id}"
 }
 
-resource "aws_apigatewayv2_route" "status" {
+resource "aws_apigatewayv2_route" "status_legacy" {
   api_id    = aws_apigatewayv2_api.main.id
   route_key = "GET /jobs/{id}"
   target    = "integrations/${aws_apigatewayv2_integration.status.id}"

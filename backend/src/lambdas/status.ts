@@ -3,6 +3,9 @@ import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics, MetricUnits } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { JobService } from '../services';
+import { ErrorType } from '@photoeditor/shared';
+import { ErrorHandler } from '../utils/errors';
+import { addDeprecationHeadersIfLegacy } from '../utils/deprecation';
 
 const logger = new Logger();
 const metrics = new Metrics();
@@ -29,29 +32,50 @@ export const handler = async (
     tracer.setSegment(subsegment);
   }
 
+  // Extract correlation identifiers
+  const requestId = event.requestContext.requestId;
+  const traceparent = event.headers['traceparent'];
+  const requestPath = event.rawPath || event.requestContext.http.path;
+
   try {
     await initializeServices();
 
     const jobId = event.pathParameters?.jobId;
     if (!jobId) {
-      logger.warn('Missing jobId parameter');
-      return {
-        statusCode: 400,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ error: 'Job ID required' })
-      };
+      logger.warn('Missing jobId parameter', { requestId });
+      const errorResponse = ErrorHandler.createSimpleErrorResponse(
+        ErrorType.VALIDATION,
+        'MISSING_JOB_ID',
+        'Job ID is required',
+        requestId,
+        traceparent
+      );
+      // Add deprecation headers if using legacy route
+      errorResponse.headers = addDeprecationHeadersIfLegacy(
+        requestPath,
+        errorResponse.headers || {}
+      );
+      return errorResponse;
     }
 
-    logger.info('Fetching job status', { jobId });
+    logger.info('Fetching job status', { requestId, jobId });
 
     const job = await jobService.getJob(jobId);
     if (!job) {
-      logger.warn('Job not found', { jobId });
-      return {
-        statusCode: 404,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ error: 'Job not found' })
-      };
+      logger.warn('Job not found', { requestId, jobId });
+      const errorResponse = ErrorHandler.createSimpleErrorResponse(
+        ErrorType.NOT_FOUND,
+        'JOB_NOT_FOUND',
+        `Job with ID ${jobId} not found`,
+        requestId,
+        traceparent
+      );
+      // Add deprecation headers if using legacy route
+      errorResponse.headers = addDeprecationHeadersIfLegacy(
+        requestPath,
+        errorResponse.headers || {}
+      );
+      return errorResponse;
     }
 
     metrics.addMetric('JobStatusFetched', MetricUnits.Count, 1);
@@ -66,21 +90,40 @@ export const handler = async (
       error: job.error
     };
 
+    let headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'x-request-id': requestId
+    };
+    if (traceparent) {
+      headers['traceparent'] = traceparent;
+    }
+
+    // Add deprecation headers if using legacy route
+    headers = addDeprecationHeadersIfLegacy(requestPath, headers);
+
     return {
       statusCode: 200,
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(response)
     };
 
   } catch (error) {
-    logger.error('Error fetching job status', { error: error as Error });
+    logger.error('Error fetching job status', { requestId, error: error as Error });
     metrics.addMetric('JobStatusError', MetricUnits.Count, 1);
 
-    return {
-      statusCode: 500,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'Internal server error' })
-    };
+    const errorResponse = ErrorHandler.createSimpleErrorResponse(
+      ErrorType.INTERNAL_ERROR,
+      'UNEXPECTED_ERROR',
+      'An unexpected error occurred while fetching job status',
+      requestId,
+      traceparent
+    );
+    // Add deprecation headers if using legacy route
+    errorResponse.headers = addDeprecationHeadersIfLegacy(
+      requestPath,
+      errorResponse.headers || {}
+    );
+    return errorResponse;
   } finally {
     subsegment?.close();
     if (segment) {

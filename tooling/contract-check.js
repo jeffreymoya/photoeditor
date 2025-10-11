@@ -169,8 +169,22 @@ function main() {
     console.error('- Review changes with "git diff shared/"');
     console.error('- Run contract compatibility tests: npm run test:contracts');
     console.error('- Update version if breaking: npm version [major|minor|patch] --prefix shared');
-    console.error('- Update snapshot if changes are intentional: npm run contracts:check');
+    console.error('- Update snapshot if changes are intentional: npm run contracts:check --update');
     console.error('');
+
+    // Generate diff artifact for CI
+    const diffArtifactPath = path.join(__dirname, '../contract-diff.json');
+    const diffArtifact = {
+      timestamp: new Date().toISOString(),
+      previousSnapshot: previousSnapshot.timestamp,
+      currentSnapshot: currentSnapshot.timestamp,
+      differences,
+      requiresChangeset: true
+    };
+    fs.writeFileSync(diffArtifactPath, JSON.stringify(diffArtifact, null, 2));
+    console.error(`Diff artifact saved to: ${path.relative(process.cwd(), diffArtifactPath)}`);
+    console.error('');
+
     process.exit(1);
   }
 

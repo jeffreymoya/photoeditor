@@ -51,7 +51,24 @@ export const PresignUploadResponseSchema = z.object({
 
 export type PresignUploadResponse = z.infer<typeof PresignUploadResponseSchema>;
 
-// API Error Response
+// API Error Response - RFC 7807 Problem Details format
+export const ApiErrorResponseSchema = z.object({
+  code: z.string(),           // Machine-readable error code (e.g., "INVALID_FILE_TYPE")
+  title: z.string(),          // Short, human-readable summary
+  detail: z.string(),         // Human-readable explanation specific to this occurrence
+  instance: z.string(),       // URI reference identifying the specific occurrence (typically requestId)
+  type: z.string().optional(), // ErrorType enum value for client discrimination
+  timestamp: z.string().datetime(),
+  // Optional fields for additional context
+  fieldErrors: z.record(z.array(z.string())).optional(), // For validation errors
+  provider: z.string().optional(),       // For provider errors
+  providerCode: z.string().optional(),   // For provider errors
+  retryable: z.boolean().optional(),     // For provider errors
+  stack: z.string().optional(),          // For internal errors (dev/staging only)
+  context: z.record(z.unknown()).optional() // For additional debug context
+});
+
+// Legacy error schema (deprecated, for backward compatibility)
 export const ApiErrorSchema = z.object({
   error: z.object({
     code: z.string(),

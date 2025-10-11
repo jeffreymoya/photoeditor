@@ -1,0 +1,169 @@
+schema_version: "1.0"
+id: TASK-0602
+title: Establish contract-first routing with OpenAPI paths
+status: todo
+priority: P1
+complexity: L
+area: shared
+
+description: >-
+  Wire backend routing into the shared contract tooling so the OpenAPI
+  specification carries authoritative `paths` definitions and downstream client
+  generation (RTK Query) can be automated. Today Lambda handlers define routes
+  ad-hoc via Terraform and per-service code, leaving the spec empty and breaking
+  the contract-first posture captured in ADR-0003.
+
+outcome: >-
+  A repeatable mechanism exists to register every external endpoint with the
+  contract generator, producing populated OpenAPI `paths`, enabling RTK Query
+  client generation, and gating new routes on OpenAPI + Zod alignment during CI.
+
+scope:
+  in:
+    - tooling/contracts/generate.js
+    - shared/schemas/**/*.ts
+    - backend/lambdas/**/handler.ts
+    - docs/openapi/openapi-generated.yaml
+    - docs/contracts/clients/README.md
+    - infrastructure/api-gateway/**.tf
+  out:
+    - Refactoring business logic inside handlers
+    - Introducing new endpoints beyond those already live
+
+context:
+  issues: []
+  related_docs:
+    - adr/0003-contract-first-api.md
+    - standards/shared-contracts-tier.md
+    - standards/global.md
+    - docs/api/contracts.md
+    - changelog/2025-10-11-contract-codegen-alignment.md
+  repo_paths:
+    - tooling/contracts/generate.js
+    - docs/openapi/openapi-generated.yaml
+    - shared/contract-snapshot.json
+    - docs/contracts/clients/types.ts
+    - infrastructure/api-gateway
+    - backend/lambdas
+  dependencies:
+    - type: tool
+      name: node
+      requirement: required
+    - type: tool
+      name: npm
+      requirement: required
+    - type: tool
+      name: bash
+      requirement: required
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: npm
+      version: "9.x"
+    - name: bash
+      version: any
+    - name: jq
+      version: any
+  data: []
+
+constraints:
+  approvals_required: true
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Follow contract governance in `standards/shared-contracts-tier.md`.
+    - Keep OpenAPI artifacts generated via documented scripts (no manual edits).
+  prohibited:
+    - Do not publish new API versions without contract steward approval.
+    - Do not bypass `contracts:check` CI gate.
+
+plan:
+  - id: 1
+    title: Surface routes in code generation
+    details: >-
+      Audit Lambda handlers and Terraform API Gateway configs to catalogue all
+      externally exposed routes; design how handler metadata feeds the generator
+      (decorators, manifest file, or synthesis step).
+    expected_files_touched:
+      - backend/lambdas/**/handler.ts
+      - infrastructure/api-gateway/**.tf
+  - id: 2
+    title: Implement path extraction pipeline
+    details: >-
+      Extend `tooling/contracts/generate.js` (and supporting modules) to
+      translate the route catalogue into OpenAPI `paths`, including methods,
+      parameters, request bodies, and linked Zod schemas.
+    expected_files_touched:
+      - tooling/contracts/generate.js
+      - shared/schemas/**/*.ts
+  - id: 3
+    title: Regenerate contracts and RTK Query client
+    details: >-
+      Run the generator to populate `paths`, update the OpenAPI snapshot and
+      TypeScript clients, and enable RTK Query codegen with appropriate config.
+    expected_files_touched:
+      - docs/openapi/openapi-generated.yaml
+      - docs/contracts/clients/types.ts
+      - docs/contracts/clients/photoeditor-api.ts
+      - docs/contracts/clients/checksums.json
+  - id: 4
+    title: Update documentation and enforcement
+    details: >-
+      Document the routing metadata workflow, update contract governance docs,
+      and wire CI to fail if routes lack OpenAPI entries or client regeneration
+      drifts.
+    expected_files_touched:
+      - docs/contracts/clients/README.md
+      - docs/api/contracts.md
+      - docs/testing-standards.md
+      - scripts/ or CI configs enforcing the gate
+
+acceptance_criteria:
+  - OpenAPI spec lists every supported endpoint under `paths`, with request and
+    response schemas referenced from shared Zod definitions.
+  - `npm run contracts:generate --prefix shared` produces RTK Query client files
+    without manual intervention, and checksums are up to date.
+  - CI job fails when a handler-defined route is missing from the OpenAPI spec or
+    when generated clients drift from baseline.
+  - Documentation explains how to register new routes and regenerate clients,
+    referencing ADR-0003 and relevant standards.
+  - Contract steward signs off on the updated workflow and evidence bundle.
+
+validation:
+  commands:
+    - npm run contracts:generate --prefix shared
+    - npm run contracts:check --prefix shared
+    - npx @rtk-query/codegen-openapi openapi-config.ts
+  manual_checks:
+    - Review generated OpenAPI `paths` for accuracy against deployed routes.
+    - Confirm RTK Query client composes successfully in the Expo app.
+    - Verify CI gate fails with an intentionally missing route entry.
+  artifacts:
+    - docs/openapi/openapi-generated.yaml
+    - docs/contracts/clients/photoeditor-api.ts
+
+deliverables:
+  - tooling/contracts/generate.js
+  - docs/openapi/openapi-generated.yaml
+  - docs/contracts/clients/photoeditor-api.ts
+  - docs/contracts/clients/checksums.json
+  - docs/contracts/clients/README.md
+  - docs/api/contracts.md
+  - docs/testing-standards.md
+  - scripts/ci or workflow updates enforcing the gate
+
+risks:
+  - description: Route metadata may drift if engineers forget to update
+      annotations.
+    mitigation: Add lint/CI guardrails that diff handler manifests against the
+      OpenAPI output.
+  - description: Terraform definitions could conflict with generated routing.
+    mitigation: Document ownership boundaries and add review checklist linking
+      infra changes to contract updates.
+  - description: RTK Query client generation may surface breaking changes late.
+    mitigation: Require contract steward approval and changeset for incompatible
+      schema updates.

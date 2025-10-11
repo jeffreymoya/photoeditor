@@ -46,13 +46,16 @@ function calculateChecksum(content) {
 }
 
 /**
- * Generate OpenAPI spec from Zod schemas using zod-to-openapi
+ * Generate OpenAPI spec from Zod schemas using zodToJsonSchema + manual OpenAPI construction
+ *
+ * Note: We use zodToJsonSchema rather than @asteasolutions/zod-to-openapi's registry
+ * because our schemas don't use the .openapi() extension. This keeps the shared package
+ * clean and framework-agnostic per standards/shared-contracts-tier.md line 5.
  */
 async function generateOpenAPI() {
   console.log('Generating OpenAPI specification from Zod schemas...');
 
   try {
-    // Use zodToJsonSchema for better compatibility
     const { zodToJsonSchema } = require('zod-to-json-schema');
 
     // Import compiled schemas from shared/dist
@@ -64,21 +67,39 @@ async function generateOpenAPI() {
     // Import schemas
     const schemas = require(path.join(distPath, 'schemas/index.js'));
 
-    // Helper to convert Zod schema to OpenAPI component
+    // Helper to convert Zod schema to OpenAPI-compatible JSON Schema
     const toOpenAPISchema = (zodSchema, name) => {
-      const jsonSchema = zodToJsonSchema(zodSchema, name);
+      const jsonSchema = zodToJsonSchema(zodSchema, {
+        name,
+        target: 'openApi3'
+      });
+
+      // zodToJsonSchema returns {$ref: '#/definitions/Name', definitions: {...}}
+      // We need to extract the actual schema from definitions
+      let schema;
+      if (jsonSchema.$ref && jsonSchema.definitions) {
+        const refName = jsonSchema.$ref.split('/').pop();
+        schema = jsonSchema.definitions[refName];
+      } else {
+        schema = jsonSchema;
+      }
+
       // Remove JSON Schema specific fields that aren't valid in OpenAPI
-      delete jsonSchema.$schema;
-      return jsonSchema;
+      delete schema.$schema;
+
+      return schema;
     };
 
-    // Build OpenAPI document manually
+    // Build OpenAPI document with proper structure
     const document = {
       openapi: '3.0.3',
       info: {
         title: 'Photo Editor API',
         version: '1.0.0',
         description: 'API contracts generated from Zod schemas for the Photo Editor application',
+        license: {
+          name: 'MIT'
+        },
         contact: {
           name: 'API Support'
         }
@@ -97,6 +118,7 @@ async function generateOpenAPI() {
           description: 'Production environment'
         }
       ],
+      paths: {},
       components: {
         schemas: {}
       }
@@ -130,12 +152,9 @@ async function generateOpenAPI() {
     document.components.schemas.ProviderConfig = toOpenAPISchema(schemas.ProviderConfigSchema, 'ProviderConfig');
     document.components.schemas.ProviderResponse = toOpenAPISchema(schemas.ProviderResponseSchema, 'ProviderResponse');
 
-    // Sanitize document by converting to JSON and back (removes functions)
-    const sanitizedDocument = JSON.parse(JSON.stringify(document));
-
     // Convert to YAML
     const yaml = require('js-yaml');
-    const yamlContent = yaml.dump(sanitizedDocument, { lineWidth: 120, noRefs: false });
+    const yamlContent = yaml.dump(document, { lineWidth: 120, noRefs: true });
 
     // Write OpenAPI spec
     fs.writeFileSync(OPENAPI_OUTPUT, yamlContent, 'utf8');
@@ -175,7 +194,9 @@ async function generateTypeScriptTypes() {
     const generateType = (name, schema) => {
       try {
         const { node } = zodToTs(schema, name);
-        return `export ${printNode(node)}`;
+        const typeStr = printNode(node);
+        // Ensure proper export syntax
+        return `export type ${name} = ${typeStr};`;
       } catch (error) {
         console.warn(`  ⚠ Could not generate type for ${name}:`, error.message);
         return `// Unable to generate type for ${name}`;
@@ -183,20 +204,65 @@ async function generateTypeScriptTypes() {
     };
 
     // API types
+    typeDefinitions.push('// ============================================');
     typeDefinitions.push('// API Request/Response Types');
+    typeDefinitions.push('// ============================================');
+    typeDefinitions.push('');
     typeDefinitions.push(generateType('FileUpload', schemas.FileUploadSchema));
+    typeDefinitions.push('');
     typeDefinitions.push(generateType('PresignUploadRequest', schemas.PresignUploadRequestSchema));
+    typeDefinitions.push('');
     typeDefinitions.push(generateType('PresignUploadResponse', schemas.PresignUploadResponseSchema));
+    typeDefinitions.push('');
     typeDefinitions.push(generateType('BatchUploadRequest', schemas.BatchUploadRequestSchema));
+    typeDefinitions.push('');
     typeDefinitions.push(generateType('BatchUploadResponse', schemas.BatchUploadResponseSchema));
+    typeDefinitions.push('');
+    typeDefinitions.push(generateType('JobStatusResponse', schemas.JobResponseSchema));
+    typeDefinitions.push('');
+    typeDefinitions.push(generateType('DeviceTokenRegistration', schemas.DeviceTokenRegistrationSchema));
+    typeDefinitions.push('');
+    typeDefinitions.push(generateType('DeviceTokenResponse', schemas.DeviceTokenResponseSchema));
+    typeDefinitions.push('');
+    typeDefinitions.push(generateType('HealthCheckResponse', schemas.HealthCheckResponseSchema));
+    typeDefinitions.push('');
+    typeDefinitions.push(generateType('ApiError', schemas.ApiErrorSchema));
     typeDefinitions.push('');
 
     // Job types
+    typeDefinitions.push('// ============================================');
     typeDefinitions.push('// Job Types');
+    typeDefinitions.push('// ============================================');
+    typeDefinitions.push('');
     typeDefinitions.push(generateType('Job', schemas.JobSchema));
+    typeDefinitions.push('');
+    typeDefinitions.push(generateType('JobStatus', schemas.JobStatusSchema));
+    typeDefinitions.push('');
     typeDefinitions.push(generateType('CreateJobRequest', schemas.CreateJobRequestSchema));
-    typeDefinitions.push(generateType('JobResponse', schemas.JobResponseSchema));
+    typeDefinitions.push('');
     typeDefinitions.push(generateType('BatchJob', schemas.BatchJobSchema));
+    typeDefinitions.push('');
+    typeDefinitions.push(generateType('CreateBatchJobRequest', schemas.CreateBatchJobRequestSchema));
+    typeDefinitions.push('');
+    typeDefinitions.push(generateType('JobStatusUpdate', schemas.JobStatusUpdateSchema));
+    typeDefinitions.push('');
+
+    // Provider types
+    typeDefinitions.push('// ============================================');
+    typeDefinitions.push('// Provider Types');
+    typeDefinitions.push('// ============================================');
+    typeDefinitions.push('');
+    typeDefinitions.push(generateType('GeminiAnalysisRequest', schemas.GeminiAnalysisRequestSchema));
+    typeDefinitions.push('');
+    typeDefinitions.push(generateType('GeminiAnalysisResponse', schemas.GeminiAnalysisResponseSchema));
+    typeDefinitions.push('');
+    typeDefinitions.push(generateType('SeedreamEditingRequest', schemas.SeedreamEditingRequestSchema));
+    typeDefinitions.push('');
+    typeDefinitions.push(generateType('SeedreamEditingResponse', schemas.SeedreamEditingResponseSchema));
+    typeDefinitions.push('');
+    typeDefinitions.push(generateType('ProviderConfig', schemas.ProviderConfigSchema));
+    typeDefinitions.push('');
+    typeDefinitions.push(generateType('ProviderResponse', schemas.ProviderResponseSchema));
     typeDefinitions.push('');
 
     // Write types file

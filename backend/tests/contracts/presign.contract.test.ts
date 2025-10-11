@@ -155,11 +155,26 @@ describe('POST /upload/presign - Contract Tests', () => {
       // Verify HTTP status code matches OpenAPI spec
       expect(result.statusCode).toBe(400);
 
-      // Verify response has error field
+      // Verify correlation headers
+      expect(result.headers).toBeDefined();
+      expect(result.headers?.['Content-Type']).toBe('application/json');
+      expect(result.headers?.['x-request-id']).toBe('contract-test-request-id');
+
+      // Verify standardized error response structure (RFC 7807 format)
       const response = JSON.parse(result.body as string);
-      expect(response).toHaveProperty('error');
-      expect(typeof response.error).toBe('string');
-      expect(response.error).toBe('Request body required');
+      expect(response).toHaveProperty('code');
+      expect(response).toHaveProperty('title');
+      expect(response).toHaveProperty('detail');
+      expect(response).toHaveProperty('instance');
+      expect(response).toHaveProperty('timestamp');
+
+      // Verify field values
+      expect(response.code).toBe('MISSING_REQUEST_BODY');
+      expect(response.title).toBe('Validation Error');
+      expect(response.detail).toBe('Request body is required');
+      expect(response.instance).toBe('contract-test-request-id');
+      expect(typeof response.timestamp).toBe('string');
+      expect(() => new Date(response.timestamp)).not.toThrow();
     });
 
     it('should return 400 for invalid content type', async () => {
@@ -174,11 +189,20 @@ describe('POST /upload/presign - Contract Tests', () => {
 
       const result = await handler(event, {} as any) as APIGatewayResponse;
 
-      // Should reject with error (validation fails, returns 500)
-      expect(result.statusCode).toBeGreaterThanOrEqual(400);
+      // Should reject with validation error
+      expect(result.statusCode).toBe(400);
 
+      // Verify correlation headers
+      expect(result.headers?.['x-request-id']).toBe('contract-test-request-id');
+
+      // Verify standardized error response structure
       const response = JSON.parse(result.body as string);
-      expect(response).toHaveProperty('error');
+      expect(response).toHaveProperty('code');
+      expect(response).toHaveProperty('title');
+      expect(response).toHaveProperty('detail');
+      expect(response).toHaveProperty('instance');
+      expect(response.code).toBe('INVALID_REQUEST');
+      expect(response.title).toBe('Validation Error');
     });
 
     it('should return 400 for file size exceeding 50MB', async () => {
@@ -193,10 +217,19 @@ describe('POST /upload/presign - Contract Tests', () => {
 
       const result = await handler(event, {} as any) as APIGatewayResponse;
 
-      expect(result.statusCode).toBeGreaterThanOrEqual(400);
+      expect(result.statusCode).toBe(400);
 
+      // Verify correlation headers
+      expect(result.headers?.['x-request-id']).toBe('contract-test-request-id');
+
+      // Verify standardized error response structure
       const response = JSON.parse(result.body as string);
-      expect(response).toHaveProperty('error');
+      expect(response).toHaveProperty('code');
+      expect(response).toHaveProperty('title');
+      expect(response).toHaveProperty('detail');
+      expect(response).toHaveProperty('instance');
+      expect(response.code).toBe('INVALID_REQUEST');
+      expect(response.title).toBe('Validation Error');
     });
   });
 
@@ -290,11 +323,20 @@ describe('POST /upload/presign - Contract Tests', () => {
 
       const result = await handler(event, {} as any) as APIGatewayResponse;
 
-      // Should reject with error
-      expect(result.statusCode).toBeGreaterThanOrEqual(400);
+      // Should reject with validation error
+      expect(result.statusCode).toBe(400);
 
+      // Verify correlation headers
+      expect(result.headers?.['x-request-id']).toBe('contract-test-request-id');
+
+      // Verify standardized error response structure
       const response = JSON.parse(result.body as string);
-      expect(response).toHaveProperty('error');
+      expect(response).toHaveProperty('code');
+      expect(response).toHaveProperty('title');
+      expect(response).toHaveProperty('detail');
+      expect(response).toHaveProperty('instance');
+      expect(response.code).toBe('INVALID_REQUEST');
+      expect(response.title).toBe('Validation Error');
     });
   });
 
@@ -314,11 +356,37 @@ describe('POST /upload/presign - Contract Tests', () => {
       // Verify HTTP status code
       expect(result.statusCode).toBe(500);
 
-      // Verify error response structure per OpenAPI spec
+      // Verify correlation headers
+      expect(result.headers).toBeDefined();
+      expect(result.headers?.['Content-Type']).toBe('application/json');
+      expect(result.headers?.['x-request-id']).toBe('contract-test-request-id');
+
+      // Verify standardized error response structure (RFC 7807 format)
       const response = JSON.parse(result.body as string);
-      expect(response).toHaveProperty('error');
-      expect(typeof response.error).toBe('string');
-      expect(response.error).toBe('Internal server error');
+      expect(response).toHaveProperty('code');
+      expect(response).toHaveProperty('title');
+      expect(response).toHaveProperty('detail');
+      expect(response).toHaveProperty('instance');
+      expect(response).toHaveProperty('timestamp');
+
+      // Verify field values
+      expect(response.code).toBe('UNEXPECTED_ERROR');
+      expect(response.title).toBe('Internal Server Error');
+      expect(response.detail).toContain('unexpected error');
+      expect(response.instance).toBe('contract-test-request-id');
+      expect(typeof response.timestamp).toBe('string');
+      expect(() => new Date(response.timestamp)).not.toThrow();
+    });
+
+    it('should include traceparent header when present in request', async () => {
+      const event = createEvent(null);
+      event.body = undefined;
+      event.headers['traceparent'] = '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01';
+
+      const result = await handler(event, {} as any) as APIGatewayResponse;
+
+      // Verify traceparent header is propagated
+      expect(result.headers?.['traceparent']).toBe('00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01');
     });
   });
 });

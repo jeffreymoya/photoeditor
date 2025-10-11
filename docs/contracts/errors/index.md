@@ -78,11 +78,12 @@ interface ValidationError extends BaseError {
 
 ```json
 {
-  "type": "VALIDATION",
   "code": "INVALID_REQUEST",
-  "message": "Request validation failed",
+  "title": "Validation Error",
+  "detail": "Request validation failed",
+  "instance": "req-abc123",
+  "type": "VALIDATION",
   "timestamp": "2025-10-06T13:45:30.123Z",
-  "requestId": "req-abc123",
   "fieldErrors": {
     "fileSize": ["File size exceeds maximum allowed (50MB)"],
     "fileType": ["File type must be JPEG, PNG, or WEBP"]
@@ -107,16 +108,17 @@ interface ProviderError extends BaseError {
 
 ```json
 {
-  "type": "PROVIDER_ERROR",
   "code": "PROVIDER_RATE_LIMIT",
-  "message": "AI provider rate limit exceeded",
+  "title": "External Provider Error",
+  "detail": "AI provider rate limit exceeded",
+  "instance": "req-abc123",
+  "type": "PROVIDER_ERROR",
   "timestamp": "2025-10-06T13:45:30.123Z",
-  "requestId": "req-abc123",
-  "jobId": "job-xyz789",
   "provider": "openai",
   "providerCode": "rate_limit_exceeded",
   "retryable": true,
-  "details": {
+  "context": {
+    "jobId": "job-xyz789",
     "retryAfter": 60
   }
 }
@@ -138,13 +140,14 @@ interface InternalError extends BaseError {
 
 ```json
 {
-  "type": "INTERNAL_ERROR",
   "code": "UNEXPECTED_ERROR",
-  "message": "An unexpected error occurred during job processing",
+  "title": "Internal Server Error",
+  "detail": "An unexpected error occurred during job processing",
+  "instance": "req-abc123",
+  "type": "INTERNAL_ERROR",
   "timestamp": "2025-10-06T13:45:30.123Z",
-  "requestId": "req-abc123",
-  "jobId": "job-xyz789",
   "context": {
+    "jobId": "job-xyz789",
     "step": "image_processing",
     "retryCount": 2
   }
@@ -186,22 +189,52 @@ const ERROR_JOB_STATUS = {
 
 ## Error Response Format
 
-All API endpoints return errors in the following JSON format:
+All API endpoints return errors following the RFC 7807 Problem Details for HTTP APIs format:
 
 ```json
 {
-  "error": {
-    "type": "ERROR_TYPE",
-    "code": "SPECIFIC_ERROR_CODE",
-    "message": "Human-readable error message",
-    "timestamp": "2025-10-06T13:45:30.123Z",
-    "requestId": "req-abc123",
-    "details": {}
-  }
+  "code": "SPECIFIC_ERROR_CODE",
+  "title": "Human-readable summary",
+  "detail": "Detailed explanation of this specific occurrence",
+  "instance": "req-abc123",
+  "type": "ERROR_TYPE",
+  "timestamp": "2025-10-06T13:45:30.123Z"
 }
 ```
 
-The error object conforms to one of the error interfaces (`BaseError`, `ValidationError`, `ProviderError`, or `InternalError`).
+### Response Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `code` | `string` | Yes | Machine-readable error code (e.g., `FILE_TOO_LARGE`, `INVALID_TOKEN`) |
+| `title` | `string` | Yes | Short, human-readable summary of the error type |
+| `detail` | `string` | Yes | Human-readable explanation specific to this occurrence of the problem |
+| `instance` | `string` | Yes | URI reference identifying the specific occurrence (typically the request ID) |
+| `type` | `ErrorType` | No | Classification from the ErrorType enum for client-side discrimination |
+| `timestamp` | `string` | Yes | ISO 8601 format (e.g., `2025-10-06T13:45:30.123Z`) |
+
+### Specialized Error Fields
+
+Depending on the error type, additional fields may be present:
+
+**Validation Errors:**
+- `fieldErrors`: `Record<string, string[]>` - Map of field names to error messages
+
+**Provider Errors:**
+- `provider`: `string` - Name of the external provider
+- `providerCode`: `string` - Error code from the provider
+- `retryable`: `boolean` - Whether the client should retry
+
+**Internal Errors (dev/staging only):**
+- `stack`: `string` - Stack trace (NEVER included in production)
+- `context`: `Record<string, unknown>` - Additional debug context
+
+### Correlation Headers
+
+All error responses include correlation headers for distributed tracing:
+
+- `x-request-id`: Unique request identifier
+- `traceparent`: W3C Trace Context header (if available)
 
 ## Client Error Handling Guidelines
 

@@ -3,13 +3,15 @@ import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics, MetricUnits } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { JobService, PresignService, S3Service } from '../services';
-import { S3Config, PresignUploadRequestSchema, BatchUploadRequestSchema } from '@photoeditor/shared';
+import { S3Config, PresignUploadRequestSchema, BatchUploadRequestSchema, ErrorType } from '@photoeditor/shared';
 import {
   createSSMClient,
   ConfigService,
   BootstrapService,
   StandardProviderCreator
 } from '@backend/core';
+import { ErrorHandler } from '../utils/errors';
+import { addDeprecationHeadersIfLegacy } from '../utils/deprecation';
 
 const logger = new Logger();
 const metrics = new Metrics();
@@ -48,6 +50,94 @@ async function initializeServices(): Promise<void> {
   await bootstrapService.initializeProviders();
 }
 
+async function handleBatchUpload(
+  body: unknown,
+  userId: string,
+  requestId: string,
+  traceparent?: string
+): Promise<APIGatewayProxyResultV2> {
+  const validationResult = BatchUploadRequestSchema.safeParse(body);
+  if (!validationResult.success) {
+    logger.warn('Batch upload validation failed', { requestId, errors: validationResult.error.errors });
+    return ErrorHandler.createSimpleErrorResponse(
+      ErrorType.VALIDATION,
+      'INVALID_REQUEST',
+      validationResult.error.errors[0]?.message || 'Request validation failed',
+      requestId,
+      traceparent
+    );
+  }
+
+  const validatedRequest = validationResult.data;
+
+  logger.info('Generating batch presigned URLs', {
+    requestId,
+    userId,
+    fileCount: validatedRequest.files.length,
+    sharedPrompt: validatedRequest.sharedPrompt
+  });
+
+  const response = await presignService.generateBatchPresignedUpload(userId, validatedRequest);
+
+  metrics.addMetric('BatchPresignedUrlsGenerated', MetricUnits.Count, 1);
+  metrics.addMetric('FilesInBatch', MetricUnits.Count, validatedRequest.files.length);
+
+  let headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'x-request-id': requestId
+  };
+  if (traceparent) {
+    headers['traceparent'] = traceparent;
+  }
+
+  return {
+    statusCode: 200,
+    headers,
+    body: JSON.stringify(response)
+  };
+}
+
+async function handleSingleUpload(
+  body: unknown,
+  userId: string,
+  requestId: string,
+  traceparent?: string
+): Promise<APIGatewayProxyResultV2> {
+  const validationResult = PresignUploadRequestSchema.safeParse(body);
+  if (!validationResult.success) {
+    logger.warn('Single upload validation failed', { requestId, errors: validationResult.error.errors });
+    return ErrorHandler.createSimpleErrorResponse(
+      ErrorType.VALIDATION,
+      'INVALID_REQUEST',
+      validationResult.error.errors[0]?.message || 'Request validation failed',
+      requestId,
+      traceparent
+    );
+  }
+
+  const validatedRequest = validationResult.data;
+
+  logger.info('Generating presigned URL', { requestId, userId, fileName: validatedRequest.fileName });
+
+  const response = await presignService.generatePresignedUpload(userId, validatedRequest);
+
+  metrics.addMetric('PresignedUrlGenerated', MetricUnits.Count, 1);
+
+  let headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'x-request-id': requestId
+  };
+  if (traceparent) {
+    headers['traceparent'] = traceparent;
+  }
+
+  return {
+    statusCode: 200,
+    headers,
+    body: JSON.stringify(response)
+  };
+}
+
 export const handler = async (
   event: APIGatewayProxyEventV2,
   _context: Context
@@ -58,71 +148,91 @@ export const handler = async (
     tracer.setSegment(subsegment);
   }
 
+  // Extract correlation identifiers
+  const requestId = event.requestContext.requestId;
+  const traceparent = event.headers['traceparent'];
+  const requestPath = event.rawPath || event.requestContext.http.path;
+
   try {
     await initializeServices();
 
     if (!event.body) {
-      logger.warn('Missing request body');
-      return {
-        statusCode: 400,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ error: 'Request body required' })
-      };
+      logger.warn('Missing request body', { requestId });
+      const errorResponse = ErrorHandler.createSimpleErrorResponse(
+        ErrorType.VALIDATION,
+        'MISSING_REQUEST_BODY',
+        'Request body is required',
+        requestId,
+        traceparent
+      );
+      // Add deprecation headers if using legacy route
+      errorResponse.headers = addDeprecationHeadersIfLegacy(
+        requestPath,
+        errorResponse.headers || {}
+      );
+      return errorResponse;
     }
 
     // For APIGatewayProxyEventV2, we need to get user from JWT claims differently
     interface JWTClaims { sub?: string; [key: string]: unknown; }
     interface JWTAuthorizer { jwt?: { claims?: JWTClaims; }; }
     const userId = ((event.requestContext as { authorizer?: JWTAuthorizer }).authorizer?.jwt?.claims?.sub) || 'anonymous';
-    const body = JSON.parse(event.body);
 
-    // Check if this is a batch upload request (has 'files' array) or single upload
-    if (Array.isArray(body.files)) {
-      // Batch upload
-      const validatedRequest = BatchUploadRequestSchema.parse(body);
-
-      logger.info('Generating batch presigned URLs', {
-        userId,
-        fileCount: validatedRequest.files.length,
-        sharedPrompt: validatedRequest.sharedPrompt
-      });
-
-      const response = await presignService.generateBatchPresignedUpload(userId, validatedRequest);
-
-      metrics.addMetric('BatchPresignedUrlsGenerated', MetricUnits.Count, 1);
-      metrics.addMetric('FilesInBatch', MetricUnits.Count, validatedRequest.files.length);
-
-      return {
-        statusCode: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(response)
-      };
-    } else {
-      // Single upload (backward compatibility)
-      const validatedRequest = PresignUploadRequestSchema.parse(body);
-
-      logger.info('Generating presigned URL', { userId, fileName: validatedRequest.fileName });
-
-      const response = await presignService.generatePresignedUpload(userId, validatedRequest);
-
-      metrics.addMetric('PresignedUrlGenerated', MetricUnits.Count, 1);
-
-      return {
-        statusCode: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(response)
-      };
+    let body: unknown;
+    try {
+      body = JSON.parse(event.body);
+    } catch {
+      logger.warn('Invalid JSON in request body', { requestId });
+      const errorResponse = ErrorHandler.createSimpleErrorResponse(
+        ErrorType.VALIDATION,
+        'INVALID_JSON',
+        'Request body must be valid JSON',
+        requestId,
+        traceparent
+      );
+      // Add deprecation headers if using legacy route
+      errorResponse.headers = addDeprecationHeadersIfLegacy(
+        requestPath,
+        errorResponse.headers || {}
+      );
+      return errorResponse;
     }
 
+    // Determine if batch or single upload and delegate
+    const isBatchUpload = typeof body === 'object' && body !== null && Array.isArray((body as { files?: unknown[] }).files);
+
+    let response: APIGatewayProxyResultV2;
+    if (isBatchUpload) {
+      response = await handleBatchUpload(body, userId, requestId, traceparent);
+    } else {
+      response = await handleSingleUpload(body, userId, requestId, traceparent);
+    }
+
+    // Add deprecation headers if using legacy route
+    response.headers = addDeprecationHeadersIfLegacy(
+      requestPath,
+      response.headers || {}
+    );
+
+    return response;
+
   } catch (error) {
-    logger.error('Error generating presigned URL', { error: error as Error });
+    logger.error('Error generating presigned URL', { requestId, error: error as Error });
     metrics.addMetric('PresignedUrlError', MetricUnits.Count, 1);
 
-    return {
-      statusCode: 500,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'Internal server error' })
-    };
+    const errorResponse = ErrorHandler.createSimpleErrorResponse(
+      ErrorType.INTERNAL_ERROR,
+      'UNEXPECTED_ERROR',
+      'An unexpected error occurred while generating presigned URL',
+      requestId,
+      traceparent
+    );
+    // Add deprecation headers if using legacy route
+    errorResponse.headers = addDeprecationHeadersIfLegacy(
+      requestPath,
+      errorResponse.headers || {}
+    );
+    return errorResponse;
   } finally {
     subsegment?.close();
     if (segment) {

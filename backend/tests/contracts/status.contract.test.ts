@@ -236,11 +236,24 @@ describe('GET /jobs/{jobId} - Contract Tests', () => {
       // Verify HTTP status code per OpenAPI spec
       expect(result.statusCode).toBe(400);
 
-      // Verify error response structure
+      // Verify correlation headers
+      expect(result.headers).toBeDefined();
+      expect(result.headers?.['Content-Type']).toBe('application/json');
+      expect(result.headers?.['x-request-id']).toBe('contract-test-request-id');
+
+      // Verify standardized error response structure (RFC 7807 format)
       const response = JSON.parse(result.body as string);
-      expect(response).toHaveProperty('error');
-      expect(typeof response.error).toBe('string');
-      expect(response.error).toBe('Job ID required');
+      expect(response).toHaveProperty('code');
+      expect(response).toHaveProperty('title');
+      expect(response).toHaveProperty('detail');
+      expect(response).toHaveProperty('instance');
+      expect(response).toHaveProperty('timestamp');
+
+      // Verify field values
+      expect(response.code).toBe('MISSING_JOB_ID');
+      expect(response.title).toBe('Validation Error');
+      expect(response.detail).toBe('Job ID is required');
+      expect(response.instance).toBe('contract-test-request-id');
     });
 
     it('should return 404 with error schema when job not found', async () => {
@@ -255,11 +268,24 @@ describe('GET /jobs/{jobId} - Contract Tests', () => {
       // Verify HTTP status code per OpenAPI spec
       expect(result.statusCode).toBe(404);
 
-      // Verify error response structure
+      // Verify correlation headers
+      expect(result.headers).toBeDefined();
+      expect(result.headers?.['Content-Type']).toBe('application/json');
+      expect(result.headers?.['x-request-id']).toBe('contract-test-request-id');
+
+      // Verify standardized error response structure (RFC 7807 format)
       const response = JSON.parse(result.body as string);
-      expect(response).toHaveProperty('error');
-      expect(typeof response.error).toBe('string');
-      expect(response.error).toBe('Job not found');
+      expect(response).toHaveProperty('code');
+      expect(response).toHaveProperty('title');
+      expect(response).toHaveProperty('detail');
+      expect(response).toHaveProperty('instance');
+      expect(response).toHaveProperty('timestamp');
+
+      // Verify field values
+      expect(response.code).toBe('JOB_NOT_FOUND');
+      expect(response.title).toBe('Resource Not Found');
+      expect(response.detail).toContain(jobId);
+      expect(response.instance).toBe('contract-test-request-id');
     });
 
     it('should return 500 with error schema for internal errors', async () => {
@@ -274,11 +300,37 @@ describe('GET /jobs/{jobId} - Contract Tests', () => {
       // Verify HTTP status code
       expect(result.statusCode).toBe(500);
 
-      // Verify error response structure per OpenAPI spec
+      // Verify correlation headers
+      expect(result.headers).toBeDefined();
+      expect(result.headers?.['Content-Type']).toBe('application/json');
+      expect(result.headers?.['x-request-id']).toBe('contract-test-request-id');
+
+      // Verify standardized error response structure (RFC 7807 format)
       const response = JSON.parse(result.body as string);
-      expect(response).toHaveProperty('error');
-      expect(typeof response.error).toBe('string');
-      expect(response.error).toBe('Internal server error');
+      expect(response).toHaveProperty('code');
+      expect(response).toHaveProperty('title');
+      expect(response).toHaveProperty('detail');
+      expect(response).toHaveProperty('instance');
+      expect(response).toHaveProperty('timestamp');
+
+      // Verify field values
+      expect(response.code).toBe('UNEXPECTED_ERROR');
+      expect(response.title).toBe('Internal Server Error');
+      expect(response.detail).toContain('unexpected error');
+      expect(response.instance).toBe('contract-test-request-id');
+    });
+
+    it('should include traceparent header when present in request', async () => {
+      const jobId = '550e8400-e29b-41d4-a716-446655440404';
+      const event = createEvent(jobId);
+      event.headers['traceparent'] = '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01';
+
+      dynamoMock.on(GetItemCommand).resolves({});
+
+      const result = await handler(event, {} as any) as APIGatewayResponse;
+
+      // Verify traceparent header is propagated
+      expect(result.headers?.['traceparent']).toBe('00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01');
     });
   });
 

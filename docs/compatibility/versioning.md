@@ -552,9 +552,116 @@ Internal APIs (used only by first-party clients) may have relaxed versioning req
 - Migration Guides: `docs/migrations/`
 - Shared Contracts Standards: `standards/shared-contracts-tier.md`
 
+## Active API Versions
+
+### Current: v1 (Released 2025-10-11)
+
+**Base URL**: `https://api.photoeditor.com/v1/`
+
+**Status**: Active (current version)
+
+**Endpoints**:
+- `POST /v1/upload/presign` - Generate presigned upload URL
+- `GET /v1/jobs/{id}` - Get job status
+
+**Implementation**:
+- API Gateway routes: `infrastructure/modules/api-gateway/main.tf` (lines 81-91)
+- Lambda handlers: `backend/src/lambdas/presign.ts`, `backend/src/lambdas/status.ts`
+- Deprecation utilities: `backend/src/utils/deprecation.ts`
+
+### Legacy: Unversioned Routes (Deprecated)
+
+**Base URL**: `https://api.photoeditor.com/`
+
+**Status**: Deprecated (sunset date: **2026-04-06**)
+
+**Endpoints**:
+- `POST /upload/presign` → Redirects to `/v1/upload/presign`
+- `GET /jobs/{id}` → Redirects to `/v1/jobs/{id}`
+
+**Deprecation Headers**:
+All legacy routes return the following headers:
+```http
+Deprecation: true
+Sunset: Mon, 06 Apr 2026 00:00:00 GMT
+Link: <https://docs.photoeditor.com/migrations/v1-to-v2>; rel="deprecation"
+Warning: 299 - "API version v1 is deprecated and will be removed on 2026-04-06. Please migrate to v2."
+```
+
+**Migration Timeline**:
+- **2025-10-11**: v1 released, legacy routes deprecated
+- **2026-04-06**: Legacy routes sunset (6 months)
+
+Clients must migrate to `/v1/` prefixed routes before the sunset date.
+
+## Automated Governance
+
+### Contract Snapshot Validation
+
+Every PR is automatically checked for contract drift using `tooling/contract-check.js`:
+
+1. **Baseline**: `shared/contract-snapshot.json` contains SHA-256 hashes of all contract artifacts
+2. **Detection**: CI compares current build with baseline
+3. **Diff artifact**: `contract-diff.json` generated with added/removed/modified files
+4. **PR comment**: Automated comment posted with governance checklist
+5. **Blocking**: PR cannot merge until snapshot updated and approved
+
+**CI Integration**: `.github/workflows/ci-cd.yml` (lines 49-93)
+
+### Contract Diff PR Comments
+
+When contract drift is detected, CI automatically posts a comment with:
+
+- **Summary**: Files added/removed/modified
+- **Governance checklist**: Items reviewers must verify
+- **Action items**: Steps for PR author
+- **References**: Links to versioning policy and standards
+
+**Script**: `scripts/ci/format-contract-diff.js`
+
+### Review Requirements
+
+Contract changes require approval from:
+- **Contract Steward** (per `standards/shared-contracts-tier.md` line 21)
+- **Backend developer** (for server-side changes)
+- **Mobile developer** (for client-side changes)
+
+Evidence requirements (per `standards/shared-contracts-tier.md` line 21):
+- API diff report attached to PR
+- Contract test results
+- Regeneration log for client code
+- Approval recorded in task notes
+
+### Automation Procedures
+
+**For PR Authors**:
+1. Make changes to `shared/schemas/`
+2. Run `npm run build --prefix shared`
+3. Run `npm run contracts:check` locally
+4. If drift detected:
+   - Review changes: `git diff shared/`
+   - Run contract tests: `npm run test:contracts`
+   - Update snapshot: `npm run contracts:check -- --update`
+   - Commit snapshot: `git add shared/contract-snapshot.json`
+5. Create changeset: `npm run changeset` (if using changesets)
+6. Open PR and wait for automated comment
+7. Address review feedback
+8. Get approval from required reviewers
+
+**For Reviewers**:
+1. Review automated contract diff comment
+2. Verify governance checklist items
+3. Check for breaking changes requiring `/v{n}` versioning
+4. Ensure backward compatibility tests pass
+5. Verify snapshot updated
+6. Approve PR only after all items verified
+
+See `docs/contracts/changeset-governance.md` for detailed governance workflow.
+
 ## Change History
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.2 | 2025-10-11 | Added active API versions section with v1 routes, legacy deprecation timeline (2026-04-06), and automated governance procedures |
 | 1.1 | 2025-10-06 | Added comprehensive deprecation playbook with communication plan, fallback behaviors, and non-TypeScript client guidance |
 | 1.0 | 2025-10-04 | Initial versioning policy created |

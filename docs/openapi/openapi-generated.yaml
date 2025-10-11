@@ -3,6 +3,8 @@ info:
   title: Photo Editor API
   version: 1.0.0
   description: API contracts generated from Zod schemas for the Photo Editor application
+  license:
+    name: MIT
   contact:
     name: API Support
 servers:
@@ -12,325 +14,150 @@ servers:
     description: Development environment
   - url: https://api.photoeditor.com
     description: Production environment
+paths: {}
 components:
   schemas:
     FileUpload:
-      $ref: '#/definitions/FileUpload'
-      definitions:
-        FileUpload:
-          type: object
-          properties:
-            fileName:
-              type: string
-              minLength: 1
-            contentType:
-              type: string
-              pattern: ^image\/(jpeg|png|heic|webp)$
-            fileSize:
-              type: number
-              exclusiveMinimum: 0
-              maximum: 52428800
-          required:
-            - fileName
-            - contentType
-            - fileSize
-          additionalProperties: false
+      type: object
+      properties:
+        fileName:
+          type: string
+          minLength: 1
+        contentType:
+          type: string
+          pattern: ^image\/(jpeg|png|heic|webp)$
+        fileSize:
+          type: number
+          exclusiveMinimum: true
+          minimum: 0
+          maximum: 52428800
+      required:
+        - fileName
+        - contentType
+        - fileSize
+      additionalProperties: false
     PresignUploadRequest:
-      $ref: '#/definitions/PresignUploadRequest'
-      definitions:
-        PresignUploadRequest:
-          type: object
-          properties:
-            fileName:
-              type: string
-              minLength: 1
-            contentType:
-              type: string
-              pattern: ^image\/(jpeg|png|heic|webp)$
-            fileSize:
-              type: number
-              exclusiveMinimum: 0
-              maximum: 52428800
-            prompt:
-              type: string
-              minLength: 1
-          required:
-            - fileName
-            - contentType
-            - fileSize
-          additionalProperties: false
+      type: object
+      properties:
+        fileName:
+          type: string
+          minLength: 1
+        contentType:
+          type: string
+          pattern: ^image\/(jpeg|png|heic|webp)$
+        fileSize:
+          type: number
+          exclusiveMinimum: true
+          minimum: 0
+          maximum: 52428800
+        prompt:
+          type: string
+          minLength: 1
+      required:
+        - fileName
+        - contentType
+        - fileSize
+      additionalProperties: false
     PresignUploadResponse:
-      $ref: '#/definitions/PresignUploadResponse'
-      definitions:
-        PresignUploadResponse:
-          type: object
-          properties:
-            jobId:
-              type: string
-              format: uuid
-            presignedUrl:
-              type: string
-              format: uri
-            s3Key:
-              type: string
-            expiresAt:
-              type: string
-              format: date-time
-          required:
-            - jobId
-            - presignedUrl
-            - s3Key
-            - expiresAt
-          additionalProperties: false
+      type: object
+      properties:
+        jobId:
+          type: string
+          format: uuid
+        presignedUrl:
+          type: string
+          format: uri
+        s3Key:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+      required:
+        - jobId
+        - presignedUrl
+        - s3Key
+        - expiresAt
+      additionalProperties: false
     BatchUploadRequest:
-      $ref: '#/definitions/BatchUploadRequest'
-      definitions:
-        BatchUploadRequest:
-          type: object
-          properties:
-            files:
-              type: array
-              items:
-                type: object
-                properties:
-                  fileName:
-                    type: string
-                    minLength: 1
-                  contentType:
-                    type: string
-                    pattern: ^image\/(jpeg|png|heic|webp)$
-                  fileSize:
-                    type: number
-                    exclusiveMinimum: 0
-                    maximum: 52428800
-                required:
-                  - fileName
-                  - contentType
-                  - fileSize
-                additionalProperties: false
-              minItems: 1
-              maxItems: 10
-            sharedPrompt:
-              type: string
-              minLength: 1
-            individualPrompts:
-              type: array
-              items:
-                anyOf:
-                  - not: {}
-                  - type: string
-          required:
-            - files
-            - sharedPrompt
-          additionalProperties: false
-    BatchUploadResponse:
-      $ref: '#/definitions/BatchUploadResponse'
-      definitions:
-        BatchUploadResponse:
-          type: object
-          properties:
-            batchJobId:
-              type: string
-              format: uuid
-            uploads:
-              type: array
-              items:
-                type: object
-                properties:
-                  presignedUrl:
-                    type: string
-                    format: uri
-                  s3Key:
-                    type: string
-                  expiresAt:
-                    type: string
-                    format: date-time
-                required:
-                  - presignedUrl
-                  - s3Key
-                  - expiresAt
-                additionalProperties: false
-            childJobIds:
-              type: array
-              items:
+      type: object
+      properties:
+        files:
+          type: array
+          items:
+            type: object
+            properties:
+              fileName:
                 type: string
-                format: uuid
-          required:
-            - batchJobId
-            - uploads
-            - childJobIds
-          additionalProperties: false
+                minLength: 1
+              contentType:
+                type: string
+                pattern: ^image\/(jpeg|png|heic|webp)$
+              fileSize:
+                type: number
+                exclusiveMinimum: true
+                minimum: 0
+                maximum: 52428800
+            required:
+              - fileName
+              - contentType
+              - fileSize
+            additionalProperties: false
+          minItems: 1
+          maxItems: 10
+        sharedPrompt:
+          type: string
+          minLength: 1
+        individualPrompts:
+          type: array
+          items:
+            anyOf:
+              - not: {}
+              - type: string
+      required:
+        - files
+        - sharedPrompt
+      additionalProperties: false
+    BatchUploadResponse:
+      type: object
+      properties:
+        batchJobId:
+          type: string
+          format: uuid
+        uploads:
+          type: array
+          items:
+            type: object
+            properties:
+              presignedUrl:
+                type: string
+                format: uri
+              s3Key:
+                type: string
+              expiresAt:
+                type: string
+                format: date-time
+            required:
+              - presignedUrl
+              - s3Key
+              - expiresAt
+            additionalProperties: false
+        childJobIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+      required:
+        - batchJobId
+        - uploads
+        - childJobIds
+      additionalProperties: false
     JobStatusResponse:
-      $ref: '#/definitions/JobStatusResponse'
-      definitions:
-        JobStatusResponse:
-          type: object
-          properties:
-            jobId:
-              type: string
-              format: uuid
-            status:
-              type: string
-              enum:
-                - QUEUED
-                - PROCESSING
-                - EDITING
-                - COMPLETED
-                - FAILED
-            createdAt:
-              type: string
-              format: date-time
-            updatedAt:
-              type: string
-              format: date-time
-            error:
-              type: string
-          required:
-            - jobId
-            - status
-            - createdAt
-            - updatedAt
-          additionalProperties: false
-    DeviceTokenRegistration:
-      $ref: '#/definitions/DeviceTokenRegistration'
-      definitions:
-        DeviceTokenRegistration:
-          type: object
-          properties:
-            expoPushToken:
-              type: string
-              minLength: 1
-            platform:
-              type: string
-              enum:
-                - ios
-                - android
-            deviceId:
-              type: string
-              minLength: 1
-          required:
-            - expoPushToken
-            - platform
-            - deviceId
-          additionalProperties: false
-    DeviceTokenResponse:
-      $ref: '#/definitions/DeviceTokenResponse'
-      definitions:
-        DeviceTokenResponse:
-          type: object
-          properties:
-            success:
-              type: boolean
-            message:
-              type: string
-          required:
-            - success
-            - message
-          additionalProperties: false
-    HealthCheckResponse:
-      $ref: '#/definitions/HealthCheckResponse'
-      definitions:
-        HealthCheckResponse:
-          type: object
-          properties:
-            status:
-              type: string
-              const: healthy
-            version:
-              type: string
-            timestamp:
-              type: string
-              format: date-time
-          required:
-            - status
-            - version
-            - timestamp
-          additionalProperties: false
-    ApiError:
-      $ref: '#/definitions/ApiError'
-      definitions:
-        ApiError:
-          type: object
-          properties:
-            error:
-              type: object
-              properties:
-                code:
-                  type: string
-                message:
-                  type: string
-                details:
-                  type: object
-                  additionalProperties: {}
-              required:
-                - code
-                - message
-              additionalProperties: false
-            timestamp:
-              type: string
-              format: date-time
-            requestId:
-              type: string
-          required:
-            - error
-            - timestamp
-            - requestId
-          additionalProperties: false
-    Job:
-      $ref: '#/definitions/Job'
-      definitions:
-        Job:
-          type: object
-          properties:
-            jobId:
-              type: string
-              format: uuid
-            userId:
-              type: string
-            status:
-              type: string
-              enum:
-                - QUEUED
-                - PROCESSING
-                - EDITING
-                - COMPLETED
-                - FAILED
-            createdAt:
-              type: string
-              format: date-time
-            updatedAt:
-              type: string
-              format: date-time
-            tempS3Key:
-              type: string
-            finalS3Key:
-              type: string
-            error:
-              type: string
-            locale:
-              type: string
-              default: en
-            settings:
-              type: object
-              additionalProperties: {}
-            expires_at:
-              type: number
-            prompt:
-              type: string
-            batchJobId:
-              type: string
-              format: uuid
-          required:
-            - jobId
-            - userId
-            - status
-            - createdAt
-            - updatedAt
-          additionalProperties: false
-    JobStatus:
-      $ref: '#/definitions/JobStatus'
-      definitions:
-        JobStatus:
+      type: object
+      properties:
+        jobId:
+          type: string
+          format: uuid
+        status:
           type: string
           enum:
             - QUEUED
@@ -338,276 +165,392 @@ components:
             - EDITING
             - COMPLETED
             - FAILED
-    CreateJobRequest:
-      $ref: '#/definitions/CreateJobRequest'
-      definitions:
-        CreateJobRequest:
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        error:
+          type: string
+      required:
+        - jobId
+        - status
+        - createdAt
+        - updatedAt
+      additionalProperties: false
+    DeviceTokenRegistration:
+      type: object
+      properties:
+        expoPushToken:
+          type: string
+          minLength: 1
+        platform:
+          type: string
+          enum:
+            - ios
+            - android
+        deviceId:
+          type: string
+          minLength: 1
+      required:
+        - expoPushToken
+        - platform
+        - deviceId
+      additionalProperties: false
+    DeviceTokenResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required:
+        - success
+        - message
+      additionalProperties: false
+    HealthCheckResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - healthy
+        version:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+      required:
+        - status
+        - version
+        - timestamp
+      additionalProperties: false
+    ApiError:
+      type: object
+      properties:
+        error:
           type: object
           properties:
-            userId:
+            code:
               type: string
-            locale:
-              type: string
-              default: en
-            settings:
-              type: object
-              additionalProperties: {}
-            prompt:
-              type: string
-            batchJobId:
-              type: string
-              format: uuid
-          required:
-            - userId
-          additionalProperties: false
-    BatchJob:
-      $ref: '#/definitions/BatchJob'
-      definitions:
-        BatchJob:
-          type: object
-          properties:
-            batchJobId:
-              type: string
-              format: uuid
-            userId:
-              type: string
-            status:
-              type: string
-              enum:
-                - QUEUED
-                - PROCESSING
-                - EDITING
-                - COMPLETED
-                - FAILED
-            createdAt:
-              type: string
-              format: date-time
-            updatedAt:
-              type: string
-              format: date-time
-            sharedPrompt:
-              type: string
-            individualPrompts:
-              type: array
-              items:
-                anyOf:
-                  - not: {}
-                  - type: string
-            childJobIds:
-              type: array
-              items:
-                type: string
-                format: uuid
-            completedCount:
-              type: number
-              minimum: 0
-              default: 0
-            totalCount:
-              type: number
-              exclusiveMinimum: 0
-            error:
-              type: string
-            locale:
-              type: string
-              default: en
-            settings:
-              type: object
-              additionalProperties: {}
-            expires_at:
-              type: number
-          required:
-            - batchJobId
-            - userId
-            - status
-            - createdAt
-            - updatedAt
-            - sharedPrompt
-            - childJobIds
-            - totalCount
-          additionalProperties: false
-    CreateBatchJobRequest:
-      $ref: '#/definitions/CreateBatchJobRequest'
-      definitions:
-        CreateBatchJobRequest:
-          type: object
-          properties:
-            userId:
-              type: string
-            sharedPrompt:
-              type: string
-            individualPrompts:
-              type: array
-              items:
-                anyOf:
-                  - not: {}
-                  - type: string
-            fileCount:
-              type: number
-              exclusiveMinimum: 0
-            locale:
-              type: string
-              default: en
-            settings:
-              type: object
-              additionalProperties: {}
-          required:
-            - userId
-            - sharedPrompt
-            - fileCount
-          additionalProperties: false
-    JobStatusUpdate:
-      $ref: '#/definitions/JobStatusUpdate'
-      definitions:
-        JobStatusUpdate:
-          type: object
-          properties:
-            jobId:
-              type: string
-              format: uuid
-            batchJobId:
-              type: string
-              format: uuid
-            status:
-              type: string
-              enum:
-                - QUEUED
-                - PROCESSING
-                - EDITING
-                - COMPLETED
-                - FAILED
-            progress:
-              type: number
-              minimum: 0
-              maximum: 100
             message:
               type: string
-            error:
-              type: string
-            finalS3Key:
-              type: string
-            timestamp:
-              type: string
-              format: date-time
+            details:
+              type: object
+              additionalProperties: {}
           required:
-            - jobId
-            - status
-            - timestamp
+            - code
+            - message
           additionalProperties: false
+        timestamp:
+          type: string
+          format: date-time
+        requestId:
+          type: string
+      required:
+        - error
+        - timestamp
+        - requestId
+      additionalProperties: false
+    Job:
+      type: object
+      properties:
+        jobId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+        status:
+          type: string
+          enum:
+            - QUEUED
+            - PROCESSING
+            - EDITING
+            - COMPLETED
+            - FAILED
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        tempS3Key:
+          type: string
+        finalS3Key:
+          type: string
+        error:
+          type: string
+        locale:
+          type: string
+          default: en
+        settings:
+          type: object
+          additionalProperties: {}
+        expires_at:
+          type: number
+        prompt:
+          type: string
+        batchJobId:
+          type: string
+          format: uuid
+      required:
+        - jobId
+        - userId
+        - status
+        - createdAt
+        - updatedAt
+      additionalProperties: false
+    JobStatus:
+      type: string
+      enum:
+        - QUEUED
+        - PROCESSING
+        - EDITING
+        - COMPLETED
+        - FAILED
+    CreateJobRequest:
+      type: object
+      properties:
+        userId:
+          type: string
+        locale:
+          type: string
+          default: en
+        settings:
+          type: object
+          additionalProperties: {}
+        prompt:
+          type: string
+        batchJobId:
+          type: string
+          format: uuid
+      required:
+        - userId
+      additionalProperties: false
+    BatchJob:
+      type: object
+      properties:
+        batchJobId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+        status:
+          type: string
+          enum:
+            - QUEUED
+            - PROCESSING
+            - EDITING
+            - COMPLETED
+            - FAILED
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        sharedPrompt:
+          type: string
+        individualPrompts:
+          type: array
+          items:
+            anyOf:
+              - not: {}
+              - type: string
+        childJobIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        completedCount:
+          type: number
+          minimum: 0
+          default: 0
+        totalCount:
+          type: number
+          exclusiveMinimum: true
+          minimum: 0
+        error:
+          type: string
+        locale:
+          type: string
+          default: en
+        settings:
+          type: object
+          additionalProperties: {}
+        expires_at:
+          type: number
+      required:
+        - batchJobId
+        - userId
+        - status
+        - createdAt
+        - updatedAt
+        - sharedPrompt
+        - childJobIds
+        - totalCount
+      additionalProperties: false
+    CreateBatchJobRequest:
+      type: object
+      properties:
+        userId:
+          type: string
+        sharedPrompt:
+          type: string
+        individualPrompts:
+          type: array
+          items:
+            anyOf:
+              - not: {}
+              - type: string
+        fileCount:
+          type: number
+          exclusiveMinimum: true
+          minimum: 0
+        locale:
+          type: string
+          default: en
+        settings:
+          type: object
+          additionalProperties: {}
+      required:
+        - userId
+        - sharedPrompt
+        - fileCount
+      additionalProperties: false
+    JobStatusUpdate:
+      type: object
+      properties:
+        jobId:
+          type: string
+          format: uuid
+        batchJobId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - QUEUED
+            - PROCESSING
+            - EDITING
+            - COMPLETED
+            - FAILED
+        progress:
+          type: number
+          minimum: 0
+          maximum: 100
+        message:
+          type: string
+        error:
+          type: string
+        finalS3Key:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+      required:
+        - jobId
+        - status
+        - timestamp
+      additionalProperties: false
     GeminiAnalysisRequest:
-      $ref: '#/definitions/GeminiAnalysisRequest'
-      definitions:
-        GeminiAnalysisRequest:
-          type: object
-          properties:
-            imageUrl:
-              type: string
-              format: uri
-            prompt:
-              type: string
-              default: Analyze this image and provide a detailed description for photo editing purposes.
-          required:
-            - imageUrl
-          additionalProperties: false
+      type: object
+      properties:
+        imageUrl:
+          type: string
+          format: uri
+        prompt:
+          type: string
+          default: Analyze this image and provide a detailed description for photo editing purposes.
+      required:
+        - imageUrl
+      additionalProperties: false
     GeminiAnalysisResponse:
-      $ref: '#/definitions/GeminiAnalysisResponse'
-      definitions:
-        GeminiAnalysisResponse:
+      type: object
+      properties:
+        analysis:
+          type: string
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        metadata:
           type: object
-          properties:
-            analysis:
-              type: string
-            confidence:
-              type: number
-              minimum: 0
-              maximum: 1
-            metadata:
-              type: object
-              additionalProperties: {}
-          required:
-            - analysis
-          additionalProperties: false
+          additionalProperties: {}
+      required:
+        - analysis
+      additionalProperties: false
     SeedreamEditingRequest:
-      $ref: '#/definitions/SeedreamEditingRequest'
-      definitions:
-        SeedreamEditingRequest:
-          type: object
-          properties:
-            imageUrl:
-              type: string
-              format: uri
-            analysis:
-              type: string
-            editingInstructions:
-              type: string
-          required:
-            - imageUrl
-            - analysis
-          additionalProperties: false
+      type: object
+      properties:
+        imageUrl:
+          type: string
+          format: uri
+        analysis:
+          type: string
+        editingInstructions:
+          type: string
+      required:
+        - imageUrl
+        - analysis
+      additionalProperties: false
     SeedreamEditingResponse:
-      $ref: '#/definitions/SeedreamEditingResponse'
-      definitions:
-        SeedreamEditingResponse:
+      type: object
+      properties:
+        editedImageUrl:
+          type: string
+          format: uri
+        processingTime:
+          type: number
+        metadata:
           type: object
-          properties:
-            editedImageUrl:
-              type: string
-              format: uri
-            processingTime:
-              type: number
-            metadata:
-              type: object
-              additionalProperties: {}
-          required:
-            - editedImageUrl
-          additionalProperties: false
+          additionalProperties: {}
+      required:
+        - editedImageUrl
+      additionalProperties: false
     ProviderConfig:
-      $ref: '#/definitions/ProviderConfig'
-      definitions:
-        ProviderConfig:
-          type: object
-          properties:
-            name:
-              type: string
-            apiKey:
-              type: string
-            baseUrl:
-              type: string
-              format: uri
-            timeout:
-              type: number
-              default: 30000
-            retries:
-              type: number
-              default: 3
-            enabled:
-              type: boolean
-              default: true
-          required:
-            - name
-            - apiKey
-            - baseUrl
-          additionalProperties: false
+      type: object
+      properties:
+        name:
+          type: string
+        apiKey:
+          type: string
+        baseUrl:
+          type: string
+          format: uri
+        timeout:
+          type: number
+          default: 30000
+        retries:
+          type: number
+          default: 3
+        enabled:
+          type: boolean
+          default: true
+      required:
+        - name
+        - apiKey
+        - baseUrl
+      additionalProperties: false
     ProviderResponse:
-      $ref: '#/definitions/ProviderResponse'
-      definitions:
-        ProviderResponse:
-          type: object
-          properties:
-            success:
-              type: boolean
-            data: {}
-            error:
-              type: string
-            duration:
-              type: number
-            provider:
-              type: string
-            timestamp:
-              type: string
-              format: date-time
-          required:
-            - success
-            - duration
-            - provider
-            - timestamp
-          additionalProperties: false
+      type: object
+      properties:
+        success:
+          type: boolean
+        data: {}
+        error:
+          type: string
+        duration:
+          type: number
+        provider:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+      required:
+        - success
+        - duration
+        - provider
+        - timestamp
+      additionalProperties: false

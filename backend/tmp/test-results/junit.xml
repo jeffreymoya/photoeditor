@@ -1,299 +1,34 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="jest tests" tests="89" failures="7" errors="0" time="8.129">
-  <testsuite name="AppLogger" errors="0" failures="0" skipped="0" timestamp="2025-10-05T05:36:19" time="6.329" tests="20">
-    <testcase classname="AppLogger Structured Logging - Required Fields should emit structured fields for correlationId" name="AppLogger Structured Logging - Required Fields should emit structured fields for correlationId" time="0.014">
-    </testcase>
-    <testcase classname="AppLogger Structured Logging - Required Fields should emit structured fields for requestId" name="AppLogger Structured Logging - Required Fields should emit structured fields for requestId" time="0.002">
-    </testcase>
-    <testcase classname="AppLogger Structured Logging - Required Fields should emit structured fields for jobId" name="AppLogger Structured Logging - Required Fields should emit structured fields for jobId" time="0.003">
-    </testcase>
-    <testcase classname="AppLogger Structured Logging - Required Fields should emit structured fields for userId" name="AppLogger Structured Logging - Required Fields should emit structured fields for userId" time="0.002">
-    </testcase>
-    <testcase classname="AppLogger Structured Logging - Required Fields should emit multiple structured fields together" name="AppLogger Structured Logging - Required Fields should emit multiple structured fields together" time="0.002">
-    </testcase>
-    <testcase classname="AppLogger formatContext - Field Filtering should filter out undefined values from context" name="AppLogger formatContext - Field Filtering should filter out undefined values from context" time="0.002">
-    </testcase>
-    <testcase classname="AppLogger formatContext - Field Filtering should filter out null values from context" name="AppLogger formatContext - Field Filtering should filter out null values from context" time="0.002">
-    </testcase>
-    <testcase classname="AppLogger formatContext - Field Filtering should return empty object when context is undefined" name="AppLogger formatContext - Field Filtering should return empty object when context is undefined" time="0.001">
-    </testcase>
-    <testcase classname="AppLogger Log Levels should log info messages with context" name="AppLogger Log Levels should log info messages with context" time="0.002">
-    </testcase>
-    <testcase classname="AppLogger Log Levels should log warn messages with context" name="AppLogger Log Levels should log warn messages with context" time="0.001">
-    </testcase>
-    <testcase classname="AppLogger Log Levels should log error messages with context" name="AppLogger Log Levels should log error messages with context" time="0.014">
-    </testcase>
-    <testcase classname="AppLogger Log Levels should log debug messages with context" name="AppLogger Log Levels should log debug messages with context" time="0.001">
-    </testcase>
-    <testcase classname="AppLogger Specialized Logging Methods should log request start with required fields" name="AppLogger Specialized Logging Methods should log request start with required fields" time="0.002">
-    </testcase>
-    <testcase classname="AppLogger Specialized Logging Methods should log request end with duration" name="AppLogger Specialized Logging Methods should log request end with duration" time="0.003">
-    </testcase>
-    <testcase classname="AppLogger Specialized Logging Methods should log job status changes" name="AppLogger Specialized Logging Methods should log job status changes" time="0.001">
-    </testcase>
-    <testcase classname="AppLogger Specialized Logging Methods should log provider calls with success" name="AppLogger Specialized Logging Methods should log provider calls with success" time="0">
-    </testcase>
-    <testcase classname="AppLogger Specialized Logging Methods should log provider calls with failure" name="AppLogger Specialized Logging Methods should log provider calls with failure" time="0.001">
-    </testcase>
-    <testcase classname="AppLogger Error Handling should extract error information from Error objects" name="AppLogger Error Handling should extract error information from Error objects" time="0.002">
-    </testcase>
-    <testcase classname="AppLogger Error Handling should handle string errors" name="AppLogger Error Handling should handle string errors" time="0">
-    </testcase>
-    <testcase classname="AppLogger Child Logger should create child logger with persistent context" name="AppLogger Child Logger should create child logger with persistent context" time="0.002">
-    </testcase>
-  </testsuite>
-  <testsuite name="AWS Client Factory" errors="0" failures="0" skipped="0" timestamp="2025-10-05T05:36:19" time="6.617" tests="10">
-    <testcase classname="AWS Client Factory getAWSEnvironment should detect LocalStack endpoint" name="AWS Client Factory getAWSEnvironment should detect LocalStack endpoint" time="0.009">
-    </testcase>
-    <testcase classname="AWS Client Factory getAWSEnvironment should detect AWS endpoint URL" name="AWS Client Factory getAWSEnvironment should detect AWS endpoint URL" time="0.002">
-    </testcase>
-    <testcase classname="AWS Client Factory getAWSEnvironment should return default when no endpoints configured" name="AWS Client Factory getAWSEnvironment should return default when no endpoints configured" time="0.002">
-    </testcase>
-    <testcase classname="AWS Client Factory createS3Client should create S3 client with default region" name="AWS Client Factory createS3Client should create S3 client with default region" time="0.014">
-    </testcase>
-    <testcase classname="AWS Client Factory createS3Client should create S3 client with forcePathStyle for LocalStack" name="AWS Client Factory createS3Client should create S3 client with forcePathStyle for LocalStack" time="0.002">
-    </testcase>
-    <testcase classname="AWS Client Factory createS3Client should accept custom region" name="AWS Client Factory createS3Client should accept custom region" time="0.002">
-    </testcase>
-    <testcase classname="AWS Client Factory createDynamoDBClient should create DynamoDB client" name="AWS Client Factory createDynamoDBClient should create DynamoDB client" time="0.003">
-    </testcase>
-    <testcase classname="AWS Client Factory createSQSClient should create SQS client" name="AWS Client Factory createSQSClient should create SQS client" time="0.003">
-    </testcase>
-    <testcase classname="AWS Client Factory createSNSClient should create SNS client" name="AWS Client Factory createSNSClient should create SNS client" time="0.002">
-    </testcase>
-    <testcase classname="AWS Client Factory createSSMClient should create SSM client" name="AWS Client Factory createSSMClient should create SSM client" time="0.002">
-    </testcase>
-  </testsuite>
-  <testsuite name="S3KeyStrategyImpl" errors="0" failures="4" skipped="0" timestamp="2025-10-05T05:36:19" time="7.097" tests="16">
-    <testcase classname="S3KeyStrategyImpl generateTempKey should generate temp key with correct structure" name="S3KeyStrategyImpl generateTempKey should generate temp key with correct structure" time="0.01">
-      <failure>Error: expect(received).toMatch(expected)
-
-Expected pattern: /^temp\/user-123\/job-456\/\d+-photo\.jpg$/
-Received string:  &quot;uploads/user-123/job-456/1704067200000-photo.jpg&quot;
-    at Object.&lt;anonymous&gt; (/home/jeffreymoya/dev/photoeditor/backend/tests/unit/services/s3.service.test.ts:35:19)
-    at Promise.then.completed (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/utils.js:298:28)
-    at new Promise (&lt;anonymous&gt;)
-    at callAsyncCircusFn (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/utils.js:231:10)
-    at _callCircusTest (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/run.js:316:40)
-    at processTicksAndRejections (node:internal/process/task_queues:105:5)
-    at _runTest (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/run.js:252:3)
-    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/run.js:126:9)
-    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/run.js:121:9)
-    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/run.js:121:9)
-    at run (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/run.js:71:3)
-    at runAndTransformResultsToJestFormat (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)
-    at jestAdapter (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:79:19)
-    at runTestInternal (/home/jeffreymoya/dev/photoeditor/node_modules/jest-runner/build/runTest.js:367:16)
-    at runTest (/home/jeffreymoya/dev/photoeditor/node_modules/jest-runner/build/runTest.js:444:34)
-    at Object.worker (/home/jeffreymoya/dev/photoeditor/node_modules/jest-runner/build/testWorker.js:106:12)</failure>
-    </testcase>
-    <testcase classname="S3KeyStrategyImpl generateTempKey should sanitize filename" name="S3KeyStrategyImpl generateTempKey should sanitize filename" time="0.002">
-      <failure>Error: expect(received).toMatch(expected)
-
-Expected pattern: /^temp\/user-123\/job-456\/\d+-my_photo__1_\.jpg$/
-Received string:  &quot;uploads/user-123/job-456/1704067200000-my_photo__1_.jpg&quot;
-    at Object.&lt;anonymous&gt; (/home/jeffreymoya/dev/photoeditor/backend/tests/unit/services/s3.service.test.ts:41:19)
-    at Promise.then.completed (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/utils.js:298:28)
-    at new Promise (&lt;anonymous&gt;)
-    at callAsyncCircusFn (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/utils.js:231:10)
-    at _callCircusTest (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/run.js:316:40)
-    at processTicksAndRejections (node:internal/process/task_queues:105:5)
-    at _runTest (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/run.js:252:3)
-    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/run.js:126:9)
-    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/run.js:121:9)
-    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/run.js:121:9)
-    at run (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/run.js:71:3)
-    at runAndTransformResultsToJestFormat (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)
-    at jestAdapter (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:79:19)
-    at runTestInternal (/home/jeffreymoya/dev/photoeditor/node_modules/jest-runner/build/runTest.js:367:16)
-    at runTest (/home/jeffreymoya/dev/photoeditor/node_modules/jest-runner/build/runTest.js:444:34)
-    at Object.worker (/home/jeffreymoya/dev/photoeditor/node_modules/jest-runner/build/testWorker.js:106:12)</failure>
-    </testcase>
-    <testcase classname="S3KeyStrategyImpl generateFinalKey should generate final key with correct structure" name="S3KeyStrategyImpl generateFinalKey should generate final key with correct structure" time="0.002">
-    </testcase>
-    <testcase classname="S3KeyStrategyImpl generateFinalKey should sanitize filename" name="S3KeyStrategyImpl generateFinalKey should sanitize filename" time="0.002">
-    </testcase>
-    <testcase classname="S3KeyStrategyImpl parseTempKey should parse valid temp key" name="S3KeyStrategyImpl parseTempKey should parse valid temp key" time="0.003">
-      <failure>Error: expect(received).toEqual(expected) // deep equality
-
-Expected: {&quot;fileName&quot;: &quot;photo.jpg&quot;, &quot;jobId&quot;: &quot;job-456&quot;, &quot;userId&quot;: &quot;user-123&quot;}
-Received: null
-    at Object.&lt;anonymous&gt; (/home/jeffreymoya/dev/photoeditor/backend/tests/unit/services/s3.service.test.ts:63:22)
-    at Promise.then.completed (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/utils.js:298:28)
-    at new Promise (&lt;anonymous&gt;)
-    at callAsyncCircusFn (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/utils.js:231:10)
-    at _callCircusTest (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/run.js:316:40)
-    at processTicksAndRejections (node:internal/process/task_queues:105:5)
-    at _runTest (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/run.js:252:3)
-    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/run.js:126:9)
-    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/run.js:121:9)
-    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/run.js:121:9)
-    at run (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/run.js:71:3)
-    at runAndTransformResultsToJestFormat (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)
-    at jestAdapter (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:79:19)
-    at runTestInternal (/home/jeffreymoya/dev/photoeditor/node_modules/jest-runner/build/runTest.js:367:16)
-    at runTest (/home/jeffreymoya/dev/photoeditor/node_modules/jest-runner/build/runTest.js:444:34)
-    at Object.worker (/home/jeffreymoya/dev/photoeditor/node_modules/jest-runner/build/testWorker.js:106:12)</failure>
-    </testcase>
-    <testcase classname="S3KeyStrategyImpl parseTempKey should return null for invalid temp key" name="S3KeyStrategyImpl parseTempKey should return null for invalid temp key" time="0.002">
-    </testcase>
-    <testcase classname="S3KeyStrategyImpl parseFinalKey should parse valid final key" name="S3KeyStrategyImpl parseFinalKey should parse valid final key" time="0.002">
-    </testcase>
-    <testcase classname="S3KeyStrategyImpl parseFinalKey should return null for invalid final key" name="S3KeyStrategyImpl parseFinalKey should return null for invalid final key" time="0.001">
-    </testcase>
-    <testcase classname="S3Service generatePresignedUpload should return presigned upload with correct fields" name="S3Service generatePresignedUpload should return presigned upload with correct fields" time="0.009">
-      <failure>Error: expect(received).toMatch(expected)
-
-Expected pattern: /^temp\/user-123\/job-456\/\d+-photo\.jpg$/
-Received string:  &quot;uploads/user-123/job-456/1759642586198-photo.jpg&quot;
-    at Object.&lt;anonymous&gt; (/home/jeffreymoya/dev/photoeditor/backend/tests/unit/services/s3.service.test.ts:123:33)
-    at processTicksAndRejections (node:internal/process/task_queues:105:5)</failure>
-    </testcase>
-    <testcase classname="S3Service generatePresignedUpload should include metadata in presigned URL" name="S3Service generatePresignedUpload should include metadata in presigned URL" time="0.003">
-    </testcase>
-    <testcase classname="S3Service optimizeAndUploadImage should download, optimize with sharp, and upload image" name="S3Service optimizeAndUploadImage should download, optimize with sharp, and upload image" time="0.017">
-    </testcase>
-    <testcase classname="S3Service getObjectInfo should return object metadata when object exists" name="S3Service getObjectInfo should return object metadata when object exists" time="0.009">
-    </testcase>
-    <testcase classname="S3Service getObjectInfo should return null when object does not exist" name="S3Service getObjectInfo should return null when object does not exist" time="0.01">
-    </testcase>
-    <testcase classname="S3Service getObjectInfo should throw for other S3 errors" name="S3Service getObjectInfo should throw for other S3 errors" time="0.009">
-    </testcase>
-    <testcase classname="S3Service bucket getters should return temp bucket" name="S3Service bucket getters should return temp bucket" time="0.002">
-    </testcase>
-    <testcase classname="S3Service bucket getters should return final bucket" name="S3Service bucket getters should return final bucket" time="0.006">
-    </testcase>
-  </testsuite>
-  <testsuite name="NotificationService" errors="0" failures="0" skipped="0" timestamp="2025-10-05T05:36:19" time="7.058" tests="7">
-    <testcase classname="NotificationService sendJobStatusNotification should publish notification with correct payload for COMPLETED job" name="NotificationService sendJobStatusNotification should publish notification with correct payload for COMPLETED job" time="0.021">
-    </testcase>
-    <testcase classname="NotificationService sendJobStatusNotification should publish notification with error for FAILED job" name="NotificationService sendJobStatusNotification should publish notification with error for FAILED job" time="0.01">
-    </testcase>
-    <testcase classname="NotificationService sendJobStatusNotification should include previousStatus in data when provided" name="NotificationService sendJobStatusNotification should include previousStatus in data when provided" time="0.008">
-    </testcase>
-    <testcase classname="NotificationService sendJobCompletionNotification should publish completion notification" name="NotificationService sendJobCompletionNotification should publish completion notification" time="0.008">
-    </testcase>
-    <testcase classname="NotificationService sendBatchJobCompletionNotification should publish batch completion notification" name="NotificationService sendBatchJobCompletionNotification should publish batch completion notification" time="0.009">
-    </testcase>
-    <testcase classname="NotificationService sendBatchJobCompletionNotification should include batch metadata in data" name="NotificationService sendBatchJobCompletionNotification should include batch metadata in data" time="0.006">
-    </testcase>
-    <testcase classname="NotificationService status messages should return correct message for each status" name="NotificationService status messages should return correct message for each status" time="0.012">
-    </testcase>
-  </testsuite>
-  <testsuite name="status lambda" errors="0" failures="0" skipped="0" timestamp="2025-10-05T05:36:19" time="7.092" tests="5">
-    <testcase classname="status lambda parameter validation should return 400 when jobId is missing" name="status lambda parameter validation should return 400 when jobId is missing" time="0.013">
-    </testcase>
-    <testcase classname="status lambda successful status retrieval should return 200 with job details when job exists" name="status lambda successful status retrieval should return 200 with job details when job exists" time="0.01">
-    </testcase>
-    <testcase classname="status lambda successful status retrieval should include error field when job has error" name="status lambda successful status retrieval should include error field when job has error" time="0.006">
-    </testcase>
-    <testcase classname="status lambda not found handling should return 404 when job does not exist" name="status lambda not found handling should return 404 when job does not exist" time="0.006">
-    </testcase>
-    <testcase classname="status lambda error handling should return 500 on DynamoDB errors" name="status lambda error handling should return 500 on DynamoDB errors" time="0.009">
-    </testcase>
-  </testsuite>
-  <testsuite name="JobService" errors="0" failures="0" skipped="0" timestamp="2025-10-05T05:36:19" time="7.142" tests="19">
-    <testcase classname="JobService createJob should create job with required fields" name="JobService createJob should create job with required fields" time="0.017">
-    </testcase>
-    <testcase classname="JobService createJob should create job with optional batchJobId" name="JobService createJob should create job with optional batchJobId" time="0.009">
-    </testcase>
-    <testcase classname="JobService createJob should set TTL to 90 days from now" name="JobService createJob should set TTL to 90 days from now" time="0.01">
-    </testcase>
-    <testcase classname="JobService getJob should return job when it exists" name="JobService getJob should return job when it exists" time="0.008">
-    </testcase>
-    <testcase classname="JobService getJob should return null when job does not exist" name="JobService getJob should return null when job does not exist" time="0.006">
-    </testcase>
-    <testcase classname="JobService updateJobStatus should update status and updatedAt" name="JobService updateJobStatus should update status and updatedAt" time="0.006">
-    </testcase>
-    <testcase classname="JobService updateJobStatus should update with tempS3Key" name="JobService updateJobStatus should update with tempS3Key" time="0.006">
-    </testcase>
-    <testcase classname="JobService updateJobStatus should update with finalS3Key" name="JobService updateJobStatus should update with finalS3Key" time="0.005">
-    </testcase>
-    <testcase classname="JobService updateJobStatus should update with error" name="JobService updateJobStatus should update with error" time="0.007">
-    </testcase>
-    <testcase classname="JobService updateJobStatus should throw when job does not exist" name="JobService updateJobStatus should throw when job does not exist" time="0.018">
-    </testcase>
-    <testcase classname="JobService terminal and in-progress status helpers isJobInProgress should return true for QUEUED, PROCESSING, EDITING" name="JobService terminal and in-progress status helpers isJobInProgress should return true for QUEUED, PROCESSING, EDITING" time="0.005">
-    </testcase>
-    <testcase classname="JobService terminal and in-progress status helpers isJobInProgress should return false for COMPLETED, FAILED" name="JobService terminal and in-progress status helpers isJobInProgress should return false for COMPLETED, FAILED" time="0.001">
-    </testcase>
-    <testcase classname="JobService terminal and in-progress status helpers isJobTerminal should return true for COMPLETED, FAILED" name="JobService terminal and in-progress status helpers isJobTerminal should return true for COMPLETED, FAILED" time="0.002">
-    </testcase>
-    <testcase classname="JobService terminal and in-progress status helpers isJobTerminal should return false for QUEUED, PROCESSING, EDITING" name="JobService terminal and in-progress status helpers isJobTerminal should return false for QUEUED, PROCESSING, EDITING" time="0.001">
-    </testcase>
-    <testcase classname="JobService batch job operations createBatchJob should create batch job with required fields" name="JobService batch job operations createBatchJob should create batch job with required fields" time="0.005">
-    </testcase>
-    <testcase classname="JobService batch job operations incrementBatchJobProgress should increment completedCount" name="JobService batch job operations incrementBatchJobProgress should increment completedCount" time="0.006">
-    </testcase>
-    <testcase classname="JobService batch job operations incrementBatchJobProgress should mark batch as COMPLETED when all jobs complete" name="JobService batch job operations incrementBatchJobProgress should mark batch as COMPLETED when all jobs complete" time="0.005">
-    </testcase>
-    <testcase classname="JobService batch job operations getJobsByBatchId should query jobs by batchJobId using GSI" name="JobService batch job operations getJobsByBatchId should query jobs by batchJobId using GSI" time="0.005">
-    </testcase>
-    <testcase classname="JobService batch job operations getJobsByBatchId should return empty array when no jobs found" name="JobService batch job operations getJobsByBatchId should return empty array when no jobs found" time="0.004">
-    </testcase>
-  </testsuite>
-  <testsuite name="Lambda Import Smoke Tests" errors="0" failures="1" skipped="0" timestamp="2025-10-05T05:36:19" time="7.311" tests="5">
-    <testcase classname="Lambda Import Smoke Tests Handler Import Tests presign lambda exports handler function" name="Lambda Import Smoke Tests Handler Import Tests presign lambda exports handler function" time="6.454">
-    </testcase>
-    <testcase classname="Lambda Import Smoke Tests Handler Import Tests status lambda exports handler function" name="Lambda Import Smoke Tests Handler Import Tests status lambda exports handler function" time="0.074">
-    </testcase>
-    <testcase classname="Lambda Import Smoke Tests Handler Import Tests worker lambda exports handler function" name="Lambda Import Smoke Tests Handler Import Tests worker lambda exports handler function" time="0.106">
-    </testcase>
-    <testcase classname="Lambda Import Smoke Tests Service Dependencies Import Tests services export expected classes" name="Lambda Import Smoke Tests Service Dependencies Import Tests services export expected classes" time="0.044">
-      <failure>Error: expect(received).toHaveProperty(path)
-
-Expected path: &quot;ConfigService&quot;
-Received path: []
-
-Received value: {&quot;DeviceTokenService&quot;: [Function DeviceTokenService], &quot;JobService&quot;: [Function JobService], &quot;NotificationService&quot;: [Function NotificationService], &quot;PresignService&quot;: [Function PresignService], &quot;S3KeyStrategyImpl&quot;: [Function S3KeyStrategyImpl], &quot;S3Service&quot;: [Function S3Service]}
-    at toHaveProperty (/home/jeffreymoya/dev/photoeditor/backend/tests/unit/lambdas/import-validation.test.js:32:26)
-    at Array.forEach (&lt;anonymous&gt;)
-    at Object.forEach (/home/jeffreymoya/dev/photoeditor/backend/tests/unit/lambdas/import-validation.test.js:31:24)
-    at Promise.then.completed (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/utils.js:298:28)
-    at new Promise (&lt;anonymous&gt;)
-    at callAsyncCircusFn (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/utils.js:231:10)
-    at _callCircusTest (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/run.js:316:40)
-    at processTicksAndRejections (node:internal/process/task_queues:105:5)
-    at _runTest (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/run.js:252:3)
-    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/run.js:126:9)
-    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/run.js:121:9)
-    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/run.js:121:9)
-    at run (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/run.js:71:3)
-    at runAndTransformResultsToJestFormat (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)
-    at jestAdapter (/home/jeffreymoya/dev/photoeditor/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:79:19)
-    at runTestInternal (/home/jeffreymoya/dev/photoeditor/node_modules/jest-runner/build/runTest.js:367:16)
-    at runTest (/home/jeffreymoya/dev/photoeditor/node_modules/jest-runner/build/runTest.js:444:34)
-    at Object.worker (/home/jeffreymoya/dev/photoeditor/node_modules/jest-runner/build/testWorker.js:106:12)</failure>
-    </testcase>
-    <testcase classname="Lambda Import Smoke Tests Shared Module Import Tests shared schemas export expected validation schemas" name="Lambda Import Smoke Tests Shared Module Import Tests shared schemas export expected validation schemas" time="0.006">
-    </testcase>
-  </testsuite>
-  <testsuite name="presign lambda" errors="0" failures="2" skipped="0" timestamp="2025-10-05T05:36:19" time="7.442" tests="7">
-    <testcase classname="presign lambda single upload request should reject missing request body" name="presign lambda single upload request should reject missing request body" time="0.341">
+<testsuites name="jest tests" tests="8" failures="1" errors="0" time="2.65">
+  <testsuite name="POST /upload/presign - Contract Tests" errors="0" failures="1" skipped="7" timestamp="2025-10-11T08:30:44" time="2.437" tests="8">
+    <testcase classname="POST /upload/presign - Contract Tests Single Upload Response Contract should return 200 with valid single upload response schema" name="POST /upload/presign - Contract Tests Single Upload Response Contract should return 200 with valid single upload response schema" time="0.231">
       <failure>Error: expect(received).toBe(expected) // Object.is equality
 
-Expected: 400
+Expected: 200
 Received: 500
-    at Object.&lt;anonymous&gt; (/home/jeffreymoya/dev/photoeditor/backend/tests/unit/lambdas/presign.test.ts:100:65)
+    at Object.&lt;anonymous&gt; (/home/jeffreymoya/dev/photoeditor/backend/tests/contracts/presign.contract.test.ts:125:33)
     at processTicksAndRejections (node:internal/process/task_queues:105:5)</failure>
     </testcase>
-    <testcase classname="presign lambda single upload request should reject unsupported content type (image/gif)" name="presign lambda single upload request should reject unsupported content type (image/gif)" time="0.004">
+    <testcase classname="POST /upload/presign - Contract Tests Single Upload Response Contract should return 400 with error schema for missing body" name="POST /upload/presign - Contract Tests Single Upload Response Contract should return 400 with error schema for missing body" time="0">
+      <skipped/>
     </testcase>
-    <testcase classname="presign lambda single upload request should reject file size &gt; 50MB" name="presign lambda single upload request should reject file size &gt; 50MB" time="0.003">
+    <testcase classname="POST /upload/presign - Contract Tests Single Upload Response Contract should return 400 for invalid content type" name="POST /upload/presign - Contract Tests Single Upload Response Contract should return 400 for invalid content type" time="0">
+      <skipped/>
     </testcase>
-    <testcase classname="presign lambda single upload request should return valid presigned URL response for valid single upload" name="presign lambda single upload request should return valid presigned URL response for valid single upload" time="0.005">
-      <failure>Error: expect(received).toMatch(expected)
-
-Expected pattern: /^temp\/test-user-123\/00000000-0000-4000-8000-000000000000\/\d+-test\.jpg$/
-Received string:  &quot;uploads/test-user-123/00000000-0000-4000-8000-000000000000/1759642586601-test.jpg&quot;
-    at Object.&lt;anonymous&gt; (/home/jeffreymoya/dev/photoeditor/backend/tests/unit/lambdas/presign.test.ts:162:30)
-    at processTicksAndRejections (node:internal/process/task_queues:105:5)</failure>
+    <testcase classname="POST /upload/presign - Contract Tests Single Upload Response Contract should return 400 for file size exceeding 50MB" name="POST /upload/presign - Contract Tests Single Upload Response Contract should return 400 for file size exceeding 50MB" time="0">
+      <skipped/>
     </testcase>
-    <testcase classname="presign lambda batch upload request should handle batch upload with multiple files" name="presign lambda batch upload request should handle batch upload with multiple files" time="0.009">
+    <testcase classname="POST /upload/presign - Contract Tests Batch Upload Response Contract should return 200 with valid batch upload response schema" name="POST /upload/presign - Contract Tests Batch Upload Response Contract should return 200 with valid batch upload response schema" time="0">
+      <skipped/>
     </testcase>
-    <testcase classname="presign lambda batch upload request should reject batch with unsupported content type in any file" name="presign lambda batch upload request should reject batch with unsupported content type in any file" time="0.002">
+    <testcase classname="POST /upload/presign - Contract Tests Batch Upload Response Contract should enforce max 10 files per batch constraint" name="POST /upload/presign - Contract Tests Batch Upload Response Contract should enforce max 10 files per batch constraint" time="0">
+      <skipped/>
     </testcase>
-    <testcase classname="presign lambda error handling should handle DynamoDB errors gracefully" name="presign lambda error handling should handle DynamoDB errors gracefully" time="0.003">
+    <testcase classname="POST /upload/presign - Contract Tests Error Response Contract should return 500 with error schema for internal errors" name="POST /upload/presign - Contract Tests Error Response Contract should return 500 with error schema for internal errors" time="0">
+      <skipped/>
+    </testcase>
+    <testcase classname="POST /upload/presign - Contract Tests Error Response Contract should include traceparent header when present in request" name="POST /upload/presign - Contract Tests Error Response Contract should include traceparent header when present in request" time="0">
+      <skipped/>
     </testcase>
   </testsuite>
 </testsuites>

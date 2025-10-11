@@ -6,8 +6,11 @@ import {
   InternalError,
   AppError,
   ERROR_HTTP_STATUS,
-  ERROR_JOB_STATUS
+  ERROR_JOB_STATUS,
+  ApiErrorResponse,
+  createErrorResponse
 } from '@photoeditor/shared';
+import { APIGatewayProxyResultV2 } from 'aws-lambda';
 import { v4 as uuidv4 } from 'uuid';
 
 export class AppErrorBuilder {
@@ -140,6 +143,81 @@ export class ErrorHandler {
       },
       timestamp: error.timestamp,
       requestId: error.requestId
+    };
+  }
+
+  /**
+   * Convert AppError to standardized API Gateway response with RFC 7807 format
+   * Includes correlation headers for distributed tracing
+   */
+  static toStandardApiResponse(
+    error: AppError,
+    requestId: string,
+    traceparent?: string
+  ): APIGatewayProxyResultV2 {
+    const statusCode = this.getHttpStatusCode(error);
+
+    const errorResponse: ApiErrorResponse = createErrorResponse({
+      type: error.type,
+      code: error.code,
+      detail: error.message,
+      requestId,
+      ...(error.type === ErrorType.VALIDATION && 'fieldErrors' in error && { fieldErrors: error.fieldErrors }),
+      ...(error.type === ErrorType.PROVIDER_ERROR && 'provider' in error && { provider: error.provider }),
+      ...(error.type === ErrorType.PROVIDER_ERROR && 'providerCode' in error && { providerCode: error.providerCode }),
+      ...(error.type === ErrorType.PROVIDER_ERROR && 'retryable' in error && { retryable: error.retryable }),
+      ...(error.type === ErrorType.INTERNAL_ERROR && 'stack' in error && process.env.NODE_ENV !== 'production' && { stack: error.stack }),
+      ...(error.type === ErrorType.INTERNAL_ERROR && 'context' in error && { context: error.context })
+    });
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'x-request-id': requestId
+    };
+
+    if (traceparent) {
+      headers['traceparent'] = traceparent;
+    }
+
+    return {
+      statusCode,
+      headers,
+      body: JSON.stringify(errorResponse)
+    };
+  }
+
+  /**
+   * Create a standardized error response for simple errors (missing body, invalid params, etc.)
+   */
+  static createSimpleErrorResponse(
+    type: ErrorType,
+    code: string,
+    detail: string,
+    requestId: string,
+    traceparent?: string
+  ): APIGatewayProxyResultV2 {
+    const statusCode = ERROR_HTTP_STATUS[type];
+
+    const errorResponse: ApiErrorResponse = createErrorResponse({
+      type,
+      code,
+      detail,
+      requestId
+    });
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'x-request-id': requestId
+    };
+
+    if (traceparent) {
+      headers['traceparent'] = traceparent;
+    }
+
+    return {
+      statusCode,
+      headers,
+      body: JSON.stringify(errorResponse)
     };
   }
 

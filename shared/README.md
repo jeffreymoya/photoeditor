@@ -194,9 +194,15 @@ shared/
 1. **Define schema** in `schemas/` using Zod
 2. **Export type** from schema: `export type Job = z.infer<typeof JobSchema>`
 3. **Generate artifacts:**
-   - OpenAPI spec (via zod-to-openapi)
-   - TypeScript types (automatic from Zod)
-   - API documentation
+   ```bash
+   npm run contracts:generate
+   ```
+   This produces:
+   - OpenAPI 3.0 spec at `docs/openapi/openapi-generated.yaml` (via `zod-to-json-schema`)
+   - TypeScript type definitions at `docs/contracts/clients/types.ts` (via `zod-to-ts`)
+   - Checksums at `docs/contracts/clients/checksums.json` for drift detection
+
+   See `docs/contracts/clients/README.md` for details on generated artifacts and future RTK Query client generation.
 
 ### Dependency Rules
 

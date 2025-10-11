@@ -1,0 +1,166 @@
+schema_version: "1.0"
+id: TASK-0210
+title: Align QA fitness functions across local workflows and CI
+status: todo
+priority: P1
+complexity: M
+area: ops
+
+description: >-
+  Consolidate the Stage 1 fitness checks into a single QA suite so developers,
+  Husky hooks, and CI runners execute the exact same contract, lint, infra, and
+  build gates. Today, `.husky/pre-commit`, the Make targets, and the GitHub
+  Actions workflow drift from one another; the goal is to centralize the checks
+  and introduce a sustainable pattern for future fitness functions.
+
+outcome: >-
+  A shared QA entry point (script + Make target) runs the agreed fitness
+  functions, CI invokes only that entry point, Husky uses the same driver, and
+  reference docs/tasks adopt the new naming so future checks are added once and
+  propagate everywhere.
+
+scope:
+  in:
+    - scripts/qa/qa-suite.sh
+    - Makefile:121
+    - .github/workflows/ci-cd.yml:49
+    - .husky/pre-commit:1
+    - docs/testing-standards.md
+    - adr/0005-npm-workspaces-contract-drift-prevention.md
+  out:
+    - Introducing new fitness checks beyond those already required
+    - Non-QA Make targets (emu, live deploy, etc.)
+
+context:
+  issues: []
+  related_docs:
+    - docs/testing-standards.md
+    - standards/global.md
+    - standards/shared-contracts-tier.md
+    - adr/0005-npm-workspaces-contract-drift-prevention.md
+  repo_paths:
+    - Makefile:121
+    - .github/workflows/ci-cd.yml:49
+    - .husky/pre-commit:1
+    - tooling/contract-check.js
+  dependencies:
+    - type: tool
+      name: bash
+      requirement: required
+    - type: tool
+      name: npm
+      requirement: required
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: npm
+      version: "9.x"
+    - name: bash
+      version: any
+    - name: make
+      version: any
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Follow repo standards in `standards/` and evidence rules in `docs/testing-standards.md`.
+    - Maintain ASCII files and existing formatting conventions.
+  prohibited:
+    - Do not remove existing evidence uploads or CI artifacts.
+    - Do not disable contract drift detection.
+
+plan:
+  - id: 1
+    title: Extract shared QA driver
+    details: >-
+      Create `scripts/qa/qa-suite.sh` that sequences static analysis, contract
+      drift check, backend tests, infra validation, and build verification using
+      existing npm commands. Support selective skipping via env vars for local
+      hooks.
+    expected_files_touched:
+      - scripts/qa/qa-suite.sh
+  - id: 2
+    title: Rename Make targets to QA terminology
+    details: >-
+      Rename `stage1-*` targets to `qa-*`, have them call the new script, and
+      provide an aggregate `qa-suite` target.
+    expected_files_touched:
+      - Makefile
+  - id: 3
+    title: Align CI workflow
+    details: >-
+      Update `.github/workflows/ci-cd.yml` to call `make qa-suite` (or the script
+      directly) instead of enumerating commands. Preserve artifact uploads for
+      contract drift reports.
+    expected_files_touched:
+      - .github/workflows/ci-cd.yml
+  - id: 4
+    title: Align local hooks
+    details: >-
+      Update `.husky/pre-commit` (or move heavy checks to `pre-push`) to invoke
+      the shared QA driver with skip flags for expensive steps as needed.
+    expected_files_touched:
+      - .husky/pre-commit
+      - .husky/pre-push
+  - id: 5
+    title: Update documentation and ADR references
+    details: >-
+      Reflect the new naming and enforcement policy in
+      `docs/testing-standards.md`, `adr/0005-*.md`, and any other references to
+      "Stage 1" fitness functions.
+    expected_files_touched:
+      - docs/testing-standards.md
+      - adr/0005-npm-workspaces-contract-drift-prevention.md
+  - id: 6
+    title: Backfill guidance for future fitness checks
+    details: >-
+      Add a reminder to the task template or testing standards that every new
+      fitness function must be wired through the shared QA suite.
+    expected_files_touched:
+      - tasks/AGENTS.md
+      - docs/testing-standards.md
+
+acceptance_criteria:
+  - `make qa-suite` executes all required checks and fails when any component
+    fails.
+  - `.github/workflows/ci-cd.yml` delegates QA to the shared entry point while
+    still uploading contract diff artifacts on failure.
+  - Husky hooks call the shared QA driver, with documented skip controls for
+    local workflows.
+  - Docs and ADRs reference the new `qa-*` naming and single-entry policy.
+  - Task and testing standards include guidance to update the shared QA suite
+    whenever new fitness functions are added.
+
+validation:
+  commands:
+    - make qa-suite
+    - SKIP_INFRA=1 MAKEFLAGS="" ./scripts/qa/qa-suite.sh  # example local run with skips
+  manual_checks:
+    - Verify Husky hook messaging mentions the new QA suite.
+    - Review GitHub Actions logs to confirm the aggregated step runs.
+  artifacts:
+    - contract-diff.json (when drift occurs)
+
+deliverables:
+  - scripts/qa/qa-suite.sh
+  - Makefile
+  - .github/workflows/ci-cd.yml
+  - .husky/pre-commit
+  - docs/testing-standards.md
+  - adr/0005-npm-workspaces-contract-drift-prevention.md
+  - tasks/AGENTS.md
+
+risks:
+  - description: QA driver may extend pre-commit times and slow contributors.
+    mitigation: Provide skip flags and document when they are acceptable.
+  - description: CI could mask issues if the script diverges from required
+      tooling.
+    mitigation: Keep script under version control with code review and log each
+      command before running it.

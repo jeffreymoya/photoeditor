@@ -1,7 +1,7 @@
 schema_version: "1.0"
 id: TASK-0210
 title: Align QA fitness functions across local workflows and CI
-status: todo
+status: completed
 priority: P1
 complexity: M
 area: ops

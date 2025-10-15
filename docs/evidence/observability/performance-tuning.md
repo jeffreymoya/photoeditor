@@ -330,7 +330,7 @@ Per STANDARDS.md line 127, API Lambdas are kept outside VPC by default to minimi
      - name: "Presign"
        flow:
          - post:
-             url: "/jobs/presign"
+             url: "/v1/upload/presign"
              json:
                userId: "load-test-user"
                fileSize: 2048576
@@ -369,7 +369,7 @@ const synthetics = require('Synthetics');
 const canary = async function () {
   // Presign
   const presignResponse = await synthetics.executeHttpStep('Presign', {
-    url: 'https://api-staging.photoeditor.com/jobs/presign',
+    url: 'https://api-staging.photoeditor.com/v1/upload/presign',
     method: 'POST',
     body: JSON.stringify({ userId: 'canary', fileSize: 1024000 }),
   });
@@ -377,7 +377,7 @@ const canary = async function () {
   // Status check
   const jobId = JSON.parse(presignResponse.responseBody).jobId;
   await synthetics.executeHttpStep('Status', {
-    url: `https://api-staging.photoeditor.com/jobs/${jobId}`,
+    url: `https://api-staging.photoeditor.com/v1/jobs/${jobId}`,
   });
 };
 

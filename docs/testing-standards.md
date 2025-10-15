@@ -9,6 +9,52 @@ When reviewing task files, check that testing requirements align with:
 2. **Testability requirements** (lines 44-51) - comprehensive test coverage
 3. **Evidence requirements** (lines 126-132) - artifacts and documentation
 
+## QA Suite - Centralized Fitness Functions
+
+The repository uses a centralized QA suite to ensure developers, Husky hooks, and CI execute identical checks. This prevents drift between local validation and CI enforcement.
+
+### Entry Points
+
+- **Script**: `scripts/qa/qa-suite.sh` - Shared driver for all fitness functions
+- **Make**: `make qa-suite` - Convenience target that calls the script
+- **CI**: `.github/workflows/ci-cd.yml` calls `make qa-suite`
+- **Husky**: `.husky/pre-commit` (with skip flags) and `.husky/pre-push` (full suite)
+
+### QA Stages
+
+The QA suite runs five stages in sequence:
+
+1. **QA-A: Static Safety Nets** - TypeScript typecheck and lint (backend, shared, mobile)
+2. **QA-B: Contract Drift Detection** - Hash-based contract snapshot validation
+3. **QA-C: Core Flow Contracts** - Unit and contract tests
+4. **QA-D: Infrastructure & Security** - Terraform fmt/validate, npm audit
+5. **QA-E: Build Verification** - Lambda bundle builds, tooling checks
+
+### Skip Controls
+
+For local workflows, individual stages can be skipped via environment variables:
+
+```bash
+SKIP_LINT=1 make qa-suite          # Skip static analysis
+SKIP_CONTRACTS=1 make qa-suite     # Skip contract drift check
+SKIP_TESTS=1 make qa-suite         # Skip tests
+SKIP_INFRA=1 make qa-suite         # Skip infrastructure validation
+SKIP_BUILD=1 make qa-suite         # Skip build verification
+```
+
+Pre-commit hook skips expensive checks by default (tests, infra, builds). Pre-push hook runs the full suite.
+
+### Adding New Fitness Functions
+
+When adding new fitness checks:
+
+1. Add the check to `scripts/qa/qa-suite.sh` in the appropriate stage
+2. Document the check in this file under the relevant test type section
+3. Add acceptance criteria to task files that reference the new check
+4. Ensure the check can be skipped via environment variable if it's expensive
+
+This ensures the check propagates to local hooks and CI automatically.
+
 ## Required Test Types by Component
 
 ### Handler Tests (Backend)
@@ -50,15 +96,35 @@ validation:
 **From STANDARDS.md lines 45, 76-77**: Required for API routes with versioning
 
 Required coverage:
-- `POST /upload/presign` (request/response structure, presigned URL format)
-- `GET /jobs/{id}` (job status transitions, error responses)
+- `POST /v1/upload/presign` (request/response structure, presigned URL format)
+- `GET /v1/jobs/{id}` (job status transitions, error responses)
+- `GET /v1/jobs/{id}/download` (download URL generation)
+- `POST /v1/device-tokens` (push notification registration)
 - Each API version (`/v1`, `/v2`, etc.) tested independently
+
+**Contract-First Routing** (TASK-0602, ADR-0003):
+- Routes defined in `shared/routes.manifest.ts` serve as source of truth
+- OpenAPI spec generated from manifest with populated `paths`
+- CI enforces route alignment: `scripts/ci/check-route-alignment.sh`
+- Breaking changes require new versioned path (e.g., `/v2/`)
+
+Validation:
+```yaml
+validation:
+  commands:
+    - npm run contracts:generate --prefix shared
+    - npm run contracts:check --prefix shared
+    - scripts/ci/check-route-alignment.sh
+    - npm run test:contract --prefix backend
+```
 
 Evidence:
 ```yaml
 deliverables:
   - path: docs/evidence/contract-tests/presign-contract.log
   - path: docs/evidence/contract-tests/jobs-contract.log
+  - path: docs/openapi/openapi-generated.yaml
+  - path: docs/contracts/clients/photoeditor-api.ts
 ```
 
 ### Integration Tests

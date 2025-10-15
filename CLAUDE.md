@@ -96,8 +96,8 @@ npm test --prefix mobile
 ### Validation (Pre-PR)
 
 ```bash
-npm run stage:a                 # Typecheck, lint, dependencies, dead-exports, duplication
-make stage1-verify              # Full Stage 1 fitness (lint, tests, infra, build)
+npm run qa-suite:static         # Typecheck, lint, dependencies, dead-exports, duplication
+make qa-suite                   # Full Stage 1 fitness (lint, tests, infra, build)
 npm run contracts:check         # Contract validation
 ```
 
@@ -170,8 +170,9 @@ docker compose -f docker-compose.localstack.yml logs -f localstack
 ## Before Every PR
 
 1. Ensure task file is current and linked in PR description
-2. Run `npm run stage:a` and attach output
-3. Cite STANDARDS.md sections for any constraint changes
-4. Include ADR if introducing new patterns
-5. Verify acceptance criteria from task file are met
-6. Attach evidence per `docs/testing-standards.md`
+2. Run `npm run qa-suite:static` and attach output
+3. Run `make qa-suite` (or `./scripts/qa/qa-suite.sh`) and attach key artefacts
+4. Cite STANDARDS.md sections for any constraint changes
+5. Include ADR if introducing new patterns
+6. Verify acceptance criteria from task file are met
+7. Attach evidence per `docs/testing-standards.md`

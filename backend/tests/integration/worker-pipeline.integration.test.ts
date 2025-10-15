@@ -22,16 +22,16 @@
 import { Context } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { S3Client } from '@aws-sdk/client-s3';
+import { SSMClient, PutParameterCommand, DeleteParameterCommand } from '@aws-sdk/client-ssm';
 import { SNSClient, PublishCommand } from '@aws-sdk/client-sns';
 import { mockClient } from 'aws-sdk-client-mock';
 import type { AwsStub } from 'aws-sdk-client-mock';
-import { handler as workerHandler } from '../../src/lambdas/worker';
 import { JobService } from '../../src/services/job.service';
-import { ProviderFactory } from '../../src/providers/factory';
 import { TestProviderFactory } from '../helpers/provider-stubs';
+import { BootstrapService, ProviderFactory } from '@backend/core';
 import { S3Spy } from '../helpers/s3-spy';
 import { makeSQSEventWithBody, makeS3Record } from '../fixtures/events';
-import { setupLocalStackEnv, createJobsTable, createBatchJobsTable, deleteTable } from './setup';
+import { setupLocalStackEnv, waitForLocalStack, createJobsTable, createBatchJobsTable, deleteTable } from './setup';
 import { JobStatus } from '@photoeditor/shared';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -42,9 +42,17 @@ jest.mock('uuid', () => ({
 jest.mock('@aws-lambda-powertools/logger');
 jest.mock('@aws-lambda-powertools/metrics');
 jest.mock('@aws-lambda-powertools/tracer');
-
-// Mock fetch for downloading edited images
-global.fetch = jest.fn();
+jest.mock('sharp', () => {
+  const sharpMock = jest.fn(() => ({
+    resize: jest.fn().mockReturnThis(),
+    jpeg: jest.fn().mockReturnThis(),
+    toBuffer: jest.fn(async () => Buffer.from('optimized-image-data'))
+  }));
+  return {
+    __esModule: true,
+    default: sharpMock
+  };
+});
 
 describe('Worker Pipeline Integration Tests', () => {
   let dynamoClient: DynamoDBClient;
@@ -53,16 +61,62 @@ describe('Worker Pipeline Integration Tests', () => {
   let s3Spy: S3Spy;
   let testProviderFactory: TestProviderFactory;
   let jobService: JobService;
+  let bootstrapSpy: jest.SpyInstance;
+  let workerHandler: typeof import('../../src/lambdas/worker').handler;
+  let workerReset: typeof import('../../src/lambdas/worker').__resetForTesting;
+  let ssmClient: SSMClient;
+  let ssmParamNames: string[] = [];
+  let paramPrefix: string;
 
   const testJobId = 'test-job-001';
   const testUserId = 'test-user-123';
   const testFileName = 'photo.jpg';
 
-  beforeAll(() => {
+  beforeAll(async () => {
     setupLocalStackEnv();
+    await waitForLocalStack();
+    const endpoint = process.env.LOCALSTACK_ENDPOINT || 'http://localhost:4566';
+    ssmClient = new SSMClient({
+      region: process.env.AWS_REGION!,
+      endpoint,
+      credentials: {
+        accessKeyId: 'test',
+        secretAccessKey: 'test'
+      }
+    });
+
+    paramPrefix = `/${process.env.PROJECT_NAME}-${process.env.NODE_ENV}`;
+    ssmParamNames = [
+      `${paramPrefix}/providers/enable-stubs`,
+      `${paramPrefix}/providers/analysis`,
+      `${paramPrefix}/providers/editing`,
+      `${paramPrefix}/gemini/api-key`,
+      `${paramPrefix}/gemini/endpoint`,
+      `${paramPrefix}/seedream/api-key`,
+      `${paramPrefix}/seedream/endpoint`
+    ];
+
+    const ssmParams = [
+      { Name: ssmParamNames[0], Value: 'false', Type: 'String' as const },
+      { Name: ssmParamNames[1], Value: 'gemini', Type: 'String' as const },
+      { Name: ssmParamNames[2], Value: 'seedream', Type: 'String' as const },
+      { Name: ssmParamNames[3], Value: 'test-gemini-key', Type: 'SecureString' as const },
+      { Name: ssmParamNames[4], Value: 'https://gemini.test.local', Type: 'String' as const },
+      { Name: ssmParamNames[5], Value: 'test-seedream-key', Type: 'SecureString' as const },
+      { Name: ssmParamNames[6], Value: 'https://seedream.test.local', Type: 'String' as const }
+    ];
+
+    for (const param of ssmParams) {
+      await ssmClient.send(new PutParameterCommand({
+        ...param,
+        Overwrite: true
+      }));
+    }
   });
 
   beforeEach(async () => {
+    setupLocalStackEnv();
+    jest.useRealTimers();
     // Reset UUID mock for deterministic job IDs
     (uuidv4 as jest.Mock).mockReturnValue(testJobId);
 
@@ -77,7 +131,7 @@ describe('Worker Pipeline Integration Tests', () => {
       }
     });
 
-    // Setup S3 spy
+    // Setup S3 spy BEFORE worker import to intercept S3 client creation
     s3Spy = new S3Spy();
     s3Client = new S3Client({
       region: process.env.AWS_REGION!,
@@ -96,6 +150,18 @@ describe('Worker Pipeline Integration Tests', () => {
 
     // Setup test provider factory
     testProviderFactory = new TestProviderFactory();
+    bootstrapSpy = jest.spyOn(BootstrapService.prototype, 'initializeProviders')
+      .mockResolvedValue(testProviderFactory as unknown as ProviderFactory);
+
+    // Import worker AFTER setting up all mocks (only once per test suite)
+    if (!workerHandler) {
+      const workerModule = await import('../../src/lambdas/worker');
+      workerHandler = workerModule.handler;
+      workerReset = workerModule.__resetForTesting;
+    }
+
+    // Reset worker state for fresh initialization
+    workerReset();
 
     // Create DynamoDB tables
     await createJobsTable(dynamoClient, process.env.JOBS_TABLE_NAME!);
@@ -112,10 +178,13 @@ describe('Worker Pipeline Integration Tests', () => {
     // Setup environment variables for worker
     process.env.SNS_TOPIC_ARN = 'arn:aws:sns:us-east-1:123456789012:test-topic';
 
-    // Mock fetch for edited image download
-    (global.fetch as jest.Mock).mockResolvedValue({
+    // Mock fetch for edited image download with ok/status fields
+    // Using jest.fn() to avoid circular structure serialization issues
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
       arrayBuffer: async () => Buffer.from('edited-image-data').buffer
-    });
+    }) as any;
   });
 
   afterEach(async () => {
@@ -135,6 +204,9 @@ describe('Worker Pipeline Integration Tests', () => {
     if (testProviderFactory) {
       testProviderFactory.reset();
     }
+    if (bootstrapSpy) {
+      bootstrapSpy.mockRestore();
+    }
     jest.clearAllMocks();
   });
 
@@ -145,6 +217,18 @@ describe('Worker Pipeline Integration Tests', () => {
     }
     if (s3Client) {
       s3Client.destroy();
+    }
+    if (ssmClient) {
+      for (const name of ssmParamNames) {
+        try {
+          await ssmClient.send(new DeleteParameterCommand({ Name: name }));
+        } catch (error) {
+          if ((error as Error).name !== 'ParameterNotFound') {
+            throw error;
+          }
+        }
+      }
+      ssmClient.destroy();
     }
   });
 
@@ -171,12 +255,6 @@ describe('Worker Pipeline Integration Tests', () => {
       const sqsEvent = makeSQSEventWithBody({
         Records: [s3Record]
       });
-
-      // Mock provider factory initialization
-      jest.spyOn(ProviderFactory.prototype, 'getAnalysisProvider')
-        .mockReturnValue(testProviderFactory.getAnalysisProvider() as any);
-      jest.spyOn(ProviderFactory.prototype, 'getEditingProvider')
-        .mockReturnValue(testProviderFactory.getEditingProvider() as any);
 
       // ACT: Process the event through worker handler
       await workerHandler(sqsEvent, {} as Context);
@@ -243,11 +321,6 @@ describe('Worker Pipeline Integration Tests', () => {
         Records: [makeS3Record({ bucket: process.env.TEMP_BUCKET_NAME!, key: s3Key })]
       });
 
-      jest.spyOn(ProviderFactory.prototype, 'getAnalysisProvider')
-        .mockReturnValue(testProviderFactory.getAnalysisProvider() as any);
-      jest.spyOn(ProviderFactory.prototype, 'getEditingProvider')
-        .mockReturnValue(testProviderFactory.getEditingProvider() as any);
-
       // ACT
       await workerHandler(sqsEvent, {} as Context);
 
@@ -275,11 +348,6 @@ describe('Worker Pipeline Integration Tests', () => {
       const sqsEvent = makeSQSEventWithBody({
         Records: [makeS3Record({ bucket: process.env.TEMP_BUCKET_NAME!, key: s3Key })]
       });
-
-      jest.spyOn(ProviderFactory.prototype, 'getAnalysisProvider')
-        .mockReturnValue(testProviderFactory.getAnalysisProvider() as any);
-      jest.spyOn(ProviderFactory.prototype, 'getEditingProvider')
-        .mockReturnValue(testProviderFactory.getEditingProvider() as any);
 
       // ACT
       await workerHandler(sqsEvent, {} as Context);
@@ -310,11 +378,6 @@ describe('Worker Pipeline Integration Tests', () => {
       // Configure editing provider to fail
       testProviderFactory.getEditingProvider().setShouldFail(true, 'Seedream service unavailable');
 
-      jest.spyOn(ProviderFactory.prototype, 'getAnalysisProvider')
-        .mockReturnValue(testProviderFactory.getAnalysisProvider() as any);
-      jest.spyOn(ProviderFactory.prototype, 'getEditingProvider')
-        .mockReturnValue(testProviderFactory.getEditingProvider() as any);
-
       // ACT
       await workerHandler(sqsEvent, {} as Context);
 
@@ -322,13 +385,13 @@ describe('Worker Pipeline Integration Tests', () => {
       const completedJob = await jobService.getJob(testJobId);
       expect(completedJob!.status).toBe(JobStatus.COMPLETED);
 
-      // ASSERT: Should have performed S3 copy as fallback
+      // ASSERT: Should have performed S3 copy as fallback (from optimized, not original)
       const copyOps = s3Spy.getCopyOperations();
       expect(copyOps.length).toBeGreaterThan(0);
 
       const fallbackCopy = copyOps.find(op => op.destKey.includes('final/'));
       expect(fallbackCopy).toBeTruthy();
-      expect(fallbackCopy!.sourceKey).toContain('uploads/');
+      expect(fallbackCopy!.sourceKey).toContain('optimized/');
 
       // ASSERT: Final key should be set
       expect(completedJob!.finalS3Key).toContain(`final/${testUserId}/${testJobId}`);
@@ -349,11 +412,6 @@ describe('Worker Pipeline Integration Tests', () => {
       });
 
       testProviderFactory.getEditingProvider().setShouldFail(true);
-
-      jest.spyOn(ProviderFactory.prototype, 'getAnalysisProvider')
-        .mockReturnValue(testProviderFactory.getAnalysisProvider() as any);
-      jest.spyOn(ProviderFactory.prototype, 'getEditingProvider')
-        .mockReturnValue(testProviderFactory.getEditingProvider() as any);
 
       // ACT
       await workerHandler(sqsEvent, {} as Context);
@@ -393,11 +451,6 @@ describe('Worker Pipeline Integration Tests', () => {
         Records: [makeS3Record({ bucket: process.env.TEMP_BUCKET_NAME!, key: s3Key })]
       });
 
-      jest.spyOn(ProviderFactory.prototype, 'getAnalysisProvider')
-        .mockReturnValue(testProviderFactory.getAnalysisProvider() as any);
-      jest.spyOn(ProviderFactory.prototype, 'getEditingProvider')
-        .mockReturnValue(testProviderFactory.getEditingProvider() as any);
-
       // ACT
       await workerHandler(sqsEvent, {} as Context);
 
@@ -432,11 +485,6 @@ describe('Worker Pipeline Integration Tests', () => {
       const sqsEvent = makeSQSEventWithBody({
         Records: [makeS3Record({ bucket: process.env.TEMP_BUCKET_NAME!, key: s3Key })]
       });
-
-      jest.spyOn(ProviderFactory.prototype, 'getAnalysisProvider')
-        .mockReturnValue(testProviderFactory.getAnalysisProvider() as any);
-      jest.spyOn(ProviderFactory.prototype, 'getEditingProvider')
-        .mockReturnValue(testProviderFactory.getEditingProvider() as any);
 
       // ACT
       await workerHandler(sqsEvent, {} as Context);
@@ -494,11 +542,6 @@ describe('Worker Pipeline Integration Tests', () => {
       const sqsEvent = makeSQSEventWithBody({
         Records: [makeS3Record({ bucket: process.env.TEMP_BUCKET_NAME!, key: s3Key })]
       });
-
-      jest.spyOn(ProviderFactory.prototype, 'getAnalysisProvider')
-        .mockReturnValue(testProviderFactory.getAnalysisProvider() as any);
-      jest.spyOn(ProviderFactory.prototype, 'getEditingProvider')
-        .mockReturnValue(testProviderFactory.getEditingProvider() as any);
 
       // ACT: Process same message twice
       await workerHandler(sqsEvent, {} as Context);

@@ -1,5 +1,5 @@
 /**
- * Contract tests for GET /jobs/{jobId} endpoint
+ * Contract tests for GET /v1/jobs/{jobId} endpoint
  * These tests validate that the response conforms to the OpenAPI specification
  */
 
@@ -32,7 +32,7 @@ import { handler } from '../../src/lambdas/status';
 // Type guard for API Gateway response
 type APIGatewayResponse = Exclude<Awaited<ReturnType<typeof handler>>, string>;
 
-describe('GET /jobs/{jobId} - Contract Tests', () => {
+describe('GET /v1/jobs/{jobId} - Contract Tests', () => {
   beforeEach(() => {
     dynamoMock.reset();
     mockLogger.error.mockClear();
@@ -43,8 +43,8 @@ describe('GET /jobs/{jobId} - Contract Tests', () => {
 
   const createEvent = (jobId?: string): APIGatewayProxyEventV2 => ({
     version: '2.0',
-    routeKey: 'GET /jobs/{jobId}',
-    rawPath: `/jobs/${jobId || 'test-job-id'}`,
+    routeKey: 'GET /v1/jobs/{jobId}',
+    rawPath: `/v1/jobs/${jobId || 'test-job-id'}`,
     rawQueryString: '',
     headers: { 'Content-Type': 'application/json' },
     pathParameters: jobId ? { jobId } : undefined,
@@ -55,13 +55,13 @@ describe('GET /jobs/{jobId} - Contract Tests', () => {
       domainPrefix: 'api',
       http: {
         method: 'GET',
-        path: `/jobs/${jobId || 'test-job-id'}`,
+        path: `/v1/jobs/${jobId || 'test-job-id'}`,
         protocol: 'HTTP/1.1',
         sourceIp: '127.0.0.1',
         userAgent: 'contract-test'
       },
       requestId: 'contract-test-request-id',
-      routeKey: 'GET /jobs/{jobId}',
+      routeKey: 'GET /v1/jobs/{jobId}',
       stage: 'v1',
       time: '04/Oct/2025:00:00:00 +0000',
       timeEpoch: Date.now(),

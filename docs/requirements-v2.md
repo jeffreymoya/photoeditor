@@ -26,7 +26,7 @@ photo editing app requirements (technology-agnostic)
   - Processing writes structured logs and redacts sensitive data; no intermediate outputs persist beyond job records.
 - User notification and progress
   - The user is notified in-app when the image is done processing.
-  - The UI can poll a status endpoint (e.g., `/jobs/{id}`) for progress states: `QUEUED`, `PROCESSING`, `EDITING`, `COMPLETED`, `FAILED`.
+  - The UI can poll a status endpoint (e.g., `/v1/jobs/{id}`) for progress states: `QUEUED`, `PROCESSING`, `EDITING`, `COMPLETED`, `FAILED`.
   - If notification delivery fails after three attempts, the job is flagged for manual follow-up in an ops dashboard.
 - Minimum compliance baseline
   - All data in transit uses modern TLS; encryption at rest is mandatory; access control follows least privilege with periodic review.

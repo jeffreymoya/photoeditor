@@ -60,7 +60,16 @@ describe('status lambda', () => {
       expect(typeof result).toBe('object');
       if (typeof result === 'object') {
         expect(result.statusCode).toBe(400);
-        expect(JSON.parse(result.body as string)).toEqual({ error: 'Job ID required' });
+        expect(result.headers?.['Content-Type']).toBe('application/json');
+        expect(result.headers?.['x-request-id']).toBe('test-request-id');
+
+        const response = JSON.parse(result.body as string);
+        expect(response).toHaveProperty('code', 'MISSING_JOB_ID');
+        expect(response).toHaveProperty('title', 'Validation Error');
+        expect(response).toHaveProperty('detail', 'Job ID is required');
+        expect(response).toHaveProperty('instance', 'test-request-id');
+        expect(response).toHaveProperty('type', 'VALIDATION');
+        expect(response).toHaveProperty('timestamp');
       }
     });
   });
@@ -139,7 +148,17 @@ describe('status lambda', () => {
       expect(typeof result).toBe('object');
       if (typeof result === 'object') {
         expect(result.statusCode).toBe(404);
-        expect(JSON.parse(result.body as string)).toEqual({ error: 'Job not found' });
+        expect(result.headers?.['Content-Type']).toBe('application/json');
+        expect(result.headers?.['x-request-id']).toBe('test-request-id');
+
+        const response = JSON.parse(result.body as string);
+        expect(response).toHaveProperty('code', 'JOB_NOT_FOUND');
+        expect(response).toHaveProperty('title', 'Resource Not Found');
+        expect(response).toHaveProperty('detail');
+        expect(response.detail).toContain('non-existent-job');
+        expect(response).toHaveProperty('instance', 'test-request-id');
+        expect(response).toHaveProperty('type', 'NOT_FOUND');
+        expect(response).toHaveProperty('timestamp');
       }
     });
   });
@@ -154,7 +173,17 @@ describe('status lambda', () => {
       expect(typeof result).toBe('object');
       if (typeof result === 'object') {
         expect(result.statusCode).toBe(500);
-        expect(JSON.parse(result.body as string)).toEqual({ error: 'Internal server error' });
+        expect(result.headers?.['Content-Type']).toBe('application/json');
+        expect(result.headers?.['x-request-id']).toBe('test-request-id');
+
+        const response = JSON.parse(result.body as string);
+        expect(response).toHaveProperty('code', 'UNEXPECTED_ERROR');
+        expect(response).toHaveProperty('title', 'Internal Server Error');
+        expect(response).toHaveProperty('detail');
+        expect(response.detail).toContain('unexpected error');
+        expect(response).toHaveProperty('instance', 'test-request-id');
+        expect(response).toHaveProperty('type', 'INTERNAL_ERROR');
+        expect(response).toHaveProperty('timestamp');
       }
     });
   });

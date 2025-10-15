@@ -198,7 +198,7 @@ traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
 
 ```typescript
 // React Native API client
-const response = await fetch(`${API_BASE_URL}/jobs/${jobId}`, {
+const response = await fetch(`${API_BASE_URL}/v1/jobs/${jobId}`, {
   headers: {
     'X-Correlation-Id': correlationId,
     'traceparent': generateTraceparent(), // W3C format
@@ -447,7 +447,7 @@ Per STANDARDS.md requirements:
         "http": {
           "request": {
             "method": "POST",
-            "url": "https://api.photoeditor.com/jobs/presign"
+            "url": "https://api.photoeditor.com/v1/upload/presign"
           },
           "response": {
             "status": 200

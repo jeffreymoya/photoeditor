@@ -41,21 +41,21 @@ export class APITestAdapter {
    * Request presigned URL for single upload (CC=1)
    */
   async requestPresign(request: PresignRequest): Promise<AxiosResponse> {
-    return await this.client.post('/presign', request);
+    return await this.client.post('/v1/upload/presign', request);
   }
 
   /**
    * Request batch presigned URLs (CC=1)
    */
   async requestBatchPresign(request: BatchPresignRequest): Promise<AxiosResponse> {
-    return await this.client.post('/presign', request);
+    return await this.client.post('/v1/upload/presign', request);
   }
 
   /**
    * Get job status (CC=1)
    */
   async getJobStatus(jobId: string): Promise<AxiosResponse> {
-    return await this.client.get(`/jobs/${jobId}`);
+    return await this.client.get(`/v1/jobs/${jobId}`);
   }
 
   /**

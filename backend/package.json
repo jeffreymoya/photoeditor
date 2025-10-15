@@ -19,7 +19,7 @@
     "test:watch": "jest --watch",
     "test:build": "jest tests/build",
     "test:unit": "jest tests/unit",
-    "test:integration": "ALLOW_LOCALHOST=true jest tests/integration",
+    "test:integration": "ALLOW_LOCALHOST=true jest tests/integration --runInBand",
     "test:contract": "jest tests/contracts",
     "test:e2e": "npm run test:e2e:setup && npm run test:e2e:run && npm run test:e2e:teardown",
     "test:e2e:setup": "docker compose -f ../docker-compose.localstack.yml up -d && sleep 5",

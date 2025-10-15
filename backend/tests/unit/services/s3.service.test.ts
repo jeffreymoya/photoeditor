@@ -32,13 +32,13 @@ describe('S3KeyStrategyImpl', () => {
     it('should generate temp key with correct structure', () => {
       const key = strategy.generateTempKey('user-123', 'job-456', 'photo.jpg');
 
-      expect(key).toMatch(/^temp\/user-123\/job-456\/\d+-photo\.jpg$/);
+      expect(key).toMatch(/^uploads\/user-123\/job-456\/\d+-photo\.jpg$/);
     });
 
     it('should sanitize filename', () => {
       const key = strategy.generateTempKey('user-123', 'job-456', 'my photo (1).jpg');
 
-      expect(key).toMatch(/^temp\/user-123\/job-456\/\d+-my_photo__1_\.jpg$/);
+      expect(key).toMatch(/^uploads\/user-123\/job-456\/\d+-my_photo__1_\.jpg$/);
     });
   });
 
@@ -58,7 +58,7 @@ describe('S3KeyStrategyImpl', () => {
 
   describe('parseTempKey', () => {
     it('should parse valid temp key', () => {
-      const result = strategy.parseTempKey('temp/user-123/job-456/1234567890-photo.jpg');
+      const result = strategy.parseTempKey('uploads/user-123/job-456/1234567890-photo.jpg');
 
       expect(result).toEqual({
         userId: 'user-123',
@@ -86,7 +86,7 @@ describe('S3KeyStrategyImpl', () => {
 
     it('should return null for invalid final key', () => {
       expect(strategy.parseFinalKey('invalid/key')).toBeNull();
-      expect(strategy.parseFinalKey('temp/user-123/job-456/1234-photo.jpg')).toBeNull();
+      expect(strategy.parseFinalKey('uploads/user-123/job-456/1234-photo.jpg')).toBeNull();
     });
   });
 });
@@ -120,7 +120,7 @@ describe('S3Service', () => {
       expect(result).toHaveProperty('expiresAt');
 
       expect(result.fields.bucket).toBe('test-temp-bucket');
-      expect(result.fields.key).toMatch(/^temp\/user-123\/job-456\/\d+-photo\.jpg$/);
+      expect(result.fields.key).toMatch(/^uploads\/user-123\/job-456\/\d+-photo\.jpg$/);
       expect(result.fields['Content-Type']).toBe('image/jpeg');
 
       // Check expiration is approximately 1 hour from now

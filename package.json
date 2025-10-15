@@ -7,12 +7,12 @@
     "mobile"
   ],
   "scripts": {
-    "stage:a": "npm run stage:a:typecheck && npm run stage:a:lint && npm run stage:a:dependencies && npm run stage:a:dead-exports && npm run stage:a:duplication",
-    "stage:a:typecheck": "npm run typecheck --prefix backend && npm run typecheck --prefix mobile && npm run typecheck --prefix shared",
-    "stage:a:lint": "npm run lint --prefix backend && npm run lint --prefix mobile && npm run lint --prefix shared",
-    "stage:a:dependencies": "dependency-cruiser backend/src shared mobile/src --config tooling/dependency-rules.json",
-    "stage:a:dead-exports": "ts-prune -p backend/tsconfig.json && ts-prune -p mobile/tsconfig.json && ts-prune -p shared/tsconfig.json",
-    "stage:a:duplication": "jscpd --threshold 5 backend/src mobile/src shared",
+    "qa-suite:static": "npm run qa-suite:static:typecheck && npm run qa-suite:static:lint && npm run qa-suite:static:dependencies && npm run qa-suite:static:dead-exports && npm run qa-suite:static:duplication",
+    "qa-suite:static:typecheck": "npm run typecheck --prefix backend && npm run typecheck --prefix mobile && npm run typecheck --prefix shared",
+    "qa-suite:static:lint": "npm run lint --prefix backend && npm run lint --prefix mobile && npm run lint --prefix shared",
+    "qa-suite:static:dependencies": "dependency-cruiser backend/src shared mobile/src --config tooling/dependency-rules.json",
+    "qa-suite:static:dead-exports": "ts-prune -p backend/tsconfig.json && ts-prune -p mobile/tsconfig.json && ts-prune -p shared/tsconfig.json",
+    "qa-suite:static:duplication": "jscpd --threshold 5 backend/src mobile/src shared",
     "contracts:check": "npm run build --prefix shared && node tooling/contract-check.js",
     "analyze:deps": "dependency-cruiser backend/src shared mobile/src --config tooling/dependency-rules.json --output-type dot | dot -T png > docs/evidence/import-graph.png && dependency-cruiser backend/src shared mobile/src --config tooling/dependency-rules.json --output-type metrics",
     "validate:deps": "dependency-cruiser backend/src shared mobile/src --config tooling/dependency-rules.json --output-type html > docs/evidence/dependency-cruiser-report.html && dependency-cruiser backend/src shared mobile/src --config tooling/dependency-rules.json --validate",

@@ -26,6 +26,16 @@ import {
 // Mock global fetch
 global.fetch = jest.fn();
 
+/**
+ * Justification for max-lines-per-function override:
+ * This test suite validates comprehensive contract integration across multiple
+ * API endpoints (presign, batch, job status, device tokens) per standards/shared-contracts-tier.md.
+ * Each endpoint requires request/response schema validation, error cases, and contract drift
+ * prevention checks. Splitting into separate files would fragment contract validation logic
+ * and reduce clarity. The 305-line suite provides complete coverage of mobile-backend contract
+ * alignment (TASK-0606 acceptance criteria, docs/testing-standards.md lines 203-219).
+ */
+// eslint-disable-next-line max-lines-per-function
 describe('ApiService - Shared Schema Integration', () => {
   beforeEach(() => {
     jest.clearAllMocks();

@@ -90,6 +90,11 @@ async function generateOpenAPI() {
       return schema;
     };
 
+    // Import route definitions
+    const routesModule = require(path.join(distPath, 'routes.manifest.js'));
+    const routes = routesModule.API_ROUTES;
+    const globalErrors = routesModule.GLOBAL_ERROR_RESPONSES;
+
     // Build OpenAPI document with proper structure
     const document = {
       openapi: '3.0.3',
@@ -151,6 +156,149 @@ async function generateOpenAPI() {
     document.components.schemas.SeedreamEditingResponse = toOpenAPISchema(schemas.SeedreamEditingResponseSchema, 'SeedreamEditingResponse');
     document.components.schemas.ProviderConfig = toOpenAPISchema(schemas.ProviderConfigSchema, 'ProviderConfig');
     document.components.schemas.ProviderResponse = toOpenAPISchema(schemas.ProviderResponseSchema, 'ProviderResponse');
+
+    // Generate paths from route manifest
+    console.log(`  → Generating ${routes.length} API paths from routes manifest...`);
+
+    for (const route of routes) {
+      // Initialize path if it doesn't exist
+      if (!document.paths[route.path]) {
+        document.paths[route.path] = {};
+      }
+
+      // Build operation object
+      const operation = {
+        operationId: route.operationId,
+        summary: route.summary,
+        description: route.description,
+        tags: route.tags,
+        parameters: [],
+        responses: {}
+      };
+
+      // Add deprecated flag if applicable
+      if (route.deprecated) {
+        operation.deprecated = true;
+        if (route.deprecationDate) {
+          operation.description += `\n\n**Deprecated**: This endpoint will be sunset on ${route.deprecationDate}.`;
+        }
+        if (route.replacedBy) {
+          operation.description += `\nPlease migrate to \`${route.replacedBy}\`.`;
+        }
+      }
+
+      // Add path parameters
+      if (route.pathParameters) {
+        for (const param of route.pathParameters) {
+          const paramSchema = zodToJsonSchema(param.schema, { target: 'openApi3' });
+          operation.parameters.push({
+            name: param.name,
+            in: 'path',
+            description: param.description,
+            required: true,
+            schema: paramSchema.$ref ? paramSchema.definitions[paramSchema.$ref.split('/').pop()] : paramSchema
+          });
+        }
+      }
+
+      // Add query parameters
+      if (route.queryParameters) {
+        for (const param of route.queryParameters) {
+          const paramSchema = zodToJsonSchema(param.schema, { target: 'openApi3' });
+          operation.parameters.push({
+            name: param.name,
+            in: 'query',
+            description: param.description,
+            required: param.required,
+            schema: paramSchema.$ref ? paramSchema.definitions[paramSchema.$ref.split('/').pop()] : paramSchema
+          });
+        }
+      }
+
+      // Add request body if present
+      if (route.requestSchema) {
+        const requestSchema = zodToJsonSchema(route.requestSchema, {
+          name: `${route.operationId}Request`,
+          target: 'openApi3'
+        });
+
+        // Extract the actual schema
+        let bodySchema;
+        if (requestSchema.$ref && requestSchema.definitions) {
+          const refName = requestSchema.$ref.split('/').pop();
+          bodySchema = requestSchema.definitions[refName];
+        } else {
+          bodySchema = requestSchema;
+        }
+        delete bodySchema.$schema;
+
+        operation.requestBody = {
+          required: true,
+          content: {
+            'application/json': {
+              schema: bodySchema
+            }
+          }
+        };
+      }
+
+      // Add success response
+      const responseSchema = zodToJsonSchema(route.responseSchema, {
+        name: `${route.operationId}Response`,
+        target: 'openApi3'
+      });
+
+      // Extract the actual schema
+      let resSchema;
+      if (responseSchema.$ref && responseSchema.definitions) {
+        const refName = responseSchema.$ref.split('/').pop();
+        resSchema = responseSchema.definitions[refName];
+      } else {
+        resSchema = responseSchema;
+      }
+      delete resSchema.$schema;
+
+      operation.responses['200'] = {
+        description: 'Successful response',
+        content: {
+          'application/json': {
+            schema: resSchema
+          }
+        }
+      };
+
+      // Add global error responses
+      for (const [statusCode, errorDef] of Object.entries(globalErrors)) {
+        const errorSchema = zodToJsonSchema(errorDef.schema, { target: 'openApi3' });
+        let errSchema;
+        if (errorSchema.$ref && errorSchema.definitions) {
+          const refName = errorSchema.$ref.split('/').pop();
+          errSchema = errorSchema.definitions[refName];
+        } else {
+          errSchema = errorSchema;
+        }
+        delete errSchema.$schema;
+
+        operation.responses[statusCode] = {
+          description: errorDef.description,
+          content: {
+            'application/json': {
+              schema: errSchema
+            }
+          }
+        };
+      }
+
+      // Remove empty parameters array
+      if (operation.parameters.length === 0) {
+        delete operation.parameters;
+      }
+
+      // Add operation to path
+      document.paths[route.path][route.method.toLowerCase()] = operation;
+    }
+
+    console.log(`  ✓ Generated ${Object.keys(document.paths).length} unique paths`);
 
     // Convert to YAML
     const yaml = require('js-yaml');
@@ -338,6 +486,13 @@ async function main() {
     const checksums = generateChecksums(artifacts);
     console.log('');
 
+    // Step 5: Generate API client
+    console.log('Generating API client...');
+    const clientGenerator = require('./generate-client.js');
+    await clientGenerator.generateClient();
+    await clientGenerator.generateReadme();
+    console.log('');
+
     // Summary
     console.log('SUCCESS: Contract generation complete');
     console.log('');
@@ -346,6 +501,8 @@ async function main() {
       const artifact = checksums.artifacts[name];
       console.log(`  - ${name} (${artifact.size} bytes, checksum: ${artifact.checksum.slice(0, 8)}...)`);
     });
+    console.log('  - photoeditor-api.ts (API client)');
+    console.log('  - README.md (client documentation)');
     console.log('');
     console.log('Next steps:');
     console.log('  1. Review generated files in docs/contracts/clients/');

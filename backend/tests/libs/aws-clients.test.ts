@@ -10,7 +10,7 @@ import {
   createSQSClient,
   createSNSClient,
   getAWSEnvironment,
-} from '../../libs/aws-clients';
+} from '../../src/libs/aws-clients';
 
 describe('AWS Client Factory', () => {
   const originalEnv = process.env;

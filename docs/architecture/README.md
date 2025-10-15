@@ -23,9 +23,9 @@ PhotoEditor is a TypeScript monorepo implementing a hybrid serverless architectu
 │    API Gateway (HTTP API)        │
 │                                  │
 │  Routes:                         │
-│   POST /jobs/presign             │
-│   GET  /jobs/{id}                │
-│   GET  /jobs/{id}/download       │
+│   POST /v1/upload/presign        │
+│   GET  /v1/jobs/{id}             │
+│   GET  /v1/jobs/{id}/download    │
 └────────┬────────────────────────┘
          │
          ▼
@@ -160,9 +160,9 @@ Stack Navigator
 - Access logs: JSON format with traceId
 
 **Routes:**
-- `POST /jobs/presign` → Presign handler
-- `GET /jobs/{id}` → Status handler
-- `GET /jobs/{id}/download` → Download handler
+- `POST /v1/upload/presign` → Presign handler
+- `GET /v1/jobs/{id}` → Status handler
+- `GET /v1/jobs/{id}/download` → Download handler
 
 **Evidence:**
 - See `infrastructure/terraform/modules/api-gateway/`

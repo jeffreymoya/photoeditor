@@ -226,7 +226,7 @@ cd shared && npm run api-extractor
 npm run changeset:status
 
 # Run full Stage A validation
-npm run stage:a
+npm run qa-suite:static
 ```
 
 ## Evidence Requirements

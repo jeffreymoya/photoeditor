@@ -7,7 +7,7 @@ TFVARS := -var-file=terraform.tfvars.localstack
 
 .DEFAULT_GOAL := help
 
-.PHONY: help deps infra-up infra-apply infra-init localstack-up infra-down infra-destroy localstack-down backend-build mobile-start mobile-ios mobile-android mobile-web mobile-stop dev-ios dev-android print-api clean stage1-verify stage1-lint stage1-tests stage1-infra stage1-build emu-up emu-test emu-down live-dev live-test live-destroy live-shell
+.PHONY: help services-status deps infra-up infra-apply infra-init localstack-up infra-down infra-destroy localstack-down backend-build mobile-start mobile-ios mobile-android mobile-web mobile-stop dev-ios dev-android print-api clean qa-suite qa-lint qa-tests qa-infra qa-build emu-up emu-test emu-down live-dev live-test live-destroy live-shell
 
 help:
 	@echo "PhotoEditor — Make targets"
@@ -20,6 +20,9 @@ help:
 	@echo "  live-test        Run smoke tests against live SST API"
 	@echo "  live-destroy     Remove SST dev stack from AWS"
 	@echo "  live-shell       Open SST shell for manual testing"
+	@echo ""
+	@echo "Diagnostics:"
+	@echo "  services-status  Summarize Docker/Expo service status and health checks"
 	@echo ""
 	@echo "Legacy Targets:"
 	@echo "  deps             Install Node deps deterministically (npm ci)"
@@ -39,11 +42,14 @@ help:
 	@echo "  dev-ios          Bring infra up, then launch iOS app"
 	@echo "  dev-android      Bring infra up, then launch Android app"
 	@echo "  clean            Remove backend dist/ and Terraform plan/state artifacts"
-	@echo "  stage1-verify    Run Stage 1 fitness functions (typecheck, lint, tests, build, infra validation)"
-	@echo "  stage1-lint      Run Stage 1A: Static analysis (typecheck + lint)"
-	@echo "  stage1-tests     Run Stage 1B: Core tests"
-	@echo "  stage1-infra     Run Stage 1D: Infrastructure validation"
-	@echo "  stage1-build     Run Stage 1E: Build verification"
+	@echo ""
+	@echo "QA Suite (Fitness Functions):"
+	@echo "  qa-suite         Run all QA fitness functions (static analysis, tests, infra, build)"
+	@echo "  qa-lint          Run QA-A: Static analysis (typecheck + lint)"
+	@echo "  qa-tests         Run QA-B/C: Contract drift + Core tests"
+	@echo "  qa-infra         Run QA-D: Infrastructure validation"
+	@echo "  qa-build         Run QA-E: Build verification"
+	@echo ""
 
 deps:
 	npm ci --prefix shared || true
@@ -72,11 +78,49 @@ infra-destroy:
 localstack-down:
 	-$(COMPOSE) down -v || true
 
+print-api:
+	@$(TF) output -raw api_gateway_url
+
 infra-down: infra-destroy localstack-down
 	@echo "Local infra fully stopped."
 
-print-api:
-	@$(TF) output -raw api_gateway_url
+services-status:
+	@echo "========================================="
+	@echo "Local Service Status"
+	@echo "========================================="
+	@echo ""
+	@echo "[1/3] Docker Compose services (docker-compose.localstack.yml)"
+	@$(COMPOSE) ps --format json | python3 scripts/diagnostics/services_status.py
+	@echo ""
+	@echo "[2/3] LocalStack health endpoint"
+	@if command -v curl >/dev/null 2>&1; then \
+		if curl -fsSL --max-time 2 -o /tmp/localstack-health.json http://localhost:4566/_localstack/health 2>/dev/null; then \
+			printf "  - healthy (response saved to /tmp/localstack-health.json)\n"; \
+		else \
+			rm -f /tmp/localstack-health.json; \
+			echo "  - unreachable (start LocalStack with 'make localstack-up')"; \
+		fi; \
+	else \
+		echo "  - skipped (curl not available)"; \
+	fi
+	@echo ""
+	@echo "[3/3] Dev servers on common ports"
+	@if command -v lsof >/dev/null 2>&1; then \
+		EXPO=$$(lsof -i :8081 -sTCP:LISTEN -t 2>/dev/null | paste -sd, -); \
+		if [ -n "$$EXPO" ]; then \
+			echo "  - Expo (port 8081): running (PID(s): $$EXPO)"; \
+		else \
+			echo "  - Expo (port 8081): not running"; \
+		fi; \
+		LOCALSTACK=$$(lsof -i :4566 -sTCP:LISTEN -t 2>/dev/null | paste -sd, -); \
+		if [ -n "$$LOCALSTACK" ]; then \
+			echo "  - LocalStack (port 4566): listening (PID(s): $$LOCALSTACK)"; \
+		else \
+			echo "  - LocalStack (port 4566): not listening"; \
+		fi; \
+	else \
+		echo "  - skipped (lsof not available)"; \
+	fi
 
 # Expo app targets — pass API URL into Expo via EXPO_PUBLIC_API_BASE_URL
 # Note: Android emulator cannot reach host via localhost. Use 10.0.2.2.
@@ -108,19 +152,28 @@ dev-android: infra-up mobile-android
 clean:
 	rm -rf backend/dist infrastructure/localstack.tfplan || true
 
-# Stage 1 Verification - Fitness Functions
-# Runs Stage A–E fitness functions in sequence, aggregating outputs for quick validation.
+# ============================================================
+# QA Suite - Centralized Fitness Functions
+# ============================================================
+# Runs QA-A through QA-E fitness functions using the shared qa-suite.sh driver.
+# This ensures developers, Husky hooks, and CI execute identical checks.
 # Gates include:
-#   Stage A: TypeScript typecheck + lint (backend, shared, mobile)
-#   Stage B: Core tests (unit, contract)
-#   Stage C: Mobile offline resilience checks
-#   Stage D: Infrastructure validation (terraform fmt/validate)
-#   Stage E: Build verification (lambda bundles)
+#   QA-A: Static Safety Nets (typecheck + lint)
+#   QA-B: Contract Drift Detection
+#   QA-C: Core Flow Contracts (unit, contract tests)
+#   QA-D: Infrastructure & Security (terraform fmt/validate)
+#   QA-E: Build Verification (lambda bundles)
+#
+# See: scripts/qa/qa-suite.sh for implementation details
 
-# Stage 1A: Static Safety Nets
-stage1-lint:
+# QA Suite - Run all fitness functions via shared driver
+qa-suite:
+	@./scripts/qa/qa-suite.sh
+
+# QA-A: Static Safety Nets
+qa-lint:
 	@echo "========================================="
-	@echo "Stage 1A: Static Safety Nets"
+	@echo "QA-A: Static Safety Nets"
 	@echo "========================================="
 	@echo ""
 	@echo "[1/6] Backend typecheck..."
@@ -136,25 +189,27 @@ stage1-lint:
 	@echo "[6/6] Mobile lint..."
 	@cd mobile && npm run lint 2>/dev/null || echo "SKIPPED: Mobile lint (optional)"
 	@echo ""
-	@echo "Stage 1A: PASSED"
+	@echo "QA-A: PASSED"
 	@echo ""
 
-# Stage 1B: Core Flow Contracts
-stage1-tests:
+# QA-B/C: Contract Drift + Core Flow Contracts
+qa-tests:
 	@echo "========================================="
-	@echo "Stage 1B: Core Flow Contracts"
+	@echo "QA-B/C: Contract Drift + Core Tests"
 	@echo "========================================="
 	@echo ""
-	@echo "[1/1] Backend tests..."
+	@echo "[1/2] Contract drift check..."
+	@npm run contracts:check || (echo "FAILED: Contract drift detected" && false)
+	@echo "[2/2] Backend tests..."
 	@cd backend && npm test || (echo "FAILED: Backend tests" && false)
 	@echo ""
-	@echo "Stage 1B: PASSED"
+	@echo "QA-B/C: PASSED"
 	@echo ""
 
-# Stage 1D: Infrastructure & Security
-stage1-infra:
+# QA-D: Infrastructure & Security
+qa-infra:
 	@echo "========================================="
-	@echo "Stage 1D: Infrastructure & Security"
+	@echo "QA-D: Infrastructure & Security"
 	@echo "========================================="
 	@echo ""
 	@echo "[1/3] Terraform format check..."
@@ -164,13 +219,13 @@ stage1-infra:
 	@echo "[3/3] NPM security audit (backend)..."
 	@cd backend && npm audit --omit=dev || echo "WARNING: Security vulnerabilities found (non-blocking)"
 	@echo ""
-	@echo "Stage 1D: PASSED"
+	@echo "QA-D: PASSED"
 	@echo ""
 
-# Stage 1E: Build Verification
-stage1-build:
+# QA-E: Build Verification
+qa-build:
 	@echo "========================================="
-	@echo "Stage 1E: Build Verification"
+	@echo "QA-E: Build Verification"
 	@echo "========================================="
 	@echo ""
 	@echo "[1/2] Backend lambda builds..."
@@ -180,21 +235,10 @@ stage1-build:
 	@echo "    - ts-prune: $$(npm list -g ts-prune >/dev/null 2>&1 && echo 'installed' || echo 'NOT INSTALLED')"
 	@echo "    - jscpd: $$(npm list -g jscpd >/dev/null 2>&1 && echo 'installed' || echo 'NOT INSTALLED')"
 	@echo ""
-	@echo "Stage 1E: PASSED"
+	@echo "QA-E: PASSED"
 	@echo ""
 
-# Aggregate target: Runs all Stage 1 sub-targets in order
-stage1-verify: stage1-lint stage1-tests stage1-infra stage1-build
-	@echo "========================================="
-	@echo "Stage 1 Verification: PASSED"
-	@echo "========================================="
-	@echo ""
-	@echo "Summary:"
-	@echo "  - All critical checks passed"
-	@echo "  - Optional tools status reported above"
-	@echo "  - Ready for deployment or further stages"
-	@echo ""
-
+# Legacy aliases for backward compatibility (deprecated)
 # ============================================================
 # Development Loops (TASK-0301)
 # ============================================================

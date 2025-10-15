@@ -20,7 +20,7 @@
 * No controller invokes AWS SDK directly (depcruise rule).
 * 100% DTOs validated; contract tests for every controller.
 * dependency-cruiser upload verifies handler → service → adapter layering and rejects cycles.
-* **Owner**: Backend Edge Lead. **Evidence**: depcruise report + contract test summary uploaded with `npm run stage:a`.
+* **Owner**: Backend Edge Lead. **Evidence**: depcruise report + contract test summary uploaded with `npm run qa-suite:static`.
 
 ## Lambda Application Layer
 

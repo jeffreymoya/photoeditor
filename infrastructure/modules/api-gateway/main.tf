@@ -90,17 +90,9 @@ resource "aws_apigatewayv2_route" "status_v1" {
   target    = "integrations/${aws_apigatewayv2_integration.status.id}"
 }
 
-# Legacy routes (deprecated, maintained for backward compatibility)
-# These will be sunset on 2026-04-06
-resource "aws_apigatewayv2_route" "presign_legacy" {
+resource "aws_apigatewayv2_route" "batch_status_v1" {
   api_id    = aws_apigatewayv2_api.main.id
-  route_key = "POST /upload/presign"
-  target    = "integrations/${aws_apigatewayv2_integration.presign.id}"
-}
-
-resource "aws_apigatewayv2_route" "status_legacy" {
-  api_id    = aws_apigatewayv2_api.main.id
-  route_key = "GET /jobs/{id}"
+  route_key = "GET /v1/batch-status/{batchJobId}"
   target    = "integrations/${aws_apigatewayv2_integration.status.id}"
 }
 

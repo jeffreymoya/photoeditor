@@ -205,7 +205,7 @@ scenarios:
   - name: "Upload presign flow"
     flow:
       - post:
-          url: "/upload/presign"
+          url: "/v1/upload/presign"
           json:
             fileName: "test.jpg"
             contentType: "image/jpeg"
@@ -216,7 +216,7 @@ scenarios:
               as: "jobId"
       - think: 2
       - get:
-          url: "/jobs/{{ jobId }}"
+          url: "/v1/jobs/{{ jobId }}"
           expect:
             - statusCode: 200
 ```

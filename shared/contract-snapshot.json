@@ -1,12 +1,14 @@
 {
-  "timestamp": "2025-10-11T08:39:10.175Z",
+  "timestamp": "2025-10-14T17:48:12.626Z",
   "files": {
     "shared/dist/constants/index.d.ts": "d7c739ae2b8044be1f96ace3e122f26dd26b92963c3024dbca59dd6296de7b61",
     "shared/dist/constants/index.js": "ad1cbc2613dd0b01fab766bc6c2866b3bc2e6edab1f8de28c44cf2efe83c79fd",
-    "shared/dist/index.d.ts": "bb2b9c64139582c975fbd0e646362d397aa9013adb3fb36dedd0f939ac52595f",
-    "shared/dist/index.js": "fc0d2309f32e08ffdace68e3cf4e17ff0cb50ce2135da6162a4238d5bb307837",
-    "shared/dist/schemas/api.schema.d.ts": "e5f4218cda1fcb2bafdd094c896615ea3e51169bcf330475924c81c1eb26e354",
-    "shared/dist/schemas/api.schema.js": "99dcdc64c8fc1c5c7a595bbf69817ac585bea4cb17eb29cbfb0b435494422e41",
+    "shared/dist/index.d.ts": "2c7b891bc9655a15be33dc41f44b372fff7d4c75d775ee94886c8488709267de",
+    "shared/dist/index.js": "b9e9fffc51c3010991a6713485080144997773becab6c46ecd6af905547f7665",
+    "shared/dist/routes.manifest.d.ts": "ac94c5da4912a5fc3f0827c5b7ce5ab805ad61cc117fa17f90b8dc2413f65bb5",
+    "shared/dist/routes.manifest.js": "ede30698b60e210e74adfac845428c63502474eb2adf730700a499ca1fc9f5b6",
+    "shared/dist/schemas/api.schema.d.ts": "69a6c6343cba0349d25854149cbf5a12bee0e337816ef6848181902d5d54012a",
+    "shared/dist/schemas/api.schema.js": "a3c2fe066a27b285dd33d642decc295ca91e6c2e37b080f9ef9f759ac09831da",
     "shared/dist/schemas/index.d.ts": "004dc040f33c80351342eda0c679ebc9577509665f50b05d91e12722e405b2c5",
     "shared/dist/schemas/index.js": "8aaef74125c1a608025a2e6e4594b0947d538e660a78e1ef96682246a1b2b0ff",
     "shared/dist/schemas/job.schema.d.ts": "1e29e89bb3bb95e5fb04706a851c758250b01d18ab433c2d2a581a943869d360",
@@ -19,8 +21,9 @@
     "shared/dist/types/index.js": "bd1d5e253e478de85d38c9617502e587e6ab8002fc8a2df0613e7b1215d0d10b",
     "shared/dist/types/s3.types.d.ts": "117da06e131c61fa01ede0b484a5cf09804827daa2851e739b25df932338d073",
     "shared/dist/types/s3.types.js": "2f854baa79ec49834bd0cd3b6cd40e4f4a9e72712893c779de3cc63c5ae48b68",
-    "contracts/clients/checksums.json": "b9f4c2c6ee8d70658e8e09c4ed2664d4161cdd95c56566e978c400edbf6bdd6c",
+    "contracts/clients/checksums.json": "3e98c6cc70069444c6a7a9f5c8619daf32b0691a59dc2b3e5f21e03fa9bdc831",
+    "contracts/clients/photoeditor-api.ts": "3c85deb08422747dc0e820d5697b056663e8fd290b7eb593723ffeafa62f26b4",
     "contracts/clients/types.ts": "b9041a6aff94213dbd19d5ece6a5a26a1c09122cf5a4aadbaa757d44d3a8ded2",
-    "openapi/openapi-generated.yaml": "b6df34763d5ec64a07b450e83da12079d63b3ccc870f1310b3252b55f30c4ff7"
+    "openapi/openapi-generated.yaml": "b83fa351d5740e36855835dcadfdb25c3cf7ce47345ddbbb8e830d2161f1e6b1"
   }
 }

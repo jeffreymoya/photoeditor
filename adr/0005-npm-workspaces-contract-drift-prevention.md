@@ -16,7 +16,7 @@ The photoeditor repository was using ad-hoc `file:../shared` dependencies for th
 3. **No API Surface Tracking**: The shared package lacked tooling to detect breaking changes in public exports, risking unintentional SemVer violations.
 4. **Weak Architectural Boundaries**: No enforcement preventing framework-specific dependencies (React, Nest, AWS SDK) from leaking into the shared package.
 
-Per **docs/rubric.md** Stage 1 gates, the system requires zero contract drift between clients. Per **STANDARDS.md line 40**, breaking API changes must be versioned with `/v{n}` paths. Per **STANDARDS.md lines 63-66**, shared libraries must be framework-agnostic with SemVer enforcement.
+Per **docs/testing-standards.md** QA Suite gates (QA-B), the system requires zero contract drift between clients. Per **STANDARDS.md line 40**, breaking API changes must be versioned with `/v{n}` paths. Per **STANDARDS.md lines 63-66**, shared libraries must be framework-agnostic with SemVer enforcement.
 
 ---
 
@@ -79,7 +79,7 @@ Use `"@photoeditor/shared": "*"` in backend/mobile to leverage npm's workspace r
 ## Consequences
 
 ### Positive
-1. **Zero Contract Drift**: `contracts:check` gate prevents silent schema divergence (Stage 1 requirement satisfied)
+1. **Zero Contract Drift**: `contracts:check` gate prevents silent schema divergence (QA-B requirement satisfied, enforced by QA suite)
 2. **Simplified Installs**: Single `npm ci` at root installs all workspaces with proper deduplication
 3. **API Governance**: API Extractor enforces SemVer discipline and prevents accidental breaking changes
 4. **Better IDE Support**: Workspace symlinking enables go-to-definition across packages
@@ -154,14 +154,13 @@ Use `"@photoeditor/shared": "*"` in backend/mobile to leverage npm's workspace r
 ## Implementation Notes
 
 ### CI Integration
-Added to `.github/workflows/ci-cd.yml`:
-```yaml
-- name: Check contract drift (STANDARDS.md line 40)
-  run: npm run contracts:check
+Contract drift checking is now part of the centralized QA suite:
+- Script: `scripts/qa/qa-suite.sh` (QA-B stage)
+- Make: `make qa-suite` (calls QA-B among other stages)
+- CI: `.github/workflows/ci-cd.yml` calls `make qa-suite`
+- Husky: `.husky/pre-push` runs full QA suite before push
 
-- name: Validate API surface changes
-  run: cd shared && npm run api-extractor
-```
+See `docs/testing-standards.md` for QA suite documentation.
 
 ### Developer Workflow
 When making intentional contract changes:
@@ -192,5 +191,5 @@ No schema changes occurred, so rollback is non-breaking.
 - [npm Workspaces Documentation](https://docs.npmjs.com/cli/v9/using-npm/workspaces)
 - [API Extractor Documentation](https://api-extractor.com/)
 - STANDARDS.md lines 24, 40, 56, 63-66, 101, 218, 227-228
-- docs/rubric.md (Stage 1 contract drift requirements)
+- docs/testing-standards.md (QA Suite gates, contract drift requirements)
 - docs/architecture-refactor-plan.md (Phase 0 workspace extraction)

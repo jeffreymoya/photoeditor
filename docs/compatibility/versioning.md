@@ -97,18 +97,18 @@ All breaking changes follow a **minimum 6-month deprecation period** from announ
 | **Final Notice** | Month 6 | Final 30-day notice sent to all remaining users |
 | **Sunset** | Month 6+ | Old version removed, traffic redirected or rejected |
 
-#### Example Timeline (v1 → v2)
+#### Example Timeline (Populate once next major version is scheduled)
 
 | Date | Milestone | Actions |
 |------|-----------|---------|
-| 2025-10-06 | v2 Launch | - Release v2 API<br/>- Publish migration guide<br/>- Announce v1 deprecation<br/>- Set sunset date: 2026-04-06 |
-| 2025-11-06 | Month 1 | - Monitor v2 adoption metrics<br/>- Provide migration support<br/>- Add `Sunset` header to v1 responses |
-| 2025-12-06 | Month 2 | - Email users still on v1 with migration guide<br/>- Offer office hours for migration questions |
-| 2026-01-06 | Month 3 | - Publish v1 usage dashboard<br/>- Identify high-volume v1 clients for direct outreach |
-| 2026-02-06 | Month 4 | - Increase `Deprecation` header severity<br/>- Direct outreach to remaining v1 users<br/>- Provide migration tooling/scripts |
-| 2026-03-06 | Month 5 | - Final migration support window<br/>- Update status page with sunset countdown |
-| 2026-04-01 | 5 days before sunset | - Send final 5-day notice<br/>- Provide emergency contact for blockers |
-| 2026-04-06 | Sunset | - Remove v1 endpoints<br/>- Return 410 Gone for v1 requests |
+| <ANNOUNCEMENT_DATE> | v{next} Launch | - Release v{next} API<br/>- Publish migration guide<br/>- Announce v{current} deprecation<br/>- Set sunset date: <SUNSET_ISO_DATE> |
+| +1 month | Month 1 | - Monitor v{next} adoption metrics<br/>- Provide migration support<br/>- Add `Sunset` header to v{current} responses |
+| +2 months | Month 2 | - Email users still on v{current} with migration guide<br/>- Offer office hours for migration questions |
+| +3 months | Month 3 | - Publish usage dashboard<br/>- Identify high-volume v{current} clients for direct outreach |
+| +4 months | Month 4 | - Increase `Deprecation` header severity<br/>- Direct outreach to remaining v{current} users<br/>- Provide migration tooling/scripts |
+| +5 months | Month 5 | - Final migration support window<br/>- Update status page with sunset countdown |
+| <SUNSET_ISO_DATE - 5 days> | Final notice | - Send final 5-day notice<br/>- Provide emergency contact for blockers |
+| <SUNSET_ISO_DATE> | Sunset | - Remove v{current} endpoints<br/>- Return 410 Gone for v{current} requests |
 
 ### Communication Plan
 
@@ -146,33 +146,33 @@ Effective communication is critical for smooth deprecations. The following chann
 
 #### Deprecation Header Format
 
-Add the following headers to all responses from deprecated endpoints:
+Add the following headers to all responses from deprecated endpoints. Replace placeholders with the appropriate version numbers and timeline when a new major release is announced:
 
 ```http
 Deprecation: true
-Sunset: Mon, 06 Apr 2026 00:00:00 GMT
-Link: <https://docs.photoeditor.com/migrations/v1-to-v2>; rel="deprecation"
-Warning: 299 - "API version v1 is deprecated and will be removed on 2026-04-06. Please migrate to v2."
+Sunset: <SUNSET_HTTP_DATE>
+Link: <https://docs.photoeditor.com/migrations/v{current}-to-v{next}>; rel="deprecation"
+Warning: 299 - "API version v{current} is deprecated and will be removed on <SUNSET_ISO_DATE>. Please migrate to v{next}."
 ```
 
 #### Email Template: Deprecation Announcement
 
 ```
-Subject: [Action Required] API v1 Deprecation - Migrate to v2 by April 2026
+Subject: [Action Required] API v{current} Deprecation — Migrate to v{next} by <SUNSET_ISO_DATE>
 
 Hi [Client Name],
 
-We're excited to announce the release of API v2, which includes improved
+We're excited to announce the release of API v{next}, which includes improved
 performance, new features, and enhanced error handling.
 
-IMPORTANT: API v1 will be deprecated and sunset on April 6, 2026 (6 months
-from today).
+IMPORTANT: API v{current} will be deprecated and sunset on <SUNSET_ISO_DATE>
+(six months from this announcement).
 
 What you need to do:
-1. Review the migration guide: https://docs.photoeditor.com/migrations/v1-to-v2
-2. Update your API base URL from /v1/ to /v2/
+1. Review the migration guide: https://docs.photoeditor.com/migrations/v{current}-to-v{next}
+2. Update your API base URL from /v{current}/ to /v{next}/
 3. Test your integration in our staging environment
-4. Deploy to production before April 6, 2026
+4. Deploy to production before <SUNSET_ISO_DATE>
 
 What's changing:
 - [List major breaking changes]
@@ -185,8 +185,8 @@ Migration support:
 - Support email: api-support@photoeditor.com
 
 Timeline:
-- Today (Oct 6, 2025): v2 released, v1 deprecated
-- Apr 6, 2026: v1 sunset (removed)
+- Launch Day (<ANNOUNCEMENT_DATE>): v{next} released, v{current} enters deprecation
+- Sunset Day (<SUNSET_ISO_DATE>): v{current} removed from service
 
 Please reach out if you have any questions or need migration assistance.
 
@@ -198,54 +198,54 @@ Photo Editor API Team
 
 Define how the system behaves during and after deprecation.
 
-#### During Deprecation Period (v1 still active)
+#### During Deprecation Period (previous version still active)
 
 1. **Graceful Degradation**
-   - Both v1 and v2 endpoints remain fully functional
-   - No reduction in v1 performance or rate limits
-   - v1 requests include deprecation headers but succeed normally
+   - Both v{current} and v{next} endpoints remain fully functional
+   - No reduction in v{current} performance or rate limits
+   - v{current} requests include deprecation headers but succeed normally
 
 2. **Client Detection**
-   - Log all v1 requests with client identifiers (API key, user agent)
+   - Log all v{current} requests with client identifiers (API key, user agent)
    - Track usage metrics per client for targeted outreach
-   - Generate weekly reports on v1 usage trends
+   - Generate weekly reports on v{current} usage trends
 
 3. **Error Handling**
-   - v1 errors continue to use old error format
-   - v2 errors use new error format (see `docs/contracts/errors/`)
+   - v{current} errors continue to use the historical error format
+   - v{next} errors use the new error format (see `docs/contracts/errors/`)
    - No cross-version error format mixing
 
-#### At Sunset (v1 removal)
+#### At Sunset (previous version removal)
 
 1. **Hard Cutover (Recommended)**
-   - Remove v1 endpoints entirely
+   - Remove v{current} endpoints entirely
    - Return `410 Gone` status with migration instructions
    - Include `Sunset` header with removal date
 
    ```http
    HTTP/1.1 410 Gone
    Content-Type: application/json
-   Sunset: Mon, 06 Apr 2026 00:00:00 GMT
+   Sunset: <SUNSET_HTTP_DATE>
 
    {
      "error": {
        "type": "ENDPOINT_REMOVED",
        "code": "API_VERSION_SUNSET",
-       "message": "API v1 was removed on 2026-04-06. Please use v2.",
-       "migrationGuide": "https://docs.photoeditor.com/migrations/v1-to-v2"
+       "message": "API v{current} was removed on <SUNSET_ISO_DATE>. Please use v{next}.",
+       "migrationGuide": "https://docs.photoeditor.com/migrations/v{current}-to-v{next}"
      }
    }
    ```
 
 2. **Redirect (Alternative for GET requests)**
-   - Redirect v1 GET requests to v2 equivalents
+   - Redirect v{current} GET requests to v{next} equivalents
    - Return `301 Moved Permanently` or `308 Permanent Redirect`
    - Only use if v1 and v2 are compatible for specific endpoints
 
    ```http
    HTTP/1.1 301 Moved Permanently
-   Location: https://api.photoeditor.com/v2/jobs/abc123
-   Sunset: Mon, 06 Apr 2026 00:00:00 GMT
+   Location: https://api.photoeditor.com/v{next}/jobs/abc123
+   Sunset: <SUNSET_HTTP_DATE>
    ```
 
 3. **Emergency Rollback Plan**
@@ -266,12 +266,12 @@ For clients not using TypeScript (Swift, Kotlin, Python, Ruby, etc.), provide ad
    ```
 
 2. **Review Schema Changes**
-   - Download OpenAPI spec for v2: `docs/openapi/openapi-v2.yaml`
-   - Compare with v1 spec to identify breaking changes
+   - Download the OpenAPI spec generated for v{next} (publish under `docs/openapi/` as `openapi-v{next}.yaml`)
+   - Compare with the v{current} spec to identify breaking changes
    - Use diff tools like `openapi-diff` or `oasdiff`
 
 3. **Update Request/Response Models**
-   - Regenerate client models from v2 OpenAPI spec
+   - Regenerate client models from the v{next} OpenAPI spec
    - Use code generators: `openapi-generator`, `swagger-codegen`, or language-specific tools
    - Update manual models if not using code generation
 
@@ -281,7 +281,7 @@ For clients not using TypeScript (Swift, Kotlin, Python, Ruby, etc.), provide ad
    - Ensure fallback handling for unknown error codes
 
 5. **Test in Staging**
-   - Staging URL: `https://staging-api.photoeditor.com/v2/`
+   - Staging URL: `https://staging-api.photoeditor.com/v{next}/`
    - Run full integration test suite
    - Verify error handling for all edge cases
 
@@ -291,6 +291,8 @@ For clients not using TypeScript (Swift, Kotlin, Python, Ruby, etc.), provide ad
    - Have rollback plan ready
 
 #### Language-Specific Migration Examples
+
+> The following language snippets illustrate how clients should adjust when moving from v{current} to v{next}. Update the version placeholders when preparing the actual migration.
 
 ##### Swift (iOS)
 
@@ -461,9 +463,9 @@ After successful sunset:
 
 | Date | Event |
 |------|-------|
-| 2025-10-04 | v2 released, v1 enters maintenance mode |
-| 2025-10-04 | v1 deprecation announced (6-month timeline) |
-| 2026-04-04 | v1 sunset (scheduled removal) |
+| <ANNOUNCEMENT_DATE> | v{next} released, v{current} enters maintenance mode |
+| <ANNOUNCEMENT_DATE> | v{current} deprecation announced (6-month timeline) |
+| <SUNSET_ISO_DATE> | v{current} sunset (scheduled removal) |
 
 ## OpenAPI Contract Validation
 
@@ -554,11 +556,11 @@ Internal APIs (used only by first-party clients) may have relaxed versioning req
 
 ## Active API Versions
 
-### Current: v1 (Released 2025-10-11)
+### Current: v1 (initial release in development)
 
-**Base URL**: `https://api.photoeditor.com/v1/`
+**Base URL (planned)**: `https://api.photoeditor.com/v1/`
 
-**Status**: Active (current version)
+**Status**: Active (planned first stable surface)
 
 **Endpoints**:
 - `POST /v1/upload/presign` - Generate presigned upload URL
@@ -567,32 +569,10 @@ Internal APIs (used only by first-party clients) may have relaxed versioning req
 **Implementation**:
 - API Gateway routes: `infrastructure/modules/api-gateway/main.tf` (lines 81-91)
 - Lambda handlers: `backend/src/lambdas/presign.ts`, `backend/src/lambdas/status.ts`
-- Deprecation utilities: `backend/src/utils/deprecation.ts`
 
-### Legacy: Unversioned Routes (Deprecated)
+### Legacy Versions
 
-**Base URL**: `https://api.photoeditor.com/`
-
-**Status**: Deprecated (sunset date: **2026-04-06**)
-
-**Endpoints**:
-- `POST /upload/presign` → Redirects to `/v1/upload/presign`
-- `GET /jobs/{id}` → Redirects to `/v1/jobs/{id}`
-
-**Deprecation Headers**:
-All legacy routes return the following headers:
-```http
-Deprecation: true
-Sunset: Mon, 06 Apr 2026 00:00:00 GMT
-Link: <https://docs.photoeditor.com/migrations/v1-to-v2>; rel="deprecation"
-Warning: 299 - "API version v1 is deprecated and will be removed on 2026-04-06. Please migrate to v2."
-```
-
-**Migration Timeline**:
-- **2025-10-11**: v1 released, legacy routes deprecated
-- **2026-04-06**: Legacy routes sunset (6 months)
-
-Clients must migrate to `/v1/` prefixed routes before the sunset date.
+There are currently no deprecated API versions in service. Unversioned routes were removed prior to launch so new clients integrate directly with `/v1/` endpoints.
 
 ## Automated Governance
 
@@ -662,6 +642,7 @@ See `docs/contracts/changeset-governance.md` for detailed governance workflow.
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 1.2 | 2025-10-11 | Added active API versions section with v1 routes, legacy deprecation timeline (2026-04-06), and automated governance procedures |
+| 1.3 | 2025-10-11 | Removed pre-launch deprecation references, templated timelines/placeholders, and documented that unversioned routes were removed before launch |
+| 1.2 | 2025-10-11 | Added active API versions section with v1 routes, legacy deprecation timeline, and automated governance procedures |
 | 1.1 | 2025-10-06 | Added comprehensive deprecation playbook with communication plan, fallback behaviors, and non-TypeScript client guidance |
 | 1.0 | 2025-10-04 | Initial versioning policy created |

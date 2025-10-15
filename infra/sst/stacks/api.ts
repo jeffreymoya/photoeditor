@@ -15,13 +15,14 @@ interface ApiStackProps {
   tempBucket: sst.aws.Bucket;
   finalBucket: sst.aws.Bucket;
   jobsTable: sst.aws.Dynamo;
+  deviceTokensTable: sst.aws.Dynamo;
   processingQueue: sst.aws.Queue;
   notificationTopic: sst.aws.SnsTopic;
   kmsKey: aws.kms.Key;
 }
 
 export default function ApiStack(props: ApiStackProps) {
-  const { tempBucket, finalBucket, jobsTable, processingQueue, notificationTopic, kmsKey } = props;
+  const { tempBucket, finalBucket, jobsTable, deviceTokensTable, processingQueue, notificationTopic, kmsKey } = props;
 
   // Lambda environment variables (shared)
   const lambdaEnv = {
@@ -140,6 +141,39 @@ export default function ApiStack(props: ApiStackProps) {
     },
   });
 
+  // Device Token Lambda - Expo push notification token registration/deactivation
+  const deviceTokenFunction = new sst.aws.Function("DeviceTokenFunction", {
+    handler: "backend/src/lambdas/deviceToken.handler",
+    runtime: "nodejs20.x",
+    timeout: "10 seconds",
+    memory: "128 MB",
+    environment: {
+      ...lambdaEnv,
+      DEVICE_TOKEN_TABLE_NAME: deviceTokensTable.name,
+    },
+    permissions: [
+      {
+        actions: ["dynamodb:PutItem", "dynamodb:GetItem", "dynamodb:UpdateItem", "dynamodb:DeleteItem", "dynamodb:Query"],
+        resources: [deviceTokensTable.arn],
+      },
+      {
+        actions: ["kms:Decrypt", "kms:GenerateDataKey"],
+        resources: [kmsKey.arn],
+      },
+    ],
+    transform: {
+      function: {
+        tags: {
+          Project: "PhotoEditor",
+          Env: $app.stage,
+          Owner: "DevTeam",
+          CostCenter: "Engineering",
+          Function: "DeviceToken",
+        },
+      },
+    },
+  });
+
   // Worker Lambda - processes jobs from SQS
   const workerFunction = new sst.aws.Function("WorkerFunction", {
     handler: "backend/src/lambdas/worker.handler",
@@ -208,7 +242,12 @@ export default function ApiStack(props: ApiStackProps) {
   // API Routes
   httpApi.route("POST /presign", bffFunction.arn);
   httpApi.route("GET /status/{jobId}", statusFunction.arn);
+  httpApi.route("GET /batch-status/{batchJobId}", statusFunction.arn);
   httpApi.route("GET /download/{jobId}", downloadFunction.arn);
+
+  // Device Token Routes (standards/infrastructure-tier.md line 79: throttling configured at API Gateway level)
+  httpApi.route("POST /v1/device-tokens", deviceTokenFunction.arn);
+  httpApi.route("DELETE /v1/device-tokens", deviceTokenFunction.arn);
 
   // Lambda permission for API Gateway to invoke functions
   new aws.lambda.Permission("BffInvokePermission", {
@@ -228,6 +267,13 @@ export default function ApiStack(props: ApiStackProps) {
   new aws.lambda.Permission("DownloadInvokePermission", {
     action: "lambda:InvokeFunction",
     function: downloadFunction.name,
+    principal: "apigateway.amazonaws.com",
+    sourceArn: $interpolate`${httpApi.executionArn}/*/*`,
+  });
+
+  new aws.lambda.Permission("DeviceTokenInvokePermission", {
+    action: "lambda:InvokeFunction",
+    function: deviceTokenFunction.name,
     principal: "apigateway.amazonaws.com",
     sourceArn: $interpolate`${httpApi.executionArn}/*/*`,
   });
@@ -268,6 +314,17 @@ export default function ApiStack(props: ApiStackProps) {
 
   new aws.cloudwatch.LogGroup("WorkerLogGroup", {
     name: `/aws/lambda/${workerFunction.name}`,
+    retentionInDays: $app.stage === "production" ? 90 : 14,
+    tags: {
+      Project: "PhotoEditor",
+      Env: $app.stage,
+      Owner: "DevTeam",
+      CostCenter: "Engineering",
+    },
+  });
+
+  new aws.cloudwatch.LogGroup("DeviceTokenLogGroup", {
+    name: `/aws/lambda/${deviceTokenFunction.name}`,
     retentionInDays: $app.stage === "production" ? 90 : 14,
     tags: {
       Project: "PhotoEditor",
@@ -322,11 +379,34 @@ export default function ApiStack(props: ApiStackProps) {
     },
   });
 
+  new aws.cloudwatch.MetricAlarm("DeviceTokenErrorAlarm", {
+    name: `photoeditor-${$app.stage}-device-token-errors`,
+    comparisonOperator: "GreaterThanThreshold",
+    evaluationPeriods: 1,
+    metricName: "Errors",
+    namespace: "AWS/Lambda",
+    period: 300, // 5 minutes
+    statistic: "Sum",
+    threshold: 0,
+    treatMissingData: "notBreaching",
+    alarmDescription: "Alert when Device Token Lambda has errors (STANDARDS.md line 76)",
+    dimensions: {
+      FunctionName: deviceTokenFunction.name,
+    },
+    tags: {
+      Project: "PhotoEditor",
+      Env: $app.stage,
+      Owner: "DevTeam",
+      CostCenter: "Engineering",
+    },
+  });
+
   return {
     httpApi,
     bffFunction,
     statusFunction,
     downloadFunction,
+    deviceTokenFunction,
     workerFunction,
   };
 }

@@ -40,6 +40,25 @@ process.env.BATCH_TABLE_NAME = 'test-batch-table';
 const dynamoMock = mockClient(DynamoDBClient);
 const s3Mock = mockClient(S3Client);
 
+// Create instances that will be used by the services
+const mockDynamoInstance = new DynamoDBClient({});
+const mockS3Instance = new S3Client({});
+
+// Update the @backend/core mock to return the actual mocked clients
+jest.mock('@backend/core', () => {
+  return {
+    createSSMClient: jest.fn().mockReturnValue({}),
+    createDynamoDBClient: jest.fn().mockReturnValue(mockDynamoInstance),
+    createS3Client: jest.fn().mockReturnValue(mockS3Instance),
+    createSNSClient: jest.fn().mockReturnValue({}),
+    ConfigService: jest.fn().mockImplementation(() => ({})),
+    BootstrapService: jest.fn().mockImplementation(() => ({
+      initializeProviders: jest.fn().mockResolvedValue(undefined)
+    })),
+    StandardProviderCreator: jest.fn().mockImplementation(() => ({}))
+  };
+}, { virtual: true });
+
 // Import handler after mocks are set up
 import { handler } from '../../../src/lambdas/presign';
 
@@ -97,8 +116,19 @@ describe('presign lambda', () => {
 
       const result = await handler(event, {} as any);
 
-      if (typeof result === "object") expect(result.statusCode).toBe(400);
-      expect(typeof result === "object" && JSON.parse(result.body as string)).toEqual({ error: 'Request body required' });
+      if (typeof result === "object") {
+        expect(result.statusCode).toBe(400);
+        expect(result.headers?.['Content-Type']).toBe('application/json');
+        expect(result.headers?.['x-request-id']).toBe('test-request-id');
+
+        const response = JSON.parse(result.body as string);
+        expect(response).toHaveProperty('code', 'MISSING_REQUEST_BODY');
+        expect(response).toHaveProperty('title', 'Validation Error');
+        expect(response).toHaveProperty('detail', 'Request body is required');
+        expect(response).toHaveProperty('instance', 'test-request-id');
+        expect(response).toHaveProperty('type', 'VALIDATION');
+        expect(response).toHaveProperty('timestamp');
+      }
     });
 
     it('should reject unsupported content type (image/gif)', async () => {
@@ -114,7 +144,16 @@ describe('presign lambda', () => {
 
       const result = await handler(event, {} as any);
 
-      if (typeof result === "object") expect(result.statusCode).toBe(500); // Zod validation error results in 500
+      if (typeof result === "object") {
+        expect(result.statusCode).toBe(400);
+        expect(result.headers?.['x-request-id']).toBe('test-request-id');
+
+        const response = JSON.parse(result.body as string);
+        expect(response).toHaveProperty('code', 'INVALID_REQUEST');
+        expect(response).toHaveProperty('title', 'Validation Error');
+        expect(response).toHaveProperty('type', 'VALIDATION');
+        expect(response).toHaveProperty('instance', 'test-request-id');
+      }
     });
 
     it('should reject file size > 50MB', async () => {
@@ -129,7 +168,16 @@ describe('presign lambda', () => {
 
       const result = await handler(event, {} as any);
 
-      if (typeof result === "object") expect(result.statusCode).toBe(500); // Zod validation error
+      if (typeof result === "object") {
+        expect(result.statusCode).toBe(400);
+        expect(result.headers?.['x-request-id']).toBe('test-request-id');
+
+        const response = JSON.parse(result.body as string);
+        expect(response).toHaveProperty('code', 'INVALID_REQUEST');
+        expect(response).toHaveProperty('title', 'Validation Error');
+        expect(response).toHaveProperty('type', 'VALIDATION');
+        expect(response).toHaveProperty('instance', 'test-request-id');
+      }
     });
 
     it('should return valid presigned URL response for valid single upload', async () => {
@@ -158,8 +206,8 @@ describe('presign lambda', () => {
       // Validate jobId is UUID
       expect(response.jobId).toBe('00000000-0000-4000-8000-000000000000'); // mocked UUID
 
-      // Validate s3Key format
-      expect(response.s3Key).toMatch(/^temp\/test-user-123\/00000000-0000-4000-8000-000000000000\/\d+-test\.jpg$/);
+      // Validate s3Key format (changed from temp/ to uploads/ per new S3 key structure)
+      expect(response.s3Key).toMatch(/^uploads\/test-user-123\/00000000-0000-4000-8000-000000000000\/\d+-test\.jpg$/);
     });
   });
 
@@ -233,7 +281,16 @@ describe('presign lambda', () => {
 
       const result = await handler(event, {} as any);
 
-      if (typeof result === "object") expect(result.statusCode).toBe(500); // Zod validation error
+      if (typeof result === "object") {
+        expect(result.statusCode).toBe(400);
+        expect(result.headers?.['x-request-id']).toBe('test-request-id');
+
+        const response = JSON.parse(result.body as string);
+        expect(response).toHaveProperty('code', 'INVALID_REQUEST');
+        expect(response).toHaveProperty('title', 'Validation Error');
+        expect(response).toHaveProperty('type', 'VALIDATION');
+        expect(response).toHaveProperty('instance', 'test-request-id');
+      }
     });
   });
 
@@ -250,8 +307,20 @@ describe('presign lambda', () => {
 
       const result = await handler(event, {} as any);
 
-      if (typeof result === "object") expect(result.statusCode).toBe(500);
-      expect(typeof result === "object" && JSON.parse(result.body as string)).toEqual({ error: 'Internal server error' });
+      if (typeof result === "object") {
+        expect(result.statusCode).toBe(500);
+        expect(result.headers?.['Content-Type']).toBe('application/json');
+        expect(result.headers?.['x-request-id']).toBe('test-request-id');
+
+        const response = JSON.parse(result.body as string);
+        expect(response).toHaveProperty('code', 'UNEXPECTED_ERROR');
+        expect(response).toHaveProperty('title', 'Internal Server Error');
+        expect(response).toHaveProperty('detail');
+        expect(response.detail).toContain('unexpected error');
+        expect(response).toHaveProperty('instance', 'test-request-id');
+        expect(response).toHaveProperty('type', 'INTERNAL_ERROR');
+        expect(response).toHaveProperty('timestamp');
+      }
     });
   });
 });

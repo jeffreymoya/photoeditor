@@ -182,7 +182,7 @@ export function useUpload(options: UploadOptions = {}) {
 
       const presignData = await withRetry(
         async () => {
-          const response = await fetch(`${apiEndpoint}/upload/presign`, {
+          const response = await fetch(`${apiEndpoint}/v1/upload/presign`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

@@ -26,7 +26,17 @@ beforeAll(() => {
   nock.disableNetConnect();
   // Allow localhost for integration tests (will be overridden in integration suites)
   if (process.env.ALLOW_LOCALHOST === 'true') {
-    nock.enableNetConnect('127.0.0.1');
+    const allowedHosts = new Set(['127.0.0.1', 'localhost']);
+    const endpoint = process.env.LOCALSTACK_ENDPOINT || 'http://localhost:4566';
+    try {
+      const { hostname } = new URL(endpoint);
+      if (hostname) {
+        allowedHosts.add(hostname);
+      }
+    } catch (err) {
+      // Ignore malformed endpoint values; fall back to defaults
+    }
+    allowedHosts.forEach(host => nock.enableNetConnect(host));
   }
 });
 
@@ -57,9 +67,10 @@ afterEach(() => {
   usingFakeTimers = false;
 });
 
-// Stub UUID for deterministic tests
+// Stub UUID for deterministic tests (overrideable per-suite)
+const mockUuidV4 = jest.fn().mockReturnValue('00000000-0000-4000-8000-000000000000');
 jest.mock('uuid', () => ({
-  v4: () => '00000000-0000-4000-8000-000000000000'
+  v4: mockUuidV4
 }));
 
 // Fail tests on unexpected console.error/console.warn
@@ -91,7 +102,12 @@ afterEach(() => {
   // Restore environment
   process.env = { ...originalEnv };
   // Reset modules to clear any module-level state
-  jest.resetModules();
+  // Skip for integration tests as they maintain stateful connections
+  if (process.env.ALLOW_LOCALHOST !== 'true') {
+    jest.resetModules();
+  }
+  mockUuidV4.mockReset();
+  mockUuidV4.mockReturnValue('00000000-0000-4000-8000-000000000000');
 });
 
 // Note: AWS SDK mocking has been moved from here to individual tests.

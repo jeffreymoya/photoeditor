@@ -30,6 +30,7 @@ async function initializeServices(): Promise<void> {
   const tempBucketName = process.env.TEMP_BUCKET_NAME!;
   const finalBucketName = process.env.FINAL_BUCKET_NAME!;
   const jobsTableName = process.env.JOBS_TABLE_NAME!;
+  const batchTableName = process.env.BATCH_TABLE_NAME;
   const snsTopicArn = process.env.SNS_TOPIC_ARN!;
 
   const s3Config: S3Config = {
@@ -39,7 +40,7 @@ async function initializeServices(): Promise<void> {
     presignExpiration: 3600
   };
 
-  jobService = new JobService(jobsTableName, region);
+  jobService = new JobService(jobsTableName, region, batchTableName);
   s3Service = new S3Service(s3Config);
   notificationService = new NotificationService(snsTopicArn, region);
 
@@ -51,13 +52,21 @@ async function initializeServices(): Promise<void> {
   providerFactory = await bootstrapService.initializeProviders();
 }
 
-async function processS3Event(record: SQSRecord): Promise<void> {
+interface ParsedS3Event {
+  bucketName: string;
+  objectKey: string;
+  userId: string;
+  jobId: string;
+  fileName: string;
+}
+
+async function parseS3EventRecord(record: SQSRecord): Promise<ParsedS3Event | null> {
   const body = JSON.parse(record.body);
   const s3Event = body.Records?.[0]?.s3;
 
   if (!s3Event) {
     logger.warn('Invalid S3 event format', { body });
-    return;
+    return null;
   }
 
   const bucketName = s3Event.bucket.name;
@@ -65,22 +74,114 @@ async function processS3Event(record: SQSRecord): Promise<void> {
 
   logger.info('Processing S3 upload', { bucketName, objectKey });
 
-  // Parse the temp key to get job info
   const keyStrategy = s3Service.getKeyStrategy();
   const parsedKey = keyStrategy.parseTempKey(objectKey);
 
   if (!parsedKey) {
-    logger.warn('Unable to parse temp key', { objectKey });
-    return;
+    const error = new Error(`Unable to parse temp key: ${objectKey}`);
+    logger.error('Invalid S3 key format', { objectKey, error });
+    throw error;
   }
 
-  const { userId, jobId } = parsedKey;
+  return {
+    bucketName,
+    objectKey,
+    userId: parsedKey.userId,
+    jobId: parsedKey.jobId,
+    fileName: parsedKey.fileName
+  };
+}
+
+async function processImageAnalysis(
+  bucketName: string,
+  objectKey: string,
+  jobId: string,
+  userPrompt: string
+) {
+  const optimizedKey = objectKey.replace(/^uploads\//, 'optimized/');
+  await s3Service.optimizeAndUploadImage(bucketName, objectKey, bucketName, optimizedKey);
+
+  const analysisProvider = providerFactory.getAnalysisProvider();
+  const optimizedUrl = await s3Service.generatePresignedDownload(bucketName, optimizedKey, 300);
+
+  const analysisRequest = { imageUrl: optimizedUrl, prompt: userPrompt };
+  const analysisResult = await analysisProvider.analyzeImage(analysisRequest);
+
+  await jobService.markJobEditing(jobId);
+
+  return { optimizedKey, analysisResult };
+}
+
+async function processImageEditing(
+  optimizedUrl: string,
+  optimizedKey: string,
+  analysisResult: { success: boolean; data?: unknown },
+  userId: string,
+  jobId: string,
+  fileName: string
+): Promise<string> {
+  const editingProvider = providerFactory.getEditingProvider();
+  const analysisData = analysisResult.success ? analysisResult.data as GeminiAnalysisResponse : null;
+
+  const editingRequest = {
+    imageUrl: optimizedUrl,
+    analysis: analysisData?.analysis || 'Enhance and improve this image',
+    editingInstructions: 'Apply professional photo enhancements based on the analysis'
+  };
+  const editedImageResult = await editingProvider.editImage(editingRequest);
+
+  const keyStrategy = s3Service.getKeyStrategy();
+  const finalKey = keyStrategy.generateFinalKey(userId, jobId, fileName);
+
+  const editedImageData = editedImageResult.success ? editedImageResult.data as SeedreamEditingResponse : null;
+  if (editedImageResult.success && editedImageData?.editedImageUrl) {
+    const editedImageResponse = await fetch(editedImageData.editedImageUrl);
+    const editedImageBuffer = await editedImageResponse.arrayBuffer();
+
+    await s3Service.uploadObject(
+      s3Service.getFinalBucket(),
+      finalKey,
+      Buffer.from(editedImageBuffer),
+      'image/jpeg'
+    );
+  } else {
+    await s3Service.copyObject(s3Service.getTempBucket(), optimizedKey, s3Service.getFinalBucket(), finalKey);
+  }
+
+  return finalKey;
+}
+
+async function handleBatchJobProgress(batchJobId: string, jobId: string): Promise<void> {
+  try {
+    const updatedBatchJob = await jobService.incrementBatchJobProgress(batchJobId);
+    logger.info('Updated batch job progress', {
+      batchJobId,
+      completedCount: updatedBatchJob.completedCount,
+      totalCount: updatedBatchJob.totalCount,
+      isComplete: updatedBatchJob.status === JobStatus.COMPLETED
+    });
+
+    if (updatedBatchJob.status === JobStatus.COMPLETED) {
+      await notificationService.sendBatchJobCompletionNotification(updatedBatchJob);
+    }
+  } catch (batchError) {
+    logger.error('Failed to update batch job progress', {
+      error: batchError as Error,
+      batchJobId,
+      jobId
+    });
+  }
+}
+
+async function processS3Event(record: SQSRecord): Promise<void> {
+  const parsedEvent = await parseS3EventRecord(record);
+  if (!parsedEvent) return;
+
+  const { bucketName, objectKey, userId, jobId, fileName } = parsedEvent;
 
   try {
-    // Update job status to processing
     await jobService.markJobProcessing(jobId, objectKey);
 
-    // Get the job to retrieve the prompt
     const job = await jobService.getJob(jobId);
     if (!job) {
       logger.error('Job not found', { jobId, userId });
@@ -89,89 +190,17 @@ async function processS3Event(record: SQSRecord): Promise<void> {
 
     const userPrompt = job.prompt || 'Analyze this image and provide detailed suggestions for photo editing and enhancement.';
 
-    // First optimize the uploaded image before analysis
-    const optimizedKey = objectKey.replace('temp/', 'optimized/');
-    await s3Service.optimizeAndUploadImage(bucketName, objectKey, bucketName, optimizedKey);
-
-    // Get analysis provider
-    const analysisProvider = providerFactory.getAnalysisProvider();
-
-    // Generate presigned URL for the optimized object
+    const { optimizedKey, analysisResult } = await processImageAnalysis(bucketName, objectKey, jobId, userPrompt);
     const optimizedUrl = await s3Service.generatePresignedDownload(bucketName, optimizedKey, 300);
+    const finalKey = await processImageEditing(optimizedUrl, optimizedKey, analysisResult, userId, jobId, fileName);
 
-    // Analyze the image with structured request using user prompt
-    const analysisRequest = {
-      imageUrl: optimizedUrl,
-      prompt: userPrompt
-    };
-    const analysisResult = await analysisProvider.analyzeImage(analysisRequest);
-
-    // Update job status to editing
-    await jobService.markJobEditing(jobId);
-
-    // Get editing provider
-    const editingProvider = providerFactory.getEditingProvider();
-
-    // Edit the image based on analysis
-    const analysisData = analysisResult.success ? analysisResult.data as GeminiAnalysisResponse : null;
-    const editingRequest = {
-      imageUrl: optimizedUrl,
-      analysis: analysisData?.analysis || 'Enhance and improve this image',
-      editingInstructions: 'Apply professional photo enhancements based on the analysis'
-    };
-    const editedImageResult = await editingProvider.editImage(editingRequest);
-
-    // Generate final key and upload edited image
-    const finalKey = keyStrategy.generateFinalKey(userId, jobId, parsedKey.fileName);
-
-    // Download the edited image and upload to final bucket
-    const editedImageData = editedImageResult.success ? editedImageResult.data as SeedreamEditingResponse : null;
-    if (editedImageResult.success && editedImageData?.editedImageUrl) {
-      const editedImageResponse = await fetch(editedImageData.editedImageUrl);
-      const editedImageBuffer = await editedImageResponse.arrayBuffer();
-
-      await s3Service.uploadObject(
-        s3Service.getFinalBucket(),
-        finalKey,
-        Buffer.from(editedImageBuffer),
-        'image/jpeg'
-      );
-    } else {
-      // Fallback: copy original if editing fails
-      await s3Service.copyObject(bucketName, objectKey, s3Service.getFinalBucket(), finalKey);
-    }
-
-    // Mark job as completed
     const completedJob = await jobService.markJobCompleted(jobId, finalKey);
 
-    // Handle batch job progress if this is part of a batch
     if (job.batchJobId) {
-      try {
-        const updatedBatchJob = await jobService.incrementBatchJobProgress(job.batchJobId);
-        logger.info('Updated batch job progress', {
-          batchJobId: job.batchJobId,
-          completedCount: updatedBatchJob.completedCount,
-          totalCount: updatedBatchJob.totalCount,
-          isComplete: updatedBatchJob.status === JobStatus.COMPLETED
-        });
-
-        // Send batch completion notification if all jobs are done
-        if (updatedBatchJob.status === JobStatus.COMPLETED) {
-          await notificationService.sendBatchJobCompletionNotification(updatedBatchJob);
-        }
-      } catch (batchError) {
-        logger.error('Failed to update batch job progress', {
-          error: batchError as Error,
-          batchJobId: job.batchJobId,
-          jobId
-        });
-      }
+      await handleBatchJobProgress(job.batchJobId, jobId);
     }
 
-    // Send individual job notification
     await notificationService.sendJobStatusNotification(completedJob);
-
-    // Clean up temp and optimized objects
     await s3Service.deleteObject(bucketName, objectKey);
     await s3Service.deleteObject(bucketName, optimizedKey);
 
@@ -220,3 +249,15 @@ export const handler = async (event: SQSEvent, _context: Context): Promise<void>
     }
   }
 };
+
+// Test utility to reset module-level state
+export function __resetForTesting(): void {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  jobService = undefined as any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  s3Service = undefined as any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  notificationService = undefined as any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  providerFactory = undefined as any;
+}

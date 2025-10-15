@@ -1,0 +1,33 @@
+Terraform Plan Summary for Device Token Infrastructure
+Date: $(date)
+
+[1m  # aws_api_gateway_account.main[0m will be created
+[1m  # aws_api_gateway_integration.download_item_integration[0m will be created
+[1m  # aws_api_gateway_integration.presign_integration[0m will be created
+[1m  # aws_api_gateway_integration.status_integration[0m will be created
+[1m  # aws_api_gateway_integration.status_item_integration[0m will be created
+[1m  # aws_api_gateway_method.device_tokens_delete[0m will be created
+[1m  # aws_api_gateway_method.device_tokens_post[0m will be created
+[1m  # aws_api_gateway_method.download_item_get[0m will be created
+[1m  # aws_api_gateway_method.presign_post[0m will be created
+[1m  # aws_api_gateway_method.status_get[0m will be created
+[1m  # aws_api_gateway_method.status_item_get[0m will be created
+[1m  # aws_api_gateway_resource.device_tokens[0m will be created
+[1m  # aws_api_gateway_resource.download[0m will be created
+[1m  # aws_api_gateway_resource.download_item[0m will be created
+[1m  # aws_api_gateway_resource.presign[0m will be created
+[1m  # aws_api_gateway_resource.status[0m will be created
+[1m  # aws_api_gateway_resource.status_item[0m will be created
+[1m  # aws_api_gateway_resource.v1[0m will be created
+[1m  # aws_api_gateway_rest_api.api[0m will be created
+[1m  # aws_cloudwatch_log_group.download[0m will be created
+[1m  # aws_cloudwatch_log_group.presign[0m will be created
+[1m  # aws_cloudwatch_log_group.status[0m will be created
+[1m  # aws_cloudwatch_log_group.worker[0m will be created
+[1m  # aws_dynamodb_table.jobs[0m will be created
+[1m  # aws_dynamodb_table.jobs_batches[0m will be created
+[1m  # aws_iam_role.api_gateway_cloudwatch[0m will be created
+[1m  # aws_iam_role.lambda_execution_role[0m will be created
+[1m  # aws_iam_role_policy_attachment.api_gateway_cloudwatch[0m will be created
+[1m  # aws_lambda_event_source_mapping.sqs_trigger[0m will be created
+[1m  # aws_lambda_function.download[0m will be created

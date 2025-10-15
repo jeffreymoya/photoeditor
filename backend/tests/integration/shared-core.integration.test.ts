@@ -7,6 +7,7 @@ import { SSMClient, PutParameterCommand, DeleteParameterCommand } from '@aws-sdk
 import { createSSMClient } from '../../libs/core/aws';
 import { ConfigService } from '../../libs/core/config';
 import { BootstrapService, StandardProviderCreator } from '../../libs/core/providers';
+import { setupLocalStackEnv, waitForLocalStack } from './setup';
 
 describe('Shared Core Integration Tests', () => {
   let ssmClient: SSMClient;
@@ -15,6 +16,8 @@ describe('Shared Core Integration Tests', () => {
   const paramPrefix = `/${projectName}-${environment}`;
 
   beforeAll(async () => {
+    setupLocalStackEnv();
+    await waitForLocalStack();
     ssmClient = createSSMClient('us-east-1');
 
     // Set up test parameters in SSM
@@ -43,6 +46,9 @@ describe('Shared Core Integration Tests', () => {
   });
 
   afterAll(async () => {
+    if (!ssmClient) {
+      return;
+    }
     // Clean up test parameters
     const paramKeys = [
       'providers/enable-stubs',

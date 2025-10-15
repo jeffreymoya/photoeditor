@@ -74,7 +74,7 @@ npm test --prefix backend
 npm test --prefix shared
 
 # All quality checks (Stage A)
-npm run stage:a
+npm run qa-suite:static
 ```
 
 ## Development Workflow

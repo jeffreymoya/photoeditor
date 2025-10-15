@@ -14,7 +14,932 @@ servers:
     description: Development environment
   - url: https://api.photoeditor.com
     description: Production environment
-paths: {}
+paths:
+  /v1/upload/presign:
+    post:
+      operationId: presignUpload
+      summary: Generate presigned upload URL
+      description: >-
+        Creates a presigned S3 upload URL and job record for single or batch photo uploads. Supports both single file
+        and batch uploads based on request body structure.
+      tags:
+        - Upload
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - type: object
+                    properties:
+                      jobId:
+                        type: string
+                        format: uuid
+                      presignedUrl:
+                        type: string
+                        format: uri
+                      s3Key:
+                        type: string
+                      expiresAt:
+                        type: string
+                        format: date-time
+                    required:
+                      - jobId
+                      - presignedUrl
+                      - s3Key
+                      - expiresAt
+                    additionalProperties: false
+                  - type: object
+                    properties:
+                      batchJobId:
+                        type: string
+                        format: uuid
+                      uploads:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            presignedUrl:
+                              type: string
+                              format: uri
+                            s3Key:
+                              type: string
+                            expiresAt:
+                              type: string
+                              format: date-time
+                          required:
+                            - presignedUrl
+                            - s3Key
+                            - expiresAt
+                          additionalProperties: false
+                      childJobIds:
+                        type: array
+                        items:
+                          type: string
+                          format: uuid
+                    required:
+                      - batchJobId
+                      - uploads
+                      - childJobIds
+                    additionalProperties: false
+        '400':
+          description: Bad Request - Invalid input or validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                      details:
+                        type: object
+                        additionalProperties: {}
+                    required:
+                      - code
+                      - message
+                    additionalProperties: false
+                  timestamp:
+                    type: string
+                    format: date-time
+                  requestId:
+                    type: string
+                required:
+                  - error
+                  - timestamp
+                  - requestId
+                additionalProperties: false
+        '404':
+          description: Not Found - Resource does not exist
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                      details:
+                        type: object
+                        additionalProperties: {}
+                    required:
+                      - code
+                      - message
+                    additionalProperties: false
+                  timestamp:
+                    type: string
+                    format: date-time
+                  requestId:
+                    type: string
+                required:
+                  - error
+                  - timestamp
+                  - requestId
+                additionalProperties: false
+        '500':
+          description: Internal Server Error - Unexpected server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                      details:
+                        type: object
+                        additionalProperties: {}
+                    required:
+                      - code
+                      - message
+                    additionalProperties: false
+                  timestamp:
+                    type: string
+                    format: date-time
+                  requestId:
+                    type: string
+                required:
+                  - error
+                  - timestamp
+                  - requestId
+                additionalProperties: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              anyOf:
+                - type: object
+                  properties:
+                    fileName:
+                      type: string
+                      minLength: 1
+                    contentType:
+                      type: string
+                      pattern: ^image\/(jpeg|png|heic|webp)$
+                    fileSize:
+                      type: number
+                      exclusiveMinimum: true
+                      minimum: 0
+                      maximum: 52428800
+                    prompt:
+                      type: string
+                      minLength: 1
+                  required:
+                    - fileName
+                    - contentType
+                    - fileSize
+                  additionalProperties: false
+                - type: object
+                  properties:
+                    files:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          fileName:
+                            type: string
+                            minLength: 1
+                          contentType:
+                            type: string
+                            pattern: ^image\/(jpeg|png|heic|webp)$
+                          fileSize:
+                            type: number
+                            exclusiveMinimum: true
+                            minimum: 0
+                            maximum: 52428800
+                        required:
+                          - fileName
+                          - contentType
+                          - fileSize
+                        additionalProperties: false
+                      minItems: 1
+                      maxItems: 10
+                    sharedPrompt:
+                      type: string
+                      minLength: 1
+                    individualPrompts:
+                      type: array
+                      items:
+                        anyOf:
+                          - not: {}
+                          - type: string
+                  required:
+                    - files
+                    - sharedPrompt
+                  additionalProperties: false
+  /v1/jobs/{id}:
+    get:
+      operationId: getJobStatus
+      summary: Get job status
+      description: Retrieves the current processing status and metadata for a job by its ID.
+      tags:
+        - Jobs
+      parameters:
+        - name: id
+          in: path
+          description: Job UUID
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jobId:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum:
+                      - QUEUED
+                      - PROCESSING
+                      - EDITING
+                      - COMPLETED
+                      - FAILED
+                  createdAt:
+                    type: string
+                    format: date-time
+                  updatedAt:
+                    type: string
+                    format: date-time
+                  error:
+                    type: string
+                required:
+                  - jobId
+                  - status
+                  - createdAt
+                  - updatedAt
+                additionalProperties: false
+        '400':
+          description: Bad Request - Invalid input or validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                      details:
+                        type: object
+                        additionalProperties: {}
+                    required:
+                      - code
+                      - message
+                    additionalProperties: false
+                  timestamp:
+                    type: string
+                    format: date-time
+                  requestId:
+                    type: string
+                required:
+                  - error
+                  - timestamp
+                  - requestId
+                additionalProperties: false
+        '404':
+          description: Not Found - Resource does not exist
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                      details:
+                        type: object
+                        additionalProperties: {}
+                    required:
+                      - code
+                      - message
+                    additionalProperties: false
+                  timestamp:
+                    type: string
+                    format: date-time
+                  requestId:
+                    type: string
+                required:
+                  - error
+                  - timestamp
+                  - requestId
+                additionalProperties: false
+        '500':
+          description: Internal Server Error - Unexpected server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                      details:
+                        type: object
+                        additionalProperties: {}
+                    required:
+                      - code
+                      - message
+                    additionalProperties: false
+                  timestamp:
+                    type: string
+                    format: date-time
+                  requestId:
+                    type: string
+                required:
+                  - error
+                  - timestamp
+                  - requestId
+                additionalProperties: false
+  /v1/batch-status/{batchJobId}:
+    get:
+      operationId: getBatchJobStatus
+      summary: Get batch job status
+      description: Retrieves aggregate status and progress for a batch job, including completion count and child job IDs.
+      tags:
+        - Jobs
+        - Batch
+      parameters:
+        - name: batchJobId
+          in: path
+          description: Batch Job UUID
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  batchJobId:
+                    type: string
+                    format: uuid
+                  userId:
+                    type: string
+                  status:
+                    type: string
+                    enum:
+                      - QUEUED
+                      - PROCESSING
+                      - EDITING
+                      - COMPLETED
+                      - FAILED
+                  createdAt:
+                    type: string
+                    format: date-time
+                  updatedAt:
+                    type: string
+                    format: date-time
+                  sharedPrompt:
+                    type: string
+                  completedCount:
+                    type: number
+                    minimum: 0
+                  totalCount:
+                    type: number
+                    exclusiveMinimum: true
+                    minimum: 0
+                  childJobIds:
+                    type: array
+                    items:
+                      type: string
+                      format: uuid
+                  error:
+                    type: string
+                required:
+                  - batchJobId
+                  - userId
+                  - status
+                  - createdAt
+                  - updatedAt
+                  - sharedPrompt
+                  - completedCount
+                  - totalCount
+                  - childJobIds
+                additionalProperties: false
+        '400':
+          description: Bad Request - Invalid input or validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                      details:
+                        type: object
+                        additionalProperties: {}
+                    required:
+                      - code
+                      - message
+                    additionalProperties: false
+                  timestamp:
+                    type: string
+                    format: date-time
+                  requestId:
+                    type: string
+                required:
+                  - error
+                  - timestamp
+                  - requestId
+                additionalProperties: false
+        '404':
+          description: Not Found - Resource does not exist
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                      details:
+                        type: object
+                        additionalProperties: {}
+                    required:
+                      - code
+                      - message
+                    additionalProperties: false
+                  timestamp:
+                    type: string
+                    format: date-time
+                  requestId:
+                    type: string
+                required:
+                  - error
+                  - timestamp
+                  - requestId
+                additionalProperties: false
+        '500':
+          description: Internal Server Error - Unexpected server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                      details:
+                        type: object
+                        additionalProperties: {}
+                    required:
+                      - code
+                      - message
+                    additionalProperties: false
+                  timestamp:
+                    type: string
+                    format: date-time
+                  requestId:
+                    type: string
+                required:
+                  - error
+                  - timestamp
+                  - requestId
+                additionalProperties: false
+  /v1/jobs/{id}/download:
+    get:
+      operationId: downloadJobResult
+      summary: Get download URL for completed job
+      description: Generates a presigned S3 download URL for a completed job's edited photo. Returns 400 if job is not completed.
+      tags:
+        - Jobs
+        - Download
+      parameters:
+        - name: id
+          in: path
+          description: Job UUID
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  downloadUrl:
+                    type: string
+                    format: uri
+                  expiresAt:
+                    type: string
+                    format: date-time
+                  jobId:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                required:
+                  - downloadUrl
+                  - expiresAt
+                  - jobId
+                  - status
+                additionalProperties: false
+        '400':
+          description: Bad Request - Invalid input or validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                      details:
+                        type: object
+                        additionalProperties: {}
+                    required:
+                      - code
+                      - message
+                    additionalProperties: false
+                  timestamp:
+                    type: string
+                    format: date-time
+                  requestId:
+                    type: string
+                required:
+                  - error
+                  - timestamp
+                  - requestId
+                additionalProperties: false
+        '404':
+          description: Not Found - Resource does not exist
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                      details:
+                        type: object
+                        additionalProperties: {}
+                    required:
+                      - code
+                      - message
+                    additionalProperties: false
+                  timestamp:
+                    type: string
+                    format: date-time
+                  requestId:
+                    type: string
+                required:
+                  - error
+                  - timestamp
+                  - requestId
+                additionalProperties: false
+        '500':
+          description: Internal Server Error - Unexpected server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                      details:
+                        type: object
+                        additionalProperties: {}
+                    required:
+                      - code
+                      - message
+                    additionalProperties: false
+                  timestamp:
+                    type: string
+                    format: date-time
+                  requestId:
+                    type: string
+                required:
+                  - error
+                  - timestamp
+                  - requestId
+                additionalProperties: false
+  /v1/device-tokens:
+    post:
+      operationId: registerDeviceToken
+      summary: Register device token
+      description: Registers an Expo push notification token for a user's device to enable push notifications for job completion.
+      tags:
+        - Notifications
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                required:
+                  - success
+                  - message
+                additionalProperties: false
+        '400':
+          description: Bad Request - Invalid input or validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                      details:
+                        type: object
+                        additionalProperties: {}
+                    required:
+                      - code
+                      - message
+                    additionalProperties: false
+                  timestamp:
+                    type: string
+                    format: date-time
+                  requestId:
+                    type: string
+                required:
+                  - error
+                  - timestamp
+                  - requestId
+                additionalProperties: false
+        '404':
+          description: Not Found - Resource does not exist
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                      details:
+                        type: object
+                        additionalProperties: {}
+                    required:
+                      - code
+                      - message
+                    additionalProperties: false
+                  timestamp:
+                    type: string
+                    format: date-time
+                  requestId:
+                    type: string
+                required:
+                  - error
+                  - timestamp
+                  - requestId
+                additionalProperties: false
+        '500':
+          description: Internal Server Error - Unexpected server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                      details:
+                        type: object
+                        additionalProperties: {}
+                    required:
+                      - code
+                      - message
+                    additionalProperties: false
+                  timestamp:
+                    type: string
+                    format: date-time
+                  requestId:
+                    type: string
+                required:
+                  - error
+                  - timestamp
+                  - requestId
+                additionalProperties: false
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                expoPushToken:
+                  type: string
+                  minLength: 1
+                platform:
+                  type: string
+                  enum:
+                    - ios
+                    - android
+                deviceId:
+                  type: string
+                  minLength: 1
+              required:
+                - expoPushToken
+                - platform
+                - deviceId
+              additionalProperties: false
+    delete:
+      operationId: deactivateDeviceToken
+      summary: Deactivate device token
+      description: Deactivates a previously registered push notification token, stopping notifications for the specified device.
+      tags:
+        - Notifications
+      parameters:
+        - name: deviceId
+          in: query
+          description: Device identifier to deactivate
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                required:
+                  - success
+                  - message
+                additionalProperties: false
+        '400':
+          description: Bad Request - Invalid input or validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                      details:
+                        type: object
+                        additionalProperties: {}
+                    required:
+                      - code
+                      - message
+                    additionalProperties: false
+                  timestamp:
+                    type: string
+                    format: date-time
+                  requestId:
+                    type: string
+                required:
+                  - error
+                  - timestamp
+                  - requestId
+                additionalProperties: false
+        '404':
+          description: Not Found - Resource does not exist
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                      details:
+                        type: object
+                        additionalProperties: {}
+                    required:
+                      - code
+                      - message
+                    additionalProperties: false
+                  timestamp:
+                    type: string
+                    format: date-time
+                  requestId:
+                    type: string
+                required:
+                  - error
+                  - timestamp
+                  - requestId
+                additionalProperties: false
+        '500':
+          description: Internal Server Error - Unexpected server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                      details:
+                        type: object
+                        additionalProperties: {}
+                    required:
+                      - code
+                      - message
+                    additionalProperties: false
+                  timestamp:
+                    type: string
+                    format: date-time
+                  requestId:
+                    type: string
+                required:
+                  - error
+                  - timestamp
+                  - requestId
+                additionalProperties: false
 components:
   schemas:
     FileUpload:

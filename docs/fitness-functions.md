@@ -11,10 +11,10 @@ Goal: lock in maintainability scaffolding before feature work.
 
 ## Stage B — Core Flow Contracts (Week 1)
 Goal: demonstrate functional suitability of the upload pipeline end-to-end.
-- `npm run test -- core-flow` (backend) to contract-test `POST /upload/presign` against `PresignUploadResponseSchema` (`shared/schemas/api.schema.ts:45`).
+- `npm run test -- core-flow` (backend) to contract-test `POST /v1/upload/presign` against `PresignUploadResponseSchema` (`shared/schemas/api.schema.ts:45`).
 - `npm run test -- worker-flow` to simulate S3→SQS→worker transitions in `backend/src/lambdas/worker.ts:70-129` and validate `JobStatusSchema` (`shared/schemas/job.schema.ts:13`).
 - `npm run test -- schema-diff` to ensure shared zod definitions stay in sync across client/server (`docs/stage-1-thin-guide.md:68-69`).
-- `npm run test -- status.contract` to confirm `GET /jobs/{id}` emits the allowed statuses (`docs/stage-1-thin-guide.md:19-21`).
+- `npm run test -- status.contract` to confirm `GET /v1/jobs/{id}` emits the allowed statuses (`docs/stage-1-thin-guide.md:19-21`).
 
 ## Stage C — Experience & Offline Resilience (Week 2)
 Goal: harden the mobile experience and provider abstraction.
@@ -34,8 +34,8 @@ Goal: satisfy the must-pass security/compliance checklist before wider adoption.
 Goal: document budgets and artifacts required for Stage 1 completeness.
 - `npx artillery run qa/perf/core-flow.yaml` (or equivalent) to assert P95 ≤ 250 ms for presign and ≤ 5 s for worker (`docs/stage-1-thin-guide.md:23-26`).
 - `npm run build:lambdas` in `backend` to guarantee esbuild bundles succeed on every PR (`docs/stage-1-thin-guide.md:101`).
-- `make stage1-artifacts` (scripted) to regenerate architecture diagram, ADR lint, and scoring worksheet (`docs/stage-1-thin-guide.md:109-123`).
-- `make stage1-verify` aggregating `typecheck`, `lint`, `test`, and contract/scan commands so local runs mirror CI gates (`docs/stage-1-thin-guide.md:100-106`).
+- `./scripts/evidence-bundle` to regenerate architecture diagram, ADR lint, and scoring worksheet (`docs/stage-1-thin-guide.md:109-123`).
+- `make qa-suite` aggregating `typecheck`, `lint`, `test`, and contract/scan commands so local runs mirror CI gates (`docs/stage-1-thin-guide.md:100-106`).
 
 ## Usage Tips
 - Wire these stages into CI incrementally: Stage A commands block every PR; later stages run nightly until green.

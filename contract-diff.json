@@ -1,16 +1,17 @@
 {
-  "timestamp": "2025-10-11T08:38:57.229Z",
-  "previousSnapshot": "2025-10-11T08:19:14.138Z",
-  "currentSnapshot": "2025-10-11T08:38:57.226Z",
+  "timestamp": "2025-10-14T17:48:06.701Z",
+  "previousSnapshot": "2025-10-12T07:40:36.635Z",
+  "currentSnapshot": "2025-10-14T17:48:06.697Z",
   "differences": {
     "added": [],
     "removed": [],
     "modified": [
+      "shared/dist/routes.manifest.js",
       "shared/dist/schemas/api.schema.d.ts",
       "shared/dist/schemas/api.schema.js",
-      "shared/dist/schemas/provider.schema.d.ts",
-      "shared/dist/types/error.types.d.ts",
-      "shared/dist/types/error.types.js"
+      "contracts/clients/checksums.json",
+      "contracts/clients/photoeditor-api.ts",
+      "openapi/openapi-generated.yaml"
     ]
   },
   "requiresChangeset": true

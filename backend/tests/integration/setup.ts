@@ -14,6 +14,10 @@ export function setupLocalStackEnv(): void {
   process.env.AWS_REGION = 'us-east-1';
   process.env.AWS_ACCESS_KEY_ID = 'test';
   process.env.AWS_SECRET_ACCESS_KEY = 'test';
+  delete process.env.AWS_PROFILE;
+  delete process.env.AWS_DEFAULT_PROFILE;
+  process.env.AWS_SDK_LOAD_CONFIG = '0';
+  process.env.AWS_EC2_METADATA_DISABLED = 'true';
   process.env.TEMP_BUCKET_NAME = 'test-temp-bucket';
   process.env.FINAL_BUCKET_NAME = 'test-final-bucket';
   process.env.JOBS_TABLE_NAME = 'test-jobs-table';
@@ -22,6 +26,8 @@ export function setupLocalStackEnv(): void {
   process.env.NODE_ENV = 'test';
   process.env.LOG_LEVEL = 'error';
   process.env.NO_COLOR = '1';
+  // Allow network connections to LocalStack (required by nock in tests/setup.js)
+  process.env.ALLOW_LOCALHOST = 'true';
 }
 
 /**
@@ -152,10 +158,35 @@ export async function deleteBucket(client: S3Client, bucketName: string): Promis
  * Wait for LocalStack to be ready
  * Implements retry with exponential backoff per testing-standards.md risk mitigation
  */
-export async function waitForLocalStack(maxRetries = 10, initialDelay = 100): Promise<void> {
+export interface WaitForLocalStackOptions {
+  /** Maximum number of retries before failing fast */
+  maxRetries?: number;
+  /** Initial delay (ms) for exponential backoff */
+  initialDelayMs?: number;
+  /** Absolute timeout (ms) before bailing regardless of retries */
+  timeoutMs?: number;
+}
+
+export class LocalStackUnavailableError extends Error {
+  constructor(endpoint: string | undefined, cause?: unknown) {
+    const help = "Start LocalStack with 'make localstack-up' (docker-compose) or point LOCALSTACK_ENDPOINT to a running instance.";
+    const message = `LocalStack is not reachable at ${endpoint ?? 'http://localhost:4566'}. ${help}`;
+    super(cause instanceof Error ? `${message} Original error: ${cause.message}` : message);
+    this.name = 'LocalStackUnavailableError';
+  }
+}
+
+export async function waitForLocalStack(options: WaitForLocalStackOptions = {}): Promise<void> {
+  const {
+    maxRetries = 6,
+    initialDelayMs = 250,
+    timeoutMs = 15_000,
+  } = options;
+
+  const endpoint = process.env.LOCALSTACK_ENDPOINT;
   const client = new DynamoDBClient({
     region: process.env.AWS_REGION!,
-    endpoint: process.env.LOCALSTACK_ENDPOINT,
+    endpoint,
     credentials: {
       accessKeyId: 'test',
       secretAccessKey: 'test'
@@ -163,21 +194,24 @@ export async function waitForLocalStack(maxRetries = 10, initialDelay = 100): Pr
   });
 
   let retries = 0;
-  let delay = initialDelay;
+  let delay = initialDelayMs;
+  const timeoutAt = Date.now() + timeoutMs;
 
-  while (retries < maxRetries) {
+  while (retries < maxRetries && Date.now() < timeoutAt) {
     try {
       await client.send(new ListTablesCommand({}));
       return; // Success
     } catch (error) {
       retries++;
-      if (retries >= maxRetries) {
-        throw new Error(`LocalStack not ready after ${maxRetries} retries: ${error}`);
+      if (retries >= maxRetries || Date.now() + delay > timeoutAt) {
+        throw new LocalStackUnavailableError(endpoint, error);
       }
       await new Promise(resolve => setTimeout(resolve, delay));
       delay *= 2; // Exponential backoff
     }
   }
+
+  throw new LocalStackUnavailableError(endpoint);
 }
 
 /**

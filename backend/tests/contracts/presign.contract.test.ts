@@ -1,5 +1,5 @@
 /**
- * Contract tests for POST /upload/presign endpoint
+ * Contract tests for POST /v1/upload/presign endpoint
  * These tests validate that the response conforms to the OpenAPI specification
  */
 
@@ -49,13 +49,32 @@ process.env.BATCH_TABLE_NAME = 'test-batch-table';
 const dynamoMock = mockClient(DynamoDBClient);
 const s3Mock = mockClient(S3Client);
 
+// Create instances that will be used by the services
+const mockDynamoInstance = new DynamoDBClient({});
+const mockS3Instance = new S3Client({});
+
+// Mock @backend/core to return mocked clients
+jest.mock('@backend/core', () => {
+  return {
+    createSSMClient: jest.fn().mockReturnValue({}),
+    createDynamoDBClient: jest.fn().mockReturnValue(mockDynamoInstance),
+    createS3Client: jest.fn().mockReturnValue(mockS3Instance),
+    createSNSClient: jest.fn().mockReturnValue({}),
+    ConfigService: jest.fn().mockImplementation(() => ({})),
+    BootstrapService: jest.fn().mockImplementation(() => ({
+      initializeProviders: jest.fn().mockResolvedValue(undefined)
+    })),
+    StandardProviderCreator: jest.fn().mockImplementation(() => ({}))
+  };
+}, { virtual: true });
+
 // Import handler after mocks
 import { handler } from '../../src/lambdas/presign';
 
 // Type guard for API Gateway response
 type APIGatewayResponse = Exclude<Awaited<ReturnType<typeof handler>>, string>;
 
-describe('POST /upload/presign - Contract Tests', () => {
+describe('POST /v1/upload/presign - Contract Tests', () => {
   beforeEach(() => {
     dynamoMock.reset();
     s3Mock.reset();
@@ -67,8 +86,8 @@ describe('POST /upload/presign - Contract Tests', () => {
 
   const createEvent = (body: any): APIGatewayProxyEventV2 => ({
     version: '2.0',
-    routeKey: 'POST /upload/presign',
-    rawPath: '/upload/presign',
+    routeKey: 'POST /v1/upload/presign',
+    rawPath: '/v1/upload/presign',
     rawQueryString: '',
     headers: { 'Content-Type': 'application/json' },
     requestContext: {
@@ -78,13 +97,13 @@ describe('POST /upload/presign - Contract Tests', () => {
       domainPrefix: 'api',
       http: {
         method: 'POST',
-        path: '/upload/presign',
+        path: '/v1/upload/presign',
         protocol: 'HTTP/1.1',
         sourceIp: '127.0.0.1',
         userAgent: 'contract-test'
       },
       requestId: 'contract-test-request-id',
-      routeKey: 'POST /upload/presign',
+      routeKey: 'POST /v1/upload/presign',
       stage: 'v1',
       time: '04/Oct/2025:00:00:00 +0000',
       timeEpoch: Date.now(),

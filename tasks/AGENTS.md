@@ -276,7 +276,8 @@ risks:
 - Deliverables enumerate files to change/create.
 - Risks include at least one mitigation.
 - `complexity` is set and aligns with intended batching behavior.
- - After each working session, add/update a `changelog/` entry (see Session Logging).
+- After each working session, add/update a `changelog/` entry (see Session Logging).
+- **When adding new fitness functions**: Update `scripts/qa/qa-suite.sh` to ensure the check propagates to local hooks and CI automatically (see QA Suite Integration below).
 
 ## LLM Execution Notes
 - Prefer reading referenced files before editing.
@@ -306,6 +307,36 @@ risks:
   - `scripts/pick-task.sh --pick [todo|in_progress]` — print path of the single highest-priority task (default: `todo`) without changing status
   - `scripts/pick-task.sh --claim [TASK_FILE]` — set `status: in_progress`
   - `scripts/pick-task.sh --complete [TASK_FILE]` — set `status: completed` and archive to `docs/completed-tasks/`
+
+## QA Suite Integration
+
+When adding new fitness functions or quality checks, follow this pattern to ensure consistency across local development and CI:
+
+### Adding a New Fitness Check
+
+1. **Update the QA Suite Script**: Add the check to `scripts/qa/qa-suite.sh` in the appropriate stage (QA-A through QA-E)
+2. **Add Skip Control**: Support skipping the check via environment variable (e.g., `SKIP_MYCHECK=1`) for local workflows
+3. **Document the Check**: Update `docs/testing-standards.md` under the relevant test type section
+4. **Update Task Files**: Add acceptance criteria referencing the new check to relevant tasks
+5. **Test Locally**: Run `make qa-suite` to verify the check works and fails appropriately
+
+### QA Suite Stages
+
+- **QA-A**: Static Safety Nets (typecheck, lint)
+- **QA-B**: Contract Drift Detection (schema validation)
+- **QA-C**: Core Flow Contracts (unit, contract tests)
+- **QA-D**: Infrastructure & Security (terraform, security audit)
+- **QA-E**: Build Verification (lambda builds, tooling)
+
+### Why This Matters
+
+The centralized QA suite ensures:
+- Developers run the same checks locally as CI
+- Husky hooks use identical validation logic
+- New checks automatically propagate to all entry points
+- Skip controls provide flexibility without breaking consistency
+
+See `docs/testing-standards.md` for complete QA suite documentation.
 
 ## Relation to Other Guidelines
 - Validation style can mirror `changelog/AGENTS.md` (concise evidence, grouped by file).

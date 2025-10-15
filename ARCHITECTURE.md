@@ -6,7 +6,7 @@ The photoeditor project is a multi-package monorepo composed of a React Native m
 ## Mobile Application (`mobile/`)
 - Built with Expo/React Native (TypeScript) and structured around a stack + tab navigator (`mobile/src/navigation/AppNavigator.tsx`).
 - State management via Redux Toolkit slices for image selection, job tracking, and application settings (`mobile/src/store/`).
-- `ApiService` orchestrates single-image and batch uploads, manages presign requests, polls both `/status/{jobId}` and `/batch-status/{batchJobId}`, and exposes device token registration/deactivation helpers (`mobile/src/services/ApiService.ts`). The service currently maintains local Zod schemas that mirror `@photoeditor/shared`; consolidating on the shared package will reduce contract drift risk.
+- `ApiService` orchestrates single-image and batch uploads, manages presign requests, polls job status, and exposes device token registration/deactivation helpers (`mobile/src/services/ApiService.ts`). The service consumes request/response schemas directly from `@photoeditor/shared` to stay aligned with backend contracts.
 - `NotificationService` registers the device for Expo push notifications, persists the Expo push token, wires notification listeners, and schedules local notifications (`mobile/src/services/NotificationService.ts`).
 - Screens under `mobile/src/screens/` provide UI for camera capture, gallery browsing, job/batch status, editing, and settings while dispatching Redux actions in response to notification events.
 
@@ -34,22 +34,23 @@ The photoeditor project is a multi-package monorepo composed of a React Native m
 - Exposes TypeScript types for S3 key strategy, errors, and provider responses (`shared/types/`).
 
 ## Infrastructure (`infrastructure/`)
-- Terraform configuration is presently scoped to LocalStack deployments and inlines the resources required for the worker pipeline (`infrastructure/main.tf`). The stack provisions:
+- Local development uses Terraform modules tailored for LocalStack (`infrastructure/main.tf`), provisioning:
   - KMS CMK, temp/final S3 buckets, queue + DLQ, SNS topic, DynamoDB jobs table, and supporting IAM policies.
-  - Lambda functions for presign, status, worker, and download flows, exposed via a REST API Gateway for LocalStack.
+  - Lambda functions for presign, status, worker, and download flows, exposed via an HTTP API Gateway for LocalStack.
+- Production and staging environments are modeled with SST stacks (`infra/sst/stacks/*.ts`) that compose equivalent resources—KMS, S3, DynamoDB, SQS/SNS, and the Lambda suite—while enforcing `STANDARDS.md` tags, alarms, and log retention policies.
 - Batch job support relies on a DynamoDB companion table but still needs an API surface for `/batch-status` resolution.
-- Device token management is implemented in code yet lacks Terraform definitions for the DynamoDB table, Lambda deployment, and API Gateway integration; these additions are required before enabling the feature outside of tests.
+- Device token management is implemented in code yet lacks infrastructure definitions (table, Lambda deployment, API Gateway integration); these additions are required before enabling the feature outside of tests.
 - A production VPC/data-plane build-out (e.g., NAT, VPC endpoints, Lambda per-subnet configuration) remains future work referenced in `docs/tech.md` but not yet codified.
 
 ## Data & Control Flow
-1. Mobile client requests presigned upload URLs for single or batch workflows; `presign` creates the necessary job and batch records, returning temp S3 details.
-2. Client uploads photos directly to the temp bucket and begins polling `/status/{jobId}` or `/batch-status/{batchJobId}` while also registering for push updates.
+1. Mobile client requests presigned upload URLs for single or batch workflows via `POST /v1/upload/presign`; `presign` creates the necessary job and batch records, returning temp S3 details.
+2. Client uploads photos directly to the temp bucket and begins polling `GET /v1/jobs/{jobId}` (batch workflows still target a future `/batch-status` endpoint) while also registering for push updates.
 3. S3 object-created events enqueue messages to SQS; the worker Lambda consumes them, updates job status, invokes analysis/editing providers, maintains batch progress, stores final assets, and emits SNS notifications.
-4. Upon completion, clients obtain processed images via download endpoints, job/batch polling, or push-notification deep links; `download` generates presigned final URLs on demand.
+4. Upon completion, clients obtain processed images via `GET /v1/jobs/{jobId}/download`, job/batch polling, or push-notification deep links; `download` generates presigned final URLs on demand.
 
 ## Cross-Cutting Concerns
 - Logging, metrics, and X-Ray tracing instrument Lambdas via Powertools (`backend/src/lambdas/*`).
-- Strict schema validation and shared types ensure consistent API contracts between backend and shared libraries. The mobile client mirrors these Zod schemas locally today; adopting `@photoeditor/shared` on mobile would eliminate duplication.
+- Strict schema validation and shared types ensure consistent API contracts between backend and shared libraries. The mobile client now consumes these Zod schemas directly from `@photoeditor/shared`, removing duplication risks.
 - Provider bootstrap toggles between stub and real integrations based on SSM configuration, supporting local development and production.
 - Terraform tags, lifecycle settings, and IAM policies enforce least privilege, encryption, and cost controls across environments.
 - Push notification support spans the mobile `NotificationService`, backend `DeviceTokenService`, and SNS fan-out, but the infrastructure required for production device token storage and API exposure is pending.

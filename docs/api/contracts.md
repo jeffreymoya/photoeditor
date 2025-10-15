@@ -1,13 +1,48 @@
 # API Contract Documentation
 
 **Version:** 1.0.0
-**Last Updated:** 2025-10-05
+**Last Updated:** 2025-10-11
 **Base URL:** `https://api.photoeditor.com` (prod), `https://api-staging.photoeditor.com` (staging)
-**Related:** ADR-0003 (Contract-First API), ADR-0005 (npm Workspaces), STANDARDS.md (lines 40, 87-88, 145-146)
+**Related:** ADR-0003 (Contract-First API), ADR-0005 (npm Workspaces), standards/shared-contracts-tier.md, STANDARDS.md (lines 40, 87-88, 145-146)
 
 ## Overview
 
-PhotoEditor API follows contract-first design with Zod schemas in `packages/contracts`. All requests/responses are validated against these schemas to prevent drift between mobile and backend.
+PhotoEditor API follows contract-first design with Zod schemas in `shared/schemas/` and route definitions in `shared/routes.manifest.ts`. All requests/responses are validated against these schemas to prevent drift between mobile and backend.
+
+### Contract Generation Pipeline
+
+Per ADR-0003 and TASK-0602, the API contract generation follows this workflow:
+
+1. **Source of Truth**: Zod schemas (`shared/schemas/`) + Routes manifest (`shared/routes.manifest.ts`)
+2. **Generation**: `npm run contracts:generate` produces:
+   - OpenAPI spec (`docs/openapi/openapi-generated.yaml`) with populated `paths`
+   - TypeScript types (`docs/contracts/clients/types.ts`)
+   - API client (`docs/contracts/clients/photoeditor-api.ts`)
+3. **Validation**: `npm run contracts:check` detects drift
+4. **CI Enforcement**: Route alignment checked via `scripts/ci/check-route-alignment.sh`
+
+### Registering New Routes
+
+To add a new API endpoint:
+
+1. Define Zod request/response schemas in `shared/schemas/api.schema.ts`
+2. Add route entry to `shared/routes.manifest.ts`:
+   ```typescript
+   {
+     method: 'POST',
+     path: '/v1/your-endpoint',
+     handler: 'yourHandler',
+     operationId: 'yourOperation',
+     summary: 'Short description',
+     description: 'Detailed description',
+     requestSchema: YourRequestSchema,
+     responseSchema: YourResponseSchema,
+     tags: ['YourTag'],
+   }
+   ```
+3. Regenerate contracts: `npm run contracts:generate --prefix shared`
+4. Update Terraform to wire Lambda handler to the route
+5. Verify alignment: `scripts/ci/check-route-alignment.sh`
 
 ## Authentication
 
@@ -43,7 +78,7 @@ interface ErrorResponse {
 
 ## Endpoints
 
-### POST /jobs/presign
+### POST /v1/upload/presign
 
 Create a new job and get S3 presigned POST URL for file upload.
 
@@ -80,7 +115,7 @@ interface PresignResponse {
 **Example:**
 
 ```bash
-curl -X POST https://api-staging.photoeditor.com/jobs/presign \
+curl -X POST https://api-staging.photoeditor.com/v1/upload/presign \
   -H "Content-Type: application/json" \
   -H "X-Correlation-Id: req-abc123" \
   -d '{
@@ -114,7 +149,7 @@ curl -X POST "${uploadUrl}" \
 
 ---
 
-### GET /jobs/{jobId}
+### GET /v1/jobs/{jobId}
 
 Get job status and result.
 
@@ -152,7 +187,7 @@ interface JobStatusResponse {
 **Example:**
 
 ```bash
-curl -X GET https://api-staging.photoeditor.com/jobs/01HF9GXXX... \
+curl -X GET https://api-staging.photoeditor.com/v1/jobs/01HF9GXXX... \
   -H "X-Correlation-Id: req-def456"
 ```
 
@@ -195,7 +230,7 @@ curl -X GET https://api-staging.photoeditor.com/jobs/01HF9GXXX... \
 
 ---
 
-### GET /jobs/{jobId}/download
+### GET /v1/jobs/{jobId}/download
 
 Get presigned download URL for processed result.
 
@@ -216,7 +251,7 @@ interface DownloadResponse {
 **Example:**
 
 ```bash
-curl -X GET https://api-staging.photoeditor.com/jobs/01HF9GXXX.../download \
+curl -X GET https://api-staging.photoeditor.com/v1/jobs/01HF9GXXX.../download \
   -H "X-Correlation-Id: req-ghi789"
 ```
 
@@ -259,9 +294,9 @@ Per STANDARDS.md line 134:
 
 - **Account-level:** 10,000 req/sec burst, sustained 10,000 req/sec
 - **Per-route limits:**
-  - `/jobs/presign`: 1,000 req/sec
-  - `/jobs/{id}`: 500 req/sec
-  - `/jobs/{id}/download`: 100 req/sec
+  - `/v1/upload/presign`: 1,000 req/sec
+  - `/v1/jobs/{id}`: 500 req/sec
+  - `/v1/jobs/{id}/download`: 100 req/sec
 
 **Rate Limit Headers (when throttled):**
 
@@ -277,7 +312,7 @@ X-RateLimit-Reset: 1696516260
 
 Per STANDARDS.md line 87-88:
 
-- **Current:** v1 (implicit, no version in path)
+- **Current:** v1 (all endpoint paths are prefixed with `/v1/`)
 - **Breaking changes:** New `/v2` prefix introduced
 - **Support:** N-1 versions supported for 6 months
 - **Deprecation:** Sunset date in `Sunset` HTTP header, 6-month notice
@@ -285,15 +320,15 @@ Per STANDARDS.md line 87-88:
 **Example future breaking change:**
 
 ```
-POST /v2/jobs/presign
+POST /v{next}/jobs/presign
 ```
 
 **Deprecation header (v1):**
 
 ```
-Sunset: Sat, 01 Apr 2026 00:00:00 GMT
+Sunset: <SUNSET_HTTP_DATE>
 Deprecation: true
-Link: </v2/jobs/presign>; rel="alternate"
+Link: </v{next}/jobs/presign>; rel="alternate"
 ```
 
 ## Pagination
@@ -338,7 +373,7 @@ export class PresignController {
 ```typescript
 import { jobStatusResponseSchema } from '@photoeditor/contracts';
 
-const response = await fetch(`${API_URL}/jobs/${jobId}`);
+const response = await fetch(`${API_URL}/v1/jobs/${jobId}`);
 const data = await response.json();
 const validated = jobStatusResponseSchema.parse(data); // Throws on invalid
 ```
@@ -377,7 +412,7 @@ info:
   title: PhotoEditor API
   version: 1.0.0
 paths:
-  /jobs/presign:
+  /v1/upload/presign:
     post:
       summary: Create job and get upload URL
       requestBody:

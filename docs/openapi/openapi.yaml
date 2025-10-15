@@ -16,12 +16,12 @@ servers:
     description: Production environment
 
 paths:
-  /upload/presign:
+  /v1/upload/presign:
     post:
       summary: Generate presigned upload URL
       description: |
         Generate a presigned URL for uploading an image to S3. Supports both single
-        file upload (legacy) and batch upload (multiple files with shared/individual prompts).
+        file uploads and batch uploads (multiple files with shared/individual prompts).
       operationId: generatePresignedUrl
       tags:
         - Upload
@@ -111,7 +111,7 @@ paths:
               example:
                 error: "Internal server error"
 
-  /jobs/{jobId}:
+  /v1/jobs/{jobId}:
     get:
       summary: Get job status
       description: Retrieve the current status of a processing job

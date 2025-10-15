@@ -18,7 +18,7 @@ scenarios:
     weight: 50
     flow:
       - post:
-          url: "/upload/presign"
+          url: "/v1/upload/presign"
           headers:
             Content-Type: "application/json"
           json:
@@ -39,7 +39,7 @@ scenarios:
     weight: 30
     flow:
       - post:
-          url: "/upload/presign"
+          url: "/v1/upload/presign"
           headers:
             Content-Type: "application/json"
           json:
@@ -57,14 +57,14 @@ scenarios:
           expect:
             - statusCode: 200
             - contentType: json
-            - hasProperty: batchId
+            - hasProperty: batchJobId
             - hasProperty: uploads
 
   - name: "Check job status"
     weight: 20
     flow:
       - get:
-          url: "/jobs/{{ jobId }}"
+          url: "/v1/jobs/{{ jobId }}"
           expect:
             - statusCode: [200, 404]
             - contentType: json

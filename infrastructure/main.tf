@@ -60,15 +60,17 @@ locals {
   temp_bucket_name  = "${local.common_name}-temp-${local.account_id}"
   final_bucket_name = "${local.common_name}-final-${local.account_id}"
 
-  jobs_table_name = "${local.common_name}-jobs"
+  jobs_table_name         = "${local.common_name}-jobs"
+  device_token_table_name = "${local.common_name}-device-tokens"
 
   api_name = "${local.common_name}-api"
 
   lambda_names = {
-    presign  = "${local.common_name}-presign"
-    status   = "${local.common_name}-status"
-    worker   = "${local.common_name}-worker"
-    download = "${local.common_name}-download"
+    presign     = "${local.common_name}-presign"
+    status      = "${local.common_name}-status"
+    worker      = "${local.common_name}-worker"
+    download    = "${local.common_name}-download"
+    deviceToken = "${local.common_name}-device-token"
   }
 }
 
@@ -145,6 +147,20 @@ resource "aws_dynamodb_table" "jobs_batches" {
     attribute_name = "expires_at"
     enabled        = true
   }
+
+  tags = var.tags
+}
+
+# Storage Module - Device tokens table with KMS encryption and PITR
+module "storage" {
+  source = "./modules/storage"
+
+  environment             = var.environment
+  project_name            = var.project_name
+  common_name             = local.common_name
+  device_token_table_name = local.device_token_table_name
+  billing_mode            = "PAY_PER_REQUEST"
+  kms_key_arn             = module.kms.key_arn
 
   tags = var.tags
 }
@@ -241,7 +257,8 @@ resource "aws_iam_role_policy" "lambda_policy" {
         ]
         Resource = [
           aws_dynamodb_table.jobs.arn,
-          aws_dynamodb_table.jobs_batches.arn
+          aws_dynamodb_table.jobs_batches.arn,
+          module.storage.device_token_table_arn
         ]
       },
       {
@@ -369,6 +386,31 @@ resource "aws_lambda_function" "download" {
   tags = var.tags
 }
 
+# Device Token Lambda - Expo push notification token registration/deactivation
+resource "aws_lambda_function" "device_token" {
+  filename                       = "../backend/dist/lambdas/deviceToken/deviceToken.zip"
+  function_name                  = local.lambda_names.deviceToken
+  role                           = aws_iam_role.lambda_execution_role.arn
+  handler                        = "deviceToken.handler"
+  runtime                        = "nodejs20.x"
+  timeout                        = var.lambda_timeout
+  memory_size                    = 128 # Lightweight handler, minimal memory needed
+  reserved_concurrent_executions = var.lambda_reserved_concurrency
+
+  environment {
+    variables = {
+      PROJECT_NAME            = var.project_name
+      NODE_ENV                = var.environment
+      DEVICE_TOKEN_TABLE_NAME = module.storage.device_token_table_name
+    }
+  }
+
+  tags = merge(var.tags, {
+    Component = "device-token"
+    Function  = "notification-registration"
+  })
+}
+
 # BFF Lambda (NestJS Backend for Frontend) - Future migration target
 # Currently routing through individual lambdas; BFF will consolidate presign/status/download
 resource "aws_lambda_function" "bff" {
@@ -424,6 +466,13 @@ resource "aws_cloudwatch_log_group" "worker" {
 
 resource "aws_cloudwatch_log_group" "download" {
   name              = "/aws/lambda/${aws_lambda_function.download.function_name}"
+  retention_in_days = var.log_retention_days
+
+  tags = var.tags
+}
+
+resource "aws_cloudwatch_log_group" "device_token" {
+  name              = "/aws/lambda/${aws_lambda_function.device_token.function_name}"
   retention_in_days = var.log_retention_days
 
   tags = var.tags
@@ -542,12 +591,75 @@ resource "aws_api_gateway_integration" "download_item_integration" {
   uri                     = aws_lambda_function.download.invoke_arn
 }
 
+# Device Token API Gateway Resources - POST /v1/device-tokens and DELETE /v1/device-tokens
+resource "aws_api_gateway_resource" "v1" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  parent_id   = aws_api_gateway_rest_api.api.root_resource_id
+  path_part   = "v1"
+}
+
+resource "aws_api_gateway_resource" "device_tokens" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  parent_id   = aws_api_gateway_resource.v1.id
+  path_part   = "device-tokens"
+}
+
+resource "aws_api_gateway_method" "device_tokens_post" {
+  rest_api_id   = aws_api_gateway_rest_api.api.id
+  resource_id   = aws_api_gateway_resource.device_tokens.id
+  http_method   = "POST"
+  authorization = "NONE" # TODO: Add Cognito authorizer in production per standards/backend-tier.md
+}
+
+resource "aws_api_gateway_integration" "device_tokens_post_integration" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  resource_id = aws_api_gateway_resource.device_tokens.id
+  http_method = aws_api_gateway_method.device_tokens_post.http_method
+
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.device_token.invoke_arn
+}
+
+resource "aws_api_gateway_method" "device_tokens_delete" {
+  rest_api_id   = aws_api_gateway_rest_api.api.id
+  resource_id   = aws_api_gateway_resource.device_tokens.id
+  http_method   = "DELETE"
+  authorization = "NONE" # TODO: Add Cognito authorizer in production per standards/backend-tier.md
+}
+
+resource "aws_api_gateway_integration" "device_tokens_delete_integration" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  resource_id = aws_api_gateway_resource.device_tokens.id
+  http_method = aws_api_gateway_method.device_tokens_delete.http_method
+
+  integration_http_method = "POST"
+  type                    = "AWS_PROXY"
+  uri                     = aws_lambda_function.device_token.invoke_arn
+}
+
+# API Gateway throttling settings for device token endpoints (standards/infrastructure-tier.md line 79)
+resource "aws_api_gateway_method_settings" "device_tokens_throttling" {
+  rest_api_id = aws_api_gateway_rest_api.api.id
+  stage_name  = aws_api_gateway_stage.dev.stage_name
+  method_path = "${aws_api_gateway_resource.v1.path_part}/${aws_api_gateway_resource.device_tokens.path_part}/*"
+
+  settings {
+    throttling_burst_limit = 100 # Allow bursts up to 100 RPS
+    throttling_rate_limit  = 50  # Steady-state 50 RPS
+    metrics_enabled        = true
+    logging_level          = var.api_gateway_log_level
+  }
+}
+
 resource "aws_api_gateway_deployment" "api_deployment" {
   depends_on = [
     aws_api_gateway_integration.presign_integration,
     aws_api_gateway_integration.status_integration,
     aws_api_gateway_integration.status_item_integration,
     aws_api_gateway_integration.download_item_integration,
+    aws_api_gateway_integration.device_tokens_post_integration,
+    aws_api_gateway_integration.device_tokens_delete_integration,
   ]
 
   rest_api_id = aws_api_gateway_rest_api.api.id
@@ -584,6 +696,14 @@ resource "aws_lambda_permission" "download_api_gateway" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.download.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.api.execution_arn}/*/*"
+}
+
+resource "aws_lambda_permission" "device_token_api_gateway" {
+  statement_id  = "AllowAPIGatewayInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.device_token.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_api_gateway_rest_api.api.execution_arn}/*/*"
 }

@@ -73,8 +73,8 @@ API versions follow a simplified semantic versioning model:
    ```
 
 6. **Changing URL structure**
-   - v1: `/upload/presign`
-   - v2: `/presign-upload` - BREAKING
+   - v1: `/v1/upload/presign`
+   - v2: `/v2/presign-upload` - BREAKING
 
 ### Non-Breaking Changes (Same Version)
 ✅ These changes are SAFE and don't require a version bump:

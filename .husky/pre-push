@@ -1,18 +1,15 @@
 #!/bin/sh
 set -e
 
-echo "Running pre-commit checks..."
+echo "Running pre-push QA validation..."
+echo ""
+echo "This runs the full QA suite including tests, infra checks, and builds."
+echo "Use SKIP_* env vars if you need to skip specific checks temporarily."
+echo ""
 
-# Check Terraform formatting
-echo "Checking Terraform formatting..."
-terraform fmt -recursive -check infrastructure/
+# Run full QA suite before pushing
+./scripts/qa/qa-suite.sh
 
-# Run typecheck for backend
-echo "Running typecheck for backend..."
-npm run typecheck --prefix backend
-
-# Run typecheck for shared
-echo "Running typecheck for shared..."
-npm run typecheck --prefix shared
-
-echo "All pre-commit checks passed!"
+echo ""
+echo "Pre-push validation passed!"
+echo "Pushing to remote..."

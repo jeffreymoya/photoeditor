@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Device from 'expo-device';
 import { apiService } from './ApiService';
+import { logger } from '../utils/logger';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -37,7 +38,7 @@ class NotificationService {
     }
 
     if (finalStatus !== 'granted') {
-      console.log('Failed to get push token for push notification!');
+      logger.warn('Failed to get push token for push notification!');
       return;
     }
 
@@ -45,12 +46,12 @@ class NotificationService {
       token = (await Notifications.getExpoPushTokenAsync()).data;
       this.expoPushToken = token;
       await AsyncStorage.setItem('expo_push_token', token);
-      console.log('Expo push token:', token);
+      logger.info('Expo push token:', token);
 
       // Register with backend
       await this.registerWithBackend();
     } catch (error) {
-      console.error('Error getting push token:', error);
+      logger.error('Error getting push token:', error);
     }
 
     if (Platform.OS === 'android') {
@@ -66,7 +67,7 @@ class NotificationService {
   private setupNotificationListeners() {
     // Handle notifications when app is in foreground
     Notifications.addNotificationReceivedListener((notification) => {
-      console.log('Notification received:', notification);
+      logger.info('Notification received:', notification);
 
       // Handle different types of job notifications
       const data = notification.request.content.data;
@@ -75,7 +76,7 @@ class NotificationService {
 
     // Handle notification interactions
     Notifications.addNotificationResponseReceivedListener((response) => {
-      console.log('Notification response:', response);
+      logger.info('Notification response:', response);
 
       // Handle job completion notifications
       const data = response.notification.request.content.data;
@@ -83,11 +84,11 @@ class NotificationService {
     });
   }
 
-  private handleJobNotification(data: any, isUserInteraction: boolean = false) {
+  private handleJobNotification(data: Record<string, unknown>, isUserInteraction: boolean = false) {
     if (data.type === 'job_status_update' || data.type === 'job_completion') {
       // Update job status in Redux store
       // This would need to be connected to your Redux store
-      console.log('Job status update:', {
+      logger.info('Job status update:', {
         jobId: data.jobId,
         status: data.status,
         isUserInteraction,
@@ -98,7 +99,7 @@ class NotificationService {
     }
 
     if (data.type === 'batch_completion') {
-      console.log('Batch job completed:', {
+      logger.info('Batch job completed:', {
         batchJobId: data.batchJobId,
         totalCount: data.totalCount,
         isUserInteraction,
@@ -126,7 +127,7 @@ class NotificationService {
 
   async scheduleJobCompletionNotification(jobId: string, prompt: string) {
     if (!this.expoPushToken) {
-      console.log('No push token available');
+      logger.warn('No push token available');
       return;
     }
 
@@ -147,7 +148,7 @@ class NotificationService {
   async scheduleLocalNotification(
     title: string,
     body: string,
-    data?: Record<string, any>
+    data?: Record<string, unknown>
   ) {
     await Notifications.scheduleNotificationAsync({
       content: {
@@ -165,7 +166,7 @@ class NotificationService {
 
   private async registerWithBackend() {
     if (!this.expoPushToken) {
-      console.log('No push token available for backend registration');
+      logger.warn('No push token available for backend registration');
       return;
     }
 
@@ -180,12 +181,12 @@ class NotificationService {
       );
 
       if (response.success) {
-        console.log('Successfully registered device token with backend');
+        logger.info('Successfully registered device token with backend');
       } else {
-        console.warn('Failed to register device token with backend:', response.message);
+        logger.warn('Failed to register device token with backend:', response.message);
       }
     } catch (error) {
-      console.error('Error registering device token with backend:', error);
+      logger.error('Error registering device token with backend:', error);
     }
   }
 
@@ -214,12 +215,12 @@ class NotificationService {
       const response = await apiService.deactivateDeviceToken(deviceId);
 
       if (response.success) {
-        console.log('Successfully unregistered device token from backend');
+        logger.info('Successfully unregistered device token from backend');
       } else {
-        console.warn('Failed to unregister device token from backend:', response.message);
+        logger.warn('Failed to unregister device token from backend:', response.message);
       }
     } catch (error) {
-      console.error('Error unregistering device token from backend:', error);
+      logger.error('Error unregistering device token from backend:', error);
     }
   }
 

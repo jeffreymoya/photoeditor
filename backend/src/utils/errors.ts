@@ -147,6 +147,69 @@ export class ErrorHandler {
   }
 
   /**
+   * Build validation error fields
+   */
+  private static buildValidationFields(error: AppError): Record<string, unknown> {
+    return error.type === ErrorType.VALIDATION && 'fieldErrors' in error
+      ? { fieldErrors: error.fieldErrors }
+      : {};
+  }
+
+  /**
+   * Build provider error fields
+   */
+  private static buildProviderFields(error: AppError): Record<string, unknown> {
+    if (error.type !== ErrorType.PROVIDER_ERROR) return {};
+
+    const fields: Record<string, unknown> = {};
+    if ('provider' in error) fields.provider = error.provider;
+    if ('providerCode' in error) fields.providerCode = error.providerCode;
+    if ('retryable' in error) fields.retryable = error.retryable;
+    return fields;
+  }
+
+  /**
+   * Build internal error fields
+   */
+  private static buildInternalErrorFields(error: AppError): Record<string, unknown> {
+    if (error.type !== ErrorType.INTERNAL_ERROR) return {};
+
+    const fields: Record<string, unknown> = {};
+    if ('stack' in error && process.env.NODE_ENV !== 'production') {
+      fields.stack = error.stack;
+    }
+    if ('context' in error) fields.context = error.context;
+    return fields;
+  }
+
+  /**
+   * Build error-specific fields based on error type
+   */
+  private static buildErrorTypeFields(error: AppError): Record<string, unknown> {
+    return {
+      ...this.buildValidationFields(error),
+      ...this.buildProviderFields(error),
+      ...this.buildInternalErrorFields(error)
+    };
+  }
+
+  /**
+   * Build response headers with correlation data
+   */
+  private static buildResponseHeaders(requestId: string, traceparent?: string): Record<string, string> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'x-request-id': requestId
+    };
+
+    if (traceparent) {
+      headers['traceparent'] = traceparent;
+    }
+
+    return headers;
+  }
+
+  /**
    * Convert AppError to standardized API Gateway response with RFC 7807 format
    * Includes correlation headers for distributed tracing
    */
@@ -156,28 +219,17 @@ export class ErrorHandler {
     traceparent?: string
   ): APIGatewayProxyResultV2 {
     const statusCode = this.getHttpStatusCode(error);
+    const typeFields = this.buildErrorTypeFields(error);
 
     const errorResponse: ApiErrorResponse = createErrorResponse({
       type: error.type,
       code: error.code,
       detail: error.message,
       requestId,
-      ...(error.type === ErrorType.VALIDATION && 'fieldErrors' in error && { fieldErrors: error.fieldErrors }),
-      ...(error.type === ErrorType.PROVIDER_ERROR && 'provider' in error && { provider: error.provider }),
-      ...(error.type === ErrorType.PROVIDER_ERROR && 'providerCode' in error && { providerCode: error.providerCode }),
-      ...(error.type === ErrorType.PROVIDER_ERROR && 'retryable' in error && { retryable: error.retryable }),
-      ...(error.type === ErrorType.INTERNAL_ERROR && 'stack' in error && process.env.NODE_ENV !== 'production' && { stack: error.stack }),
-      ...(error.type === ErrorType.INTERNAL_ERROR && 'context' in error && { context: error.context })
+      ...typeFields
     });
 
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'x-request-id': requestId
-    };
-
-    if (traceparent) {
-      headers['traceparent'] = traceparent;
-    }
+    const headers = this.buildResponseHeaders(requestId, traceparent);
 
     return {
       statusCode,

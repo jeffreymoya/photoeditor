@@ -6,8 +6,81 @@
 
 import { z } from 'zod';
 
+// @public
+export const API_ROUTES: RouteDefinition[];
+
 // @public (undocumented)
 export type ApiError = z.infer<typeof ApiErrorSchema>;
+
+// @public (undocumented)
+export interface ApiErrorResponse {
+    // (undocumented)
+    code: string;
+    // (undocumented)
+    context?: Record<string, unknown>;
+    // (undocumented)
+    detail: string;
+    // (undocumented)
+    fieldErrors?: Record<string, string[]>;
+    // (undocumented)
+    instance: string;
+    // (undocumented)
+    provider?: string;
+    // (undocumented)
+    providerCode?: string;
+    // (undocumented)
+    retryable?: boolean;
+    // (undocumented)
+    stack?: string;
+    // (undocumented)
+    timestamp: string;
+    // (undocumented)
+    title: string;
+    // (undocumented)
+    type?: ErrorType;
+}
+
+// @public (undocumented)
+export const ApiErrorResponseSchema: z.ZodObject<{
+    code: z.ZodString;
+    title: z.ZodString;
+    detail: z.ZodString;
+    instance: z.ZodString;
+    type: z.ZodOptional<z.ZodString>;
+    timestamp: z.ZodString;
+    fieldErrors: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodArray<z.ZodString, "many">>>;
+    provider: z.ZodOptional<z.ZodString>;
+    providerCode: z.ZodOptional<z.ZodString>;
+    retryable: z.ZodOptional<z.ZodBoolean>;
+    stack: z.ZodOptional<z.ZodString>;
+    context: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
+}, "strip", z.ZodTypeAny, {
+    code: string;
+    title: string;
+    detail: string;
+    instance: string;
+    timestamp: string;
+    type?: string | undefined;
+    fieldErrors?: Record<string, string[]> | undefined;
+    provider?: string | undefined;
+    providerCode?: string | undefined;
+    retryable?: boolean | undefined;
+    stack?: string | undefined;
+    context?: Record<string, unknown> | undefined;
+}, {
+    code: string;
+    title: string;
+    detail: string;
+    instance: string;
+    timestamp: string;
+    type?: string | undefined;
+    fieldErrors?: Record<string, string[]> | undefined;
+    provider?: string | undefined;
+    providerCode?: string | undefined;
+    retryable?: boolean | undefined;
+    stack?: string | undefined;
+    context?: Record<string, unknown> | undefined;
+}>;
 
 // @public (undocumented)
 export const ApiErrorSchema: z.ZodObject<{
@@ -275,6 +348,20 @@ export const CreateBatchJobRequestSchema: z.ZodObject<{
 }>;
 
 // @public (undocumented)
+export function createErrorResponse(params: {
+    type: ErrorType;
+    code: string;
+    detail: string;
+    requestId: string;
+    fieldErrors?: Record<string, string[]>;
+    provider?: string;
+    providerCode?: string;
+    retryable?: boolean;
+    stack?: string;
+    context?: Record<string, unknown>;
+}): ApiErrorResponse;
+
+// @public (undocumented)
 export type CreateJobRequest = z.infer<typeof CreateJobRequestSchema>;
 
 // @public (undocumented)
@@ -343,6 +430,9 @@ export const ERROR_JOB_STATUS: {
 };
 
 // @public (undocumented)
+export const ERROR_TITLES: Record<ErrorType, string>;
+
+// @public (undocumented)
 export enum ErrorType {
     // (undocumented)
     AUTHENTICATION = "AUTHENTICATION",
@@ -382,6 +472,12 @@ export const FileUploadSchema: z.ZodObject<{
     fileSize: number;
 }>;
 
+// @public
+export function findRoute(method: string, path: string): RouteDefinition | undefined;
+
+// @public
+export function findRouteByOperationId(operationId: string): RouteDefinition | undefined;
+
 // @public (undocumented)
 export type GeminiAnalysisRequest = z.infer<typeof GeminiAnalysisRequestSchema>;
 
@@ -414,6 +510,127 @@ export const GeminiAnalysisResponseSchema: z.ZodObject<{
     confidence?: number | undefined;
     metadata?: Record<string, unknown> | undefined;
 }>;
+
+// @public
+export function getActiveRoutes(): RouteDefinition[];
+
+// @public
+export function getDeprecatedRoutes(): RouteDefinition[];
+
+// @public
+export function getRoutesByTag(): Record<string, RouteDefinition[]>;
+
+// @public
+export const GLOBAL_ERROR_RESPONSES: {
+    400: {
+        description: string;
+        schema: z.ZodObject<{
+            error: z.ZodObject<{
+                code: z.ZodString;
+                message: z.ZodString;
+                details: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
+            }, "strip", z.ZodTypeAny, {
+                code: string;
+                message: string;
+                details?: Record<string, unknown> | undefined;
+            }, {
+                code: string;
+                message: string;
+                details?: Record<string, unknown> | undefined;
+            }>;
+            timestamp: z.ZodString;
+            requestId: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            error: {
+                code: string;
+                message: string;
+                details?: Record<string, unknown> | undefined;
+            };
+            timestamp: string;
+            requestId: string;
+        }, {
+            error: {
+                code: string;
+                message: string;
+                details?: Record<string, unknown> | undefined;
+            };
+            timestamp: string;
+            requestId: string;
+        }>;
+    };
+    404: {
+        description: string;
+        schema: z.ZodObject<{
+            error: z.ZodObject<{
+                code: z.ZodString;
+                message: z.ZodString;
+                details: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
+            }, "strip", z.ZodTypeAny, {
+                code: string;
+                message: string;
+                details?: Record<string, unknown> | undefined;
+            }, {
+                code: string;
+                message: string;
+                details?: Record<string, unknown> | undefined;
+            }>;
+            timestamp: z.ZodString;
+            requestId: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            error: {
+                code: string;
+                message: string;
+                details?: Record<string, unknown> | undefined;
+            };
+            timestamp: string;
+            requestId: string;
+        }, {
+            error: {
+                code: string;
+                message: string;
+                details?: Record<string, unknown> | undefined;
+            };
+            timestamp: string;
+            requestId: string;
+        }>;
+    };
+    500: {
+        description: string;
+        schema: z.ZodObject<{
+            error: z.ZodObject<{
+                code: z.ZodString;
+                message: z.ZodString;
+                details: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodUnknown>>;
+            }, "strip", z.ZodTypeAny, {
+                code: string;
+                message: string;
+                details?: Record<string, unknown> | undefined;
+            }, {
+                code: string;
+                message: string;
+                details?: Record<string, unknown> | undefined;
+            }>;
+            timestamp: z.ZodString;
+            requestId: z.ZodString;
+        }, "strip", z.ZodTypeAny, {
+            error: {
+                code: string;
+                message: string;
+                details?: Record<string, unknown> | undefined;
+            };
+            timestamp: string;
+            requestId: string;
+        }, {
+            error: {
+                code: string;
+                message: string;
+                details?: Record<string, unknown> | undefined;
+            };
+            timestamp: string;
+            requestId: string;
+        }>;
+    };
+};
 
 // @public (undocumented)
 export type HealthCheckResponse = z.infer<typeof HealthCheckResponseSchema>;
@@ -707,19 +924,46 @@ export const ProviderResponseSchema: z.ZodObject<{
     timestamp: z.ZodString;
 }, "strip", z.ZodTypeAny, {
     timestamp: string;
+    provider: string;
     success: boolean;
     duration: number;
-    provider: string;
     error?: string | undefined;
     data?: unknown;
 }, {
     timestamp: string;
+    provider: string;
     success: boolean;
     duration: number;
-    provider: string;
     error?: string | undefined;
     data?: unknown;
 }>;
+
+// @public
+export interface RouteDefinition {
+    deprecated?: boolean;
+    deprecationDate?: string;
+    description: string;
+    handler: string;
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+    operationId: string;
+    path: string;
+    pathParameters?: Array<{
+        name: string;
+        description: string;
+        schema: z.ZodTypeAny;
+    }>;
+    queryParameters?: Array<{
+        name: string;
+        description: string;
+        required: boolean;
+        schema: z.ZodTypeAny;
+    }>;
+    replacedBy?: string;
+    requestSchema?: z.ZodTypeAny;
+    responseSchema: z.ZodTypeAny;
+    summary: string;
+    tags: string[];
+}
 
 // @public (undocumented)
 export const S3_LIFECYCLE_CONFIG: {

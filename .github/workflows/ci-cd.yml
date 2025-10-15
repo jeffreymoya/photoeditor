@@ -11,9 +11,9 @@ env:
   TERRAFORM_VERSION: '1.6.0'
 
 jobs:
-  # Lint and validate code
-  lint:
-    name: Lint & Validate
+  # QA Suite - Centralized fitness functions
+  qa-suite:
+    name: QA Suite (Fitness Functions)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -25,47 +25,41 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
       - name: Install workspace dependencies
         run: npm ci
 
-      - name: Lint shared package
-        run: npm run lint --prefix shared
-
-      - name: Lint backend
-        run: npm run lint --prefix backend
-
-      - name: TypeScript check shared
-        run: npm run typecheck --prefix shared
-
-      - name: TypeScript check backend
-        run: npm run typecheck --prefix backend
-
-      - name: Validate dependency architecture
-        run: npm run validate:deps
-
-      - name: Check for dead code
-        run: npm run stage:a:dead-exports || true
-
-      - name: Check contract drift (STANDARDS.md line 40)
-        id: contract-check
-        run: npm run contracts:check
+      - name: Run QA Suite
+        id: qa-suite
+        run: make qa-suite
         continue-on-error: true
 
       - name: Upload contract diff artifact
-        if: failure() && steps.contract-check.outcome == 'failure'
+        if: failure() && steps.qa-suite.outcome == 'failure'
         uses: actions/upload-artifact@v4
         with:
           name: contract-diff
           path: contract-diff.json
           retention-days: 30
+          if-no-files-found: ignore
 
       - name: Comment PR with contract diff
-        if: github.event_name == 'pull_request' && failure() && steps.contract-check.outcome == 'failure'
+        if: github.event_name == 'pull_request' && failure() && steps.qa-suite.outcome == 'failure'
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
             const { execSync } = require('child_process');
+
+            // Check if contract diff exists
+            if (!fs.existsSync('contract-diff.json')) {
+              console.log('No contract diff detected, skipping comment');
+              return;
+            }
 
             try {
               // Generate markdown comment
@@ -78,25 +72,19 @@ jobs:
                 issue_number: context.issue.number,
                 body: markdown
               });
-
-              // Fail the check to block merge
-              core.setFailed('Contract drift detected - approval required');
             } catch (error) {
               console.error('Error posting contract diff comment:', error);
             }
 
-      - name: Validate API surface changes
-        run: cd shared && npm run api-extractor
+      - name: Fail if QA Suite failed
+        if: steps.qa-suite.outcome == 'failure'
+        run: exit 1
 
-      - name: Check for pending changesets (shared contracts governance)
-        run: npm run changeset:status
-        continue-on-error: true
-
-  # Test backend services
-  test:
-    name: Test Backend
+  # Coverage reporting (runs after QA suite for detailed metrics)
+  coverage:
+    name: Upload Coverage
     runs-on: ubuntu-latest
-    needs: lint
+    needs: qa-suite
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -112,9 +100,6 @@ jobs:
 
       - name: Run backend tests with coverage
         run: npm test --prefix backend -- --coverage --coverageReporters=json-summary --coverageReporters=text
-
-      - name: Run contract compatibility tests
-        run: npm run test:contracts
 
       - name: Check coverage thresholds
         run: |
@@ -132,11 +117,11 @@ jobs:
           directory: backend/coverage
           flags: backend
 
-  # Build Lambda functions
+  # Build artifacts (for deployment jobs)
   build:
-    name: Build Lambda Functions
+    name: Build Lambda Artifacts
     runs-on: ubuntu-latest
-    needs: [lint, test]
+    needs: qa-suite
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -162,28 +147,6 @@ jobs:
           name: lambda-functions
           path: backend/dist/lambdas/
           retention-days: 30
-
-  # Validate Terraform
-  terraform-validate:
-    name: Validate Terraform
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ env.TERRAFORM_VERSION }}
-
-      - name: Terraform Format Check
-        run: cd infrastructure && terraform fmt -check -recursive
-
-      - name: Terraform Init
-        run: cd infrastructure && terraform init -backend=false
-
-      - name: Terraform Validate
-        run: cd infrastructure && terraform validate
 
   # Security scanning
   security:
@@ -234,7 +197,7 @@ jobs:
   deploy-dev:
     name: Deploy to Development
     runs-on: ubuntu-latest
-    needs: [build, terraform-validate]
+    needs: [build, qa-suite]
     if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
     environment:
       name: development
@@ -289,7 +252,7 @@ jobs:
   deploy-prod:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    needs: [build, terraform-validate, security]
+    needs: [build, qa-suite, security]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment:
       name: production

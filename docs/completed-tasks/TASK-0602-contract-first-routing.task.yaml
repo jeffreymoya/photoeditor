@@ -1,7 +1,7 @@
 schema_version: "1.0"
 id: TASK-0602
 title: Establish contract-first routing with OpenAPI paths
-status: todo
+status: completed
 priority: P1
 complexity: L
 area: shared

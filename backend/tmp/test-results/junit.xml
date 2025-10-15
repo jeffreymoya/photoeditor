@@ -1,34 +1,447 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="jest tests" tests="8" failures="1" errors="0" time="2.65">
-  <testsuite name="POST /upload/presign - Contract Tests" errors="0" failures="1" skipped="7" timestamp="2025-10-11T08:30:44" time="2.437" tests="8">
-    <testcase classname="POST /upload/presign - Contract Tests Single Upload Response Contract should return 200 with valid single upload response schema" name="POST /upload/presign - Contract Tests Single Upload Response Contract should return 200 with valid single upload response schema" time="0.231">
-      <failure>Error: expect(received).toBe(expected) // Object.is equality
-
-Expected: 200
-Received: 500
-    at Object.&lt;anonymous&gt; (/home/jeffreymoya/dev/photoeditor/backend/tests/contracts/presign.contract.test.ts:125:33)
-    at processTicksAndRejections (node:internal/process/task_queues:105:5)</failure>
+<testsuites name="jest tests" tests="203" failures="0" errors="0" time="9.44">
+  <testsuite name="Presign &amp; Status Integration Tests" errors="0" failures="0" skipped="0" timestamp="2025-10-15T03:39:47" time="4.194" tests="16">
+    <testcase classname="Presign &amp; Status Integration Tests POST /presign - Single Upload should generate presigned URL and create job record in DynamoDB" name="Presign &amp; Status Integration Tests POST /presign - Single Upload should generate presigned URL and create job record in DynamoDB" time="0.156">
     </testcase>
-    <testcase classname="POST /upload/presign - Contract Tests Single Upload Response Contract should return 400 with error schema for missing body" name="POST /upload/presign - Contract Tests Single Upload Response Contract should return 400 with error schema for missing body" time="0">
-      <skipped/>
+    <testcase classname="Presign &amp; Status Integration Tests POST /presign - Single Upload should create job with QUEUED status in DynamoDB" name="Presign &amp; Status Integration Tests POST /presign - Single Upload should create job with QUEUED status in DynamoDB" time="0.118">
     </testcase>
-    <testcase classname="POST /upload/presign - Contract Tests Single Upload Response Contract should return 400 for invalid content type" name="POST /upload/presign - Contract Tests Single Upload Response Contract should return 400 for invalid content type" time="0">
-      <skipped/>
+    <testcase classname="Presign &amp; Status Integration Tests POST /presign - Single Upload should validate S3 key structure matches requirements" name="Presign &amp; Status Integration Tests POST /presign - Single Upload should validate S3 key structure matches requirements" time="0.124">
     </testcase>
-    <testcase classname="POST /upload/presign - Contract Tests Single Upload Response Contract should return 400 for file size exceeding 50MB" name="POST /upload/presign - Contract Tests Single Upload Response Contract should return 400 for file size exceeding 50MB" time="0">
-      <skipped/>
+    <testcase classname="Presign &amp; Status Integration Tests POST /presign - Batch Upload should generate batch presigned URLs and create batch job with child jobs" name="Presign &amp; Status Integration Tests POST /presign - Batch Upload should generate batch presigned URLs and create batch job with child jobs" time="0.159">
     </testcase>
-    <testcase classname="POST /upload/presign - Contract Tests Batch Upload Response Contract should return 200 with valid batch upload response schema" name="POST /upload/presign - Contract Tests Batch Upload Response Contract should return 200 with valid batch upload response schema" time="0">
-      <skipped/>
+    <testcase classname="Presign &amp; Status Integration Tests POST /presign - Batch Upload should create individual jobs for each file in batch" name="Presign &amp; Status Integration Tests POST /presign - Batch Upload should create individual jobs for each file in batch" time="0.151">
     </testcase>
-    <testcase classname="POST /upload/presign - Contract Tests Batch Upload Response Contract should enforce max 10 files per batch constraint" name="POST /upload/presign - Contract Tests Batch Upload Response Contract should enforce max 10 files per batch constraint" time="0">
-      <skipped/>
+    <testcase classname="Presign &amp; Status Integration Tests POST /presign - Batch Upload should support individual prompts per file in batch" name="Presign &amp; Status Integration Tests POST /presign - Batch Upload should support individual prompts per file in batch" time="0.166">
     </testcase>
-    <testcase classname="POST /upload/presign - Contract Tests Error Response Contract should return 500 with error schema for internal errors" name="POST /upload/presign - Contract Tests Error Response Contract should return 500 with error schema for internal errors" time="0">
-      <skipped/>
+    <testcase classname="Presign &amp; Status Integration Tests GET /v1/jobs/{jobId} - Status Retrieval should return 404 for non-existent job" name="Presign &amp; Status Integration Tests GET /v1/jobs/{jobId} - Status Retrieval should return 404 for non-existent job" time="0.092">
     </testcase>
-    <testcase classname="POST /upload/presign - Contract Tests Error Response Contract should include traceparent header when present in request" name="POST /upload/presign - Contract Tests Error Response Contract should include traceparent header when present in request" time="0">
-      <skipped/>
+    <testcase classname="Presign &amp; Status Integration Tests GET /v1/jobs/{jobId} - Status Retrieval should return 400 for missing jobId parameter" name="Presign &amp; Status Integration Tests GET /v1/jobs/{jobId} - Status Retrieval should return 400 for missing jobId parameter" time="0.089">
+    </testcase>
+    <testcase classname="Presign &amp; Status Integration Tests GET /v1/jobs/{jobId} - Status Retrieval should return job with all fields when job exists" name="Presign &amp; Status Integration Tests GET /v1/jobs/{jobId} - Status Retrieval should return job with all fields when job exists" time="0.126">
+    </testcase>
+    <testcase classname="Presign &amp; Status Integration Tests Error Handling &amp; Validation should reject presign request with invalid content type" name="Presign &amp; Status Integration Tests Error Handling &amp; Validation should reject presign request with invalid content type" time="0.088">
+    </testcase>
+    <testcase classname="Presign &amp; Status Integration Tests Error Handling &amp; Validation should reject presign request with missing body" name="Presign &amp; Status Integration Tests Error Handling &amp; Validation should reject presign request with missing body" time="0.114">
+    </testcase>
+    <testcase classname="Presign &amp; Status Integration Tests Error Handling &amp; Validation should reject batch presign with too many files" name="Presign &amp; Status Integration Tests Error Handling &amp; Validation should reject batch presign with too many files" time="0.093">
+    </testcase>
+    <testcase classname="Presign &amp; Status Integration Tests Error Handling &amp; Validation should reject batch presign with empty files array" name="Presign &amp; Status Integration Tests Error Handling &amp; Validation should reject batch presign with empty files array" time="0.083">
+    </testcase>
+    <testcase classname="Presign &amp; Status Integration Tests Error Handling &amp; Validation should handle malformed JSON in request body" name="Presign &amp; Status Integration Tests Error Handling &amp; Validation should handle malformed JSON in request body" time="0.108">
+    </testcase>
+    <testcase classname="Presign &amp; Status Integration Tests Observability Requirements (STANDARDS.md lines 71-72) should include structured log fields in handler execution" name="Presign &amp; Status Integration Tests Observability Requirements (STANDARDS.md lines 71-72) should include structured log fields in handler execution" time="0.134">
+    </testcase>
+    <testcase classname="Presign &amp; Status Integration Tests Observability Requirements (STANDARDS.md lines 71-72) should propagate trace context across service calls" name="Presign &amp; Status Integration Tests Observability Requirements (STANDARDS.md lines 71-72) should propagate trace context across service calls" time="0.108">
+    </testcase>
+  </testsuite>
+  <testsuite name="presign lambda" errors="0" failures="0" skipped="0" timestamp="2025-10-15T03:39:52" time="0.161" tests="7">
+    <testcase classname="presign lambda single upload request should reject missing request body" name="presign lambda single upload request should reject missing request body" time="0.003">
+    </testcase>
+    <testcase classname="presign lambda single upload request should reject unsupported content type (image/gif)" name="presign lambda single upload request should reject unsupported content type (image/gif)" time="0.003">
+    </testcase>
+    <testcase classname="presign lambda single upload request should reject file size &gt; 50MB" name="presign lambda single upload request should reject file size &gt; 50MB" time="0.002">
+    </testcase>
+    <testcase classname="presign lambda single upload request should return valid presigned URL response for valid single upload" name="presign lambda single upload request should return valid presigned URL response for valid single upload" time="0.003">
+    </testcase>
+    <testcase classname="presign lambda batch upload request should handle batch upload with multiple files" name="presign lambda batch upload request should handle batch upload with multiple files" time="0.004">
+    </testcase>
+    <testcase classname="presign lambda batch upload request should reject batch with unsupported content type in any file" name="presign lambda batch upload request should reject batch with unsupported content type in any file" time="0.002">
+    </testcase>
+    <testcase classname="presign lambda error handling should handle DynamoDB errors gracefully" name="presign lambda error handling should handle DynamoDB errors gracefully" time="0.003">
+    </testcase>
+  </testsuite>
+  <testsuite name="POST /v1/upload/presign - Contract Tests" errors="0" failures="0" skipped="0" timestamp="2025-10-15T03:39:52" time="0.12" tests="8">
+    <testcase classname="POST /v1/upload/presign - Contract Tests Single Upload Response Contract should return 200 with valid single upload response schema" name="POST /v1/upload/presign - Contract Tests Single Upload Response Contract should return 200 with valid single upload response schema" time="0.005">
+    </testcase>
+    <testcase classname="POST /v1/upload/presign - Contract Tests Single Upload Response Contract should return 400 with error schema for missing body" name="POST /v1/upload/presign - Contract Tests Single Upload Response Contract should return 400 with error schema for missing body" time="0.002">
+    </testcase>
+    <testcase classname="POST /v1/upload/presign - Contract Tests Single Upload Response Contract should return 400 for invalid content type" name="POST /v1/upload/presign - Contract Tests Single Upload Response Contract should return 400 for invalid content type" time="0.002">
+    </testcase>
+    <testcase classname="POST /v1/upload/presign - Contract Tests Single Upload Response Contract should return 400 for file size exceeding 50MB" name="POST /v1/upload/presign - Contract Tests Single Upload Response Contract should return 400 for file size exceeding 50MB" time="0.002">
+    </testcase>
+    <testcase classname="POST /v1/upload/presign - Contract Tests Batch Upload Response Contract should return 200 with valid batch upload response schema" name="POST /v1/upload/presign - Contract Tests Batch Upload Response Contract should return 200 with valid batch upload response schema" time="0.004">
+    </testcase>
+    <testcase classname="POST /v1/upload/presign - Contract Tests Batch Upload Response Contract should enforce max 10 files per batch constraint" name="POST /v1/upload/presign - Contract Tests Batch Upload Response Contract should enforce max 10 files per batch constraint" time="0.002">
+    </testcase>
+    <testcase classname="POST /v1/upload/presign - Contract Tests Error Response Contract should return 500 with error schema for internal errors" name="POST /v1/upload/presign - Contract Tests Error Response Contract should return 500 with error schema for internal errors" time="0.006">
+    </testcase>
+    <testcase classname="POST /v1/upload/presign - Contract Tests Error Response Contract should include traceparent header when present in request" name="POST /v1/upload/presign - Contract Tests Error Response Contract should include traceparent header when present in request" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="Worker Pipeline Integration Tests" errors="0" failures="0" skipped="0" timestamp="2025-10-15T03:39:52" time="2.927" tests="9">
+    <testcase classname="Worker Pipeline Integration Tests Happy Path - Complete Worker Pipeline should process job through full lifecycle: QUEUED → PROCESSING → EDITING → COMPLETED" name="Worker Pipeline Integration Tests Happy Path - Complete Worker Pipeline should process job through full lifecycle: QUEUED → PROCESSING → EDITING → COMPLETED" time="0.264">
+    </testcase>
+    <testcase classname="Worker Pipeline Integration Tests Happy Path - Complete Worker Pipeline should optimize image before analysis" name="Worker Pipeline Integration Tests Happy Path - Complete Worker Pipeline should optimize image before analysis" time="0.243">
+    </testcase>
+    <testcase classname="Worker Pipeline Integration Tests Happy Path - Complete Worker Pipeline should propagate user prompt to analysis provider" name="Worker Pipeline Integration Tests Happy Path - Complete Worker Pipeline should propagate user prompt to analysis provider" time="0.267">
+    </testcase>
+    <testcase classname="Worker Pipeline Integration Tests Fallback Behavior should fallback to copy original when Seedream editing fails" name="Worker Pipeline Integration Tests Fallback Behavior should fallback to copy original when Seedream editing fails" time="0.218">
+    </testcase>
+    <testcase classname="Worker Pipeline Integration Tests Fallback Behavior should send completion notification even when editing fails" name="Worker Pipeline Integration Tests Fallback Behavior should send completion notification even when editing fails" time="0.203">
+    </testcase>
+    <testcase classname="Worker Pipeline Integration Tests Batch Job Progress should increment batch job progress when individual job completes" name="Worker Pipeline Integration Tests Batch Job Progress should increment batch job progress when individual job completes" time="0.35">
+    </testcase>
+    <testcase classname="Worker Pipeline Integration Tests Batch Job Progress should send batch completion notification when all jobs finish" name="Worker Pipeline Integration Tests Batch Job Progress should send batch completion notification when all jobs finish" time="0.43">
+    </testcase>
+    <testcase classname="Worker Pipeline Integration Tests Error Handling should mark job as FAILED and send notification on processing error" name="Worker Pipeline Integration Tests Error Handling should mark job as FAILED and send notification on processing error" time="0.262">
+    </testcase>
+    <testcase classname="Worker Pipeline Integration Tests Idempotency should handle duplicate SQS messages gracefully" name="Worker Pipeline Integration Tests Idempotency should handle duplicate SQS messages gracefully" time="0.477">
+    </testcase>
+  </testsuite>
+  <testsuite name="Shared Core Integration Tests" errors="0" failures="0" skipped="0" timestamp="2025-10-15T03:39:55" time="0.381" tests="5">
+    <testcase classname="Shared Core Integration Tests Provider Swap should initialize with real providers" name="Shared Core Integration Tests Provider Swap should initialize with real providers" time="0.072">
+    </testcase>
+    <testcase classname="Shared Core Integration Tests Provider Swap should initialize with stub providers when enabled" name="Shared Core Integration Tests Provider Swap should initialize with stub providers when enabled" time="0.026">
+    </testcase>
+    <testcase classname="Shared Core Integration Tests Provider Swap should perform health checks on providers" name="Shared Core Integration Tests Provider Swap should perform health checks on providers" time="0.053">
+    </testcase>
+    <testcase classname="Shared Core Integration Tests Configuration Service should load configuration from SSM" name="Shared Core Integration Tests Configuration Service should load configuration from SSM" time="0.025">
+    </testcase>
+    <testcase classname="Shared Core Integration Tests Configuration Service should load secure parameters" name="Shared Core Integration Tests Configuration Service should load secure parameters" time="0.01">
+    </testcase>
+  </testsuite>
+  <testsuite name="Lambda Import Smoke Tests" errors="0" failures="0" skipped="0" timestamp="2025-10-15T03:39:55" time="0.101" tests="6">
+    <testcase classname="Lambda Import Smoke Tests Handler Import Tests presign lambda exports handler function" name="Lambda Import Smoke Tests Handler Import Tests presign lambda exports handler function" time="0.059">
+    </testcase>
+    <testcase classname="Lambda Import Smoke Tests Handler Import Tests status lambda exports handler function" name="Lambda Import Smoke Tests Handler Import Tests status lambda exports handler function" time="0.001">
+    </testcase>
+    <testcase classname="Lambda Import Smoke Tests Handler Import Tests worker lambda exports handler function" name="Lambda Import Smoke Tests Handler Import Tests worker lambda exports handler function" time="0.001">
+    </testcase>
+    <testcase classname="Lambda Import Smoke Tests Service Dependencies Import Tests services export expected classes" name="Lambda Import Smoke Tests Service Dependencies Import Tests services export expected classes" time="0.002">
+    </testcase>
+    <testcase classname="Lambda Import Smoke Tests Service Dependencies Import Tests core library exports expected modules" name="Lambda Import Smoke Tests Service Dependencies Import Tests core library exports expected modules" time="0.001">
+    </testcase>
+    <testcase classname="Lambda Import Smoke Tests Shared Module Import Tests shared schemas export expected validation schemas" name="Lambda Import Smoke Tests Shared Module Import Tests shared schemas export expected validation schemas" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="GET /v1/batch-status/{batchJobId} - Contract Tests" errors="0" failures="0" skipped="0" timestamp="2025-10-15T03:39:55" time="0.137" tests="10">
+    <testcase classname="GET /v1/batch-status/{batchJobId} - Contract Tests Successful Batch Job Status Response Contract should return 200 with valid batch job status response schema for COMPLETED batch" name="GET /v1/batch-status/{batchJobId} - Contract Tests Successful Batch Job Status Response Contract should return 200 with valid batch job status response schema for COMPLETED batch" time="0.009">
+    </testcase>
+    <testcase classname="GET /v1/batch-status/{batchJobId} - Contract Tests Successful Batch Job Status Response Contract should return 200 with valid schema for IN_PROGRESS batch" name="GET /v1/batch-status/{batchJobId} - Contract Tests Successful Batch Job Status Response Contract should return 200 with valid schema for IN_PROGRESS batch" time="0.002">
+    </testcase>
+    <testcase classname="GET /v1/batch-status/{batchJobId} - Contract Tests Successful Batch Job Status Response Contract should return 200 with valid schema for FAILED batch with error message" name="GET /v1/batch-status/{batchJobId} - Contract Tests Successful Batch Job Status Response Contract should return 200 with valid schema for FAILED batch with error message" time="0.003">
+    </testcase>
+    <testcase classname="GET /v1/batch-status/{batchJobId} - Contract Tests Successful Batch Job Status Response Contract should include all valid status enum values" name="GET /v1/batch-status/{batchJobId} - Contract Tests Successful Batch Job Status Response Contract should include all valid status enum values" time="0.006">
+    </testcase>
+    <testcase classname="GET /v1/batch-status/{batchJobId} - Contract Tests Error Response Contract should return 400 with error schema for missing batchJobId" name="GET /v1/batch-status/{batchJobId} - Contract Tests Error Response Contract should return 400 with error schema for missing batchJobId" time="0.002">
+    </testcase>
+    <testcase classname="GET /v1/batch-status/{batchJobId} - Contract Tests Error Response Contract should return 404 with error schema when batch job not found" name="GET /v1/batch-status/{batchJobId} - Contract Tests Error Response Contract should return 404 with error schema when batch job not found" time="0.002">
+    </testcase>
+    <testcase classname="GET /v1/batch-status/{batchJobId} - Contract Tests Error Response Contract should return 500 with error schema for internal errors" name="GET /v1/batch-status/{batchJobId} - Contract Tests Error Response Contract should return 500 with error schema for internal errors" time="0.002">
+    </testcase>
+    <testcase classname="GET /v1/batch-status/{batchJobId} - Contract Tests Error Response Contract should include traceparent header when present in request" name="GET /v1/batch-status/{batchJobId} - Contract Tests Error Response Contract should include traceparent header when present in request" time="0.001">
+    </testcase>
+    <testcase classname="GET /v1/batch-status/{batchJobId} - Contract Tests Response Format Validation should always return JSON content type" name="GET /v1/batch-status/{batchJobId} - Contract Tests Response Format Validation should always return JSON content type" time="0.001">
+    </testcase>
+    <testcase classname="GET /v1/batch-status/{batchJobId} - Contract Tests Response Format Validation should return valid JSON in response body" name="GET /v1/batch-status/{batchJobId} - Contract Tests Response Format Validation should return valid JSON in response body" time="0.002">
+    </testcase>
+  </testsuite>
+  <testsuite name="status lambda" errors="0" failures="0" skipped="0" timestamp="2025-10-15T03:39:55" time="0.112" tests="5">
+    <testcase classname="status lambda parameter validation should return 400 when jobId is missing" name="status lambda parameter validation should return 400 when jobId is missing" time="0.003">
+    </testcase>
+    <testcase classname="status lambda successful status retrieval should return 200 with job details when job exists" name="status lambda successful status retrieval should return 200 with job details when job exists" time="0.002">
+    </testcase>
+    <testcase classname="status lambda successful status retrieval should include error field when job has error" name="status lambda successful status retrieval should include error field when job has error" time="0.002">
+    </testcase>
+    <testcase classname="status lambda not found handling should return 404 when job does not exist" name="status lambda not found handling should return 404 when job does not exist" time="0.002">
+    </testcase>
+    <testcase classname="status lambda error handling should return 500 on DynamoDB errors" name="status lambda error handling should return 500 on DynamoDB errors" time="0.002">
+    </testcase>
+  </testsuite>
+  <testsuite name="JobService" errors="0" failures="0" skipped="0" timestamp="2025-10-15T03:39:56" time="0.135" tests="19">
+    <testcase classname="JobService createJob should create job with required fields" name="JobService createJob should create job with required fields" time="0.003">
+    </testcase>
+    <testcase classname="JobService createJob should create job with optional batchJobId" name="JobService createJob should create job with optional batchJobId" time="0.001">
+    </testcase>
+    <testcase classname="JobService createJob should set TTL to 90 days from now" name="JobService createJob should set TTL to 90 days from now" time="0.002">
+    </testcase>
+    <testcase classname="JobService getJob should return job when it exists" name="JobService getJob should return job when it exists" time="0.002">
+    </testcase>
+    <testcase classname="JobService getJob should return null when job does not exist" name="JobService getJob should return null when job does not exist" time="0.002">
+    </testcase>
+    <testcase classname="JobService updateJobStatus should update status and updatedAt" name="JobService updateJobStatus should update status and updatedAt" time="0.002">
+    </testcase>
+    <testcase classname="JobService updateJobStatus should update with tempS3Key" name="JobService updateJobStatus should update with tempS3Key" time="0.002">
+    </testcase>
+    <testcase classname="JobService updateJobStatus should update with finalS3Key" name="JobService updateJobStatus should update with finalS3Key" time="0.002">
+    </testcase>
+    <testcase classname="JobService updateJobStatus should update with error" name="JobService updateJobStatus should update with error" time="0.002">
+    </testcase>
+    <testcase classname="JobService updateJobStatus should throw when job does not exist" name="JobService updateJobStatus should throw when job does not exist" time="0.011">
+    </testcase>
+    <testcase classname="JobService terminal and in-progress status helpers isJobInProgress should return true for QUEUED, PROCESSING, EDITING" name="JobService terminal and in-progress status helpers isJobInProgress should return true for QUEUED, PROCESSING, EDITING" time="0.001">
+    </testcase>
+    <testcase classname="JobService terminal and in-progress status helpers isJobInProgress should return false for COMPLETED, FAILED" name="JobService terminal and in-progress status helpers isJobInProgress should return false for COMPLETED, FAILED" time="0.001">
+    </testcase>
+    <testcase classname="JobService terminal and in-progress status helpers isJobTerminal should return true for COMPLETED, FAILED" name="JobService terminal and in-progress status helpers isJobTerminal should return true for COMPLETED, FAILED" time="0.002">
+    </testcase>
+    <testcase classname="JobService terminal and in-progress status helpers isJobTerminal should return false for QUEUED, PROCESSING, EDITING" name="JobService terminal and in-progress status helpers isJobTerminal should return false for QUEUED, PROCESSING, EDITING" time="0.001">
+    </testcase>
+    <testcase classname="JobService batch job operations createBatchJob should create batch job with required fields" name="JobService batch job operations createBatchJob should create batch job with required fields" time="0.003">
+    </testcase>
+    <testcase classname="JobService batch job operations incrementBatchJobProgress should increment completedCount" name="JobService batch job operations incrementBatchJobProgress should increment completedCount" time="0.009">
+    </testcase>
+    <testcase classname="JobService batch job operations incrementBatchJobProgress should mark batch as COMPLETED when all jobs complete" name="JobService batch job operations incrementBatchJobProgress should mark batch as COMPLETED when all jobs complete" time="0.002">
+    </testcase>
+    <testcase classname="JobService batch job operations getJobsByBatchId should query jobs by batchJobId using GSI" name="JobService batch job operations getJobsByBatchId should query jobs by batchJobId using GSI" time="0.002">
+    </testcase>
+    <testcase classname="JobService batch job operations getJobsByBatchId should return empty array when no jobs found" name="JobService batch job operations getJobsByBatchId should return empty array when no jobs found" time="0.002">
+    </testcase>
+  </testsuite>
+  <testsuite name="GET /v1/jobs/{jobId} - Contract Tests" errors="0" failures="0" skipped="0" timestamp="2025-10-15T03:39:56" time="0.129" tests="10">
+    <testcase classname="GET /v1/jobs/{jobId} - Contract Tests Successful Job Status Response Contract should return 200 with valid job status response schema for COMPLETED job" name="GET /v1/jobs/{jobId} - Contract Tests Successful Job Status Response Contract should return 200 with valid job status response schema for COMPLETED job" time="0.004">
+    </testcase>
+    <testcase classname="GET /v1/jobs/{jobId} - Contract Tests Successful Job Status Response Contract should return 200 with valid schema for QUEUED job" name="GET /v1/jobs/{jobId} - Contract Tests Successful Job Status Response Contract should return 200 with valid schema for QUEUED job" time="0.002">
+    </testcase>
+    <testcase classname="GET /v1/jobs/{jobId} - Contract Tests Successful Job Status Response Contract should return 200 with valid schema for FAILED job with error message" name="GET /v1/jobs/{jobId} - Contract Tests Successful Job Status Response Contract should return 200 with valid schema for FAILED job with error message" time="0.002">
+    </testcase>
+    <testcase classname="GET /v1/jobs/{jobId} - Contract Tests Successful Job Status Response Contract should include all valid status enum values" name="GET /v1/jobs/{jobId} - Contract Tests Successful Job Status Response Contract should include all valid status enum values" time="0.004">
+    </testcase>
+    <testcase classname="GET /v1/jobs/{jobId} - Contract Tests Error Response Contract should return 400 with error schema for missing jobId" name="GET /v1/jobs/{jobId} - Contract Tests Error Response Contract should return 400 with error schema for missing jobId" time="0.002">
+    </testcase>
+    <testcase classname="GET /v1/jobs/{jobId} - Contract Tests Error Response Contract should return 404 with error schema when job not found" name="GET /v1/jobs/{jobId} - Contract Tests Error Response Contract should return 404 with error schema when job not found" time="0.008">
+    </testcase>
+    <testcase classname="GET /v1/jobs/{jobId} - Contract Tests Error Response Contract should return 500 with error schema for internal errors" name="GET /v1/jobs/{jobId} - Contract Tests Error Response Contract should return 500 with error schema for internal errors" time="0.003">
+    </testcase>
+    <testcase classname="GET /v1/jobs/{jobId} - Contract Tests Error Response Contract should include traceparent header when present in request" name="GET /v1/jobs/{jobId} - Contract Tests Error Response Contract should include traceparent header when present in request" time="0.001">
+    </testcase>
+    <testcase classname="GET /v1/jobs/{jobId} - Contract Tests Response Format Validation should always return JSON content type" name="GET /v1/jobs/{jobId} - Contract Tests Response Format Validation should always return JSON content type" time="0.001">
+    </testcase>
+    <testcase classname="GET /v1/jobs/{jobId} - Contract Tests Response Format Validation should return valid JSON in response body" name="GET /v1/jobs/{jobId} - Contract Tests Response Format Validation should return valid JSON in response body" time="0.002">
+    </testcase>
+  </testsuite>
+  <testsuite name="S3KeyStrategyImpl" errors="0" failures="0" skipped="0" timestamp="2025-10-15T03:39:56" time="0.112" tests="16">
+    <testcase classname="S3KeyStrategyImpl generateTempKey should generate temp key with correct structure" name="S3KeyStrategyImpl generateTempKey should generate temp key with correct structure" time="0.001">
+    </testcase>
+    <testcase classname="S3KeyStrategyImpl generateTempKey should sanitize filename" name="S3KeyStrategyImpl generateTempKey should sanitize filename" time="0.001">
+    </testcase>
+    <testcase classname="S3KeyStrategyImpl generateFinalKey should generate final key with correct structure" name="S3KeyStrategyImpl generateFinalKey should generate final key with correct structure" time="0.001">
+    </testcase>
+    <testcase classname="S3KeyStrategyImpl generateFinalKey should sanitize filename" name="S3KeyStrategyImpl generateFinalKey should sanitize filename" time="0.001">
+    </testcase>
+    <testcase classname="S3KeyStrategyImpl parseTempKey should parse valid temp key" name="S3KeyStrategyImpl parseTempKey should parse valid temp key" time="0.001">
+    </testcase>
+    <testcase classname="S3KeyStrategyImpl parseTempKey should return null for invalid temp key" name="S3KeyStrategyImpl parseTempKey should return null for invalid temp key" time="0.001">
+    </testcase>
+    <testcase classname="S3KeyStrategyImpl parseFinalKey should parse valid final key" name="S3KeyStrategyImpl parseFinalKey should parse valid final key" time="0.002">
+    </testcase>
+    <testcase classname="S3KeyStrategyImpl parseFinalKey should return null for invalid final key" name="S3KeyStrategyImpl parseFinalKey should return null for invalid final key" time="0.001">
+    </testcase>
+    <testcase classname="S3Service generatePresignedUpload should return presigned upload with correct fields" name="S3Service generatePresignedUpload should return presigned upload with correct fields" time="0.01">
+    </testcase>
+    <testcase classname="S3Service generatePresignedUpload should include metadata in presigned URL" name="S3Service generatePresignedUpload should include metadata in presigned URL" time="0.002">
+    </testcase>
+    <testcase classname="S3Service optimizeAndUploadImage should download, optimize with sharp, and upload image" name="S3Service optimizeAndUploadImage should download, optimize with sharp, and upload image" time="0.003">
+    </testcase>
+    <testcase classname="S3Service getObjectInfo should return object metadata when object exists" name="S3Service getObjectInfo should return object metadata when object exists" time="0.002">
+    </testcase>
+    <testcase classname="S3Service getObjectInfo should return null when object does not exist" name="S3Service getObjectInfo should return null when object does not exist" time="0.002">
+    </testcase>
+    <testcase classname="S3Service getObjectInfo should throw for other S3 errors" name="S3Service getObjectInfo should throw for other S3 errors" time="0.008">
+    </testcase>
+    <testcase classname="S3Service bucket getters should return temp bucket" name="S3Service bucket getters should return temp bucket" time="0.002">
+    </testcase>
+    <testcase classname="S3Service bucket getters should return final bucket" name="S3Service bucket getters should return final bucket" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="NotificationService" errors="0" failures="0" skipped="0" timestamp="2025-10-15T03:39:56" time="0.094" tests="7">
+    <testcase classname="NotificationService sendJobStatusNotification should publish notification with correct payload for COMPLETED job" name="NotificationService sendJobStatusNotification should publish notification with correct payload for COMPLETED job" time="0.003">
+    </testcase>
+    <testcase classname="NotificationService sendJobStatusNotification should publish notification with error for FAILED job" name="NotificationService sendJobStatusNotification should publish notification with error for FAILED job" time="0.002">
+    </testcase>
+    <testcase classname="NotificationService sendJobStatusNotification should include previousStatus in data when provided" name="NotificationService sendJobStatusNotification should include previousStatus in data when provided" time="0.002">
+    </testcase>
+    <testcase classname="NotificationService sendJobCompletionNotification should publish completion notification" name="NotificationService sendJobCompletionNotification should publish completion notification" time="0.002">
+    </testcase>
+    <testcase classname="NotificationService sendBatchJobCompletionNotification should publish batch completion notification" name="NotificationService sendBatchJobCompletionNotification should publish batch completion notification" time="0.002">
+    </testcase>
+    <testcase classname="NotificationService sendBatchJobCompletionNotification should include batch metadata in data" name="NotificationService sendBatchJobCompletionNotification should include batch metadata in data" time="0.001">
+    </testcase>
+    <testcase classname="NotificationService status messages should return correct message for each status" name="NotificationService status messages should return correct message for each status" time="0.004">
+    </testcase>
+  </testsuite>
+  <testsuite name="ConfigService" errors="0" failures="0" skipped="0" timestamp="2025-10-15T03:39:56" time="0.079" tests="9">
+    <testcase classname="ConfigService getParameter should retrieve parameter from SSM" name="ConfigService getParameter should retrieve parameter from SSM" time="0.002">
+    </testcase>
+    <testcase classname="ConfigService getParameter should return null for non-existent parameter" name="ConfigService getParameter should return null for non-existent parameter" time="0.001">
+    </testcase>
+    <testcase classname="ConfigService getParameter should throw for other errors" name="ConfigService getParameter should throw for other errors" time="0.004">
+    </testcase>
+    <testcase classname="ConfigService isStubProvidersEnabled should return true when enabled" name="ConfigService isStubProvidersEnabled should return true when enabled" time="0.001">
+    </testcase>
+    <testcase classname="ConfigService isStubProvidersEnabled should return false when disabled" name="ConfigService isStubProvidersEnabled should return false when disabled" time="0.001">
+    </testcase>
+    <testcase classname="ConfigService getAnalysisProviderName should return configured provider name" name="ConfigService getAnalysisProviderName should return configured provider name" time="0.001">
+    </testcase>
+    <testcase classname="ConfigService getAnalysisProviderName should return default when not configured" name="ConfigService getAnalysisProviderName should return default when not configured" time="0.007">
+    </testcase>
+    <testcase classname="ConfigService getEditingProviderName should return configured provider name" name="ConfigService getEditingProviderName should return configured provider name" time="0.002">
+    </testcase>
+    <testcase classname="ConfigService getEditingProviderName should return default when not configured" name="ConfigService getEditingProviderName should return default when not configured" time="0.002">
+    </testcase>
+  </testsuite>
+  <testsuite name="AWS Client Factory" errors="0" failures="0" skipped="0" timestamp="2025-10-15T03:39:56" time="0.096" tests="24">
+    <testcase classname="AWS Client Factory getAWSEnvironment should detect LocalStack environment" name="AWS Client Factory getAWSEnvironment should detect LocalStack environment" time="0.002">
+    </testcase>
+    <testcase classname="AWS Client Factory getAWSEnvironment should detect custom AWS endpoint" name="AWS Client Factory getAWSEnvironment should detect custom AWS endpoint" time="0.001">
+    </testcase>
+    <testcase classname="AWS Client Factory getAWSEnvironment should default to production AWS when no custom endpoint is set" name="AWS Client Factory getAWSEnvironment should default to production AWS when no custom endpoint is set" time="0.001">
+    </testcase>
+    <testcase classname="AWS Client Factory getAWSEnvironment should prioritize LOCALSTACK_ENDPOINT over AWS_ENDPOINT_URL" name="AWS Client Factory getAWSEnvironment should prioritize LOCALSTACK_ENDPOINT over AWS_ENDPOINT_URL" time="0.001">
+    </testcase>
+    <testcase classname="AWS Client Factory createS3Client should create S3 client with default region" name="AWS Client Factory createS3Client should create S3 client with default region" time="0.002">
+    </testcase>
+    <testcase classname="AWS Client Factory createS3Client should create S3 client with custom region" name="AWS Client Factory createS3Client should create S3 client with custom region" time="0.001">
+    </testcase>
+    <testcase classname="AWS Client Factory createS3Client should use AWS_REGION environment variable" name="AWS Client Factory createS3Client should use AWS_REGION environment variable" time="0.001">
+    </testcase>
+    <testcase classname="AWS Client Factory createS3Client should configure LocalStack endpoint with forcePathStyle" name="AWS Client Factory createS3Client should configure LocalStack endpoint with forcePathStyle" time="0.001">
+    </testcase>
+    <testcase classname="AWS Client Factory createS3Client should configure custom endpoint" name="AWS Client Factory createS3Client should configure custom endpoint" time="0.001">
+    </testcase>
+    <testcase classname="AWS Client Factory createS3Client should accept custom configuration overrides" name="AWS Client Factory createS3Client should accept custom configuration overrides" time="0.002">
+    </testcase>
+    <testcase classname="AWS Client Factory createDynamoDBClient should create DynamoDB client with default region" name="AWS Client Factory createDynamoDBClient should create DynamoDB client with default region" time="0.002">
+    </testcase>
+    <testcase classname="AWS Client Factory createDynamoDBClient should create DynamoDB client with custom region" name="AWS Client Factory createDynamoDBClient should create DynamoDB client with custom region" time="0.002">
+    </testcase>
+    <testcase classname="AWS Client Factory createDynamoDBClient should configure LocalStack endpoint" name="AWS Client Factory createDynamoDBClient should configure LocalStack endpoint" time="0.001">
+    </testcase>
+    <testcase classname="AWS Client Factory createDynamoDBClient should accept custom configuration overrides" name="AWS Client Factory createDynamoDBClient should accept custom configuration overrides" time="0.002">
+    </testcase>
+    <testcase classname="AWS Client Factory createSQSClient should create SQS client with default region" name="AWS Client Factory createSQSClient should create SQS client with default region" time="0.002">
+    </testcase>
+    <testcase classname="AWS Client Factory createSQSClient should create SQS client with custom region" name="AWS Client Factory createSQSClient should create SQS client with custom region" time="0.001">
+    </testcase>
+    <testcase classname="AWS Client Factory createSQSClient should configure LocalStack endpoint" name="AWS Client Factory createSQSClient should configure LocalStack endpoint" time="0.003">
+    </testcase>
+    <testcase classname="AWS Client Factory createSQSClient should accept custom configuration overrides" name="AWS Client Factory createSQSClient should accept custom configuration overrides" time="0.002">
+    </testcase>
+    <testcase classname="AWS Client Factory createSNSClient should create SNS client with default region" name="AWS Client Factory createSNSClient should create SNS client with default region" time="0.002">
+    </testcase>
+    <testcase classname="AWS Client Factory createSNSClient should create SNS client with custom region" name="AWS Client Factory createSNSClient should create SNS client with custom region" time="0.001">
+    </testcase>
+    <testcase classname="AWS Client Factory createSNSClient should configure LocalStack endpoint" name="AWS Client Factory createSNSClient should configure LocalStack endpoint" time="0.002">
+    </testcase>
+    <testcase classname="AWS Client Factory createSNSClient should accept custom configuration overrides" name="AWS Client Factory createSNSClient should accept custom configuration overrides" time="0.001">
+    </testcase>
+    <testcase classname="AWS Client Factory Multi-environment scenarios should handle transition from production to LocalStack" name="AWS Client Factory Multi-environment scenarios should handle transition from production to LocalStack" time="0.002">
+    </testcase>
+    <testcase classname="AWS Client Factory Multi-environment scenarios should create clients for all services with consistent configuration" name="AWS Client Factory Multi-environment scenarios should create clients for all services with consistent configuration" time="0.009">
+    </testcase>
+  </testsuite>
+  <testsuite name="DLQ redrive" errors="0" failures="0" skipped="0" timestamp="2025-10-15T03:39:56" time="0.085" tests="8">
+    <testcase classname="DLQ redrive DLQ configuration should verify main queue has DLQ configured" name="DLQ redrive DLQ configuration should verify main queue has DLQ configured" time="0.003">
+    </testcase>
+    <testcase classname="DLQ redrive DLQ configuration should fail fast if DLQ is missing" name="DLQ redrive DLQ configuration should fail fast if DLQ is missing" time="0.002">
+    </testcase>
+    <testcase classname="DLQ redrive DLQ configuration should verify DLQ maxReceiveCount is properly configured" name="DLQ redrive DLQ configuration should verify DLQ maxReceiveCount is properly configured" time="0.002">
+    </testcase>
+    <testcase classname="DLQ redrive DLQ redrive flow should successfully redrive messages from DLQ to main queue" name="DLQ redrive DLQ redrive flow should successfully redrive messages from DLQ to main queue" time="0.004">
+    </testcase>
+    <testcase classname="DLQ redrive DLQ redrive flow should handle idempotent processing of redriven messages" name="DLQ redrive DLQ redrive flow should handle idempotent processing of redriven messages" time="0.004">
+    </testcase>
+    <testcase classname="DLQ redrive DLQ redrive flow should verify poison messages are isolated in DLQ" name="DLQ redrive DLQ redrive flow should verify poison messages are isolated in DLQ" time="0.002">
+    </testcase>
+    <testcase classname="DLQ redrive DLQ redrive flow should handle empty DLQ gracefully" name="DLQ redrive DLQ redrive flow should handle empty DLQ gracefully" time="0.003">
+    </testcase>
+    <testcase classname="DLQ redrive Redrive policy validation should verify redrive policy matches DLQ ARN" name="DLQ redrive Redrive policy validation should verify redrive policy matches DLQ ARN" time="0.002">
+    </testcase>
+  </testsuite>
+  <testsuite name="AWS Client Factory" errors="0" failures="0" skipped="0" timestamp="2025-10-15T03:39:56" time="0.082" tests="10">
+    <testcase classname="AWS Client Factory getAWSEnvironment should detect LocalStack endpoint" name="AWS Client Factory getAWSEnvironment should detect LocalStack endpoint" time="0.002">
+    </testcase>
+    <testcase classname="AWS Client Factory getAWSEnvironment should detect AWS endpoint URL" name="AWS Client Factory getAWSEnvironment should detect AWS endpoint URL" time="0.001">
+    </testcase>
+    <testcase classname="AWS Client Factory getAWSEnvironment should return default when no endpoints configured" name="AWS Client Factory getAWSEnvironment should return default when no endpoints configured" time="0.002">
+    </testcase>
+    <testcase classname="AWS Client Factory createS3Client should create S3 client with default region" name="AWS Client Factory createS3Client should create S3 client with default region" time="0.008">
+    </testcase>
+    <testcase classname="AWS Client Factory createS3Client should create S3 client with forcePathStyle for LocalStack" name="AWS Client Factory createS3Client should create S3 client with forcePathStyle for LocalStack" time="0.001">
+    </testcase>
+    <testcase classname="AWS Client Factory createS3Client should accept custom region" name="AWS Client Factory createS3Client should accept custom region" time="0.001">
+    </testcase>
+    <testcase classname="AWS Client Factory createDynamoDBClient should create DynamoDB client" name="AWS Client Factory createDynamoDBClient should create DynamoDB client" time="0.002">
+    </testcase>
+    <testcase classname="AWS Client Factory createSQSClient should create SQS client" name="AWS Client Factory createSQSClient should create SQS client" time="0.001">
+    </testcase>
+    <testcase classname="AWS Client Factory createSNSClient should create SNS client" name="AWS Client Factory createSNSClient should create SNS client" time="0.002">
+    </testcase>
+    <testcase classname="AWS Client Factory createSSMClient should create SSM client" name="AWS Client Factory createSSMClient should create SSM client" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="AppLogger" errors="0" failures="0" skipped="0" timestamp="2025-10-15T03:39:56" time="0.073" tests="20">
+    <testcase classname="AppLogger Structured Logging - Required Fields should emit structured fields for correlationId" name="AppLogger Structured Logging - Required Fields should emit structured fields for correlationId" time="0.001">
+    </testcase>
+    <testcase classname="AppLogger Structured Logging - Required Fields should emit structured fields for requestId" name="AppLogger Structured Logging - Required Fields should emit structured fields for requestId" time="0.001">
+    </testcase>
+    <testcase classname="AppLogger Structured Logging - Required Fields should emit structured fields for jobId" name="AppLogger Structured Logging - Required Fields should emit structured fields for jobId" time="0.001">
+    </testcase>
+    <testcase classname="AppLogger Structured Logging - Required Fields should emit structured fields for userId" name="AppLogger Structured Logging - Required Fields should emit structured fields for userId" time="0.001">
+    </testcase>
+    <testcase classname="AppLogger Structured Logging - Required Fields should emit multiple structured fields together" name="AppLogger Structured Logging - Required Fields should emit multiple structured fields together" time="0.002">
+    </testcase>
+    <testcase classname="AppLogger formatContext - Field Filtering should filter out undefined values from context" name="AppLogger formatContext - Field Filtering should filter out undefined values from context" time="0.002">
+    </testcase>
+    <testcase classname="AppLogger formatContext - Field Filtering should filter out null values from context" name="AppLogger formatContext - Field Filtering should filter out null values from context" time="0.001">
+    </testcase>
+    <testcase classname="AppLogger formatContext - Field Filtering should return empty object when context is undefined" name="AppLogger formatContext - Field Filtering should return empty object when context is undefined" time="0.009">
+    </testcase>
+    <testcase classname="AppLogger Log Levels should log info messages with context" name="AppLogger Log Levels should log info messages with context" time="0.002">
+    </testcase>
+    <testcase classname="AppLogger Log Levels should log warn messages with context" name="AppLogger Log Levels should log warn messages with context" time="0.001">
+    </testcase>
+    <testcase classname="AppLogger Log Levels should log error messages with context" name="AppLogger Log Levels should log error messages with context" time="0.007">
+    </testcase>
+    <testcase classname="AppLogger Log Levels should log debug messages with context" name="AppLogger Log Levels should log debug messages with context" time="0.001">
+    </testcase>
+    <testcase classname="AppLogger Specialized Logging Methods should log request start with required fields" name="AppLogger Specialized Logging Methods should log request start with required fields" time="0.001">
+    </testcase>
+    <testcase classname="AppLogger Specialized Logging Methods should log request end with duration" name="AppLogger Specialized Logging Methods should log request end with duration" time="0.001">
+    </testcase>
+    <testcase classname="AppLogger Specialized Logging Methods should log job status changes" name="AppLogger Specialized Logging Methods should log job status changes" time="0.001">
+    </testcase>
+    <testcase classname="AppLogger Specialized Logging Methods should log provider calls with success" name="AppLogger Specialized Logging Methods should log provider calls with success" time="0.001">
+    </testcase>
+    <testcase classname="AppLogger Specialized Logging Methods should log provider calls with failure" name="AppLogger Specialized Logging Methods should log provider calls with failure" time="0.001">
+    </testcase>
+    <testcase classname="AppLogger Error Handling should extract error information from Error objects" name="AppLogger Error Handling should extract error information from Error objects" time="0.001">
+    </testcase>
+    <testcase classname="AppLogger Error Handling should handle string errors" name="AppLogger Error Handling should handle string errors" time="0.002">
+    </testcase>
+    <testcase classname="AppLogger Child Logger should create child logger with persistent context" name="AppLogger Child Logger should create child logger with persistent context" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="Dependency Analysis" errors="0" failures="0" skipped="0" timestamp="2025-10-15T03:39:57" time="0.056" tests="5">
+    <testcase classname="Dependency Analysis Package Configuration Validation production dependencies are properly declared" name="Dependency Analysis Package Configuration Validation production dependencies are properly declared" time="0.015">
+    </testcase>
+    <testcase classname="Dependency Analysis Package Configuration Validation external dependencies in build config are available in Lambda runtime" name="Dependency Analysis Package Configuration Validation external dependencies in build config are available in Lambda runtime" time="0.001">
+    </testcase>
+    <testcase classname="Dependency Analysis Bundle Configuration Analysis esbuild configuration is consistent across lambdas" name="Dependency Analysis Bundle Configuration Analysis esbuild configuration is consistent across lambdas" time="0.002">
+    </testcase>
+    <testcase classname="Dependency Analysis Bundle Configuration Analysis critical dependencies are not externalized" name="Dependency Analysis Bundle Configuration Analysis critical dependencies are not externalized" time="0.001">
+    </testcase>
+    <testcase classname="Dependency Analysis Runtime Dependencies Check no conflicting dependency versions" name="Dependency Analysis Runtime Dependencies Check no conflicting dependency versions" time="0">
+    </testcase>
+  </testsuite>
+  <testsuite name="Lambda Build Validation" errors="0" failures="0" skipped="0" timestamp="2025-10-15T03:39:57" time="0.049" tests="9">
+    <testcase classname="Lambda Build Validation JavaScript Bundle Validation bundled presign lambda contains required dependencies" name="Lambda Build Validation JavaScript Bundle Validation bundled presign lambda contains required dependencies" time="0.001">
+    </testcase>
+    <testcase classname="Lambda Build Validation JavaScript Bundle Validation bundled status lambda contains required dependencies" name="Lambda Build Validation JavaScript Bundle Validation bundled status lambda contains required dependencies" time="0.001">
+    </testcase>
+    <testcase classname="Lambda Build Validation JavaScript Bundle Validation bundled worker lambda contains required dependencies" name="Lambda Build Validation JavaScript Bundle Validation bundled worker lambda contains required dependencies" time="0.001">
+    </testcase>
+    <testcase classname="Lambda Build Validation JavaScript Bundle Validation external dependencies are only AWS SDK modules" name="Lambda Build Validation JavaScript Bundle Validation external dependencies are only AWS SDK modules" time="0.002">
+    </testcase>
+    <testcase classname="Lambda Build Validation ZIP File Validation presign lambda ZIP file exists" name="Lambda Build Validation ZIP File Validation presign lambda ZIP file exists" time="0.001">
+    </testcase>
+    <testcase classname="Lambda Build Validation ZIP File Validation status lambda ZIP file exists" name="Lambda Build Validation ZIP File Validation status lambda ZIP file exists" time="0">
+    </testcase>
+    <testcase classname="Lambda Build Validation ZIP File Validation worker lambda ZIP file exists" name="Lambda Build Validation ZIP File Validation worker lambda ZIP file exists" time="0.006">
+    </testcase>
+    <testcase classname="Lambda Build Validation Bundle Analysis critical dependencies are properly bundled" name="Lambda Build Validation Bundle Analysis critical dependencies are properly bundled" time="0.002">
+    </testcase>
+    <testcase classname="Lambda Build Validation Bundle Analysis no obvious import errors in bundled code" name="Lambda Build Validation Bundle Analysis no obvious import errors in bundled code" time="0.003">
     </testcase>
   </testsuite>
 </testsuites>

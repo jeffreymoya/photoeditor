@@ -11,7 +11,6 @@ import {
   StandardProviderCreator
 } from '@backend/core';
 import { ErrorHandler } from '../utils/errors';
-import { addDeprecationHeadersIfLegacy } from '../utils/deprecation';
 
 const logger = new Logger();
 const metrics = new Metrics();
@@ -82,7 +81,7 @@ async function handleBatchUpload(
   metrics.addMetric('BatchPresignedUrlsGenerated', MetricUnits.Count, 1);
   metrics.addMetric('FilesInBatch', MetricUnits.Count, validatedRequest.files.length);
 
-  let headers: Record<string, string> = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'x-request-id': requestId
   };
@@ -123,7 +122,7 @@ async function handleSingleUpload(
 
   metrics.addMetric('PresignedUrlGenerated', MetricUnits.Count, 1);
 
-  let headers: Record<string, string> = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'x-request-id': requestId
   };
@@ -151,7 +150,6 @@ export const handler = async (
   // Extract correlation identifiers
   const requestId = event.requestContext.requestId;
   const traceparent = event.headers['traceparent'];
-  const requestPath = event.rawPath || event.requestContext.http.path;
 
   try {
     await initializeServices();
@@ -164,11 +162,6 @@ export const handler = async (
         'Request body is required',
         requestId,
         traceparent
-      );
-      // Add deprecation headers if using legacy route
-      errorResponse.headers = addDeprecationHeadersIfLegacy(
-        requestPath,
-        errorResponse.headers || {}
       );
       return errorResponse;
     }
@@ -190,11 +183,6 @@ export const handler = async (
         requestId,
         traceparent
       );
-      // Add deprecation headers if using legacy route
-      errorResponse.headers = addDeprecationHeadersIfLegacy(
-        requestPath,
-        errorResponse.headers || {}
-      );
       return errorResponse;
     }
 
@@ -208,12 +196,6 @@ export const handler = async (
       response = await handleSingleUpload(body, userId, requestId, traceparent);
     }
 
-    // Add deprecation headers if using legacy route
-    response.headers = addDeprecationHeadersIfLegacy(
-      requestPath,
-      response.headers || {}
-    );
-
     return response;
 
   } catch (error) {
@@ -226,11 +208,6 @@ export const handler = async (
       'An unexpected error occurred while generating presigned URL',
       requestId,
       traceparent
-    );
-    // Add deprecation headers if using legacy route
-    errorResponse.headers = addDeprecationHeadersIfLegacy(
-      requestPath,
-      errorResponse.headers || {}
     );
     return errorResponse;
   } finally {

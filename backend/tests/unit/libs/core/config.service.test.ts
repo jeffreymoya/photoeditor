@@ -84,7 +84,7 @@ describe('ConfigService', () => {
 
     it('should return default when not configured', async () => {
       ssmMock.on(GetParameterCommand).resolves({
-        Parameter: { Value: null }
+        Parameter: { Value: undefined }
       });
 
       const result = await configService.getAnalysisProviderName();
@@ -106,7 +106,7 @@ describe('ConfigService', () => {
 
     it('should return default when not configured', async () => {
       ssmMock.on(GetParameterCommand).resolves({
-        Parameter: { Value: null }
+        Parameter: { Value: undefined }
       });
 
       const result = await configService.getEditingProviderName();

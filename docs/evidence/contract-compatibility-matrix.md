@@ -9,7 +9,7 @@ This matrix validates backward compatibility for API contracts between old and n
 
 ## Test Coverage
 
-### Presign Endpoint (`POST /upload/presign`)
+### Presign Endpoint (`POST /v1/upload/presign`)
 
 | Test Scenario | Old Client → New Server | New Client → Old Server | Status |
 |--------------|------------------------|------------------------|--------|

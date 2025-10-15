@@ -8,9 +8,10 @@
  * Coverage: Single upload, batch upload, status lookups, error cases
  */
 
-import { APIGatewayProxyEventV2, Context } from 'aws-lambda';
+import { Context } from 'aws-lambda';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { S3Client } from '@aws-sdk/client-s3';
+import { SSMClient, PutParameterCommand, DeleteParameterCommand } from '@aws-sdk/client-ssm';
 import { handler as presignHandler } from '../../src/lambdas/presign';
 import { handler as statusHandler } from '../../src/lambdas/status';
 import {
@@ -31,14 +32,18 @@ import {
 } from '../fixtures/jobs';
 import { makeApiEventV2 } from '../fixtures/events';
 import { createDynamoDBClient, createS3Client } from '../../src/libs/aws-clients';
-import { JobService } from '../../src/services/job.service';
+import { v4 as uuidv4 } from 'uuid';
 
-// Disable fake timers for integration tests (need real async operations)
-jest.useRealTimers();
+// Type helper for API Gateway V2 responses (union type narrowed to object form)
+type ApiResponse = { statusCode: number; headers?: Record<string, string>; body: string };
 
 describe('Presign & Status Integration Tests', () => {
   let dynamoClient: DynamoDBClient;
   let s3Client: S3Client;
+  let ssmClient: SSMClient;
+  let ssmParamNames: string[] = [];
+  let uuidCounter = 0;
+  let paramPrefix: string;
   const mockContext: Context = {
     callbackWaitsForEmptyEventLoop: false,
     functionName: 'test-function',
@@ -54,6 +59,31 @@ describe('Presign & Status Integration Tests', () => {
     succeed: () => {}
   };
 
+  beforeEach(async () => {
+    setupLocalStackEnv();
+    jest.useRealTimers();
+
+    uuidCounter = 0;
+    (uuidv4 as jest.Mock).mockImplementation(() => {
+      uuidCounter += 1;
+      return `00000000-0000-4000-8000-${String(uuidCounter).padStart(12, '0')}`;
+    });
+
+    if (dynamoClient) {
+      await deleteTable(dynamoClient, process.env.JOBS_TABLE_NAME!);
+      await deleteTable(dynamoClient, process.env.BATCH_TABLE_NAME!);
+      await createJobsTable(dynamoClient, process.env.JOBS_TABLE_NAME!);
+      await createBatchJobsTable(dynamoClient, process.env.BATCH_TABLE_NAME!);
+    }
+
+    if (s3Client) {
+      await deleteBucket(s3Client, process.env.TEMP_BUCKET_NAME!);
+      await deleteBucket(s3Client, process.env.FINAL_BUCKET_NAME!);
+      await createBucket(s3Client, process.env.TEMP_BUCKET_NAME!);
+      await createBucket(s3Client, process.env.FINAL_BUCKET_NAME!);
+    }
+  });
+
   beforeAll(async () => {
     // Set up LocalStack environment
     setupLocalStackEnv();
@@ -64,22 +94,67 @@ describe('Presign & Status Integration Tests', () => {
     // Create clients using factory pattern (STANDARDS.md line 26)
     dynamoClient = createDynamoDBClient();
     s3Client = createS3Client();
+    const endpoint = process.env.LOCALSTACK_ENDPOINT || 'http://localhost:4566';
+    ssmClient = new SSMClient({
+      region: process.env.AWS_REGION!,
+      endpoint,
+      credentials: {
+        accessKeyId: 'test',
+        secretAccessKey: 'test'
+      }
+    });
 
-    // Create DynamoDB tables
+    paramPrefix = `/${process.env.PROJECT_NAME}-${process.env.NODE_ENV}`;
+    ssmParamNames = [
+      `${paramPrefix}/providers/enable-stubs`,
+      `${paramPrefix}/providers/analysis`,
+      `${paramPrefix}/providers/editing`
+    ];
+
+    const ssmParams = [
+      { Name: ssmParamNames[0], Value: 'true', Type: 'String' as const },
+      { Name: ssmParamNames[1], Value: 'gemini', Type: 'String' as const },
+      { Name: ssmParamNames[2], Value: 'seedream', Type: 'String' as const }
+    ];
+
+    for (const param of ssmParams) {
+      await ssmClient.send(new PutParameterCommand({
+        ...param,
+        Overwrite: true
+      }));
+    }
+
+    // Create initial tables and buckets
     await createJobsTable(dynamoClient, process.env.JOBS_TABLE_NAME!);
     await createBatchJobsTable(dynamoClient, process.env.BATCH_TABLE_NAME!);
-
-    // Create S3 buckets
     await createBucket(s3Client, process.env.TEMP_BUCKET_NAME!);
     await createBucket(s3Client, process.env.FINAL_BUCKET_NAME!);
   }, 30000); // Extended timeout for LocalStack setup
 
   afterAll(async () => {
+    setupLocalStackEnv();
+    if (!dynamoClient || !s3Client) {
+      return;
+    }
     // Clean up resources
     await deleteTable(dynamoClient, process.env.JOBS_TABLE_NAME!);
     await deleteTable(dynamoClient, process.env.BATCH_TABLE_NAME!);
     await deleteBucket(s3Client, process.env.TEMP_BUCKET_NAME!);
     await deleteBucket(s3Client, process.env.FINAL_BUCKET_NAME!);
+    if (ssmClient) {
+      for (const name of ssmParamNames) {
+        try {
+          await ssmClient.send(new DeleteParameterCommand({ Name: name }));
+        } catch (error) {
+          if ((error as Error).name !== 'ParameterNotFound') {
+            throw error;
+          }
+        }
+      }
+      ssmClient.destroy();
+    }
+    dynamoClient.destroy();
+    s3Client.destroy();
   }, 30000);
 
   describe('POST /presign - Single Upload', () => {
@@ -99,7 +174,7 @@ describe('Presign & Status Integration Tests', () => {
       });
 
       // Act
-      const response = await presignHandler(event, mockContext);
+      const response = await presignHandler(event, mockContext) as ApiResponse;
 
       // Assert
       expect(response.statusCode).toBe(200);
@@ -123,7 +198,7 @@ describe('Presign & Status Integration Tests', () => {
       });
 
       // Act
-      const presignResponse = await presignHandler(event, mockContext);
+      const presignResponse = await presignHandler(event, mockContext) as ApiResponse;
       const presignBody = JSON.parse(presignResponse.body);
 
       // Fetch job status
@@ -136,12 +211,12 @@ describe('Presign & Status Integration Tests', () => {
           http: {
             ...makeApiEventV2().requestContext.http,
             method: 'GET',
-            path: `/jobs/${presignBody.jobId}`
+            path: `/v1/jobs/${presignBody.jobId}`
           }
         }
       });
 
-      const statusResponse = await statusHandler(statusEvent, mockContext);
+      const statusResponse = await statusHandler(statusEvent, mockContext) as ApiResponse;
 
       // Assert
       expect(statusResponse.statusCode).toBe(200);
@@ -172,11 +247,11 @@ describe('Presign & Status Integration Tests', () => {
               scopes: []
             }
           }
-        }
+        } as any // V2 authorizer not in AWS types, but supported at runtime
       });
 
       // Act
-      const response = await presignHandler(event, mockContext);
+      const response = await presignHandler(event, mockContext) as ApiResponse;
       const body = JSON.parse(response.body);
 
       // Assert
@@ -193,7 +268,7 @@ describe('Presign & Status Integration Tests', () => {
       });
 
       // Act
-      const response = await presignHandler(event, mockContext);
+      const response = await presignHandler(event, mockContext) as ApiResponse;
 
       // Assert
       expect(response.statusCode).toBe(200);
@@ -218,7 +293,7 @@ describe('Presign & Status Integration Tests', () => {
       });
 
       // Act
-      const batchResponse = await presignHandler(event, mockContext);
+      const batchResponse = await presignHandler(event, mockContext) as ApiResponse;
       const batchBody = JSON.parse(batchResponse.body);
 
       // Verify each child job exists and has QUEUED status
@@ -229,7 +304,7 @@ describe('Presign & Status Integration Tests', () => {
           }
         });
 
-        const statusResponse = await statusHandler(statusEvent, mockContext);
+        const statusResponse = await statusHandler(statusEvent, mockContext) as ApiResponse;
         expect(statusResponse.statusCode).toBe(200);
 
         const statusBody = JSON.parse(statusResponse.body);
@@ -250,7 +325,7 @@ describe('Presign & Status Integration Tests', () => {
       });
 
       // Act
-      const response = await presignHandler(event, mockContext);
+      const response = await presignHandler(event, mockContext) as ApiResponse;
 
       // Assert
       expect(response.statusCode).toBe(200);
@@ -259,37 +334,46 @@ describe('Presign & Status Integration Tests', () => {
     });
   });
 
-  describe('GET /jobs/{jobId} - Status Retrieval', () => {
+  describe('GET /v1/jobs/{jobId} - Status Retrieval', () => {
     it('should return 404 for non-existent job', async () => {
       // Arrange
+      const missingJobId = '99999999-9999-4999-8999-999999999999';
       const event = makeApiEventV2({
         pathParameters: {
-          jobId: '99999999-9999-4999-8999-999999999999'
+          jobId: missingJobId
         }
       });
 
       // Act
-      const response = await statusHandler(event, mockContext);
+      const response = await statusHandler(event, mockContext) as ApiResponse;
 
       // Assert
       expect(response.statusCode).toBe(404);
       const body = JSON.parse(response.body);
-      expect(body.error).toBe('Job not found');
+      expect(body).toMatchObject({
+        code: 'JOB_NOT_FOUND',
+        title: 'Resource Not Found',
+        detail: `Job with ID ${missingJobId} not found`
+      });
     });
 
     it('should return 400 for missing jobId parameter', async () => {
       // Arrange
       const event = makeApiEventV2({
-        pathParameters: null
+        pathParameters: undefined
       });
 
       // Act
-      const response = await statusHandler(event, mockContext);
+      const response = await statusHandler(event, mockContext) as ApiResponse;
 
       // Assert
       expect(response.statusCode).toBe(400);
       const body = JSON.parse(response.body);
-      expect(body.error).toBe('Job ID required');
+      expect(body).toMatchObject({
+        code: 'MISSING_JOB_ID',
+        title: 'Validation Error',
+        detail: 'Job ID is required'
+      });
     });
 
     it('should return job with all fields when job exists', async () => {
@@ -298,7 +382,7 @@ describe('Presign & Status Integration Tests', () => {
       const presignEvent = makeApiEventV2({
         body: JSON.stringify(presignBody)
       });
-      const presignResponse = await presignHandler(presignEvent, mockContext);
+      const presignResponse = await presignHandler(presignEvent, mockContext) as ApiResponse;
       const { jobId } = JSON.parse(presignResponse.body);
 
       // Act
@@ -307,7 +391,7 @@ describe('Presign & Status Integration Tests', () => {
           jobId
         }
       });
-      const statusResponse = await statusHandler(statusEvent, mockContext);
+      const statusResponse = await statusHandler(statusEvent, mockContext) as ApiResponse;
 
       // Assert
       expect(statusResponse.statusCode).toBe(200);
@@ -318,7 +402,7 @@ describe('Presign & Status Integration Tests', () => {
         createdAt: expect.any(String),
         updatedAt: expect.any(String)
       });
-      expect(statusBody.tempS3Key).toBeDefined();
+      expect(statusBody.tempS3Key).toBeUndefined();
       expect(statusBody.finalS3Key).toBeUndefined();
       expect(statusBody.error).toBeUndefined();
     });
@@ -335,25 +419,33 @@ describe('Presign & Status Integration Tests', () => {
       });
 
       // Act
-      const response = await presignHandler(event, mockContext);
+      const response = await presignHandler(event, mockContext) as ApiResponse;
 
       // Assert - Zod validation should fail
-      expect(response.statusCode).toBe(500); // Handler wraps validation errors
+      expect(response.statusCode).toBe(400);
+      const body = JSON.parse(response.body);
+      expect(body.code).toBe('INVALID_REQUEST');
+      expect(typeof body.detail).toBe('string');
+      expect(body.title).toBe('Validation Error');
     });
 
     it('should reject presign request with missing body', async () => {
       // Arrange
       const event = makeApiEventV2({
-        body: null
+        body: undefined
       });
 
       // Act
-      const response = await presignHandler(event, mockContext);
+      const response = await presignHandler(event, mockContext) as ApiResponse;
 
       // Assert
       expect(response.statusCode).toBe(400);
       const body = JSON.parse(response.body);
-      expect(body.error).toBe('Request body required');
+      expect(body).toMatchObject({
+        code: 'MISSING_REQUEST_BODY',
+        title: 'Validation Error',
+        detail: 'Request body is required'
+      });
     });
 
     it('should reject batch presign with too many files', async () => {
@@ -366,10 +458,12 @@ describe('Presign & Status Integration Tests', () => {
       });
 
       // Act
-      const response = await presignHandler(event, mockContext);
+      const response = await presignHandler(event, mockContext) as ApiResponse;
 
       // Assert - Zod validation should fail
-      expect(response.statusCode).toBe(500);
+      expect(response.statusCode).toBe(400);
+      const body = JSON.parse(response.body);
+      expect(body.code).toBe('INVALID_REQUEST');
     });
 
     it('should reject batch presign with empty files array', async () => {
@@ -382,10 +476,12 @@ describe('Presign & Status Integration Tests', () => {
       });
 
       // Act
-      const response = await presignHandler(event, mockContext);
+      const response = await presignHandler(event, mockContext) as ApiResponse;
 
       // Assert
-      expect(response.statusCode).toBe(500);
+      expect(response.statusCode).toBe(400);
+      const body = JSON.parse(response.body);
+      expect(body.code).toBe('INVALID_REQUEST');
     });
 
     it('should handle malformed JSON in request body', async () => {
@@ -395,10 +491,16 @@ describe('Presign & Status Integration Tests', () => {
       });
 
       // Act
-      const response = await presignHandler(event, mockContext);
+      const response = await presignHandler(event, mockContext) as ApiResponse;
 
       // Assert
-      expect(response.statusCode).toBe(500);
+      expect(response.statusCode).toBe(400);
+      const body = JSON.parse(response.body);
+      expect(body).toMatchObject({
+        code: 'INVALID_JSON',
+        title: 'Validation Error',
+        detail: 'Request body must be valid JSON'
+      });
     });
   });
 
@@ -411,7 +513,7 @@ describe('Presign & Status Integration Tests', () => {
         body: JSON.stringify(requestBody)
       });
 
-      const response = await presignHandler(event, mockContext);
+      const response = await presignHandler(event, mockContext) as ApiResponse;
 
       expect(response.statusCode).toBe(200);
       // Note: In CI, structured logs would be captured and verified
@@ -430,7 +532,7 @@ describe('Presign & Status Integration Tests', () => {
         }
       });
 
-      const response = await presignHandler(event, mockContext);
+      const response = await presignHandler(event, mockContext) as ApiResponse;
 
       expect(response.statusCode).toBe(200);
       // Note: In CI, trace propagation would be verified through X-Ray or logs

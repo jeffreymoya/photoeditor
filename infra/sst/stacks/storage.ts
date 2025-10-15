@@ -161,10 +161,46 @@ export default function StorageStack() {
     },
   });
 
+  // DynamoDB table for device tokens - PITR enabled, on-demand billing, TTL for expiry
+  const deviceTokensTable = new sst.aws.Dynamo("DeviceTokensTable", {
+    fields: {
+      userId: "string",
+      deviceId: "string",
+      expoPushToken: "string",
+      platform: "string",
+      registeredAt: "string",
+      updatedAt: "string",
+      isActive: "string", // DynamoDB doesn't support boolean in key schema
+      expiresAt: "number", // TTL attribute (Unix epoch timestamp)
+    },
+    primaryIndex: { hashKey: "userId", rangeKey: "deviceId" },
+    ttl: "expiresAt", // Automatic expiry after 90 days
+    transform: {
+      table: {
+        billingMode: "PAY_PER_REQUEST",
+        pointInTimeRecovery: {
+          enabled: true,
+        },
+        serverSideEncryption: {
+          enabled: true,
+          kmsMasterKeyId: kmsKey.arn,
+        },
+        tags: {
+          Project: "PhotoEditor",
+          Env: $app.stage,
+          Owner: "DevTeam",
+          CostCenter: "Engineering",
+          Purpose: "DeviceTokens",
+        },
+      },
+    },
+  });
+
   return {
     tempBucket,
     finalBucket,
     jobsTable,
+    deviceTokensTable,
     kmsKey,
   };
 }

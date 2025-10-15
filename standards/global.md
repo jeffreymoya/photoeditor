@@ -54,4 +54,4 @@
 * **Owners**: each tier designates a maintainer responsible for uploading fitness-gate artefacts to the shared evidence bundle.
 * **Audit cadence**: quarterly cross-tier review ensures reports remain accessible; gaps become tasks in `tasks/` with linked remediation.
 * **Evidence bundle scope**: include import graphs with fan-in/out and propagation-cost histograms, structural-debt trends, OpenAPI specs with semantic diff and compatibility matrix, trace coverage %, MTTP P95, API→worker latency P95, DLQ drill summary, coverage + mutation reports, flake-rate trend, reuse ratio, pen-test/access review notes, and cost reports with optimisations.
-* **Tooling**: `scripts/evidence-bundle` orchestrates report collection before `npm run stage:a`. Contributions must extend the script when adding new artefacts.
+* **Tooling**: `scripts/evidence-bundle` orchestrates report collection before `npm run qa-suite:static`. Contributions must extend the script when adding new artefacts.

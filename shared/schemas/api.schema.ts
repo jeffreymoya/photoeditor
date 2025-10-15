@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// Single File Schema (for backward compatibility)
+// Single file upload schema (used by both single and batch flows)
 export const FileUploadSchema = z.object({
   fileName: z.string().min(1),
   contentType: z.string().regex(/^image\/(jpeg|png|heic|webp)$/),
@@ -32,7 +32,7 @@ export const BatchUploadResponseSchema = z.object({
 
 export type BatchUploadResponse = z.infer<typeof BatchUploadResponseSchema>;
 
-// Legacy single upload (for backward compatibility)
+// Single upload request and response
 export const PresignUploadRequestSchema = z.object({
   fileName: z.string().min(1),
   contentType: z.string().regex(/^image\/(jpeg|png|heic|webp)$/),
@@ -68,7 +68,7 @@ export const ApiErrorResponseSchema = z.object({
   context: z.record(z.unknown()).optional() // For additional debug context
 });
 
-// Legacy error schema (deprecated, for backward compatibility)
+// Error schema used by current HTTP responses
 export const ApiErrorSchema = z.object({
   error: z.object({
     code: z.string(),
@@ -112,6 +112,22 @@ export const DeviceTokenResponseSchema = z.object({
 });
 
 export type DeviceTokenResponse = z.infer<typeof DeviceTokenResponseSchema>;
+
+// Batch Job Status Response
+export const BatchJobStatusResponseSchema = z.object({
+  batchJobId: z.string().uuid(),
+  userId: z.string(),
+  status: z.enum(['QUEUED', 'PROCESSING', 'EDITING', 'COMPLETED', 'FAILED']),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+  sharedPrompt: z.string(),
+  completedCount: z.number().min(0),
+  totalCount: z.number().positive(),
+  childJobIds: z.array(z.string().uuid()),
+  error: z.string().optional()
+});
+
+export type BatchJobStatusResponse = z.infer<typeof BatchJobStatusResponseSchema>;
 
 // Job Status Updates (for websocket/SSE)
 export const JobStatusUpdateSchema = z.object({

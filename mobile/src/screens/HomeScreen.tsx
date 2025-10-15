@@ -8,10 +8,36 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { CompositeNavigationProp } from '@react-navigation/native';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { StackNavigationProp } from '@react-navigation/stack';
 
 import { useAppSelector } from '@/store';
 
-export const HomeScreen = ({ navigation }: any) => {
+type RootStackParamList = {
+  Tabs: undefined;
+  Edit: undefined;
+  Preview: undefined;
+};
+
+type TabParamList = {
+  Home: undefined;
+  Camera: undefined;
+  Gallery: undefined;
+  Jobs: undefined;
+  Settings: undefined;
+};
+
+type HomeScreenNavigationProp = CompositeNavigationProp<
+  BottomTabNavigationProp<TabParamList, 'Home'>,
+  StackNavigationProp<RootStackParamList>
+>;
+
+interface HomeScreenProps {
+  navigation: HomeScreenNavigationProp;
+}
+
+export const HomeScreen = ({ navigation }: HomeScreenProps) => {
   const { jobs } = useAppSelector((state) => state.job);
   const recentJobs = jobs.slice(0, 5);
 

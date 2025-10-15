@@ -16,8 +16,8 @@
 **API & Backend Runtime**
 - Runtime: AWS Lambda (Node.js 20.x, TypeScript)
 - API Gateway: HTTP APIs v2 (cheaper than REST) for:
-  - `POST /upload/presign` – presign S3 uploads
-  - `GET /jobs/{id}` – job status for in-app progress
+  - `POST /v1/upload/presign` – presign S3 uploads
+  - `GET /v1/jobs/{id}` – job status for in-app progress
   - Admin/ops endpoints as needed
 - Packaging: `esbuild` bundling for Lambda
 - SDKs: AWS SDK v3 (`@aws-sdk/*`) and S3 presigner (`@aws-sdk/s3-request-presigner`)
@@ -141,5 +141,5 @@
 - Presigned S3 uploads from the app with three retries and backoff
 - Object-created event → queue → worker Lambda orchestrates analysis → editing flow (providers pluggable)
 - Only temp and final artifacts stored; no intermediate files; structured logs only
-- In-app progress polling via `/jobs/{id}` and push via FCM
+- In-app progress polling via `/v1/jobs/{id}` and push via FCM
 - Minimum compliance: TLS in transit, encryption at rest, least privilege, 90-day log retention, user consent flows

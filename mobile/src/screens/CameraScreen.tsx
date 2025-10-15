@@ -10,11 +10,37 @@ import { Camera, CameraType } from 'expo-camera';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { CompositeNavigationProp } from '@react-navigation/native';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 
 import { useAppDispatch } from '@/store';
 import { addSelectedImage } from '@/store/slices/imageSlice';
 
-export const CameraScreen = ({ navigation }: any) => {
+type RootStackParamList = {
+  Tabs: undefined;
+  Edit: undefined;
+  Preview: undefined;
+};
+
+type TabParamList = {
+  Home: undefined;
+  Camera: undefined;
+  Gallery: undefined;
+  Jobs: undefined;
+  Settings: undefined;
+};
+
+type CameraScreenNavigationProp = CompositeNavigationProp<
+  BottomTabNavigationProp<TabParamList, 'Camera'>,
+  StackNavigationProp<RootStackParamList>
+>;
+
+interface CameraScreenProps {
+  navigation: CameraScreenNavigationProp;
+}
+
+export const CameraScreen = ({ navigation }: CameraScreenProps) => {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [type, setType] = useState(CameraType.back);
   const [isReady, setIsReady] = useState(false);

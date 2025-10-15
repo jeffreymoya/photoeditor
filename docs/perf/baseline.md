@@ -3,8 +3,8 @@
 ## Overview
 
 This document defines baseline performance expectations for the core API endpoints:
-- `POST /upload/presign` - Generate presigned upload URLs
-- `GET /jobs/{id}` - Retrieve job status
+- `POST /v1/upload/presign` - Generate presigned upload URLs
+- `GET /v1/jobs/{id}` - Retrieve job status
 
 ## Running Performance Tests
 
@@ -41,9 +41,9 @@ These thresholds are for local testing against LocalStack or a development envir
 
 | Endpoint | P95 Latency Target | P99 Latency Target | Notes |
 |----------|-------------------|-------------------|-------|
-| POST /upload/presign (single) | < 200ms | < 500ms | Single file presign generation |
-| POST /upload/presign (batch) | < 400ms | < 800ms | Batch presign (3 files) |
-| GET /jobs/{id} | < 100ms | < 250ms | DynamoDB read operation |
+| POST /v1/upload/presign (single) | < 200ms | < 500ms | Single file presign generation |
+| POST /v1/upload/presign (batch) | < 400ms | < 800ms | Batch presign (3 files) |
+| GET /v1/jobs/{id} | < 100ms | < 250ms | DynamoDB read operation |
 
 ### Production Environment
 
@@ -51,9 +51,9 @@ Production thresholds should be established after deployment with real traffic p
 
 | Endpoint | P95 Latency Target | P99 Latency Target | Notes |
 |----------|-------------------|-------------------|-------|
-| POST /upload/presign (single) | TBD | TBD | To be measured under load |
-| POST /upload/presign (batch) | TBD | TBD | To be measured under load |
-| GET /jobs/{id} | TBD | TBD | To be measured under load |
+| POST /v1/upload/presign (single) | TBD | TBD | To be measured under load |
+| POST /v1/upload/presign (batch) | TBD | TBD | To be measured under load |
+| GET /v1/jobs/{id} | TBD | TBD | To be measured under load |
 
 ## Test Scenarios
 

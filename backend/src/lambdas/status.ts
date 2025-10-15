@@ -5,7 +5,6 @@ import { Tracer } from '@aws-lambda-powertools/tracer';
 import { JobService } from '../services';
 import { ErrorType } from '@photoeditor/shared';
 import { ErrorHandler } from '../utils/errors';
-import { addDeprecationHeadersIfLegacy } from '../utils/deprecation';
 
 const logger = new Logger();
 const metrics = new Metrics();
@@ -35,11 +34,17 @@ export const handler = async (
   // Extract correlation identifiers
   const requestId = event.requestContext.requestId;
   const traceparent = event.headers['traceparent'];
-  const requestPath = event.rawPath || event.requestContext.http.path;
+  const path = event.requestContext.http.path;
 
   try {
     await initializeServices();
 
+    // Route to batch status handler if path matches
+    if (path.includes('/batch-status/')) {
+      return await handleBatchStatus(event, requestId, traceparent);
+    }
+
+    // Handle regular job status
     const jobId = event.pathParameters?.jobId;
     if (!jobId) {
       logger.warn('Missing jobId parameter', { requestId });
@@ -49,11 +54,6 @@ export const handler = async (
         'Job ID is required',
         requestId,
         traceparent
-      );
-      // Add deprecation headers if using legacy route
-      errorResponse.headers = addDeprecationHeadersIfLegacy(
-        requestPath,
-        errorResponse.headers || {}
       );
       return errorResponse;
     }
@@ -70,11 +70,6 @@ export const handler = async (
         requestId,
         traceparent
       );
-      // Add deprecation headers if using legacy route
-      errorResponse.headers = addDeprecationHeadersIfLegacy(
-        requestPath,
-        errorResponse.headers || {}
-      );
       return errorResponse;
     }
 
@@ -90,16 +85,13 @@ export const handler = async (
       error: job.error
     };
 
-    let headers: Record<string, string> = {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'x-request-id': requestId
     };
     if (traceparent) {
       headers['traceparent'] = traceparent;
     }
-
-    // Add deprecation headers if using legacy route
-    headers = addDeprecationHeadersIfLegacy(requestPath, headers);
 
     return {
       statusCode: 200,
@@ -118,11 +110,6 @@ export const handler = async (
       requestId,
       traceparent
     );
-    // Add deprecation headers if using legacy route
-    errorResponse.headers = addDeprecationHeadersIfLegacy(
-      requestPath,
-      errorResponse.headers || {}
-    );
     return errorResponse;
   } finally {
     subsegment?.close();
@@ -131,3 +118,65 @@ export const handler = async (
     }
   }
 };
+
+async function handleBatchStatus(
+  event: APIGatewayProxyEventV2,
+  requestId: string,
+  traceparent?: string
+): Promise<APIGatewayProxyResultV2> {
+  const batchJobId = event.pathParameters?.batchJobId;
+
+  if (!batchJobId) {
+    logger.warn('Missing batchJobId parameter', { requestId });
+    return ErrorHandler.createSimpleErrorResponse(
+      ErrorType.VALIDATION,
+      'MISSING_BATCH_JOB_ID',
+      'Batch Job ID is required',
+      requestId,
+      traceparent
+    );
+  }
+
+  logger.info('Fetching batch job status', { requestId, batchJobId });
+
+  const batchJob = await jobService.getBatchJob(batchJobId);
+  if (!batchJob) {
+    logger.warn('Batch job not found', { requestId, batchJobId });
+    return ErrorHandler.createSimpleErrorResponse(
+      ErrorType.NOT_FOUND,
+      'BATCH_JOB_NOT_FOUND',
+      `Batch job with ID ${batchJobId} not found`,
+      requestId,
+      traceparent
+    );
+  }
+
+  metrics.addMetric('BatchJobStatusFetched', MetricUnits.Count, 1);
+
+  const response = {
+    batchJobId: batchJob.batchJobId,
+    userId: batchJob.userId,
+    status: batchJob.status,
+    createdAt: batchJob.createdAt,
+    updatedAt: batchJob.updatedAt,
+    sharedPrompt: batchJob.sharedPrompt,
+    completedCount: batchJob.completedCount,
+    totalCount: batchJob.totalCount,
+    childJobIds: batchJob.childJobIds,
+    error: batchJob.error
+  };
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'x-request-id': requestId
+  };
+  if (traceparent) {
+    headers['traceparent'] = traceparent;
+  }
+
+  return {
+    statusCode: 200,
+    headers,
+    body: JSON.stringify(response)
+  };
+}

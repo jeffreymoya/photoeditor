@@ -1,0 +1,58 @@
+TFsec Security Scan Report
+Date: 2025-10-15
+Task: TASK-0702 - Device Token Infrastructure
+
+SCAN STATUS: Tool not available in environment
+
+MANUAL SECURITY REVIEW:
+
+1. DynamoDB Encryption:
+   ✓ KMS CMK encryption enabled (module.storage.device_token_table)
+   ✓ KMS key ARN explicitly referenced
+   ✓ No hardcoded encryption keys
+
+2. IAM Policies:
+   ✓ Least-privilege: Explicit actions (PutItem, GetItem, UpdateItem, DeleteItem, Query)
+   ✓ Resource ARN explicitly referenced (module.storage.device_token_table_arn)
+   ✓ No wildcard actions (dynamodb:*)
+   ✓ No wildcard resources (Resource:*)
+
+3. API Gateway Security:
+   ✓ Throttling configured (100 burst, 50 steady-state)
+   ✓ Metrics enabled
+   ✓ Logging enabled (var.api_gateway_log_level)
+   ⚠ Authorization set to NONE (TODO: Add Cognito authorizer for production)
+
+4. Tagging:
+   ✓ All resources have Project/Env/Owner/CostCenter tags
+   ✓ DynamoDB table has additional Purpose tag
+
+5. Point-in-Time Recovery:
+   ✓ PITR enabled on device token table
+
+6. TTL Configuration:
+   ✓ TTL enabled on expiresAt attribute
+   ✓ Automatic cleanup after 90 days
+
+7. Lambda Security:
+   ✓ No hardcoded secrets in environment variables
+   ✓ Environment variables use resource outputs
+   ✓ Execution role with least-privilege
+
+8. CloudWatch:
+   ✓ Log groups created with retention policy
+   ✓ Alarms configured for errors, throttling, system errors
+
+RECOMMENDATIONS FOR PRODUCTION:
+1. Add Cognito or API key authorization to device token endpoints
+2. Enable X-Ray tracing for Lambda functions
+3. Add WAF rules to API Gateway
+4. Implement request validation schemas
+5. Add budget alerts for DynamoDB costs
+
+COMPLIANCE:
+- standards/infrastructure-tier.md line 27: KMS encryption ✓
+- standards/infrastructure-tier.md line 36: PITR enabled ✓
+- standards/infrastructure-tier.md line 38: TTL configured ✓
+- standards/infrastructure-tier.md line 79: Throttling/logging ✓
+- standards/global.md line 18: Required tags ✓

@@ -8,7 +8,7 @@ area: infra
 description: >-
   Update the SST live-dev stacks so Lambda environment variables and DynamoDB resources match the refactored backend services.
   The current stack omits PROJECT_NAME/SNS_TOPIC_ARN vars and the batch-jobs table + BatchJobIdIndex required by JobRepository,
-  causing runtime failures outside LocalStack.
+  causing runtime failures in SST deployments.
 
 outcome: >-
   SST deployments provide the env vars and DynamoDB tables/indexes expected by createServiceContainer and JobRepository;
@@ -20,7 +20,8 @@ scope:
     - infra/sst/stacks/storage.ts
     - Related SST config or helper files if needed
   out:
-    - Terraform LocalStack definitions (already correct)
+    - Backend runtime code (no service changes in this task)
+    - Terraform modules (separate infrastructure definition)
 
 context:
   standards_tier: infra
@@ -72,7 +73,7 @@ plan:
       - infra/sst/stacks/api.ts
   - id: 3
     title: Extend storage stack
-    details: Provision jobs batch table and BatchJobIdIndex (name parity with LocalStack/Terraform);
+    details: Provision jobs batch table and BatchJobIdIndex matching backend expectations;
       update outputs as needed.
     commands: []
     expected_files_touched:

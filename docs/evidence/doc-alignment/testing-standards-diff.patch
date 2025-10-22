@@ -1,7 +1,7 @@
-diff --git a/docs/testing-standards.md b/docs/testing-standards.md
+diff --git a/standards/testing-standards.md b/standards/testing-standards.md
 index original..updated 100644
---- a/docs/testing-standards.md
-+++ b/docs/testing-standards.md
+--- a/standards/testing-standards.md
++++ b/standards/testing-standards.md
 
 ## Changes Made to Align Integration Test Documentation
 

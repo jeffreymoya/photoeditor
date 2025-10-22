@@ -1453,6 +1453,100 @@ components:
         enabled:
           type: boolean
           default: true
+        resilience:
+          type: object
+          properties:
+            retry:
+              type: object
+              properties:
+                maxAttempts:
+                  type: number
+                  minimum: 1
+                  maximum: 10
+                  default: 3
+                backoff:
+                  type: string
+                  enum:
+                    - exponential
+                    - linear
+                    - constant
+                  default: exponential
+                initialDelayMs:
+                  type: number
+                  minimum: 100
+                  maximum: 5000
+                  default: 1000
+                maxDelayMs:
+                  type: number
+                  minimum: 1000
+                  maximum: 60000
+                  default: 30000
+              additionalProperties: false
+              default:
+                maxAttempts: 3
+                backoff: exponential
+                initialDelayMs: 1000
+                maxDelayMs: 30000
+            timeout:
+              type: object
+              properties:
+                durationMs:
+                  type: number
+                  minimum: 1000
+                  maximum: 300000
+                  default: 30000
+              additionalProperties: false
+              default:
+                durationMs: 30000
+            circuitBreaker:
+              type: object
+              properties:
+                enabled:
+                  type: boolean
+                  default: true
+                failureThreshold:
+                  type: number
+                  minimum: 1
+                  maximum: 100
+                  default: 5
+                halfOpenAfterMs:
+                  type: number
+                  minimum: 1000
+                  maximum: 300000
+                  default: 30000
+                successThreshold:
+                  type: number
+                  minimum: 1
+                  maximum: 10
+                  default: 2
+              additionalProperties: false
+              default:
+                enabled: true
+                failureThreshold: 5
+                halfOpenAfterMs: 30000
+                successThreshold: 2
+            bulkhead:
+              type: object
+              properties:
+                enabled:
+                  type: boolean
+                  default: false
+                maxConcurrent:
+                  type: number
+                  minimum: 1
+                  maximum: 100
+                  default: 10
+                maxQueued:
+                  type: number
+                  minimum: 0
+                  maximum: 1000
+                  default: 100
+              additionalProperties: false
+              default:
+                enabled: false
+                maxConcurrent: 10
+                maxQueued: 100
+          additionalProperties: false
       required:
         - name
         - apiKey
@@ -1473,6 +1567,9 @@ components:
         timestamp:
           type: string
           format: date-time
+        metadata:
+          type: object
+          additionalProperties: {}
       required:
         - success
         - duration

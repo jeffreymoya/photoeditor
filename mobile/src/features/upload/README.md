@@ -185,7 +185,7 @@ test('pauses upload when network lost', async () => {
 
 ## Testing Standards Compliance
 
-Per `docs/testing-standards.md`:
+Per `standards/testing-standards.md`:
 
 - **Lines coverage**: ≥70% for hooks and utilities
 - **Branch coverage**: ≥60% for hooks and utilities

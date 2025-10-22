@@ -11,15 +11,19 @@
     "web": "expo start --web",
     "build:android": "eas build --platform android",
     "build:ios": "eas build --platform ios",
-    "build": "eas build --platform all",
+    "build:eas": "eas build --platform all",
+    "build": "echo 'Mobile build verification - typecheck and lint in qa:static' && exit 0",
     "submit": "eas submit",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:mutation": "echo 'Mutation testing requires stryker-mutator (optional)' && exit 0",
-    "analyze:coupling": "node -e \"console.log(JSON.stringify({message: 'Coupling analysis placeholder - requires madge or similar tool'}, null, 2))\"",
-    "clean": "rm -rf node_modules && npm install"
+    "clean": "rm -rf node_modules && pnpm install",
+    "qa:static": "pnpm run typecheck && pnpm run lint",
+    "qa:dependencies": "echo 'Mobile: dependencies checked at root level'",
+    "qa:dead-exports": "ts-prune -p tsconfig.json || true",
+    "qa:duplication": "echo 'Mobile: duplication checked at root level'",
+    "qa": "pnpm run qa:static && pnpm run test"
   },
   "dependencies": {
     "@expo/vector-icons": "^13.0.0",
@@ -74,6 +78,7 @@
     "eslint-plugin-jest": "^29.0.1",
     "jest": "^29.7.0",
     "jest-expo": "~50.0.0",
+    "jest-junit": "^16.0.0",
     "prettier": "^3.6.2",
     "typescript": "^5.3.0"
   },

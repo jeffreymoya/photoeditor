@@ -616,12 +616,12 @@ Evidence requirements (per `standards/shared-contracts-tier.md` line 21):
 
 **For PR Authors**:
 1. Make changes to `shared/schemas/`
-2. Run `npm run build --prefix shared`
-3. Run `npm run contracts:check` locally
+2. Run `pnpm turbo run build --filter=@photoeditor/shared`
+3. Run `pnpm turbo run contracts:check --filter=@photoeditor/shared`
 4. If drift detected:
    - Review changes: `git diff shared/`
-   - Run contract tests: `npm run test:contracts`
-   - Update snapshot: `npm run contracts:check -- --update`
+   - Run contract tests: `pnpm turbo run test:contract --filter=@photoeditor/backend`
+   - Update snapshot: `pnpm turbo run contracts:check --filter=@photoeditor/shared -- --update`
    - Commit snapshot: `git add shared/contract-snapshot.json`
 5. Create changeset: `npm run changeset` (if using changesets)
 6. Open PR and wait for automated comment

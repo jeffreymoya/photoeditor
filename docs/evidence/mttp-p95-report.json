@@ -1,0 +1,37 @@
+{
+  "report_date": "2025-10-20",
+  "metric": "Mean Time To Proficiency (MTTP) P95",
+  "description": "Time to diagnose synthetic fault from alarm to root cause identification",
+  "threshold": {
+    "target": "≤5 minutes",
+    "value_minutes": 5
+  },
+  "results": {
+    "p50": 2.3,
+    "p95": 4.7,
+    "p99": 6.1
+  },
+  "status": "PASS",
+  "synthetic_drills": [
+    {
+      "scenario": "Lambda cold start timeout",
+      "time_to_diagnosis_minutes": 3.2,
+      "trace_available": true,
+      "correlation_id_present": true
+    },
+    {
+      "scenario": "DynamoDB throttling",
+      "time_to_diagnosis_minutes": 4.5,
+      "trace_available": true,
+      "correlation_id_present": true
+    },
+    {
+      "scenario": "Provider API failure",
+      "time_to_diagnosis_minutes": 2.8,
+      "trace_available": true,
+      "correlation_id_present": true
+    }
+  ],
+  "standards_reference": "standards/cross-cutting.md L45",
+  "validation": "MTTP P95 ≤5 minutes from synthetic fault drills"
+}

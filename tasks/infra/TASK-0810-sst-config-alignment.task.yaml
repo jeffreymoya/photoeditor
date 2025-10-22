@@ -1,0 +1,114 @@
+schema_version: "1.0"
+id: TASK-0810
+title: "Align SST stacks with backend service container"
+status: todo
+priority: P1
+area: infra
+
+description: >-
+  Update the SST live-dev stacks so Lambda environment variables and DynamoDB resources match the refactored backend services.
+  The current stack omits PROJECT_NAME/SNS_TOPIC_ARN vars and the batch-jobs table + BatchJobIdIndex required by JobRepository,
+  causing runtime failures outside LocalStack.
+
+outcome: >-
+  SST deployments provide the env vars and DynamoDB tables/indexes expected by createServiceContainer and JobRepository;
+  presign/status/download/worker/deviceToken Lambdas boot successfully in live-dev with batch workflows intact.
+
+scope:
+  in:
+    - infra/sst/stacks/api.ts
+    - infra/sst/stacks/storage.ts
+    - Related SST config or helper files if needed
+  out:
+    - Terraform LocalStack definitions (already correct)
+
+context:
+  standards_tier: infra
+  issues: []
+  related_docs:
+    - standards/infrastructure-tier.md
+    - standards/cross-cutting.md
+    - standards/testing-standards.md
+    - ARCHITECTURE.md
+  repo_paths:
+    - infra/sst/stacks/api.ts
+    - infra/sst/stacks/storage.ts
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: pnpm
+      version: "8.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep diffs minimal and focused
+    - Preserve SST tagging and standards comments
+  prohibited:
+    - No changes to Terraform modules unless explicitly needed
+    - Do not edit backend runtime code in this task
+
+plan:
+  - id: 1
+    title: Confirm backend expectations
+    details: Trace createServiceContainer and JobRepository env/table usage;
+      list required env vars and DynamoDB resources.
+    commands:
+      - rg -n "process.env" backend/libs/core/container/service-container.ts
+    expected_files_touched: []
+  - id: 2
+    title: Patch SST API stack
+    details: Add PROJECT_NAME/SNS_TOPIC_ARN env vars (or adjust consumers) for each Lambda;
+      ensure naming matches backend expectations.
+    commands: []
+    expected_files_touched:
+      - infra/sst/stacks/api.ts
+  - id: 3
+    title: Extend storage stack
+    details: Provision jobs batch table and BatchJobIdIndex (name parity with LocalStack/Terraform);
+      update outputs as needed.
+    commands: []
+    expected_files_touched:
+      - infra/sst/stacks/storage.ts
+  - id: 4
+    title: Validate
+    details: Run SST diff/build checks and backend QA subset to ensure no regressions.
+    commands:
+      - pnpm turbo run qa:static --filter=@photoeditor/backend
+      - pnpm run -C infra/sst diff || echo "Capture diff output"
+    expected_files_touched: []
+
+acceptance_criteria:
+  - All live-dev Lambdas receive PROJECT_NAME and SNS_TOPIC_ARN (or equivalent variable consumed by NotificationService).
+  - Storage stack provisions the jobs batch table plus BatchJobIdIndex expected by JobRepository.
+  - `pnpm turbo run qa:static --filter=@photoeditor/backend` passes.
+  - SST diff/build succeeds for the updated stacks.
+  modularity:
+    - "Handlers retain ≤75 LOC; no handler imports @aws-sdk/*"
+    - "SST constructs keep tagging per standards/infrastructure-tier.md"
+  testability:
+    - "Backend static QA pipeline remains green"
+
+validation:
+  commands:
+    - pnpm turbo run qa:static --filter=@photoeditor/backend
+    - pnpm run -C infra/sst diff || true
+  manual_checks:
+    - Review SST diff to confirm env vars and table/index names match backend expectations.
+  artifacts:
+    - screenshots: []
+
+deliverables:
+  - infra/sst/stacks/api.ts
+  - infra/sst/stacks/storage.ts
+
+risks:
+  - description: Live-dev deploy may fail if table naming mismatches existing data.
+    mitigation: Run SST diff first; if destructive, plan migration or staged rollout.

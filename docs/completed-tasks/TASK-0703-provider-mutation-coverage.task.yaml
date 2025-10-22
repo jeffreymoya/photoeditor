@@ -1,0 +1,161 @@
+schema_version: "1.0"
+id: TASK-0703
+title: "Raise provider/service mutation coverage"
+status: completed
+priority: P1
+area: backend
+
+description: >-
+  Add targeted unit tests for untested backend providers and services so the mutation suite can meet the
+  ≥60% floor mandated by standards/testing-standards.md. The 2025-10-21 mutation analysis predicted a
+  likely failure because files such as `seedream.provider.ts`, `gemini.provider.ts`, `analysis.provider.ts`,
+  and `deviceToken.service.ts` have no coverage.
+
+outcome: >-
+  New Jest specs cover previously untested providers and services, and
+  `pnpm --filter @photoeditor/backend test:mutation -- --threshold 60` passes with recorded evidence.
+
+scope:
+  in:
+    - backend/src/providers/seedream.provider.ts
+    - backend/src/providers/gemini.provider.ts
+    - backend/src/providers/analysis.provider.ts
+    - backend/src/services/deviceToken.service.ts
+    - backend/tests/unit/providers/
+    - backend/tests/unit/services/
+  out:
+    - Modifying provider implementations beyond adding test seams
+    - Integration or contract tests (handled by separate tasks)
+    - Shared schema changes
+    - Infrastructure updates
+    - Direct SDK usage in handlers (use adapters)
+    - Breaking API changes without /v{n} version bump
+    - Handler code exceeding 75 LOC or complexity >10
+    - VPC configuration for API Lambdas
+    - Inline secrets or hardcoded credentials
+    - SQS queues without DLQ configuration
+    - Cross-feature imports in mobile (violates modularity)
+    - Dependency cycles between modules
+    - Manual-only tests (all tests must run in CI)
+
+context:
+  issues: ["DOC-2025-10-21-mutation-tests"]
+  related_docs:
+    - standards/global.md
+    - standards/AGENTS.md
+    - standards/backend-tier.md
+    - standards/testing-standards.md
+    - docs/tests/reports/2025-10-21-mutation-tests-PRE-EXECUTION-ANALYSIS.md
+  repo_paths:
+    - backend/src/providers/seedream.provider.ts
+    - backend/src/providers/gemini.provider.ts
+    - backend/src/providers/analysis.provider.ts
+    - backend/src/services/deviceToken.service.ts
+    - backend/tests/unit/providers/
+    - backend/tests/unit/services/
+    - backend/stryker.conf.json
+  dependencies:
+    - type: package
+      name: "@photoeditor/backend"
+      version: "workspace:*"
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: pnpm
+      version: "8.x"
+    - name: bash
+      version: any
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Follow existing test patterns using aws-sdk-client-mock and neverthrow Result assertions.
+    - Keep additional seams minimal and confined to providers/services.
+  prohibited:
+    - Do not commit secrets or tokens.
+    - Do not change unrelated files.
+  architecture:
+    - "Respect handler → service → provider layering"
+    - "Maintain Zod-at-boundaries"
+    - "Avoid dependency cycles"
+
+plan:
+  - id: 1
+    title: Audit current coverage and mutation scope
+    details: Determine exact uncovered branches and configure ignore patterns if necessary.
+    commands:
+      - pnpm --filter @photoeditor/backend test:unit -- --coverage
+      - pnpm --filter @photoeditor/backend test:mutation -- --reporters json --dry-run || true
+    expected_files_touched: []
+  - id: 2
+    title: Add provider unit tests
+    details: Create specs for Seedream, Gemini, and analysis providers covering success, retry, and failure paths.
+    commands: []
+    expected_files_touched:
+      - backend/tests/unit/providers/seedream.provider.test.ts
+      - backend/tests/unit/providers/gemini.provider.test.ts
+      - backend/tests/unit/providers/analysis.provider.test.ts
+  - id: 3
+    title: Add service unit tests
+    details: Cover device token service logic (validation, de-duplication, error propagation) and any other uncovered services flagged by mutation.
+    commands: []
+    expected_files_touched:
+      - backend/tests/unit/services/deviceToken.service.test.ts
+  - id: 4
+    title: Tune mutation configuration if needed
+    details: Exclude non-source files (index exports, .old snapshots) per analysis recommendations.
+    commands: []
+    expected_files_touched:
+      - backend/stryker.conf.json
+  - id: 5
+    title: Run suites and capture evidence
+    details: Execute unit tests with coverage and mutation suite, archive reports under docs/evidence.
+    commands:
+      - pnpm --filter @photoeditor/backend test:unit -- --coverage
+      - pnpm --filter @photoeditor/backend test:mutation -- --threshold 60 --reporters html,json
+    expected_files_touched:
+      - docs/evidence/mutation/index.html
+      - docs/tests/reports/YYYY-MM-DD-mutation-tests.md
+
+acceptance_criteria:
+  - New unit tests exercise success and failure paths for Seedream, Gemini, and analysis providers plus device token service.
+  - `pnpm --filter @photoeditor/backend test:mutation -- --threshold 60` passes.
+  - Service/provider coverage meets ≥80% lines and ≥70% branches.
+  - Mutation report is archived and referenced in docs/tests/reports/YYYY-MM-DD-mutation-tests.md.
+
+validation:
+  commands:
+    - pnpm --filter @photoeditor/backend test:unit -- --coverage
+    - pnpm --filter @photoeditor/backend test:mutation -- --threshold 60 --reporters html,json
+    - pnpm turbo run qa:static --parallel
+  manual_checks:
+    - Inspect mutation HTML report to confirm targeted files reach ≥60% and surviving mutants are triaged.
+  artifacts:
+    - screenshots: []
+
+deliverables:
+  - backend/tests/unit/providers/seedream.provider.test.ts
+  - backend/tests/unit/providers/gemini.provider.test.ts
+  - backend/tests/unit/providers/analysis.provider.test.ts
+  - backend/tests/unit/services/deviceToken.service.test.ts
+  evidence:
+    quality:
+      - path: docs/evidence/mutation/index.html
+        description: "Updated mutation report with score ≥60%"
+      - path: docs/tests/reports/YYYY-MM-DD-mutation-tests.md
+        description: "Post-execution mutation analysis"
+
+risks:
+  - description: Providers rely on external network stubs that make tests flaky.
+    mitigation: Use deterministic fixtures and aws-sdk-client-mock with explicit expectations.
+  - description: Mutation runs become slow after expanding test coverage.
+    mitigation: Limit runInBand and leverage Stryker incremental options if runtime exceeds acceptable bounds.
+  - description: Additional tests surface real bugs in provider logic.
+    mitigation: Document bugs, create follow-up tasks, and gate release until resolved.

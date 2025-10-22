@@ -1,41 +1,66 @@
 {
-  "description": "W3C Trace Propagation Example",
-  "standard": "STANDARDS.md line 72",
-  "trace_flow": [
-    {
-      "layer": "API Gateway",
-      "traceparent": "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01",
-      "component": "HTTP Request"
+  "description": "End-to-end W3C traceparent propagation example",
+  "timestamp": "2025-10-20T00:00:00Z",
+  "trace": {
+    "mobile_request": {
+      "headers": {
+        "traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+        "x-correlation-id": "550e8400-e29b-41d4-a716-446655440000"
+      },
+      "endpoint": "/presign",
+      "method": "POST"
     },
-    {
-      "layer": "Presign Lambda Handler",
-      "traceparent": "00-0af7651916cd43dd8448eb211c80319c-0000000000000001-01",
-      "parent_span_id": "b7ad6b7169203331",
-      "component": "handler function"
+    "api_gateway": {
+      "requestId": "abc123-def456-ghi789",
+      "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+      "parentId": "00f067aa0ba902b7"
     },
-    {
-      "layer": "PresignService",
-      "traceparent": "00-0af7651916cd43dd8448eb211c80319c-0000000000000002-01",
-      "parent_span_id": "0000000000000001",
-      "component": "generatePresignedUpload"
+    "presign_lambda": {
+      "function": "photo-editor-presign",
+      "logs": {
+        "correlationId": "550e8400-e29b-41d4-a716-446655440000",
+        "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+        "requestId": "abc123-def456-ghi789",
+        "jobId": "job-xyz789",
+        "userId": "user-abc123",
+        "function": "photo-editor-presign",
+        "env": "production",
+        "version": "1.0.0"
+      },
+      "response": {
+        "headers": {
+          "traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+          "x-request-id": "abc123-def456-ghi789"
+        }
+      }
     },
-    {
-      "layer": "JobService (DynamoDB Adapter)",
-      "traceparent": "00-0af7651916cd43dd8448eb211c80319c-0000000000000003-01",
-      "parent_span_id": "0000000000000002",
-      "component": "createJob"
-    },
-    {
-      "layer": "S3Service (S3 Adapter)",
-      "traceparent": "00-0af7651916cd43dd8448eb211c80319c-0000000000000004-01",
-      "parent_span_id": "0000000000000002",
-      "component": "generatePresignedUpload"
+    "worker_lambda": {
+      "function": "photo-editor-worker",
+      "logs": {
+        "correlationId": "550e8400-e29b-41d4-a716-446655440000",
+        "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+        "requestId": "msg-123456",
+        "jobId": "job-xyz789",
+        "userId": "user-abc123",
+        "function": "photo-editor-worker",
+        "env": "production",
+        "version": "1.0.0"
+      }
     }
-  ],
-  "verification": {
-    "trace_id_consistent": true,
-    "parent_child_relationships": "All spans correctly reference parent span IDs",
-    "adapter_isolation": "Trace context propagated through service → adapter layers",
-    "observability_ready": true
+  },
+  "validation": {
+    "traceparent_propagated": true,
+    "correlation_id_propagated": true,
+    "structured_logs_complete": true,
+    "required_fields_present": [
+      "correlationId",
+      "traceId",
+      "requestId",
+      "jobId",
+      "userId",
+      "function",
+      "env",
+      "version"
+    ]
   }
 }

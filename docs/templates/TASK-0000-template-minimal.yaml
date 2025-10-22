@@ -1,0 +1,50 @@
+# Minimal template for simple tasks (bug fixes, small changes, doc updates)
+# Copy to: tasks/<area>/TASK-<id>-<short-slug>.task.yaml
+# Standards alignment: See standards/global.md, standards/AGENTS.md, standards/<tier>-tier.md
+
+schema_version: "1.0"
+id: TASK-0000
+title: "REPLACE: Short title"
+status: todo
+priority: P1
+area: backend  # frontend | backend | infra | docs | ops
+
+description: >-
+  REPLACE: What to fix/build and why (1-2 sentences).
+
+outcome: >-
+  REPLACE: Verifiable end state.
+
+scope:
+  in:
+    - REPLACE: files in scope
+  out:
+    # Standard exclusions: standards/cross-cutting.md#hard-fail-controls
+
+context:
+  standards_tier: backend  # Auto-includes global, AGENTS, testing-standards
+  repo_paths:
+    - REPLACE: src/file.ts
+
+plan:
+  - id: 1
+    title: Implement change
+    expected_files_touched:
+      - REPLACE: src/file.ts
+  - id: 2
+    title: Test
+    commands:
+      - npm run test:unit -- REPLACE: test-file
+
+acceptance_criteria:
+  - REPLACE: What must be true when done
+  - Tests pass; no lint errors
+
+validation:
+  commands:
+    - npm run lint --silent
+    - npm test --silent
+
+deliverables:
+  - REPLACE: src/file.ts
+  # Evidence: In changelog

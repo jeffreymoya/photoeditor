@@ -60,7 +60,7 @@ function generateContractSnapshot() {
   }
 
   if (!fs.existsSync(SHARED_DIST)) {
-    console.error('ERROR: shared/dist not found. Run "npm run build --prefix shared" first.');
+  console.error('ERROR: shared/dist not found. Run "pnpm turbo run build --filter=@photoeditor/shared" first.');
     process.exit(2);
   }
 
@@ -167,9 +167,9 @@ function main() {
     console.error('');
     console.error('Actions required:');
     console.error('- Review changes with "git diff shared/"');
-    console.error('- Run contract compatibility tests: npm run test:contracts');
-    console.error('- Update version if breaking: npm version [major|minor|patch] --prefix shared');
-    console.error('- Update snapshot if changes are intentional: npm run contracts:check --update');
+    console.error('- Run contract compatibility tests: pnpm turbo run test:contract --filter=@photoeditor/backend');
+    console.error('- Update version if breaking: pnpm run changeset:version');
+    console.error('- Update snapshot if changes are intentional: pnpm turbo run contracts:check --filter=@photoeditor/shared -- --update');
     console.error('');
 
     // Generate diff artifact for CI

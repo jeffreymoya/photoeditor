@@ -7,6 +7,7 @@ This document provides an overview of the architectural standards organized by t
 - **[Shared Contracts Tier](shared-contracts-tier.md)** - API contracts, versioning, and client generation
 - **[Infrastructure Tier](infrastructure-tier.md)** - Terraform modules, SST alternatives, local development platform
 - **[Cross-Cutting](cross-cutting.md)** - Observability & Operations, Developer Experience, Governance & Knowledge
+- **[TypeScript](typescript.md)** - Language-level practices for strict typing, unions, results, and contracts
 
 ## Quick Reference
 
@@ -38,6 +39,14 @@ This document provides an overview of the architectural standards organized by t
 - **Observability**: OpenTelemetry, AWS Powertools, Sentry with mobile correlation guidance
 - **Developer Experience**: Make/Just, Nx/depcruise, Changesets with CI timing monitors
 - **Governance**: Architecture diagrams, executable checks, ADRs with enforcement owners
+
+### TypeScript
+- **Config**: strict mode; `exactOptionalPropertyTypes: true` (tests may disable via `tsconfig.jest.json`)
+- **Contracts**: Zod as SSOT; generate OpenAPI/types/clients
+- **Errors/Results**: neverthrow Result/ResultAsync; no exceptions for control flow
+- **Style**: named exports (no defaults) in domain; discriminated unions + `assertNever` exhaustiveness
+- **Immutability**: `readonly`, `as const`, `ReadonlyArray<T>` for DTOs and configs
+- **Docs**: TSDoc 70%+ on exported APIs; api-extractor for shared packages
 
 ## Maintainability Controls Snapshot
 

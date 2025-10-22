@@ -42,7 +42,7 @@ Edit files in the `shared/` package as needed.
 vim shared/schemas/job.schema.ts
 
 # Build to verify
-npm run build --prefix shared
+pnpm turbo run build --filter=@photoeditor/shared
 ```
 
 ### 2. Create a Changeset
@@ -50,7 +50,7 @@ npm run build --prefix shared
 Run the changeset CLI to document your change:
 
 ```bash
-npm run changeset
+pnpm run changeset
 ```
 
 This will:
@@ -103,9 +103,9 @@ git commit -m "Add changeset for job metadata field"
 
 Your PR must pass these checks:
 
-- `npm run contracts:check` - Contract drift validation
-- `npm run changeset:status` - Ensures changeset is present for shared changes
-- `cd shared && npm run api-extractor` - API surface review
+- `pnpm turbo run contracts:check --filter=@photoeditor/shared` - Contract drift validation
+- `pnpm run changeset:status` - Ensures changeset is present for shared changes
+- `pnpm turbo run api-extractor --filter=@photoeditor/shared` - API surface review
 
 ### 6. Get Approval
 
@@ -122,7 +122,7 @@ After PRs with changesets are merged to `main`:
 
 ```bash
 # 1. Update package versions and generate CHANGELOGs
-npm run changeset:version
+pnpm run changeset:version
 
 # 2. Review the changes
 git diff shared/CHANGELOG.md shared/package.json
@@ -148,7 +148,7 @@ The CI pipeline includes:
 
 ```yaml
 - name: Check for pending changesets (shared contracts governance)
-  run: npm run changeset:status
+  run: pnpm run changeset:status
   continue-on-error: true
 ```
 
@@ -191,11 +191,11 @@ If a PR makes multiple independent changes:
 
 ```bash
 # Create first changeset
-npm run changeset
+pnpm run changeset
 # Select minor, describe feature A
 
 # Create second changeset
-npm run changeset
+pnpm run changeset
 # Select patch, describe bugfix B
 ```
 
@@ -217,16 +217,16 @@ Before submitting PR:
 
 ```bash
 # Check contract drift
-npm run contracts:check
+pnpm turbo run contracts:check --filter=@photoeditor/shared
 
 # Verify API extractor passes
-cd shared && npm run api-extractor
+pnpm turbo run api-extractor --filter=@photoeditor/shared
 
 # Check changeset status
-npm run changeset:status
+pnpm run changeset:status
 
 # Run full Stage A validation
-npm run qa-suite:static
+pnpm turbo run qa:static --parallel
 ```
 
 ## Evidence Requirements
@@ -261,8 +261,7 @@ contracts/
 # Verify changesets exist
 ls -la .changeset/*.md
 
-# If missing, create one
-npm run changeset
+pnpm run changeset
 ```
 
 ### Changeset not detected by CI
@@ -272,7 +271,7 @@ npm run changeset
 git status .changeset/
 
 # Re-run status check
-npm run changeset:status
+pnpm run changeset:status
 ```
 
 ### Incorrect semver type selected
@@ -282,7 +281,7 @@ npm run changeset:status
 rm .changeset/wrong-changeset.md
 
 # Create new one with correct type
-npm run changeset
+pnpm run changeset
 ```
 
 ## Change History

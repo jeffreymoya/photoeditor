@@ -71,7 +71,7 @@ Attach or link to api-extractor-report.md.api.md diff
 ### Snapshot Check
 
 ```bash
-$ npm run contracts:check
+$ pnpm turbo run contracts:check --filter=@photoeditor/shared
 
 ✓ All contract snapshots match
   shared/dist/schemas/job.schema.js: abc123...
@@ -83,7 +83,7 @@ $ npm run contracts:check
 Client generation output:
 
 ```bash
-$ npm run contracts:generate
+$ pnpm turbo run contracts:generate --filter=@photoeditor/shared
 
 Generated OpenAPI spec: docs/openapi/openapi.yaml
 Generated TypeScript clients: mobile/src/generated/api.ts

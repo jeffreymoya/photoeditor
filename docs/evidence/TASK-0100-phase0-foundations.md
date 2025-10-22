@@ -171,8 +171,8 @@ rg -n "@aws-sdk" backend/src/lambdas -g '*.ts'
 cd backend && npm test -- tests/libs/aws-clients.test.ts
 
 # Validation
-cd backend && npm run lint
-cd backend && npm run typecheck
+pnpm turbo run lint --filter=@photoeditor/backend
+pnpm turbo run typecheck --filter=@photoeditor/backend
 cd backend && npx dependency-cruiser --validate .dependency-cruiser.js src
 cd backend && npm test -- --coverage
 ```

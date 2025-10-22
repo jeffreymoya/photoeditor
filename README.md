@@ -8,7 +8,8 @@ This repo contains:
 The fastest way to run the full stack locally and test through the app is via the Makefile targets below.
 
 ## Prerequisites
-- Node.js 18+ and npm
+- Node.js 18+
+- pnpm 8.x (install via `npm install -g pnpm` or enable corepack)
 - Docker and Docker Compose
 - Terraform >= 1.6
 - AWS CLI v2
@@ -18,6 +19,7 @@ The fastest way to run the full stack locally and test through the app is via th
 Optional
 - `jq` for inspecting JSON
 - `zip`/unzip tools (lambda packaging)
+- graphviz (for dependency graphs)
 
 ## Quickstart (Run via the App)
 
@@ -101,7 +103,7 @@ make localstack-down
 
 The app reads its API base URL from the public Expo env var `EXPO_PUBLIC_API_BASE_URL`. The Make targets set this automatically from Terraform outputs. If needed, you can override manually when starting Expo, for example:
 ```
-EXPO_PUBLIC_API_BASE_URL="http://localhost:4566/restapis/<apiId>/dev/_user_request_" npm start --prefix mobile
+EXPO_PUBLIC_API_BASE_URL="http://localhost:4566/restapis/<apiId>/dev/_user_request_" pnpm turbo run start --filter=photoeditor-mobile
 ```
 
 Android note: Emulators cannot reach the host via `localhost`. The Make target rewrites `localhost` to `10.0.2.2` for Android.
@@ -129,8 +131,57 @@ make infra-apply
 make print-api
 ```
 
+## QA and Build Pipeline
+
+This monorepo uses **pnpm workspaces** and **Turborepo** for orchestration:
+
+- **Quick static checks**: `pnpm turbo run qa:static --parallel`
+- **Full QA suite**: `pnpm turbo run qa --parallel` or `make qa-suite`
+- **Run tests**: `pnpm turbo run test`
+- **Build lambdas**: `pnpm turbo run build:lambdas --filter=@photoeditor/backend`
+
+### Turbo Pipelines
+
+All lint, typecheck, test, contract, and build tasks are defined in `turbo.json`. Benefits:
+- **Deterministic caching**: Skips unchanged tasks locally and shares artifacts via remote cache
+- **Parallel execution**: Runs independent tasks concurrently
+- **Incremental builds**: Only rebuilds affected packages
+- **Remote caching**: Team members and CI share build artifacts (see ADR-0007)
+
+### Remote Caching Setup (Optional)
+
+Turborepo remote caching accelerates local development by sharing build artifacts across your team and CI. To enable:
+
+1. Generate a Vercel token: https://vercel.com/account/tokens
+2. Add to your shell profile (`~/.bashrc`, `~/.zshrc`, etc.):
+   ```bash
+   export TURBO_TOKEN=<your-token>
+   export TURBO_TEAM=photoeditor
+   ```
+3. Verify: `pnpm turbo run build --dry-run` (should show remote cache enabled)
+
+**CI setup**: Token is automatically configured in GitHub Actions via secrets (sourced from AWS SSM).
+
+**Note**: Remote caching is optional. If not configured, Turbo uses local-only caching with no impact on builds.
+
+### Skip Controls
+
+Turbo respects workspace dependencies. To run specific tasks:
+```bash
+# Run only for backend
+pnpm turbo run test --filter=@photoeditor/backend
+
+# Run for affected packages only
+pnpm turbo run lint --filter=...
+
+# Dry run to see what would execute
+pnpm turbo run build --dry-run
+```
+
+See `turbo.json` for complete pipeline definitions.
+
 ## Related Docs
 - Infra overview: `infrastructure/README.md`
 - E2E steps and scenarios: `docs/e2e-tests.md`
 - Architecture: `ARCHITECTURE.md`
-
+- Testing standards: `standards/testing-standards.md`

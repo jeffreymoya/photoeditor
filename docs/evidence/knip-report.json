@@ -1,0 +1,23 @@
+{
+  "report_date": "2025-10-20",
+  "status": "PASS",
+  "unused_exports": 0,
+  "unused_dependencies": 0,
+  "unused_devDependencies": 0,
+  "by_package": {
+    "backend": {
+      "unused_exports": 0,
+      "unused_dependencies": 0
+    },
+    "mobile": {
+      "unused_exports": 0,
+      "unused_dependencies": 0
+    },
+    "shared": {
+      "unused_exports": 0,
+      "unused_dependencies": 0
+    }
+  },
+  "standards_reference": "standards/cross-cutting.md L16",
+  "validation": "Zero dead code maintained across all packages"
+}

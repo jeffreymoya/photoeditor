@@ -1,0 +1,59 @@
+schema_version: "1.0"
+id: TASK-0812
+title: "Converge dependency lockfiles on pnpm"
+status: todo
+priority: P1
+area: ops
+
+description: >-
+  Remove npm package-lock.json files now that the monorepo pins pnpm via Corepack, preventing conflicting dependency graphs across packages.
+
+outcome: >-
+  Only pnpm-lock.yaml remains authoritative; pnpm install --frozen-lockfile succeeds at repo root; husky hooks and QA scripts run without npm lockfile drift warnings.
+
+scope:
+  in:
+    - package-lock.json
+    - backend/package-lock.json
+    - mobile/package-lock.json
+    - shared/package-lock.json
+  out:
+    - Changes to pnpm-lock.yaml (unless regeneration is required)
+
+context:
+  standards_tier: ops
+  repo_paths:
+    - package-lock.json
+    - backend/package-lock.json
+    - mobile/package-lock.json
+    - shared/package-lock.json
+
+plan:
+  - id: 1
+    title: Delete npm lockfiles
+    expected_files_touched:
+      - package-lock.json
+      - backend/package-lock.json
+      - mobile/package-lock.json
+      - shared/package-lock.json
+  - id: 2
+    title: Verify pnpm workflow
+    commands:
+      - pnpm install --frozen-lockfile
+      - pnpm turbo run qa:static --parallel
+
+acceptance_criteria:
+  - All npm package-lock.json files removed from repo.
+  - pnpm install --frozen-lockfile completes without generating new npm lockfiles.
+  - pnpm static QA pipeline passes.
+
+validation:
+  commands:
+    - pnpm install --frozen-lockfile
+    - pnpm turbo run qa:static --parallel
+
+deliverables:
+  - package-lock.json (removed)
+  - backend/package-lock.json (removed)
+  - mobile/package-lock.json (removed)
+  - shared/package-lock.json (removed)

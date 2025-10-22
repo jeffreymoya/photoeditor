@@ -1,60 +1,23 @@
-import { APIGatewayProxyEventV2, APIGatewayProxyResultV2, Context } from 'aws-lambda';
-import { Logger } from '@aws-lambda-powertools/logger';
-import { Metrics, MetricUnits } from '@aws-lambda-powertools/metrics';
-import { Tracer } from '@aws-lambda-powertools/tracer';
-import { JobService, PresignService, S3Service } from '../services';
-import { S3Config, PresignUploadRequestSchema, BatchUploadRequestSchema, ErrorType } from '@photoeditor/shared';
-import {
-  createSSMClient,
-  ConfigService,
-  BootstrapService,
-  StandardProviderCreator
-} from '@backend/core';
+import { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from 'aws-lambda';
+import middy from '@middy/core';
+import { MetricUnits } from '@aws-lambda-powertools/metrics';
+import { PresignUploadRequestSchema, BatchUploadRequestSchema, ErrorType } from '@photoeditor/shared';
+import { serviceInjection, ServiceContext } from '@backend/core';
 import { ErrorHandler } from '../utils/errors';
-
-const logger = new Logger();
-const metrics = new Metrics();
-const tracer = new Tracer();
-
-let presignService: PresignService;
-
-async function initializeServices(): Promise<void> {
-  if (presignService) return;
-
-  const region = process.env.AWS_REGION!;
-  const projectName = process.env.PROJECT_NAME!;
-  const environment = process.env.NODE_ENV!;
-  const tempBucketName = process.env.TEMP_BUCKET_NAME!;
-  const finalBucketName = process.env.FINAL_BUCKET_NAME!;
-  const jobsTableName = process.env.JOBS_TABLE_NAME!;
-
-  const s3Config: S3Config = {
-    region,
-    tempBucket: tempBucketName,
-    finalBucket: finalBucketName,
-    presignExpiration: 3600
-  };
-
-  const batchTableName = process.env.BATCH_TABLE_NAME;
-  const jobService = new JobService(jobsTableName, region, batchTableName);
-  const s3Service = new S3Service(s3Config);
-
-  presignService = new PresignService(jobService, s3Service);
-
-  // Initialize provider factory (though not used in presign lambda)
-  const ssmClient = createSSMClient(region);
-  const configService = new ConfigService(ssmClient, projectName, environment);
-  const providerCreator = new StandardProviderCreator();
-  const bootstrapService = new BootstrapService(configService, providerCreator);
-  await bootstrapService.initializeProviders();
-}
 
 async function handleBatchUpload(
   body: unknown,
   userId: string,
   requestId: string,
-  traceparent?: string
+  traceparent: string | undefined,
+  container: ServiceContext['container']
 ): Promise<APIGatewayProxyResultV2> {
+  const { presignService, logger, metrics } = container;
+
+  if (!presignService) {
+    throw new Error('PresignService not available in container');
+  }
+
   const validationResult = BatchUploadRequestSchema.safeParse(body);
   if (!validationResult.success) {
     logger.warn('Batch upload validation failed', { requestId, errors: validationResult.error.errors });
@@ -100,8 +63,15 @@ async function handleSingleUpload(
   body: unknown,
   userId: string,
   requestId: string,
-  traceparent?: string
+  traceparent: string | undefined,
+  container: ServiceContext['container']
 ): Promise<APIGatewayProxyResultV2> {
+  const { presignService, logger, metrics } = container;
+
+  if (!presignService) {
+    throw new Error('PresignService not available in container');
+  }
+
   const validationResult = PresignUploadRequestSchema.safeParse(body);
   if (!validationResult.success) {
     logger.warn('Single upload validation failed', { requestId, errors: validationResult.error.errors });
@@ -137,10 +107,14 @@ async function handleSingleUpload(
   };
 }
 
-export const handler = async (
+const baseHandler = async (
   event: APIGatewayProxyEventV2,
-  _context: Context
+  context: ServiceContext
 ): Promise<APIGatewayProxyResultV2> => {
+  const { container } = context;
+  const { logger, metrics, tracer } = container;
+
+  // Start manual tracing
   const segment = tracer.getSegment();
   const subsegment = segment?.addNewSubsegment('presign-handler');
   if (subsegment) {
@@ -152,8 +126,6 @@ export const handler = async (
   const traceparent = event.headers['traceparent'];
 
   try {
-    await initializeServices();
-
     if (!event.body) {
       logger.warn('Missing request body', { requestId });
       const errorResponse = ErrorHandler.createSimpleErrorResponse(
@@ -191,9 +163,9 @@ export const handler = async (
 
     let response: APIGatewayProxyResultV2;
     if (isBatchUpload) {
-      response = await handleBatchUpload(body, userId, requestId, traceparent);
+      response = await handleBatchUpload(body, userId, requestId, traceparent, container);
     } else {
-      response = await handleSingleUpload(body, userId, requestId, traceparent);
+      response = await handleSingleUpload(body, userId, requestId, traceparent, container);
     }
 
     return response;
@@ -217,3 +189,9 @@ export const handler = async (
     }
   }
 };
+
+// Wrap with Middy middleware stack
+export const handler = middy(baseHandler)
+  .use(serviceInjection({
+    includePresignService: true
+  }));

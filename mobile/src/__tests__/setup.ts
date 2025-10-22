@@ -2,9 +2,20 @@ import 'react-native-gesture-handler/jestSetup';
 
 // Mock Reanimated
 jest.mock('react-native-reanimated', () => {
-  const Reanimated = require('react-native-reanimated/mock');
-  Reanimated.default.call = () => {};
-  return Reanimated;
+  const reanimatedModule = require('react-native-reanimated/mock');
+
+  if (
+    typeof reanimatedModule === 'object' &&
+    reanimatedModule !== null &&
+    'default' in reanimatedModule &&
+    typeof reanimatedModule.default === 'object' &&
+    reanimatedModule.default !== null
+  ) {
+    const defaultExport = reanimatedModule.default as { call?: (...args: unknown[]) => unknown };
+    defaultExport.call = () => {};
+  }
+
+  return reanimatedModule;
 });
 
 // Mock Expo modules

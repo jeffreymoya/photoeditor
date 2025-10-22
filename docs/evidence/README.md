@@ -7,7 +7,7 @@ This directory contains evidence artifacts for the npm workspaces migration and 
 ### Architecture Evidence
 - **import-graph.txt**: Text representation of module dependencies showing clean layer separation (handlers → services → adapters)
 - **dependency-cruiser-report.html**: Visual validation report for dependency rules, cycles, and boundaries
-  - Generated via: `npm run validate:deps`
+  - Generated via: `pnpm turbo run qa:dependencies`
   - Shows: No circular dependencies, proper layer isolation, workspace boundary enforcement
 
 ### API Contract Evidence
@@ -32,19 +32,19 @@ All evidence can be regenerated using:
 
 ```bash
 # Validate dependencies and generate reports
-npm run validate:deps
+pnpm turbo run qa:dependencies
 
 # Generate import graph (requires graphviz for PNG output)
-npm run analyze:deps
+pnpm turbo run qa:dependencies
 
 # Check contract drift
-npm run contracts:check
+pnpm turbo run contracts:check --filter=@photoeditor/shared
 
 # Run contract compatibility tests
-npm run test:contracts
+pnpm turbo run test:contract --filter=@photoeditor/backend
 
 # Validate API surface changes
-cd shared && npm run api-extractor
+pnpm turbo run api-extractor --filter=@photoeditor/shared
 ```
 
 ## CI Integration

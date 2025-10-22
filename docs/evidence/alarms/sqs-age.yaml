@@ -1,0 +1,17 @@
+# SQS Message Age Alarm Configuration
+# Compliance: standards/cross-cutting.md L47
+
+alarm:
+  name: SqsMessageAgeAlarm
+  description: Alert when SQS ApproximateAgeOfOldestMessage >120 seconds
+  metric: AWS/SQS ApproximateAgeOfOldestMessage
+  threshold: 120 # seconds
+  period: 300 # 5 minutes
+  evaluation_periods: 1
+  comparison: GreaterThanThreshold
+  statistic: Maximum
+  queue: ProcessingQueue
+
+standards_reference: standards/cross-cutting.md L47
+validation: SQS message age >120 seconds triggers alarm
+status: Pending implementation in infra/sst/stacks/messaging.ts

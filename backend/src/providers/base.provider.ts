@@ -1,10 +1,23 @@
 import { ProviderConfig, ProviderResponse } from '@photoeditor/shared';
+import {
+  createResiliencePolicy,
+  DEFAULT_RESILIENCE_CONFIG,
+  ResiliencePolicyMetrics
+} from '../libs/core/providers/resilience-policy';
 
 export abstract class BaseProvider {
   protected config: ProviderConfig;
+  private resiliencePolicyExecute: <T>(operation: () => Promise<T>) => Promise<T>;
+  private getResilienceMetrics: () => ResiliencePolicyMetrics;
 
   constructor(config: ProviderConfig) {
     this.config = config;
+
+    // Initialize resilience policy with config or defaults
+    const resilienceConfig = config.resilience || DEFAULT_RESILIENCE_CONFIG;
+    const { execute, getMetrics } = createResiliencePolicy(resilienceConfig);
+    this.resiliencePolicyExecute = execute;
+    this.getResilienceMetrics = getMetrics;
   }
 
   protected async makeRequest<T>(request: () => Promise<T>): Promise<ProviderResponse> {
@@ -16,19 +29,29 @@ export abstract class BaseProvider {
         throw new Error(`Provider ${this.config.name} is disabled`);
       }
 
-      const data = await this.withRetry(request, this.config.retries);
+      // Execute request through resilience policy pipeline
+      const data = await this.resiliencePolicyExecute(request);
+
       const duration = Date.now() - startTime;
+      const metrics = this.getResilienceMetrics();
 
       return {
         success: true,
         data,
         duration,
         provider: this.config.name,
-        timestamp
-      };
+        timestamp,
+        metadata: {
+          resilience: {
+            retryAttempts: metrics.retryAttempts,
+            circuitBreakerState: metrics.circuitBreakerState
+          }
+        }
+      } as ProviderResponse;
     } catch (error) {
       const duration = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const metrics = this.getResilienceMetrics();
 
       return {
         success: false,
@@ -36,40 +59,16 @@ export abstract class BaseProvider {
         error: errorMessage,
         duration,
         provider: this.config.name,
-        timestamp
-      };
+        timestamp,
+        metadata: {
+          resilience: {
+            retryAttempts: metrics.retryAttempts,
+            circuitBreakerState: metrics.circuitBreakerState,
+            timeoutOccurred: metrics.timeoutOccurred
+          }
+        }
+      } as ProviderResponse;
     }
-  }
-
-  private async withRetry<T>(
-    operation: () => Promise<T>,
-    maxRetries: number,
-    currentAttempt: number = 0
-  ): Promise<T> {
-    try {
-      return await this.withTimeout(operation(), this.config.timeout);
-    } catch (error) {
-      if (currentAttempt >= maxRetries) {
-        throw error;
-      }
-
-      const delay = Math.pow(2, currentAttempt) * 1000; // Exponential backoff
-      await this.sleep(delay);
-
-      return this.withRetry(operation, maxRetries, currentAttempt + 1);
-    }
-  }
-
-  private async withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error(`Operation timed out after ${timeoutMs}ms`)), timeoutMs);
-    });
-
-    return Promise.race([promise, timeoutPromise]);
-  }
-
-  private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   abstract getName(): string;

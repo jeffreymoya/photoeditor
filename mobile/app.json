@@ -63,7 +63,8 @@
           "icon": "./assets/notification-icon.png",
           "color": "#ffffff"
         }
-      ]
+      ],
+      "@config-plugins/detox"
     ],
     "extra": {
       "eas": {

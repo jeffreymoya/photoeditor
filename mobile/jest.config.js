@@ -13,7 +13,15 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
-  transformIgnorePatterns: [
-    'node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg)',
+  // Allow Babel to transform Flow-authored shims (e.g. @react-native/js-polyfills)
+  // instead of skipping them under node_modules. This keeps Expo + Jest in sync
+  // after the React Native 0.73 upgrade which ships Flow syntax in polyfills.
+  transformIgnorePatterns: [],
+  reporters: [
+    'default',
+    ['jest-junit', {
+      outputDirectory: '<rootDir>/tmp/test-results',
+      outputName: 'junit.xml'
+    }]
   ],
 };

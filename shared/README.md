@@ -17,7 +17,7 @@ This package is part of the PhotoEditor monorepo workspace:
 
 ```bash
 # Install all workspace dependencies
-npm ci
+pnpm install --frozen-lockfile
 ```
 
 Backend and mobile packages reference this via workspace resolution:
@@ -74,7 +74,7 @@ if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
 ### Build
 
 ```bash
-npm run build
+pnpm turbo run build --filter=@photoeditor/shared
 ```
 
 Outputs compiled JavaScript and TypeScript declarations to `dist/`.
@@ -82,7 +82,7 @@ Outputs compiled JavaScript and TypeScript declarations to `dist/`.
 ### Watch Mode
 
 ```bash
-npm run dev
+pnpm turbo run dev --filter=@photoeditor/shared
 ```
 
 Rebuilds automatically on file changes.
@@ -90,19 +90,19 @@ Rebuilds automatically on file changes.
 ### Linting
 
 ```bash
-npm run lint
+pnpm turbo run lint --filter=@photoeditor/shared
 ```
 
 ### Type Checking
 
 ```bash
-npm run typecheck
+pnpm turbo run typecheck --filter=@photoeditor/shared
 ```
 
 ### Testing
 
 ```bash
-npm test
+pnpm turbo run test --filter=@photoeditor/shared
 ```
 
 ## Versioning & Governance
@@ -114,7 +114,7 @@ This package follows strict semantic versioning discipline using **Changesets**.
 1. **Modify schemas, types, or constants**
 2. **Create a changeset:**
    ```bash
-   npm run changeset
+   pnpm run changeset
    ```
 3. **Select semver bump type:**
    - **Major:** Breaking changes (field removals, type changes, etc.)
@@ -147,9 +147,9 @@ Per `docs/compatibility/versioning.md`:
 ### CI Enforcement
 
 Pull requests are validated by:
-- `npm run contracts:check` - Contract drift detection
-- `npm run api-extractor` - API surface review
-- `npm run changeset:status` - Ensures changeset present for changes
+- `pnpm turbo run contracts:check --filter=@photoeditor/shared` - Contract drift detection
+- `pnpm turbo run api-extractor --filter=@photoeditor/shared` - API surface review
+- `pnpm run changeset:status` - Ensures changeset present for changes
 
 ### Release Process
 
@@ -157,7 +157,7 @@ Handled by Contract Steward:
 
 ```bash
 # 1. Update versions based on changesets
-npm run changeset:version
+pnpm run changeset:version
 
 # 2. Review CHANGELOG.md and package.json
 git diff shared/CHANGELOG.md shared/package.json
@@ -195,7 +195,7 @@ shared/
 2. **Export type** from schema: `export type Job = z.infer<typeof JobSchema>`
 3. **Generate artifacts:**
    ```bash
-   npm run contracts:generate
+   pnpm turbo run contracts:generate --filter=@photoeditor/shared
    ```
    This produces:
    - OpenAPI 3.0 spec at `docs/openapi/openapi-generated.yaml` (via `zod-to-json-schema`)
@@ -220,10 +220,10 @@ Enforced by `dependency-cruiser` in CI.
 
 ```bash
 # Validate no drift
-npm run contracts:check
+pnpm turbo run contracts:check --filter=@photoeditor/shared
 
 # Update baseline (after approved changes)
-npm run contracts:check -- --update
+pnpm turbo run contracts:check --filter=@photoeditor/shared -- --update
 ```
 
 ### API Extractor
@@ -231,7 +231,7 @@ npm run contracts:check -- --update
 Tracks public API surface to prevent accidental breaking changes.
 
 ```bash
-npm run api-extractor
+pnpm turbo run api-extractor --filter=@photoeditor/shared
 ```
 
 Generates `api-extractor-report.md.api.md` reviewed in PRs.

@@ -54,5 +54,8 @@ crash.log
 
 # Deployment bundles
 /tmp/
+backend/tmp/
 .npm-cache/
 .claude/
+.turbo/
+.turbo-prune-test/

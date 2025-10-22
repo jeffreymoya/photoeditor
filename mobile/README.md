@@ -82,26 +82,26 @@ src/
 3. **Run on device/simulator**:
    ```bash
    # iOS
-   npm run ios
+   pnpm turbo run ios --filter=photoeditor-mobile
 
    # Android
-   npm run android
+   pnpm turbo run android --filter=photoeditor-mobile
 
    # Web (for testing)
-   npm run web
+   pnpm turbo run web --filter=photoeditor-mobile
    ```
 
 ## Available Scripts
 
-- `npm start` - Start Expo development server
-- `npm run ios` - Run on iOS simulator
-- `npm run android` - Run on Android emulator
-- `npm run web` - Run in web browser
-- `npm run lint` - Run ESLint
-- `npm run typecheck` - Run TypeScript type checking
-- `npm test` - Run Jest tests
-- `npm run build:android` - Build Android APK with EAS
-- `npm run build:ios` - Build iOS app with EAS
+- `pnpm turbo run start --filter=photoeditor-mobile` - Start Expo development server
+- `pnpm turbo run ios --filter=photoeditor-mobile` - Run on iOS simulator
+- `pnpm turbo run android --filter=photoeditor-mobile` - Run on Android emulator
+- `pnpm turbo run web --filter=photoeditor-mobile` - Run in web browser
+- `pnpm turbo run lint --filter=photoeditor-mobile` - Run ESLint
+- `pnpm turbo run typecheck --filter=photoeditor-mobile` - Run TypeScript type checking
+- `pnpm turbo run test --filter=photoeditor-mobile` - Run Jest tests
+- `pnpm turbo run build:android --filter=photoeditor-mobile` - Build Android APK with EAS
+- `pnpm turbo run build:ios --filter=photoeditor-mobile` - Build iOS app with EAS
 
 ## Configuration
 
@@ -161,7 +161,7 @@ Manages push notifications:
 
 2. **Build APK**:
    ```bash
-   npm run build:android
+   pnpm turbo run build:android --filter=photoeditor-mobile
    ```
 
 ### iOS
@@ -173,7 +173,7 @@ Manages push notifications:
 
 2. **Build IPA**:
    ```bash
-   npm run build:ios
+   pnpm turbo run build:ios --filter=photoeditor-mobile
    ```
 
 ## Testing
@@ -181,7 +181,7 @@ Manages push notifications:
 Run the test suite:
 
 ```bash
-npm test
+pnpm turbo run test --filter=photoeditor-mobile
 ```
 
 Tests cover:

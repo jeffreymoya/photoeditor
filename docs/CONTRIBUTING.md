@@ -68,13 +68,13 @@ npx husky install
 
 ```bash
 # Backend tests
-npm test --prefix backend
+pnpm turbo run test --filter=@photoeditor/backend
 
 # Shared tests
-npm test --prefix shared
+pnpm turbo run test --filter=@photoeditor/shared
 
 # All quality checks (Stage A)
-npm run qa-suite:static
+pnpm turbo run qa:static --parallel
 ```
 
 ## Development Workflow
@@ -90,17 +90,17 @@ npm run qa-suite:static
 
 3. Ensure your changes pass local checks:
    ```bash
-   # Type checking
-   npm run typecheck --prefix backend
-   npm run typecheck --prefix shared
+  # Type checking
+  pnpm turbo run typecheck --filter=@photoeditor/backend
+  pnpm turbo run typecheck --filter=@photoeditor/shared
 
-   # Linting
-   npm run lint --prefix backend
-   npm run lint --prefix shared
+  # Linting
+  pnpm turbo run lint --filter=@photoeditor/backend
+  pnpm turbo run lint --filter=@photoeditor/shared
 
-   # Tests
-   npm test --prefix backend
-   npm test --prefix shared
+  # Tests
+  pnpm turbo run test --filter=@photoeditor/backend
+  pnpm turbo run test --filter=@photoeditor/shared
    ```
 
 4. Commit your changes:
@@ -155,7 +155,7 @@ If the hook fails:
 
 2. **TypeScript type errors:**
    - Fix the type errors in your code
-   - Run `npm run typecheck --prefix backend` or `npm run typecheck --prefix shared` to verify
+  - Run `pnpm turbo run typecheck --filter=@photoeditor/backend` or `pnpm turbo run typecheck --filter=@photoeditor/shared` to verify
 
 3. **Slow hook performance:**
    - The hooks are designed to be fast, checking only formatting and types

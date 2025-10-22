@@ -1,6 +1,9 @@
 # Template for LLM-executable tasks
 # Copy to: tasks/<area>/TASK-<id>-<short-slug>.task.yaml and fill all placeholders.
 #
+# Authoring guide: see `tasks/README.md` for step-by-step usage,
+# complexity-based breakdown rules, and required fields to fill.
+#
 # This template is aligned with tier-specific standards in standards/ directory:
 # - standards/global.md (universal guardrails: Ports & Adapters, neverthrow, XState, complexity budgets)
 # - standards/AGENTS.md (tier taxonomy overview and standards map)
@@ -10,7 +13,7 @@
 #   - area: shared → standards/shared-contracts-tier.md (Zod SSOT, versioning, client generation)
 #   - area: infra → standards/infrastructure-tier.md (Terraform, SST, LocalStack)
 #   - area: ops → standards/cross-cutting.md (Observability, DX, Governance)
-# - docs/testing-standards.md (test coverage expectations and validation)
+# - standards/testing-standards.md (test coverage expectations and validation)
 #
 # All sections must cite the applicable tier standards files so they become explicit task inputs.
 
@@ -56,7 +59,7 @@ context:
     - REPLACE: standards/shared-contracts-tier.md  # If area: shared (Zod SSOT, OpenAPI, versioning, client generation)
     - REPLACE: standards/infrastructure-tier.md    # If area: infra (Terraform, Terragrunt, SST, LocalStack)
     - REPLACE: standards/cross-cutting.md          # If area: ops or cross-cutting concerns (Observability, DX, Governance)
-    - docs/testing-standards.md  # REQUIRED: validation expectations
+    - standards/testing-standards.md  # REQUIRED: validation expectations
     - REPLACE: docs/design/feature-x.md
   repo_paths:
     - REPLACE: src/module/a.ts
@@ -164,10 +167,10 @@ plan:
     title: Add/adjust tests with coverage thresholds
     details: Ensure edge cases, error paths, and idempotency are covered; meet mutation score ≥60%.
     commands:
-      - npm run test:handlers -- --coverage
-      - npm run test:services -- --coverage --coverageThreshold='{"global":{"lines":80,"branches":70}}'
-      - npm run test:mutation -- --threshold 60
-      - npm run test:contract
+      - pnpm turbo run test --filter=@photoeditor/backend -- --testPathPattern=lambdas --coverage
+      - pnpm turbo run test --filter=@photoeditor/backend -- --testPathPattern=services --coverage --coverageThreshold='{"global":{"lines":80,"branches":70}}'
+      - pnpm turbo run test:mutation --filter=@photoeditor/backend -- --threshold 60
+      - pnpm turbo run test:contract --filter=@photoeditor/backend
     expected_files_touched:
       - REPLACE: test/module/a.spec.ts
   - id: 4
@@ -185,8 +188,8 @@ plan:
     details: Update usage docs; generate import graphs, coverage reports, mutation reports.
     commands:
       - npx dependency-cruiser --output-type dot src/ | dot -T png > docs/evidence/import-graph.png
-      - npm run test:services -- --coverage --coverageReporters=html
-      - npm run test:mutation -- --coverageReporters=html
+      - pnpm turbo run test --filter=@photoeditor/backend -- --testPathPattern=services --coverage --coverageReporters=html
+      - pnpm turbo run test:mutation --filter=@photoeditor/backend -- --coverageReporters=html
     expected_files_touched:
       - REPLACE: docs/usage/feature-x.md
       - docs/evidence/import-graph.png
@@ -243,13 +246,13 @@ validation:
     - npx dependency-cruiser --validate .dependency-cruiser.json src/
 
     # Complexity checks
-    - npm run lint -- --max-complexity=10 --silent || true
+    - pnpm turbo run lint --filter=@photoeditor/backend -- --max-complexity=10 --silent || true
 
     # Test execution with coverage thresholds
-    - npm run test:handlers -- --coverage --coverageThreshold='{"global":{"lines":80,"branches":70}}'
-    - npm run test:services -- --coverage --coverageThreshold='{"global":{"lines":80,"branches":70}}'
-    - npm run test:mutation -- --threshold 60 || echo 'Mutation score below 60%'
-    - npm run test:contract || echo 'Contract tests failed'
+    - pnpm turbo run test --filter=@photoeditor/backend -- --testPathPattern=lambdas --coverage --coverageThreshold='{"global":{"lines":80,"branches":70}}'
+    - pnpm turbo run test --filter=@photoeditor/backend -- --testPathPattern=services --coverage --coverageThreshold='{"global":{"lines":80,"branches":70}}'
+    - pnpm turbo run test:mutation --filter=@photoeditor/backend -- --threshold 60 || echo 'Mutation score below 60%'
+    - pnpm turbo run test:contract --filter=@photoeditor/backend || echo 'Contract tests failed'
 
     # Infrastructure validation
     - cd infrastructure && terraform fmt -check && terraform validate
@@ -257,7 +260,7 @@ validation:
     - checkov -d infrastructure/ --soft-fail || echo 'checkov violations detected'
 
     # Standard test suite
-    - npm run lint --silent || true
+    - pnpm turbo run lint --filter=@photoeditor/backend -- --silent || true
     - npm test --silent
   manual_checks:
     - REPLACE: Brief manual verification steps (e.g., open the app and do X)

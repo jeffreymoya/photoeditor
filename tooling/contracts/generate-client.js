@@ -35,7 +35,7 @@ async function generateClient() {
     clientCode.push('/**');
     clientCode.push(' * Photo Editor API Client');
     clientCode.push(' * Generated from OpenAPI specification');
-    clientCode.push(' * DO NOT EDIT MANUALLY - regenerate with npm run contracts:generate');
+    clientCode.push(' * DO NOT EDIT MANUALLY - regenerate with pnpm turbo run contracts:generate --filter=@photoeditor/shared');
     clientCode.push(' */');
     clientCode.push('');
 
@@ -256,7 +256,7 @@ async function generateReadme() {
   readme.push('To regenerate these files after schema changes:');
   readme.push('');
   readme.push('```bash');
-  readme.push('npm run contracts:generate --prefix shared');
+  readme.push('pnpm turbo run contracts:generate --filter=@photoeditor/shared');
   readme.push('```');
   readme.push('');
   readme.push('## Contract Governance');
@@ -266,7 +266,7 @@ async function generateReadme() {
   readme.push('- **Source of Truth**: Zod schemas in `shared/schemas/` + routes manifest in `shared/routes.manifest.ts`');
   readme.push('- **Generated Artifacts**: Committed to this directory for CI drift detection');
   readme.push('- **Breaking Changes**: Require API versioning (e.g., `/v2/`) and deprecation timeline');
-  readme.push('- **Validation**: `npm run contracts:check` verifies checksums match');
+  readme.push('- **Validation**: `pnpm turbo run contracts:check --filter=@photoeditor/shared` verifies checksums match');
   readme.push('');
   readme.push('## Architecture Decision Records');
   readme.push('');

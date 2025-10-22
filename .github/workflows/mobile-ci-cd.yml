@@ -25,20 +25,33 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: mobile/package-lock.json
+          cache: 'pnpm'
 
-      - name: Install mobile dependencies
-        run: cd mobile && npm ci
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Setup pnpm via Corepack
+        run: corepack prepare pnpm@8.15.4 --activate
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/corepack
+          key: ${{ runner.os }}-corepack-${{ hashFiles('**/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-corepack-
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Lint mobile app
-        run: cd mobile && npm run lint
+        run: pnpm turbo run lint --filter=photoeditor-mobile
 
       - name: TypeScript check mobile
-        run: cd mobile && npm run typecheck
+        run: pnpm turbo run typecheck --filter=photoeditor-mobile
 
       - name: Run mobile tests
-        run: cd mobile && npm test
+        run: pnpm turbo run test --filter=photoeditor-mobile
 
   # Build Android app
   build-android:
@@ -53,8 +66,21 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: mobile/package-lock.json
+          cache: 'pnpm'
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Setup pnpm via Corepack
+        run: corepack prepare pnpm@8.15.4 --activate
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/corepack
+          key: ${{ runner.os }}-corepack-${{ hashFiles('**/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-corepack-
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -68,8 +94,8 @@ jobs:
           api-level: 34
           build-tools: 34.0.0
 
-      - name: Install mobile dependencies
-        run: cd mobile && npm ci
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Cache Gradle dependencies
         uses: actions/cache@v4
@@ -107,16 +133,29 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: mobile/package-lock.json
+          cache: 'pnpm'
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Setup pnpm via Corepack
+        run: corepack prepare pnpm@8.15.4 --activate
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/corepack
+          key: ${{ runner.os }}-corepack-${{ hashFiles('**/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-corepack-
 
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: latest-stable
 
-      - name: Install mobile dependencies
-        run: cd mobile && npm ci
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Install CocoaPods dependencies
         run: cd mobile/ios && pod install

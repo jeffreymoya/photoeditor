@@ -334,7 +334,7 @@ export default function ApiStack(props: ApiStackProps) {
     },
   });
 
-  // CloudWatch alarms: Lambda Errors >0 for 5m (STANDARDS.md line 76)
+  // CloudWatch alarms: Lambda Errors >0 for 5m (cross-cutting.md L47)
   new aws.cloudwatch.MetricAlarm("BffErrorAlarm", {
     name: `photoeditor-${$app.stage}-bff-errors`,
     comparisonOperator: "GreaterThanThreshold",
@@ -345,7 +345,7 @@ export default function ApiStack(props: ApiStackProps) {
     statistic: "Sum",
     threshold: 0,
     treatMissingData: "notBreaching",
-    alarmDescription: "Alert when BFF Lambda has errors (STANDARDS.md line 76)",
+    alarmDescription: "Alert when BFF Lambda has errors (cross-cutting.md L47)",
     dimensions: {
       FunctionName: bffFunction.name,
     },
@@ -367,7 +367,7 @@ export default function ApiStack(props: ApiStackProps) {
     statistic: "Sum",
     threshold: 0,
     treatMissingData: "notBreaching",
-    alarmDescription: "Alert when Worker Lambda has errors (STANDARDS.md line 76)",
+    alarmDescription: "Alert when Worker Lambda has errors (cross-cutting.md L47)",
     dimensions: {
       FunctionName: workerFunction.name,
     },
@@ -389,9 +389,32 @@ export default function ApiStack(props: ApiStackProps) {
     statistic: "Sum",
     threshold: 0,
     treatMissingData: "notBreaching",
-    alarmDescription: "Alert when Device Token Lambda has errors (STANDARDS.md line 76)",
+    alarmDescription: "Alert when Device Token Lambda has errors (cross-cutting.md L47)",
     dimensions: {
       FunctionName: deviceTokenFunction.name,
+    },
+    tags: {
+      Project: "PhotoEditor",
+      Env: $app.stage,
+      Owner: "DevTeam",
+      CostCenter: "Engineering",
+    },
+  });
+
+  // CloudWatch alarm: API 5XX >1% for 5m (cross-cutting.md L47)
+  new aws.cloudwatch.MetricAlarm("Api5XXAlarm", {
+    name: `photoeditor-${$app.stage}-api-5xx-rate`,
+    comparisonOperator: "GreaterThanThreshold",
+    evaluationPeriods: 1,
+    metricName: "5XXError",
+    namespace: "AWS/ApiGateway",
+    period: 300, // 5 minutes
+    statistic: "Average",
+    threshold: 0.01, // 1%
+    treatMissingData: "notBreaching",
+    alarmDescription: "Alert when API Gateway 5XX error rate >1% for 5 minutes (cross-cutting.md L47)",
+    dimensions: {
+      ApiId: httpApi.id,
     },
     tags: {
       Project: "PhotoEditor",

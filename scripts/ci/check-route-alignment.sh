@@ -24,12 +24,12 @@ echo ""
 
 # Check prerequisites
 if [ ! -f "$PROJECT_ROOT/docs/openapi/openapi-generated.yaml" ]; then
-  echo "ERROR: OpenAPI spec not found. Run 'npm run contracts:generate --prefix shared' first."
+  echo "ERROR: OpenAPI spec not found. Run 'pnpm turbo run contracts:generate --filter=@photoeditor/shared' first."
   exit 2
 fi
 
 if [ ! -f "$PROJECT_ROOT/shared/dist/routes.manifest.js" ]; then
-  echo "ERROR: Routes manifest not built. Run 'npm run build --prefix shared' first."
+  echo "ERROR: Routes manifest not built. Run 'pnpm turbo run build --filter=@photoeditor/shared' first."
   exit 2
 fi
 
@@ -81,7 +81,7 @@ if [ -n "$MISSING_ROUTES" ]; then
   echo ""
   echo "Action required:"
   echo "  - Verify routes.manifest.ts includes all routes"
-  echo "  - Regenerate OpenAPI spec: npm run contracts:generate --prefix shared"
+  echo "  - Regenerate OpenAPI spec: pnpm turbo run contracts:generate --filter=@photoeditor/shared"
   echo "  - Check for errors in tooling/contracts/generate.js"
   echo ""
   exit 1

@@ -61,7 +61,7 @@ async function generateOpenAPI() {
     // Import compiled schemas from shared/dist
     const distPath = path.join(SHARED_ROOT, 'dist');
     if (!fs.existsSync(distPath)) {
-      throw new Error('shared/dist not found. Run "npm run build --prefix shared" first.');
+      throw new Error('shared/dist not found. Run "pnpm turbo run build --filter=@photoeditor/shared" first.');
     }
 
     // Import schemas
@@ -333,7 +333,7 @@ async function generateTypeScriptTypes() {
 
     typeDefinitions.push('/**');
     typeDefinitions.push(' * Generated TypeScript types from Zod schemas');
-    typeDefinitions.push(' * DO NOT EDIT MANUALLY - regenerate with npm run contracts:generate');
+    typeDefinitions.push(' * DO NOT EDIT MANUALLY - regenerate with pnpm turbo run contracts:generate --filter=@photoeditor/shared');
     typeDefinitions.push(' * Source: @photoeditor/shared/schemas');
     typeDefinitions.push(' */');
     typeDefinitions.push('');
@@ -464,7 +464,7 @@ async function main() {
     // Step 1: Build shared package to ensure latest schemas
     console.log('Building @photoeditor/shared package...');
     const { execSync } = require('child_process');
-    execSync('npm run build', {
+    execSync('pnpm run build', {
       cwd: SHARED_ROOT,
       stdio: 'inherit'
     });
@@ -506,7 +506,7 @@ async function main() {
     console.log('');
     console.log('Next steps:');
     console.log('  1. Review generated files in docs/contracts/clients/');
-    console.log('  2. Run "npm run contracts:check" to update drift baseline');
+    console.log('  2. Run "pnpm turbo run contracts:check --filter=@photoeditor/shared" to update drift baseline');
     console.log('  3. Commit changes with context about schema modifications');
     console.log('');
 

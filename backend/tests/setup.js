@@ -6,6 +6,7 @@ const nock = require('nock');
 const originalEnv = { ...process.env };
 
 // Set deterministic test environment
+process.env.TZ = 'UTC';
 process.env.AWS_REGION = 'us-east-1';
 process.env.PROJECT_NAME = 'photoeditor';
 process.env.NODE_ENV = 'test';
@@ -72,6 +73,43 @@ const mockUuidV4 = jest.fn().mockReturnValue('00000000-0000-4000-8000-0000000000
 jest.mock('uuid', () => ({
   v4: mockUuidV4
 }));
+
+// Mock Middy to pass through the handler without modification
+// The mock returns the handler function with a chainable .use() method
+const createMiddyMock = (handler) => {
+  const middlewares = [];
+
+  const wrappedHandler = async (event, context = {}) => {
+    for (const middleware of middlewares) {
+      if (typeof middleware.before === 'function') {
+        await middleware.before({ event, context });
+      }
+    }
+
+    return handler(event, context);
+  };
+
+  wrappedHandler.use = jest.fn().mockImplementation((middleware) => {
+    middlewares.push(middleware);
+    return wrappedHandler;
+  });
+
+  return wrappedHandler;
+};
+
+jest.mock('@middy/core', () => ({
+  __esModule: true,
+  default: createMiddyMock
+}));
+
+// Use the real service injection middleware so tests receive populated containers
+jest.mock('../libs/core/container/middleware', () => {
+  const actual = jest.requireActual('../libs/core/container/middleware');
+  return {
+    __esModule: true,
+    ...actual
+  };
+});
 
 // Fail tests on unexpected console.error/console.warn
 const originalConsoleError = console.error;

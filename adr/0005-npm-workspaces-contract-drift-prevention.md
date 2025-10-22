@@ -16,7 +16,7 @@ The photoeditor repository was using ad-hoc `file:../shared` dependencies for th
 3. **No API Surface Tracking**: The shared package lacked tooling to detect breaking changes in public exports, risking unintentional SemVer violations.
 4. **Weak Architectural Boundaries**: No enforcement preventing framework-specific dependencies (React, Nest, AWS SDK) from leaking into the shared package.
 
-Per **docs/testing-standards.md** QA Suite gates (QA-B), the system requires zero contract drift between clients. Per **STANDARDS.md line 40**, breaking API changes must be versioned with `/v{n}` paths. Per **STANDARDS.md lines 63-66**, shared libraries must be framework-agnostic with SemVer enforcement.
+Per **standards/testing-standards.md** QA Suite gates (QA-B), the system requires zero contract drift between clients. Per **STANDARDS.md line 40**, breaking API changes must be versioned with `/v{n}` paths. Per **STANDARDS.md lines 63-66**, shared libraries must be framework-agnostic with SemVer enforcement.
 
 ---
 
@@ -37,7 +37,7 @@ photoeditor-monorepo/
 Implement a deterministic **hash-based contract snapshot** system:
 - `tooling/contract-check.js` - Script that generates SHA-256 hashes of all `shared/dist` artifacts
 - `shared/contract-snapshot.json` - Baseline snapshot committed to source control
-- `npm run contracts:check` - CI gate that fails when snapshots diverge
+- `pnpm turbo run contracts:check --filter=@photoeditor/shared` - CI gate that fails when snapshots diverge
 
 **Why hash-based vs. schema diffing?**
 - **Deterministic**: Byte-level changes always detected (no parser ambiguity)
@@ -154,28 +154,28 @@ Use `"@photoeditor/shared": "*"` in backend/mobile to leverage npm's workspace r
 ## Implementation Notes
 
 ### CI Integration
-Contract drift checking is now part of the centralized QA suite:
-- Script: `scripts/qa/qa-suite.sh` (QA-B stage)
-- Make: `make qa-suite` (calls QA-B among other stages)
-- CI: `.github/workflows/ci-cd.yml` calls `make qa-suite`
-- Husky: `.husky/pre-push` runs full QA suite before push
+Contract drift checking is now part of the Turborepo-orchestrated QA suite:
+- Turborepo: `pnpm turbo run qa --parallel` executes QA-B alongside the other stages
+- Make: `make qa-suite` delegates to the same turbo pipeline
+- CI: `.github/workflows/ci-cd.yml` runs `pnpm turbo run qa --parallel`
+- Husky: `.husky/pre-push` runs the full QA pipeline before push
 
-See `docs/testing-standards.md` for QA suite documentation.
+See `standards/testing-standards.md` for QA suite documentation.
 
 ### Developer Workflow
 When making intentional contract changes:
 1. Update schemas in `shared/`
-2. Run `npm run contracts:check` - **will fail** showing drift
+2. Run `pnpm turbo run contracts:check --filter=@photoeditor/shared` - **will fail** showing drift
 3. Review diff with `git diff shared/`
-4. Run contract tests: `npm run test:contracts`
-5. Update snapshot: `npm run contracts:check -- --update`
+4. Run contract tests: `pnpm turbo run test:contract --filter=@photoeditor/backend`
+5. Update snapshot: `pnpm turbo run contracts:check --filter=@photoeditor/shared -- --update`
 6. Commit snapshot with schema changes
 
 ### Rollback Strategy
 If workspace migration causes issues:
 1. Revert to `file:../shared` dependencies
 2. Remove `workspaces` field from root package.json
-3. Run `npm install` in each package individually
+3. Run `pnpm install` in each package individually
 
 No schema changes occurred, so rollback is non-breaking.
 
@@ -191,5 +191,5 @@ No schema changes occurred, so rollback is non-breaking.
 - [npm Workspaces Documentation](https://docs.npmjs.com/cli/v9/using-npm/workspaces)
 - [API Extractor Documentation](https://api-extractor.com/)
 - STANDARDS.md lines 24, 40, 56, 63-66, 101, 218, 227-228
-- docs/testing-standards.md (QA Suite gates, contract drift requirements)
+- standards/testing-standards.md (QA Suite gates, contract drift requirements)
 - docs/architecture-refactor-plan.md (Phase 0 workspace extraction)

@@ -14,11 +14,11 @@ PhotoEditor API follows contract-first design with Zod schemas in `shared/schema
 Per ADR-0003 and TASK-0602, the API contract generation follows this workflow:
 
 1. **Source of Truth**: Zod schemas (`shared/schemas/`) + Routes manifest (`shared/routes.manifest.ts`)
-2. **Generation**: `npm run contracts:generate` produces:
+2. **Generation**: `pnpm turbo run contracts:generate --filter=@photoeditor/shared` produces:
    - OpenAPI spec (`docs/openapi/openapi-generated.yaml`) with populated `paths`
    - TypeScript types (`docs/contracts/clients/types.ts`)
    - API client (`docs/contracts/clients/photoeditor-api.ts`)
-3. **Validation**: `npm run contracts:check` detects drift
+3. **Validation**: `pnpm turbo run contracts:check --filter=@photoeditor/shared` detects drift
 4. **CI Enforcement**: Route alignment checked via `scripts/ci/check-route-alignment.sh`
 
 ### Registering New Routes
@@ -40,7 +40,7 @@ To add a new API endpoint:
      tags: ['YourTag'],
    }
    ```
-3. Regenerate contracts: `npm run contracts:generate --prefix shared`
+3. Regenerate contracts: `pnpm turbo run contracts:generate --filter=@photoeditor/shared`
 4. Update Terraform to wire Lambda handler to the route
 5. Verify alignment: `scripts/ci/check-route-alignment.sh`
 

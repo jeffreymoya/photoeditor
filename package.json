@@ -1,26 +1,39 @@
 {
   "name": "photoeditor-monorepo",
   "private": true,
+  "packageManager": "pnpm@8.15.4",
   "workspaces": [
     "shared",
     "backend",
     "mobile"
   ],
   "scripts": {
-    "qa-suite:static": "npm run qa-suite:static:typecheck && npm run qa-suite:static:lint && npm run qa-suite:static:dependencies && npm run qa-suite:static:dead-exports && npm run qa-suite:static:duplication",
-    "qa-suite:static:typecheck": "npm run typecheck --prefix backend && npm run typecheck --prefix mobile && npm run typecheck --prefix shared",
-    "qa-suite:static:lint": "npm run lint --prefix backend && npm run lint --prefix mobile && npm run lint --prefix shared",
-    "qa-suite:static:dependencies": "dependency-cruiser backend/src shared mobile/src --config tooling/dependency-rules.json",
-    "qa-suite:static:dead-exports": "ts-prune -p backend/tsconfig.json && ts-prune -p mobile/tsconfig.json && ts-prune -p shared/tsconfig.json",
-    "qa-suite:static:duplication": "jscpd --threshold 5 backend/src mobile/src shared",
-    "contracts:check": "npm run build --prefix shared && node tooling/contract-check.js",
+    "postinstall": "node scripts/ensure-pnpm-corepack.mjs",
+    "build": "node_modules/.bin/turbo run build",
+    "build:lambdas": "node_modules/.bin/turbo run build:lambdas --filter=@photoeditor/backend",
+    "typecheck": "node_modules/.bin/turbo run typecheck",
+    "lint": "node_modules/.bin/turbo run lint",
+    "test": "node_modules/.bin/turbo run test",
+    "test:contract": "node_modules/.bin/turbo run test:contract",
+    "contracts:check": "node_modules/.bin/turbo run contracts:check --filter=@photoeditor/shared",
+    "contracts:generate": "node_modules/.bin/turbo run contracts:generate --filter=@photoeditor/shared",
+    "qa:static": "node_modules/.bin/turbo run qa:static",
+    "qa:dependencies": "dependency-cruiser backend/src shared mobile/src --config tooling/dependency-rules.json",
+    "qa:dead-exports": "ts-prune -p backend/tsconfig.json && ts-prune -p mobile/tsconfig.json && ts-prune -p shared/tsconfig.json",
+    "qa:duplication": "jscpd --threshold 5 backend/src mobile/src shared",
+    "qa": "node_modules/.bin/turbo run qa",
     "analyze:deps": "dependency-cruiser backend/src shared mobile/src --config tooling/dependency-rules.json --output-type dot | dot -T png > docs/evidence/import-graph.png && dependency-cruiser backend/src shared mobile/src --config tooling/dependency-rules.json --output-type metrics",
     "validate:deps": "dependency-cruiser backend/src shared mobile/src --config tooling/dependency-rules.json --output-type html > docs/evidence/dependency-cruiser-report.html && dependency-cruiser backend/src shared mobile/src --config tooling/dependency-rules.json --validate",
-    "test:contracts": "jest --testPathPattern='tests/contracts'",
     "changeset": "changeset",
     "changeset:version": "changeset version",
     "changeset:status": "changeset status --since=main",
     "prepare": "husky"
+  },
+  "pnpm": {
+    "packageManager": "pnpm@8.15.4",
+    "peerDependencyRules": {
+      "ignoreMissing": []
+    }
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.7",
@@ -30,6 +43,7 @@
     "jscpd": "^4.0.5",
     "knip": "^5.0.0",
     "ts-prune": "^0.10.3",
+    "turbo": "^2.5.8",
     "typescript": "^5.3.0"
   }
 }

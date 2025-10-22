@@ -33,6 +33,30 @@ class ApiService {
     }
   }
 
+  private generateTraceId(): string {
+    // Generate a W3C traceparent header: version-trace_id-parent_id-trace_flags
+    // version: 00 (fixed)
+    // trace_id: 32 hex characters (16 bytes)
+    // parent_id: 16 hex characters (8 bytes)
+    // trace_flags: 01 (sampled)
+    const traceId = Array.from({ length: 32 }, () =>
+      Math.floor(Math.random() * 16).toString(16)
+    ).join('');
+    const parentId = Array.from({ length: 16 }, () =>
+      Math.floor(Math.random() * 16).toString(16)
+    ).join('');
+    return `00-${traceId}-${parentId}-01`;
+  }
+
+  private generateCorrelationId(): string {
+    // Generate a correlation ID (UUID v4-like)
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
+
   private async makeRequest(
     endpoint: string,
     options: RequestInit = {}
@@ -41,6 +65,8 @@ class ApiService {
 
     const defaultHeaders = {
       'Content-Type': 'application/json',
+      'traceparent': this.generateTraceId(),
+      'x-correlation-id': this.generateCorrelationId(),
     };
 
     const response = await fetch(url, {

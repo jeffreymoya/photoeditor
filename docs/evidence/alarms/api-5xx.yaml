@@ -1,0 +1,16 @@
+# API Gateway 5XX Error Rate Alarm Configuration
+# Compliance: standards/cross-cutting.md L47
+
+alarm:
+  name: Api5XXAlarm
+  description: Alert when API Gateway 5XX error rate >1% for 5 minutes
+  metric: AWS/ApiGateway 5XXError
+  threshold: 0.01 # 1%
+  period: 300 # 5 minutes
+  evaluation_periods: 1
+  comparison: GreaterThanThreshold
+  statistic: Average
+  api: PhotoEditorApi
+
+standards_reference: standards/cross-cutting.md L47
+validation: API 5XX error rate >1% for 5 minutes triggers alarm

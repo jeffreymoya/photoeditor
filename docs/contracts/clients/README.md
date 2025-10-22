@@ -36,7 +36,7 @@ const status = await client.getJobStatus({ id: jobId });
 To regenerate these files after schema changes:
 
 ```bash
-npm run contracts:generate --prefix shared
+pnpm turbo run contracts:generate --filter=@photoeditor/shared
 ```
 
 ## Contract Governance
@@ -46,7 +46,7 @@ Per `standards/shared-contracts-tier.md`:
 - **Source of Truth**: Zod schemas in `shared/schemas/` + routes manifest in `shared/routes.manifest.ts`
 - **Generated Artifacts**: Committed to this directory for CI drift detection
 - **Breaking Changes**: Require API versioning (e.g., `/v2/`) and deprecation timeline
-- **Validation**: `npm run contracts:check` verifies checksums match
+- **Validation**: `pnpm turbo run contracts:check --filter=@photoeditor/shared` verifies checksums match
 
 ## Architecture Decision Records
 

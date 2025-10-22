@@ -4,12 +4,12 @@ set -e
 echo "Running pre-commit QA checks..."
 echo ""
 echo "Note: Skipping expensive checks (tests, builds) for faster commits."
-echo "Run 'make qa-suite' manually or wait for pre-push hook for full validation."
+echo "Run 'pnpm qa' manually or wait for pre-push hook for full validation."
 echo ""
 
-# Run QA suite with skip flags for expensive operations
-# Skip tests, infra validation, and builds for faster pre-commit
-SKIP_TESTS=1 SKIP_INFRA=1 SKIP_BUILD=1 ./scripts/qa/qa-suite.sh
+# Run static analysis only for faster pre-commit
+# Full QA suite runs on pre-push
+./node_modules/.bin/turbo run qa:static --parallel
 
 echo ""
 echo "Pre-commit checks passed!"

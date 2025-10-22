@@ -9,6 +9,22 @@
         "jest/no-disabled-tests": "warn",
         "jest/valid-expect": "error"
       }
+    },
+    {
+      "files": ["backend/src/lambdas/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@aws-sdk/*", "aws-sdk"],
+                "message": "Handlers must not import AWS SDK directly; depend on services/providers."
+              }
+            ]
+          }
+        ]
+      }
     }
   ]
 }

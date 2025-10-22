@@ -56,7 +56,7 @@ Per STANDARDS.md line 40, any breaking change must:
 
 - Contract snapshot: `/home/jeffreymoya/dev/photoeditor/shared/contract-snapshot.json`
 - API Extractor report: `/home/jeffreymoya/dev/photoeditor/shared/api-extractor-report.md.api.md`
-- Test results available via: `npm run test:contracts`
+- Test results available via: `pnpm turbo run test:contract --filter=@photoeditor/backend`
 
 ## Compatibility Status
 

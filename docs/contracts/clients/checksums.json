@@ -1,14 +1,14 @@
 {
-  "generated_at": "2025-10-14T17:48:00.827Z",
+  "generated_at": "2025-10-21T23:59:26.591Z",
   "artifacts": {
     "openapi-generated.yaml": {
-      "checksum": "b83fa351d5740e36855835dcadfdb25c3cf7ce47345ddbbb8e830d2161f1e6b1",
-      "size": 42192,
+      "checksum": "16b3a3e42b179a18c05dd417e6fa12e4493e1399d7c7a10d62d11453618027f0",
+      "size": 45128,
       "type": "yaml"
     },
     "types.ts": {
-      "checksum": "b9041a6aff94213dbd19d5ece6a5a26a1c09122cf5a4aadbaa757d44d3a8ded2",
-      "size": 4841,
+      "checksum": "01144a4f5d4a850b657d28b887847d154aee67ef51643087e36cbc1b8c6ea75c",
+      "size": 5545,
       "type": "ts"
     }
   }

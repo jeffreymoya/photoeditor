@@ -1,0 +1,129 @@
+schema_version: "1.0"
+id: TASK-0802
+title: "Capture current mutation testing evidence"
+status: blocked
+priority: P1
+area: backend
+
+description: >-
+  The backend mutation suite is configured but only a placeholder report exists. Generate a fresh
+  Stryker run, archive HTML/JSON outputs under docs/evidence/mutation, and publish a dated summary
+  in docs/tests/reports so the QA standards can verify the ≥60% floor is enforced.
+
+outcome: >-
+  Mutation tests execute successfully with score ≥60%, artifacts are stored under docs/evidence/mutation,
+  and a YYYY-MM-DD-mutation-tests.md report describes the results and survivors.
+
+scope:
+  in:
+    - backend/stryker.conf.json
+    - backend/tests/unit/** (test adjustments if needed)
+    - docs/evidence/mutation/
+    - docs/tests/reports/
+  out:
+    - Service/provider implementation changes (only add test seams if strictly required)
+    - Turborepo pipeline restructuring
+    - Shared/mobile packages
+
+context:
+  standards_tier: backend
+  issues: []
+  related_docs:
+    - standards/testing-standards.md
+    - standards/backend-tier.md
+    - docs/requirements.md
+  repo_paths:
+    - backend/stryker.conf.json
+    - backend/tests/unit/
+    - docs/evidence/mutation/
+    - docs/tests/reports/
+  dependencies:
+    - type: package
+      name: "@stryker-mutator/core"
+      version: ">=8 <9"
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: pnpm
+      version: "8.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Prefer adding targeted unit tests over tuning ignore patterns
+    - Keep mutation runtime reasonable by using incremental options if available
+  prohibited:
+    - Deleting existing evidence placeholders without replacement
+    - Lowering Stryker thresholds
+
+plan:
+  - id: 1
+    title: Inspect current mutation configuration
+    details: Confirm target directories, thresholds, and reporters to ensure outputs land under docs/evidence/mutation.
+    commands:
+      - cat backend/stryker.conf.json
+    expected_files_touched: []
+  - id: 2
+    title: Fix uncovered code paths (if needed)
+    details: Add or adjust Jest specs for surviving mutants so the mutation floor can pass without excluding logic.
+    commands:
+      - pnpm --filter @photoeditor/backend test:unit -- --coverage
+    expected_files_touched:
+      - backend/tests/unit/
+  - id: 3
+    title: Run mutation suite and capture reports
+    details: Execute Stryker with HTML+JSON reporters and ensure artifacts are saved in docs/evidence/mutation.
+    commands:
+      - pnpm --filter @photoeditor/backend test:mutation -- --threshold 60 --reporters html,json
+    expected_files_touched:
+      - docs/evidence/mutation/index.html
+      - docs/evidence/mutation/mutation-report.json
+  - id: 4
+    title: Publish mutation summary
+    details: Write a dated Markdown report under docs/tests/reports summarizing score, survivors, and follow-ups.
+    commands:
+      - node -e "const fs=require('fs');const data=JSON.parse(fs.readFileSync('docs/evidence/mutation/mutation-report.json','utf8'));console.log('Mutation score', data.metrics?.mutationScore ?? data.metrics?.mutationScoreBasedOnMutantCoverage ?? 'n/a');"
+    expected_files_touched:
+      - docs/tests/reports/YYYY-MM-DD-mutation-tests.md
+
+acceptance_criteria:
+  - Mutation score for backend services/providers ≥60% with zero surviving high-severity mutants.
+  - docs/evidence/mutation contains up-to-date HTML and JSON outputs from the latest run.
+  - docs/tests/reports/YYYY-MM-DD-mutation-tests.md documents command output, score, and any deferred work.
+  modularity:
+    - "Handlers ≤75 LOC, complexity ≤10"
+    - "Services ≤200 LOC, complexity ≤15"
+    - "No cross-layer imports (dependency-cruiser enforced)"
+  testability:
+    - "Service/Adapter: Line ≥80%, Branch ≥70%, Mutation ≥60%"
+    - "Contract tests pass for all routes"
+
+validation:
+  commands:
+    - pnpm --filter @photoeditor/backend lint -- --max-complexity=10
+    - pnpm --filter @photoeditor/backend test:unit -- --coverage --coverageThreshold='{"global":{"lines":80,"branches":70}}'
+    - pnpm --filter @photoeditor/backend test:mutation -- --threshold 60 --reporters html,json
+    - ls docs/evidence/mutation
+    - ls docs/tests/reports
+
+risks:
+  - description: Mutation runtime may exceed acceptable CI duration.
+    mitigation: Use Stryker incremental or package filtering; document runtime in the report.
+  - description: Surviving mutants signal real bugs.
+    mitigation: Promote high-risk survivors to follow-up tasks before closing this task.
+
+deliverables:
+  artifacts:
+    - path: docs/evidence/mutation/index.html
+      description: "Latest Stryker HTML report"
+    - path: docs/evidence/mutation/mutation-report.json
+      description: "Machine-readable mutation results"
+    - path: docs/tests/reports/YYYY-MM-DD-mutation-tests.md
+      description: "Narrative summary of the mutation run"
+  attachments: []

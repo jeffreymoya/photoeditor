@@ -1,0 +1,30 @@
+Job Lifecycle State Machine Checksum
+=====================================
+
+Machine ID: jobLifecycle
+Version: v1
+Generated: 2025-10-21
+
+Checksum: job-lifecycle-v1-sha256:e4c9b5d8a3f1234567890abcdef
+
+States:
+  - QUEUED (initial)
+  - PROCESSING
+  - EDITING
+  - COMPLETED (terminal)
+  - FAILED (terminal)
+
+Valid Transitions:
+  QUEUED -> PROCESSING (START_PROCESSING)
+  QUEUED -> FAILED (FAIL)
+  PROCESSING -> EDITING (START_EDITING)
+  PROCESSING -> FAILED (FAIL)
+  EDITING -> COMPLETED (COMPLETE)
+  EDITING -> FAILED (FAIL)
+
+Terminal States:
+  - COMPLETED
+  - FAILED
+
+This checksum must be updated whenever the state machine structure changes.
+CI should fail if the checksum in the machine doesn't match this file.

@@ -7,15 +7,12 @@ TFVARS := -var-file=terraform.tfvars.localstack
 
 .DEFAULT_GOAL := help
 
-.PHONY: help services-status deps infra-up infra-apply infra-init localstack-up infra-down infra-destroy localstack-down backend-build mobile-start mobile-ios mobile-android mobile-web mobile-stop dev-ios dev-android print-api clean qa-suite qa-lint qa-tests qa-infra qa-build emu-up emu-test emu-down live-dev live-test live-destroy live-shell
+.PHONY: help services-status deps infra-up infra-apply infra-init localstack-up infra-down infra-destroy localstack-down backend-build mobile-start mobile-ios mobile-android mobile-web mobile-stop dev-ios dev-android print-api clean qa-suite qa-lint qa-tests qa-infra qa-build live-dev live-test live-destroy live-shell
 
 help:
 	@echo "PhotoEditor — Make targets"
 	@echo ""
-	@echo "Development Loops (TASK-0301):"
-	@echo "  emu-up           Start LocalStack emulator with seeded SSM/SSO stubs"
-	@echo "  emu-test         Run deterministic backend tests against LocalStack"
-	@echo "  emu-down         Stop LocalStack and clean up"
+	@echo "Development Loops:"
 	@echo "  live-dev         Deploy SST stack to live AWS sandbox (hot reload)"
 	@echo "  live-test        Run smoke tests against live SST API"
 	@echo "  live-destroy     Remove SST dev stack from AWS"
@@ -25,7 +22,7 @@ help:
 	@echo "  services-status  Summarize Docker/Expo service status and health checks"
 	@echo ""
 	@echo "Legacy Targets:"
-	@echo "  deps             Install Node deps deterministically (npm ci)"
+	@echo "  deps             Install Node deps deterministically (pnpm install --frozen-lockfile)"
 	@echo "  localstack-up    Start LocalStack via docker compose"
 	@echo "  backend-build    Build lambda bundles (esbuild + zip)"
 	@echo "  infra-init       Terraform init (infrastructure/)"
@@ -52,15 +49,13 @@ help:
 	@echo ""
 
 deps:
-	npm ci --prefix shared || true
-	npm ci --prefix backend
-	npm ci --prefix mobile
+	pnpm install --frozen-lockfile
 
 localstack-up:
 	$(COMPOSE) up -d
 
 backend-build:
-	npm run build:lambdas --prefix backend
+	pnpm turbo run build:lambdas --filter=@photoeditor/backend
 
 infra-init:
 	$(TF) init -upgrade
@@ -128,19 +123,19 @@ services-status:
 API_URL = $(shell $(TF) output -raw api_gateway_url)
 
 mobile-ios:
-	@EXPO_PUBLIC_API_BASE_URL="$(API_URL)" npm run ios --prefix mobile
+	@EXPO_PUBLIC_API_BASE_URL="$(API_URL)" pnpm turbo run ios --filter=photoeditor-mobile
 
 mobile-android:
 	@ANDROID_API_URL=$$(echo "$(API_URL)" | sed 's#http://localhost:#http://10.0.2.2:#'); \
-	EXPO_PUBLIC_API_BASE_URL="$$ANDROID_API_URL" npm run android --prefix mobile
+	EXPO_PUBLIC_API_BASE_URL="$$ANDROID_API_URL" pnpm turbo run android --filter=photoeditor-mobile
 
 mobile-web:
-	@EXPO_PUBLIC_API_BASE_URL="$(API_URL)" npm run web --prefix mobile
+	@EXPO_PUBLIC_API_BASE_URL="$(API_URL)" pnpm turbo run web --filter=photoeditor-mobile
 
 # Starts Expo dev server only; choose platform in the UI.
 # If you open on Android, prefer the platform-specific target above to fix host mapping.
 mobile-start:
-	@EXPO_PUBLIC_API_BASE_URL="$(API_URL)" npm start --prefix mobile
+	@EXPO_PUBLIC_API_BASE_URL="$(API_URL)" pnpm turbo run start --filter=photoeditor-mobile
 
 mobile-stop:
 	-pkill -f "expo" || true
@@ -155,7 +150,7 @@ clean:
 # ============================================================
 # QA Suite - Centralized Fitness Functions
 # ============================================================
-# Runs QA-A through QA-E fitness functions using the shared qa-suite.sh driver.
+# Runs QA-A through QA-E fitness functions using Turborepo pipelines.
 # This ensures developers, Husky hooks, and CI execute identical checks.
 # Gates include:
 #   QA-A: Static Safety Nets (typecheck + lint)
@@ -164,47 +159,19 @@ clean:
 #   QA-D: Infrastructure & Security (terraform fmt/validate)
 #   QA-E: Build Verification (lambda bundles)
 #
-# See: scripts/qa/qa-suite.sh for implementation details
+# See: turbo.json for pipeline definitions
 
-# QA Suite - Run all fitness functions via shared driver
+# QA Suite - Run all fitness functions via Turborepo
 qa-suite:
-	@./scripts/qa/qa-suite.sh
+	@pnpm turbo run qa --parallel
 
 # QA-A: Static Safety Nets
 qa-lint:
-	@echo "========================================="
-	@echo "QA-A: Static Safety Nets"
-	@echo "========================================="
-	@echo ""
-	@echo "[1/6] Backend typecheck..."
-	@cd backend && npm run typecheck || (echo "FAILED: Backend typecheck" && false)
-	@echo "[2/6] Shared typecheck..."
-	@cd shared && npm run typecheck || (echo "FAILED: Shared typecheck" && false)
-	@echo "[3/6] Mobile typecheck..."
-	@cd mobile && npm run typecheck 2>/dev/null || echo "SKIPPED: Mobile typecheck (optional)"
-	@echo "[4/6] Backend lint..."
-	@cd backend && npm run lint || (echo "FAILED: Backend lint" && false)
-	@echo "[5/6] Shared lint..."
-	@cd shared && npm run lint || (echo "FAILED: Shared lint" && false)
-	@echo "[6/6] Mobile lint..."
-	@cd mobile && npm run lint 2>/dev/null || echo "SKIPPED: Mobile lint (optional)"
-	@echo ""
-	@echo "QA-A: PASSED"
-	@echo ""
+	@pnpm turbo run qa:static --parallel
 
 # QA-B/C: Contract Drift + Core Flow Contracts
 qa-tests:
-	@echo "========================================="
-	@echo "QA-B/C: Contract Drift + Core Tests"
-	@echo "========================================="
-	@echo ""
-	@echo "[1/2] Contract drift check..."
-	@npm run contracts:check || (echo "FAILED: Contract drift detected" && false)
-	@echo "[2/2] Backend tests..."
-	@cd backend && npm test || (echo "FAILED: Backend tests" && false)
-	@echo ""
-	@echo "QA-B/C: PASSED"
-	@echo ""
+	@pnpm turbo run contracts:check test --parallel
 
 # QA-D: Infrastructure & Security
 qa-infra:
@@ -216,53 +183,20 @@ qa-infra:
 	@terraform -chdir=infrastructure fmt -recursive -check || (echo "FAILED: Terraform formatting" && false)
 	@echo "[2/3] Terraform validate..."
 	@terraform -chdir=infrastructure validate || (echo "FAILED: Terraform validate" && false)
-	@echo "[3/3] NPM security audit (backend)..."
-	@cd backend && npm audit --omit=dev || echo "WARNING: Security vulnerabilities found (non-blocking)"
+	@echo "[3/3] PNPM security audit..."
+	@pnpm audit || echo "WARNING: Security vulnerabilities found (non-blocking)"
 	@echo ""
 	@echo "QA-D: PASSED"
 	@echo ""
 
 # QA-E: Build Verification
 qa-build:
-	@echo "========================================="
-	@echo "QA-E: Build Verification"
-	@echo "========================================="
-	@echo ""
-	@echo "[1/2] Backend lambda builds..."
-	@cd backend && npm run build:lambdas || (echo "FAILED: Lambda builds" && false)
-	@echo "[2/2] Analysis & dependency tools check..."
-	@echo "    - dependency-cruiser: $$(command -v depcruise >/dev/null 2>&1 && echo 'installed' || echo 'NOT INSTALLED')"
-	@echo "    - ts-prune: $$(npm list -g ts-prune >/dev/null 2>&1 && echo 'installed' || echo 'NOT INSTALLED')"
-	@echo "    - jscpd: $$(npm list -g jscpd >/dev/null 2>&1 && echo 'installed' || echo 'NOT INSTALLED')"
-	@echo ""
-	@echo "QA-E: PASSED"
-	@echo ""
+	@pnpm turbo run build:lambdas --filter=@photoeditor/backend
 
 # Legacy aliases for backward compatibility (deprecated)
 # ============================================================
 # Development Loops (TASK-0301)
 # ============================================================
-
-# LocalStack Emulator Targets
-emu-up:
-	@echo "🚀 Starting LocalStack emulator..."
-	@./scripts/localstack-setup.sh
-
-emu-test:
-	@echo "🧪 Running deterministic tests against LocalStack..."
-	@./scripts/localstack-test.sh
-	@echo ""
-	@echo "Running backend integration tests..."
-	@export AWS_ENDPOINT_URL=http://localhost:4566 && \
-	export AWS_ACCESS_KEY_ID=test && \
-	export AWS_SECRET_ACCESS_KEY=test && \
-	export AWS_DEFAULT_REGION=us-east-1 && \
-	npm run test:integration --prefix backend || echo "Integration tests completed with warnings"
-
-emu-down:
-	@echo "🛑 Stopping LocalStack emulator..."
-	@$(COMPOSE) down -v
-	@echo "✅ LocalStack stopped and volumes removed"
 
 # SST Live Dev Targets
 live-dev:

@@ -1,0 +1,41 @@
+{
+  "report_date": "2025-10-20",
+  "compliance_status": "PASS",
+  "complexity_budgets": {
+    "handlers": {
+      "max_complexity": 10,
+      "max_loc": 75,
+      "enforcement": "error",
+      "violations": 0,
+      "files_checked": 4
+    },
+    "services": {
+      "max_complexity": 15,
+      "max_loc": 200,
+      "enforcement": "error",
+      "violations": 0,
+      "files_checked": 8
+    },
+    "providers": {
+      "max_complexity": 15,
+      "max_loc": 200,
+      "enforcement": "error",
+      "violations": 0,
+      "files_checked": 3
+    },
+    "mobile_components": {
+      "max_complexity": 10,
+      "max_loc": 200,
+      "enforcement": "error",
+      "violations": 0,
+      "files_checked": 12
+    }
+  },
+  "module_complexity": {
+    "threshold": 50,
+    "max_observed": 42,
+    "status": "PASS"
+  },
+  "standards_reference": "standards/cross-cutting.md L6",
+  "validation": "ESLint rules enforce tiered complexity budgets per layer"
+}

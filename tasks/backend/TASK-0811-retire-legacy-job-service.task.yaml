@@ -1,0 +1,52 @@
+schema_version: "1.0"
+id: TASK-0811
+title: "Remove legacy JobService implementation"
+status: todo
+priority: P1
+area: backend
+
+description: >-
+  Delete backend/src/services/job.service.old.ts and any dead references so only the refactored neverthrow-based JobService remains.
+  This prevents accidental imports of the @ts-nocheck version and enforces domain/repository layering.
+
+outcome: >-
+  Only backend/src/services/job.service.ts is available; no builds or tests reference the legacy class; lint and tests stay green.
+
+scope:
+  in:
+    - backend/src/services/job.service.old.ts
+    - backend/src/services/index.ts (for export checks)
+    - backend/tests if cleanup needed
+  out:
+    - Domain/service refactors beyond deleting the legacy file
+
+context:
+  standards_tier: backend
+  repo_paths:
+    - backend/src/services/job.service.old.ts
+    - backend/src/services/index.ts
+
+plan:
+  - id: 1
+    title: Remove legacy file and fix exports
+    expected_files_touched:
+      - backend/src/services/job.service.old.ts
+      - backend/src/services/index.ts
+  - id: 2
+    title: Run backend QA subset
+    commands:
+      - pnpm turbo run qa:static --filter=@photoeditor/backend
+      - pnpm turbo run test --filter=@photoeditor/backend
+
+acceptance_criteria:
+  - Legacy JobService file deleted with no lingering imports.
+  - Backend QA static checks and tests pass.
+
+validation:
+  commands:
+    - pnpm turbo run qa:static --filter=@photoeditor/backend
+    - pnpm turbo run test --filter=@photoeditor/backend
+
+deliverables:
+  - backend/src/services/job.service.old.ts (removed)
+  - backend/src/services/index.ts

@@ -1,6 +1,6 @@
 /**
  * Generated TypeScript types from Zod schemas
- * DO NOT EDIT MANUALLY - regenerate with npm run contracts:generate
+ * DO NOT EDIT MANUALLY - regenerate with pnpm turbo run contracts:generate --filter=@photoeditor/shared
  * Source: @photoeditor/shared/schemas
  */
 
@@ -198,6 +198,28 @@ export type ProviderConfig = {
     timeout?: number;
     retries?: number;
     enabled?: boolean;
+    resilience?: {
+        retry?: {
+            maxAttempts?: number;
+            backoff?: "exponential" | "linear" | "constant";
+            initialDelayMs?: number;
+            maxDelayMs?: number;
+        };
+        timeout?: {
+            durationMs?: number;
+        };
+        circuitBreaker?: {
+            enabled?: boolean;
+            failureThreshold?: number;
+            halfOpenAfterMs?: number;
+            successThreshold?: number;
+        };
+        bulkhead?: {
+            enabled?: boolean;
+            maxConcurrent?: number;
+            maxQueued?: number;
+        };
+    } | undefined;
 };
 
 export type ProviderResponse = {
@@ -207,4 +229,7 @@ export type ProviderResponse = {
     duration: number;
     provider: string;
     timestamp: string;
+    metadata?: {
+        [x: string]: unknown;
+    } | undefined;
 };

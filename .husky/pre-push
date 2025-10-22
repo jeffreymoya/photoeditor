@@ -3,12 +3,11 @@ set -e
 
 echo "Running pre-push QA validation..."
 echo ""
-echo "This runs the full QA suite including tests, infra checks, and builds."
-echo "Use SKIP_* env vars if you need to skip specific checks temporarily."
+echo "This runs the full QA suite including tests, static analysis, and builds."
 echo ""
 
 # Run full QA suite before pushing
-./scripts/qa/qa-suite.sh
+./node_modules/.bin/turbo run qa --parallel
 
 echo ""
 echo "Pre-push validation passed!"

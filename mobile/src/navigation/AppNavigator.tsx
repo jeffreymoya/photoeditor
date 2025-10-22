@@ -14,34 +14,29 @@ import { PreviewScreen } from '@/screens/PreviewScreen';
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
+const tabIconMap: Record<string, { active: keyof typeof Ionicons.glyphMap; inactive: keyof typeof Ionicons.glyphMap }> = {
+  Home: { active: 'home', inactive: 'home-outline' },
+  Camera: { active: 'camera', inactive: 'camera-outline' },
+  Gallery: { active: 'images', inactive: 'images-outline' },
+  Jobs: { active: 'list', inactive: 'list-outline' },
+  Settings: { active: 'settings', inactive: 'settings-outline' },
+};
+
+const getTabIcon = (routeName: string, focused: boolean): keyof typeof Ionicons.glyphMap => {
+  const icons = tabIconMap[routeName];
+  if (!icons) {
+    return 'help-circle';
+  }
+
+  return focused ? icons.active : icons.inactive;
+};
+
 const TabNavigator = () => (
   <Tab.Navigator
     screenOptions={({ route }) => ({
-      tabBarIcon: ({ focused, color, size }) => {
-        let iconName: keyof typeof Ionicons.glyphMap;
-
-        switch (route.name) {
-          case 'Home':
-            iconName = focused ? 'home' : 'home-outline';
-            break;
-          case 'Camera':
-            iconName = focused ? 'camera' : 'camera-outline';
-            break;
-          case 'Gallery':
-            iconName = focused ? 'images' : 'images-outline';
-            break;
-          case 'Jobs':
-            iconName = focused ? 'list' : 'list-outline';
-            break;
-          case 'Settings':
-            iconName = focused ? 'settings' : 'settings-outline';
-            break;
-          default:
-            iconName = 'help-circle';
-        }
-
-        return <Ionicons name={iconName} size={size} color={color} />;
-      },
+      tabBarIcon: ({ focused, color, size }) => (
+        <Ionicons name={getTabIcon(route.name, focused)} size={size} color={color} />
+      ),
       tabBarActiveTintColor: '#007AFF',
       tabBarInactiveTintColor: 'gray',
       headerShown: false,

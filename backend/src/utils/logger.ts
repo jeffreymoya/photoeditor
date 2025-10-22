@@ -1,11 +1,15 @@
 import { Logger } from '@aws-lambda-powertools/logger';
 
 export interface LogContext {
+  correlationId?: string;
+  traceId?: string;
   requestId?: string;
   jobId?: string;
   userId?: string;
+  function?: string;
+  env?: string;
+  version?: string;
   operation?: string;
-  correlationId?: string;
   timestamp?: string;
   event?: string;
   duration?: number;
@@ -13,6 +17,7 @@ export interface LogContext {
   newStatus?: string;
   provider?: string;
   success?: boolean;
+  [key: string]: unknown;
 }
 
 export interface ErrorContext extends LogContext {
@@ -31,7 +36,8 @@ class AppLogger {
       serviceName: 'photo-editor-backend',
       logLevel: logLevel as 'DEBUG' | 'INFO' | 'WARN' | 'ERROR',
       persistentLogAttributes: {
-        environment: process.env.NODE_ENV || 'development',
+        function: process.env.AWS_LAMBDA_FUNCTION_NAME || 'local',
+        env: process.env.NODE_ENV || 'development',
         version: process.env.APP_VERSION || '1.0.0'
       }
     });
@@ -150,7 +156,8 @@ class AppLogger {
       serviceName: 'photo-editor-backend',
       logLevel: process.env.LOG_LEVEL as 'DEBUG' | 'INFO' | 'WARN' | 'ERROR' || 'INFO',
       persistentLogAttributes: {
-        environment: process.env.NODE_ENV || 'development',
+        function: process.env.AWS_LAMBDA_FUNCTION_NAME || 'local',
+        env: process.env.NODE_ENV || 'development',
         version: process.env.APP_VERSION || '1.0.0',
         ...this.formatContext(persistentContext)
       }

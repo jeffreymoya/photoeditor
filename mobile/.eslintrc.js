@@ -46,8 +46,8 @@ module.exports = {
     'no-console': ['warn', { allow: ['warn', 'error'] }],
     '@typescript-eslint/ban-types': 'off',
     '@typescript-eslint/array-type': ['warn', { default: 'array' }],
-    'complexity': ['error', { max: 15 }],
-    'max-lines-per-function': ['warn', { max: 200, skipBlankLines: true, skipComments: true }],
+    'complexity': ['error', { max: 10 }],
+    'max-lines-per-function': ['error', { max: 200, skipBlankLines: true, skipComments: true }],
 
     // Mobile layering rules (STANDARDS.md line 53)
     'boundaries/element-types': [

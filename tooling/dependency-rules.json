@@ -11,6 +11,18 @@
       }
     },
     {
+      "name": "backend-handlers-no-aws-sdk-imports",
+      "severity": "error",
+      "comment": "Handlers must not import AWS SDK directly; use services/providers.",
+      "from": {
+        "path": "^backend/src/lambdas"
+      },
+      "to": {
+        "path": "^(@aws-sdk/|node_modules/@aws-sdk/|aws-sdk$)",
+        "dependencyTypes": ["npm"]
+      }
+    },
+    {
       "name": "backend-services-no-handlers",
       "severity": "error",
       "comment": "Services expose logic to handlers; they must not import the lambda layer.",
@@ -123,7 +135,7 @@
     }
   ],
   "options": {
-    "includeOnly": "^backend/src|^shared|^mobile/src",
+    "includeOnly": "^backend/src|^shared|^mobile/src|^node_modules/@aws-sdk",
     "tsConfig": {
       "fileName": "./tooling/tsconfig.dependency-cruiser.json"
     },

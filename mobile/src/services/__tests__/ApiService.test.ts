@@ -8,8 +8,10 @@
  * References:
  * - standards/shared-contracts-tier.md: Contract-first API design
  * - standards/frontend-tier.md: Services layer validation requirements
- * - docs/testing-standards.md: Mobile services testing guidelines
+ * - standards/testing-standards.md: Mobile services testing guidelines
  */
+
+import { readFileSync } from 'fs';
 
 import { apiService } from '../ApiService';
 import {
@@ -33,7 +35,7 @@ global.fetch = jest.fn();
  * Each endpoint requires request/response schema validation, error cases, and contract drift
  * prevention checks. Splitting into separate files would fragment contract validation logic
  * and reduce clarity. The 305-line suite provides complete coverage of mobile-backend contract
- * alignment (TASK-0606 acceptance criteria, docs/testing-standards.md lines 203-219).
+ * alignment (TASK-0606 acceptance criteria, standards/testing-standards.md lines 203-219).
  */
 // eslint-disable-next-line max-lines-per-function
 describe('ApiService - Shared Schema Integration', () => {
@@ -339,10 +341,7 @@ describe('ApiService - Shared Schema Integration', () => {
       // This test verifies that ApiService imports schemas from @photoeditor/shared
       // rather than defining them locally, preventing contract drift
 
-      const apiServiceCode = require('fs').readFileSync(
-        require.resolve('../ApiService'),
-        'utf8'
-      );
+      const apiServiceCode = readFileSync(require.resolve('../ApiService'), 'utf8');
 
       // Verify imports from shared package
       expect(apiServiceCode).toContain("from '@photoeditor/shared'");
@@ -359,10 +358,7 @@ describe('ApiService - Shared Schema Integration', () => {
 
     it('should not re-export shared schemas from mobile modules', () => {
       // Per task constraint: "Do not re-export shared schemas from mobile-specific modules"
-      const apiServiceCode = require('fs').readFileSync(
-        require.resolve('../ApiService'),
-        'utf8'
-      );
+      const apiServiceCode = readFileSync(require.resolve('../ApiService'), 'utf8');
 
       // Verify no re-exports
       expect(apiServiceCode).not.toContain('export { PresignUploadRequestSchema');

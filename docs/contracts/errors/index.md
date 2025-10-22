@@ -430,7 +430,7 @@ All error scenarios must be covered by contract tests:
 3. **Integration tests** for error propagation through the system
 4. **Client tests** for error handling logic
 
-See `docs/testing-standards.md` for detailed requirements.
+See `standards/testing-standards.md` for detailed requirements.
 
 ## References
 
@@ -438,7 +438,7 @@ See `docs/testing-standards.md` for detailed requirements.
 - **Versioning Policy:** `docs/compatibility/versioning.md`
 - **Shared Contracts Tier:** `standards/shared-contracts-tier.md`
 - **Global Standards:** `standards/global.md`
-- **Testing Standards:** `docs/testing-standards.md`
+- **Testing Standards:** `standards/testing-standards.md`
 
 ## Change History
 

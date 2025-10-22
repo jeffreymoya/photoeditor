@@ -1,0 +1,17 @@
+# Import Graph Placeholder
+# 
+# This file serves as a placeholder for the import graph visualization.
+# The actual import graph should be generated using:
+#   pnpm turbo run qa:dependencies
+#
+# This command runs:
+#   dependency-cruiser backend/src shared mobile/src --config tooling/dependency-rules.json --output-type dot | dot -T png > docs/evidence/import-graph.png
+#
+# The graph will show:
+# - Fan-in and fan-out metrics for each module
+# - Dependency relationships across tiers
+# - Validation against standards/cross-cutting.md L15:
+#   - Fan-in ≤15 (warn at 80%)
+#   - Fan-out ≤12 (warn at 80%)
+#
+# Standards Reference: standards/cross-cutting.md L15

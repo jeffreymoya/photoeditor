@@ -1,0 +1,156 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "ui": "tui",
+  "remoteCache": {
+    "enabled": true
+  },
+  "globalDependencies": [
+    "**/.env",
+    "tsconfig.json",
+    "tooling/**"
+  ],
+  "globalEnv": [
+    "NODE_ENV",
+    "CI",
+    "TURBO_TOKEN",
+    "TURBO_TEAM"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**", "build/**"],
+      "cache": true
+    },
+    "build#photoeditor-mobile": {
+      "dependsOn": ["^build"],
+      "outputs": [],
+      "cache": false
+    },
+    "build:lambdas": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/lambdas/**/*.zip", "dist/lambdas/**/*.js"],
+      "cache": true
+    },
+    "typecheck": {
+      "dependsOn": ["^build"],
+      "cache": true,
+      "outputs": [],
+      "inputs": ["src/**/*.ts", "src/**/*.tsx", "tsconfig.json"]
+    },
+    "lint": {
+      "dependsOn": [],
+      "cache": true,
+      "outputs": [],
+      "inputs": ["src/**/*.ts", "src/**/*.tsx", ".eslintrc.*"]
+    },
+    "test": {
+      "dependsOn": ["build"],
+      "cache": true,
+      "outputs": ["coverage/**", "test-results/**"],
+      "env": ["NODE_ENV", "ALLOW_LOCALHOST"]
+    },
+    "test#photoeditor-mobile": {
+      "dependsOn": ["^build"],
+      "cache": true,
+      "outputs": [],
+      "env": ["NODE_ENV"]
+    },
+    "test#@photoeditor/shared": {
+      "dependsOn": ["build"],
+      "cache": true,
+      "outputs": [],
+      "env": ["NODE_ENV"]
+    },
+    "test:contract": {
+      "dependsOn": ["build"],
+      "cache": true,
+      "outputs": ["coverage/**"]
+    },
+    "contracts:check": {
+      "dependsOn": ["^build"],
+      "cache": true,
+      "outputs": [],
+      "inputs": ["schemas/**", "routes.manifest.ts"]
+    },
+    "contracts:generate": {
+      "dependsOn": ["^build"],
+      "cache": true,
+      "outputs": ["dist/**"],
+      "inputs": ["schemas/**", "routes.manifest.ts", "tooling/contracts/**"]
+    },
+    "clean": {
+      "cache": false
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "start": {
+      "cache": false,
+      "persistent": true
+    },
+    "ios": {
+      "cache": false,
+      "persistent": true
+    },
+    "android": {
+      "cache": false,
+      "persistent": true
+    },
+    "web": {
+      "cache": false,
+      "persistent": true
+    },
+    "qa:static": {
+      "dependsOn": ["typecheck", "lint", "qa:dependencies", "qa:dead-exports", "qa:duplication"],
+      "cache": true,
+      "outputs": [],
+      "inputs": ["src/**/*.ts", "src/**/*.tsx"]
+    },
+    "qa:dependencies": {
+      "cache": true,
+      "outputs": ["docs/evidence/dependency-cruiser-report.html", "docs/evidence/import-graph.png"],
+      "inputs": ["src/**", "tooling/dependency-rules.json"]
+    },
+    "qa:dependencies#photoeditor-mobile": {
+      "cache": true,
+      "outputs": [],
+      "inputs": []
+    },
+    "qa:dependencies#@photoeditor/shared": {
+      "cache": true,
+      "outputs": [],
+      "inputs": []
+    },
+    "qa:dead-exports": {
+      "cache": true,
+      "outputs": [],
+      "inputs": ["src/**/*.ts", "src/**/*.tsx", "tsconfig.json"]
+    },
+    "qa:duplication": {
+      "cache": true,
+      "outputs": [],
+      "inputs": ["src/**"]
+    },
+    "qa": {
+      "dependsOn": ["qa:static", "test"],
+      "cache": true,
+      "outputs": []
+    },
+    "qa#@photoeditor/backend": {
+      "dependsOn": ["qa:static", "test", "build:lambdas"],
+      "cache": true,
+      "outputs": []
+    },
+    "qa#@photoeditor/shared": {
+      "dependsOn": ["qa:static", "contracts:check", "test"],
+      "cache": true,
+      "outputs": []
+    },
+    "qa#photoeditor-mobile": {
+      "dependsOn": ["qa:static", "test"],
+      "cache": true,
+      "outputs": []
+    }
+  }
+}

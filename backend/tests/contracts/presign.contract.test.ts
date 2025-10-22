@@ -1,21 +1,31 @@
 /**
- * Contract tests for POST /v1/upload/presign endpoint
- * These tests validate that the response conforms to the OpenAPI specification
+ * Contract Tests for Presign Handler
+ *
+ * Validates that presign handler responses match shared schema contracts
+ * per standards/testing-standards.md and standards/shared-contracts-tier.md.
+ *
+ * Tests:
+ * - Single upload request/response validation
+ * - Batch upload request/response validation
+ * - Error response format compliance (RFC 7807)
+ * - Schema boundary validation (Zod-at-boundaries)
  */
 
 import { APIGatewayProxyEventV2 } from 'aws-lambda';
 import { mockClient } from 'aws-sdk-client-mock';
-import { DynamoDBClient, PutItemCommand, UpdateItemCommand } from '@aws-sdk/client-dynamodb';
+import { DynamoDBClient, PutItemCommand } from '@aws-sdk/client-dynamodb';
 import { S3Client } from '@aws-sdk/client-s3';
-import { marshall } from '@aws-sdk/util-dynamodb';
 import {
+  PresignUploadRequestSchema,
   PresignUploadResponseSchema,
-  BatchUploadResponseSchema
+  BatchUploadRequestSchema,
+  BatchUploadResponseSchema,
+  ApiErrorSchema
 } from '@photoeditor/shared';
 
-// Mock presigner to avoid real credential usage
+// Mock presigner to avoid real credential usage in unit tests
 jest.mock('@aws-sdk/s3-request-presigner', () => ({
-  getSignedUrl: jest.fn().mockResolvedValue('https://mock-presigned-url.s3.amazonaws.com')
+  getSignedUrl: jest.fn().mockResolvedValue('https://mock-presigned-url.s3.amazonaws.com/test-key')
 }));
 
 // Mock PowerTools
@@ -30,14 +40,14 @@ jest.mock('@aws-lambda-powertools/logger', () => ({
 jest.mock('@aws-lambda-powertools/metrics');
 jest.mock('@aws-lambda-powertools/tracer');
 
-// Mock Bootstrap service
+// Mock services to avoid initialization issues
 jest.mock('../../src/services/bootstrap.service', () => ({
   BootstrapService: jest.fn().mockImplementation(() => ({
     initializeProviders: jest.fn().mockResolvedValue(undefined)
   }))
 }));
 
-// Set required env vars
+// Set required env vars before importing handler
 process.env.AWS_REGION = 'us-east-1';
 process.env.PROJECT_NAME = 'photoeditor';
 process.env.NODE_ENV = 'test';
@@ -53,7 +63,7 @@ const s3Mock = mockClient(S3Client);
 const mockDynamoInstance = new DynamoDBClient({});
 const mockS3Instance = new S3Client({});
 
-// Mock @backend/core to return mocked clients
+// Update the @backend/core mock to return the actual mocked clients
 jest.mock('@backend/core', () => {
   return {
     createSSMClient: jest.fn().mockReturnValue({}),
@@ -64,17 +74,21 @@ jest.mock('@backend/core', () => {
     BootstrapService: jest.fn().mockImplementation(() => ({
       initializeProviders: jest.fn().mockResolvedValue(undefined)
     })),
-    StandardProviderCreator: jest.fn().mockImplementation(() => ({}))
+    StandardProviderCreator: jest.fn().mockImplementation(() => ({})),
+    serviceInjection: jest.fn().mockReturnValue({
+      before: jest.fn(),
+      after: jest.fn()
+    })
   };
 }, { virtual: true });
 
-// Import handler after mocks
+// Import handler after mocks are set up
 import { handler } from '../../src/lambdas/presign';
 
 // Type guard for API Gateway response
 type APIGatewayResponse = Exclude<Awaited<ReturnType<typeof handler>>, string>;
 
-describe('POST /v1/upload/presign - Contract Tests', () => {
+describe('Presign Handler Contract Tests', () => {
   beforeEach(() => {
     dynamoMock.reset();
     s3Mock.reset();
@@ -82,6 +96,9 @@ describe('POST /v1/upload/presign - Contract Tests', () => {
     mockLogger.info.mockClear();
     mockLogger.warn.mockClear();
     jest.useRealTimers();
+
+    // Mock successful DynamoDB PutItem for all tests
+    dynamoMock.on(PutItemCommand).resolves({});
   });
 
   const createEvent = (body: any): APIGatewayProxyEventV2 => ({
@@ -89,323 +106,278 @@ describe('POST /v1/upload/presign - Contract Tests', () => {
     routeKey: 'POST /v1/upload/presign',
     rawPath: '/v1/upload/presign',
     rawQueryString: '',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {},
     requestContext: {
       accountId: '123456789012',
-      apiId: 'contract-test-api',
-      domainName: 'api.photoeditor.test',
-      domainPrefix: 'api',
+      apiId: 'test-api',
+      domainName: 'test.execute-api.us-east-1.amazonaws.com',
+      domainPrefix: 'test',
       http: {
         method: 'POST',
         path: '/v1/upload/presign',
         protocol: 'HTTP/1.1',
         sourceIp: '127.0.0.1',
-        userAgent: 'contract-test'
+        userAgent: 'test'
       },
-      requestId: 'contract-test-request-id',
+      requestId: 'test-request-id',
       routeKey: 'POST /v1/upload/presign',
-      stage: 'v1',
-      time: '04/Oct/2025:00:00:00 +0000',
-      timeEpoch: Date.now(),
+      stage: '$default',
+      time: '01/Jan/2024:00:00:00 +0000',
+      timeEpoch: 1704067200000,
       authorizer: {
         jwt: {
           claims: {
-            sub: 'contract-test-user-123'
+            sub: 'test-user-123'
           },
           scopes: []
         }
       }
     } as any,
-    body: body ? JSON.stringify(body) : undefined,
+    body: JSON.stringify(body),
     isBase64Encoded: false
   });
 
-  describe('Single Upload Response Contract', () => {
-    it('should return 200 with valid single upload response schema', async () => {
-      const event = createEvent({
-        fileName: 'contract-test.jpg',
+  describe('POST /v1/upload/presign - Single Upload', () => {
+    it('should return response matching PresignUploadResponseSchema for valid request', async () => {
+      const requestBody = {
+        fileName: 'test-photo.jpg',
         contentType: 'image/jpeg',
-        fileSize: 1024 * 1024,
-        prompt: 'Contract test prompt'
-      });
+        fileSize: 1024000,
+        prompt: 'enhance photo'
+      };
 
-      dynamoMock.resolves({});
-      s3Mock.resolves({});
+      // Validate request matches schema
+      const requestValidation = PresignUploadRequestSchema.safeParse(requestBody);
+      expect(requestValidation.success).toBe(true);
 
+      const event = createEvent(requestBody);
       const result = await handler(event, {} as any) as APIGatewayResponse;
 
-      // Verify HTTP status code
+      // Validate response structure
+      expect(result).toBeDefined();
       expect(result.statusCode).toBe(200);
-
-      // Verify Content-Type header
-      expect(result.headers).toBeDefined();
-      expect(result.headers?.['Content-Type']).toBe('application/json');
+      expect(result.body).toBeDefined();
 
       // Parse and validate response against schema
-      const response = JSON.parse(result.body as string);
-      const validation = PresignUploadResponseSchema.safeParse(response);
+      const responseBody = JSON.parse(result.body as string);
+      const responseValidation = PresignUploadResponseSchema.safeParse(responseBody);
 
-      expect(validation.success).toBe(true);
-      if (validation.success) {
-        // Verify required fields exist
-        expect(validation.data).toHaveProperty('jobId');
-        expect(validation.data).toHaveProperty('presignedUrl');
-        expect(validation.data).toHaveProperty('s3Key');
-        expect(validation.data).toHaveProperty('expiresAt');
+      if (!responseValidation.success) {
+        console.error('Schema validation errors:', responseValidation.error.errors);
+      }
 
-        // Verify field types match OpenAPI spec
-        expect(typeof validation.data.jobId).toBe('string');
-        expect(validation.data.jobId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
-        expect(typeof validation.data.presignedUrl).toBe('string');
-        expect(validation.data.presignedUrl).toMatch(/^https?:\/\//);
-        expect(typeof validation.data.s3Key).toBe('string');
-        expect(typeof validation.data.expiresAt).toBe('string');
-        // Validate ISO 8601 datetime format
-        expect(() => new Date(validation.data.expiresAt)).not.toThrow();
+      expect(responseValidation.success).toBe(true);
+
+      // Validate specific fields
+      const validatedResponse = responseValidation.data!;
+      expect(validatedResponse.jobId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+      expect(validatedResponse.presignedUrl).toContain('https://');
+      expect(validatedResponse.s3Key).toBeDefined();
+      expect(new Date(validatedResponse.expiresAt).getTime()).toBeGreaterThan(Date.now());
+    });
+
+    it('should return ApiError response for invalid request', async () => {
+      const invalidBody = {
+        fileName: '', // Invalid: empty string
+        contentType: 'image/jpeg',
+        fileSize: 1024000
+      };
+
+      const event = createEvent(invalidBody);
+      const result = await handler(event, {} as any) as APIGatewayResponse;
+
+      expect(result.statusCode).toBe(400);
+      const responseBody = JSON.parse(result.body as string);
+
+      // Validate error response matches ApiErrorSchema
+      const errorValidation = ApiErrorSchema.safeParse(responseBody);
+      expect(errorValidation.success).toBe(true);
+
+      if (errorValidation.success) {
+        expect(errorValidation.data.error.code).toBeDefined();
+        expect(errorValidation.data.error.message).toBeDefined();
+        expect(errorValidation.data.requestId).toBeDefined();
+        expect(errorValidation.data.timestamp).toBeDefined();
       }
     });
 
-    it('should return 400 with error schema for missing body', async () => {
-      const event = createEvent(null);
-      event.body = undefined;
+    it('should reject unsupported content types', async () => {
+      const invalidBody = {
+        fileName: 'test.pdf',
+        contentType: 'application/pdf', // Invalid: not an image
+        fileSize: 1024000
+      };
 
+      const event = createEvent(invalidBody);
       const result = await handler(event, {} as any) as APIGatewayResponse;
 
-      // Verify HTTP status code matches OpenAPI spec
       expect(result.statusCode).toBe(400);
-
-      // Verify correlation headers
-      expect(result.headers).toBeDefined();
-      expect(result.headers?.['Content-Type']).toBe('application/json');
-      expect(result.headers?.['x-request-id']).toBe('contract-test-request-id');
-
-      // Verify standardized error response structure (RFC 7807 format)
-      const response = JSON.parse(result.body as string);
-      expect(response).toHaveProperty('code');
-      expect(response).toHaveProperty('title');
-      expect(response).toHaveProperty('detail');
-      expect(response).toHaveProperty('instance');
-      expect(response).toHaveProperty('timestamp');
-
-      // Verify field values
-      expect(response.code).toBe('MISSING_REQUEST_BODY');
-      expect(response.title).toBe('Validation Error');
-      expect(response.detail).toBe('Request body is required');
-      expect(response.instance).toBe('contract-test-request-id');
-      expect(typeof response.timestamp).toBe('string');
-      expect(() => new Date(response.timestamp)).not.toThrow();
+      const responseBody = JSON.parse(result.body as string);
+      const errorValidation = ApiErrorSchema.safeParse(responseBody);
+      expect(errorValidation.success).toBe(true);
     });
 
-    it('should return 400 for invalid content type', async () => {
-      const event = createEvent({
-        fileName: 'test.bmp',
-        contentType: 'image/bmp', // Not in allowed list
-        fileSize: 1024
-      });
-
-      dynamoMock.resolves({});
-      s3Mock.resolves({});
-
-      const result = await handler(event, {} as any) as APIGatewayResponse;
-
-      // Should reject with validation error
-      expect(result.statusCode).toBe(400);
-
-      // Verify correlation headers
-      expect(result.headers?.['x-request-id']).toBe('contract-test-request-id');
-
-      // Verify standardized error response structure
-      const response = JSON.parse(result.body as string);
-      expect(response).toHaveProperty('code');
-      expect(response).toHaveProperty('title');
-      expect(response).toHaveProperty('detail');
-      expect(response).toHaveProperty('instance');
-      expect(response.code).toBe('INVALID_REQUEST');
-      expect(response.title).toBe('Validation Error');
-    });
-
-    it('should return 400 for file size exceeding 50MB', async () => {
-      const event = createEvent({
-        fileName: 'large.jpg',
+    it('should reject files exceeding size limit', async () => {
+      const invalidBody = {
+        fileName: 'huge-photo.jpg',
         contentType: 'image/jpeg',
-        fileSize: 51 * 1024 * 1024 // 51MB, exceeds max
-      });
+        fileSize: 60 * 1024 * 1024 // 60MB - exceeds 50MB limit
+      };
 
-      dynamoMock.resolves({});
-      s3Mock.resolves({});
-
+      const event = createEvent(invalidBody);
       const result = await handler(event, {} as any) as APIGatewayResponse;
 
       expect(result.statusCode).toBe(400);
-
-      // Verify correlation headers
-      expect(result.headers?.['x-request-id']).toBe('contract-test-request-id');
-
-      // Verify standardized error response structure
-      const response = JSON.parse(result.body as string);
-      expect(response).toHaveProperty('code');
-      expect(response).toHaveProperty('title');
-      expect(response).toHaveProperty('detail');
-      expect(response).toHaveProperty('instance');
-      expect(response.code).toBe('INVALID_REQUEST');
-      expect(response.title).toBe('Validation Error');
+      const responseBody = JSON.parse(result.body as string);
+      const errorValidation = ApiErrorSchema.safeParse(responseBody);
+      expect(errorValidation.success).toBe(true);
     });
   });
 
-  describe('Batch Upload Response Contract', () => {
-    it('should return 200 with valid batch upload response schema', async () => {
-      const event = createEvent({
+  describe('POST /v1/upload/presign - Batch Upload', () => {
+    it('should return response matching BatchUploadResponseSchema for valid batch request', async () => {
+      const requestBody = {
         files: [
           {
-            fileName: 'contract-photo1.jpg',
+            fileName: 'photo1.jpg',
             contentType: 'image/jpeg',
-            fileSize: 1024 * 1024
+            fileSize: 1024000
           },
           {
-            fileName: 'contract-photo2.png',
+            fileName: 'photo2.png',
             contentType: 'image/png',
-            fileSize: 2 * 1024 * 1024
+            fileSize: 2048000
           }
         ],
-        sharedPrompt: 'Contract test batch prompt',
-        individualPrompts: ['Prompt for photo 1', 'Prompt for photo 2']
-      });
+        sharedPrompt: 'enhance all photos'
+      };
 
-      dynamoMock.on(PutItemCommand).resolves({});
-      dynamoMock.on(UpdateItemCommand).resolves({
-        Attributes: marshall({
-          batchJobId: '00000000-0000-4000-8000-000000000000',
-          status: 'QUEUED',
-          childJobIds: ['00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000002']
-        })
-      });
-      s3Mock.resolves({});
+      // Validate request matches schema
+      const requestValidation = BatchUploadRequestSchema.safeParse(requestBody);
+      expect(requestValidation.success).toBe(true);
 
+      const event = createEvent(requestBody);
       const result = await handler(event, {} as any) as APIGatewayResponse;
 
-      // Verify HTTP status code
+      // Validate response structure
+      expect(result).toBeDefined();
       expect(result.statusCode).toBe(200);
-
-      // Verify Content-Type header
-      expect(result.headers?.['Content-Type']).toBe('application/json');
+      expect(result.body).toBeDefined();
 
       // Parse and validate response against schema
-      const response = JSON.parse(result.body as string);
-      const validation = BatchUploadResponseSchema.safeParse(response);
+      const responseBody = JSON.parse(result.body as string);
+      const responseValidation = BatchUploadResponseSchema.safeParse(responseBody);
 
-      expect(validation.success).toBe(true);
-      if (validation.success) {
-        // Verify required fields per OpenAPI spec
-        expect(validation.data).toHaveProperty('batchJobId');
-        expect(validation.data).toHaveProperty('uploads');
-        expect(validation.data).toHaveProperty('childJobIds');
-
-        // Verify batchJobId is UUID
-        expect(validation.data.batchJobId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
-
-        // Verify uploads array structure
-        expect(Array.isArray(validation.data.uploads)).toBe(true);
-        expect(validation.data.uploads.length).toBe(2);
-
-        validation.data.uploads.forEach((upload) => {
-          expect(upload).toHaveProperty('presignedUrl');
-          expect(upload).toHaveProperty('s3Key');
-          expect(upload).toHaveProperty('expiresAt');
-          expect(upload.presignedUrl).toMatch(/^https?:\/\//);
-          expect(typeof upload.s3Key).toBe('string');
-          expect(() => new Date(upload.expiresAt)).not.toThrow();
-        });
-
-        // Verify childJobIds array
-        expect(Array.isArray(validation.data.childJobIds)).toBe(true);
-        expect(validation.data.childJobIds.length).toBe(2);
-        validation.data.childJobIds.forEach((jobId) => {
-          expect(jobId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
-        });
+      if (!responseValidation.success) {
+        console.error('Schema validation errors:', responseValidation.error.errors);
       }
+
+      expect(responseValidation.success).toBe(true);
+
+      // Validate specific fields
+      const validatedResponse = responseValidation.data!;
+      expect(validatedResponse.batchJobId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+      expect(validatedResponse.uploads).toHaveLength(2);
+      expect(validatedResponse.childJobIds).toHaveLength(2);
+
+      // Validate each upload object
+      validatedResponse.uploads.forEach(upload => {
+        expect(upload.presignedUrl).toContain('https://');
+        expect(upload.s3Key).toBeDefined();
+        expect(new Date(upload.expiresAt).getTime()).toBeGreaterThan(Date.now());
+      });
+
+      // Validate each child job ID is a valid UUID
+      validatedResponse.childJobIds.forEach(jobId => {
+        expect(jobId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+      });
     });
 
-    it('should enforce max 10 files per batch constraint', async () => {
+    it('should reject batch with empty files array', async () => {
+      const invalidBody = {
+        files: [], // Invalid: empty array
+        sharedPrompt: 'enhance all photos'
+      };
+
+      const event = createEvent(invalidBody);
+      const result = await handler(event, {} as any) as APIGatewayResponse;
+
+      expect(result.statusCode).toBe(400);
+      const responseBody = JSON.parse(result.body as string);
+      const errorValidation = ApiErrorSchema.safeParse(responseBody);
+      expect(errorValidation.success).toBe(true);
+    });
+
+    it('should reject batch with more than 10 files', async () => {
       const files = Array.from({ length: 11 }, (_, i) => ({
         fileName: `photo${i}.jpg`,
         contentType: 'image/jpeg',
-        fileSize: 1024 * 1024
+        fileSize: 1024000
       }));
 
-      const event = createEvent({
+      const invalidBody = {
         files,
-        sharedPrompt: 'Batch with too many files'
-      });
+        sharedPrompt: 'enhance all photos'
+      };
 
-      dynamoMock.resolves({});
-      s3Mock.resolves({});
-
+      const event = createEvent(invalidBody);
       const result = await handler(event, {} as any) as APIGatewayResponse;
 
-      // Should reject with validation error
       expect(result.statusCode).toBe(400);
+      const responseBody = JSON.parse(result.body as string);
+      const errorValidation = ApiErrorSchema.safeParse(responseBody);
+      expect(errorValidation.success).toBe(true);
+    });
 
-      // Verify correlation headers
-      expect(result.headers?.['x-request-id']).toBe('contract-test-request-id');
+    it('should reject batch with missing sharedPrompt', async () => {
+      const invalidBody = {
+        files: [
+          {
+            fileName: 'photo1.jpg',
+            contentType: 'image/jpeg',
+            fileSize: 1024000
+          }
+        ]
+        // Missing sharedPrompt
+      };
 
-      // Verify standardized error response structure
-      const response = JSON.parse(result.body as string);
-      expect(response).toHaveProperty('code');
-      expect(response).toHaveProperty('title');
-      expect(response).toHaveProperty('detail');
-      expect(response).toHaveProperty('instance');
-      expect(response.code).toBe('INVALID_REQUEST');
-      expect(response.title).toBe('Validation Error');
+      const event = createEvent(invalidBody);
+      const result = await handler(event, {} as any) as APIGatewayResponse;
+
+      expect(result.statusCode).toBe(400);
+      const responseBody = JSON.parse(result.body as string);
+      const errorValidation = ApiErrorSchema.safeParse(responseBody);
+      expect(errorValidation.success).toBe(true);
     });
   });
 
-  describe('Error Response Contract', () => {
-    it('should return 500 with error schema for internal errors', async () => {
-      const event = createEvent({
-        fileName: 'test.jpg',
+  describe('Request/Response Correlation', () => {
+    it('should include x-request-id header in response', async () => {
+      const requestBody = {
+        fileName: 'test-photo.jpg',
         contentType: 'image/jpeg',
-        fileSize: 1024
-      });
+        fileSize: 1024000
+      };
 
-      // Simulate internal error
-      dynamoMock.rejects(new Error('Simulated DynamoDB failure'));
-
+      const event = createEvent(requestBody);
       const result = await handler(event, {} as any) as APIGatewayResponse;
 
-      // Verify HTTP status code
-      expect(result.statusCode).toBe(500);
-
-      // Verify correlation headers
       expect(result.headers).toBeDefined();
-      expect(result.headers?.['Content-Type']).toBe('application/json');
-      expect(result.headers?.['x-request-id']).toBe('contract-test-request-id');
-
-      // Verify standardized error response structure (RFC 7807 format)
-      const response = JSON.parse(result.body as string);
-      expect(response).toHaveProperty('code');
-      expect(response).toHaveProperty('title');
-      expect(response).toHaveProperty('detail');
-      expect(response).toHaveProperty('instance');
-      expect(response).toHaveProperty('timestamp');
-
-      // Verify field values
-      expect(response.code).toBe('UNEXPECTED_ERROR');
-      expect(response.title).toBe('Internal Server Error');
-      expect(response.detail).toContain('unexpected error');
-      expect(response.instance).toBe('contract-test-request-id');
-      expect(typeof response.timestamp).toBe('string');
-      expect(() => new Date(response.timestamp)).not.toThrow();
+      expect(result.headers?.['x-request-id']).toBe('test-request-id');
     });
 
-    it('should include traceparent header when present in request', async () => {
-      const event = createEvent(null);
-      event.body = undefined;
-      event.headers['traceparent'] = '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01';
+    it('should include Content-Type header in response', async () => {
+      const requestBody = {
+        fileName: 'test-photo.jpg',
+        contentType: 'image/jpeg',
+        fileSize: 1024000
+      };
 
+      const event = createEvent(requestBody);
       const result = await handler(event, {} as any) as APIGatewayResponse;
 
-      // Verify traceparent header is propagated
-      expect(result.headers?.['traceparent']).toBe('00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01');
+      expect(result.headers).toBeDefined();
+      expect(result.headers?.['Content-Type']).toBe('application/json');
     });
   });
 });

@@ -1,7 +1,7 @@
 /**
  * Photo Editor API Client
  * Generated from OpenAPI specification
- * DO NOT EDIT MANUALLY - regenerate with npm run contracts:generate
+ * DO NOT EDIT MANUALLY - regenerate with pnpm turbo run contracts:generate --filter=@photoeditor/shared
  */
 
 import type * as Types from './types';

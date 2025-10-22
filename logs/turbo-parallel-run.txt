@@ -1,0 +1,36 @@
+Validation completed successfully at Tue Oct 21 09:24:00 AM PST 2025
+turbo 2.5.8
+
+• Packages in scope: @photoeditor/backend, @photoeditor/shared, photoeditor-mobile
+• Running typecheck in 3 packages
+• Remote caching disabled
+@photoeditor/shared:typecheck: cache bypass, force executing 64aba0c638500292
+@photoeditor/backend:typecheck: cache bypass, force executing 1b6bf3ef42076c2f
+photoeditor-mobile:typecheck: cache bypass, force executing 6d87767abd624576
+@photoeditor/shared:typecheck: node:internal/modules/cjs/loader:1404
+@photoeditor/shared:typecheck:   throw err;
+@photoeditor/shared:typecheck:   ^
+@photoeditor/shared:typecheck: 
+@photoeditor/shared:typecheck: Error: Cannot find module '/home/jeffreymoya/dev/photoeditor/shared/node_modules/pnpm/bin/pnpm.cjs'
+@photoeditor/shared:typecheck:     at Function._resolveFilename (node:internal/modules/cjs/loader:1401:15)
+@photoeditor/shared:typecheck:     at defaultResolveImpl (node:internal/modules/cjs/loader:1057:19)
+@photoeditor/shared:typecheck:     at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1062:22)
+@photoeditor/shared:typecheck:     at Function._load (node:internal/modules/cjs/loader:1211:37)
+@photoeditor/shared:typecheck:     at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+@photoeditor/shared:typecheck:     at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+@photoeditor/shared:typecheck:     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:170:5)
+@photoeditor/shared:typecheck:     at node:internal/main/run_main_module:36:49 {
+@photoeditor/shared:typecheck:   code: 'MODULE_NOT_FOUND',
+@photoeditor/shared:typecheck:   requireStack: []
+@photoeditor/shared:typecheck: }
+@photoeditor/shared:typecheck: 
+@photoeditor/shared:typecheck: Node.js v22.15.0
+@photoeditor/shared:typecheck: ERROR: command finished with error: command (/home/jeffreymoya/dev/photoeditor/shared) ./node_modules/.bin/pnpm run typecheck exited (1)
+@photoeditor/shared#typecheck: command (/home/jeffreymoya/dev/photoeditor/shared) ./node_modules/.bin/pnpm run typecheck exited (1)
+
+ Tasks:    0 successful, 3 total
+Cached:    0 cached, 3 total
+  Time:    173ms 
+Failed:    @photoeditor/shared#typecheck
+
+ ERROR  run failed: command  exited (1)

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["jest"],
+    "isolatedModules": false
+  },
+  "include": [
+    "__tests__/**/*.ts",
+    "index.ts",
+    "constants/**/*.ts",
+    "schemas/**/*.ts",
+    "statecharts/**/*.ts",
+    "types/**/*.ts"
+  ]
+}

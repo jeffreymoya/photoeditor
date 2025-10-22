@@ -1,0 +1,17 @@
+# DynamoDB User Errors Alarm Configuration
+# Compliance: standards/cross-cutting.md L47
+
+alarm:
+  name: DynamoDbUserErrorsAlarm
+  description: Alert when DynamoDB UserErrors >10 per minute
+  metric: AWS/DynamoDB UserErrors
+  threshold: 10 # per minute
+  period: 60 # 1 minute
+  evaluation_periods: 1
+  comparison: GreaterThanThreshold
+  statistic: Sum
+  table: JobsTable
+
+standards_reference: standards/cross-cutting.md L47
+validation: DynamoDB user errors >10/min triggers alarm
+status: Pending implementation in infra/sst/stacks/storage.ts

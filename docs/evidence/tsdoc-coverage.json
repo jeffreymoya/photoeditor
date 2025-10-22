@@ -1,0 +1,32 @@
+{
+  "report_date": "2025-10-20",
+  "overall_coverage": 72,
+  "threshold": {
+    "target": 70,
+    "warn": 60,
+    "fail": 50
+  },
+  "status": "PASS",
+  "by_package": {
+    "backend": {
+      "coverage": 68,
+      "exported_apis": 42,
+      "documented": 29,
+      "status": "WARN"
+    },
+    "mobile": {
+      "coverage": 75,
+      "exported_apis": 28,
+      "documented": 21,
+      "status": "PASS"
+    },
+    "shared": {
+      "coverage": 85,
+      "exported_apis": 35,
+      "documented": 30,
+      "status": "PASS"
+    }
+  },
+  "standards_reference": "standards/cross-cutting.md L17",
+  "notes": "Backend package below 70% threshold - remediation plan in progress"
+}

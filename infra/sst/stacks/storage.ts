@@ -2,10 +2,11 @@
  * Storage Stack - S3 Buckets, DynamoDB, KMS
  *
  * STANDARDS.md compliance:
- * - S3 SSE-KMS encryption (line 112)
- * - Cost tags: Project, Env, Owner, CostCenter (line 44)
- * - Temp bucket: 48h lifecycle (line 177)
- * - Final bucket: versioning, incomplete multipart cleanup (line 178)
+ * - S3 SSE-KMS encryption with customer-managed keys (cross-cutting.md L52)
+ * - S3 block-public-access enabled (cross-cutting.md L10, L52)
+ * - Cost tags: Project, Env, Owner, CostCenter (cross-cutting.md L11)
+ * - Temp bucket: 48h lifecycle
+ * - Final bucket: versioning, incomplete multipart cleanup
  */
 
 export default function StorageStack() {
@@ -78,6 +79,15 @@ export default function StorageStack() {
     ],
   });
 
+  // Block public access for temp bucket (cross-cutting.md L10, L52)
+  new aws.s3.BucketPublicAccessBlock("TempBucketPublicAccessBlock", {
+    bucket: tempBucket.name,
+    blockPublicAcls: true,
+    blockPublicPolicy: true,
+    ignorePublicAcls: true,
+    restrictPublicBuckets: true,
+  });
+
   // Final assets bucket - versioned, SSE-KMS
   const finalBucket = new sst.aws.Bucket("FinalAssetsBucket", {
     transform: {
@@ -123,6 +133,15 @@ export default function StorageStack() {
         bucketKeyEnabled: true,
       },
     ],
+  });
+
+  // Block public access for final bucket (cross-cutting.md L10, L52)
+  new aws.s3.BucketPublicAccessBlock("FinalBucketPublicAccessBlock", {
+    bucket: finalBucket.name,
+    blockPublicAcls: true,
+    blockPublicPolicy: true,
+    ignorePublicAcls: true,
+    restrictPublicBuckets: true,
   });
 
   // DynamoDB table for jobs - PITR enabled, on-demand billing

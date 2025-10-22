@@ -292,5 +292,5 @@ Use AWS Cost Explorer to analyze costs by tag.
 
 - STANDARDS.md: Architectural standards v3.1
 - docs/architecure-refactor-plan.md: Phase 4 BFF and observability requirements
-- docs/testing-standards.md: Testing requirements for infrastructure
+- standards/testing-standards.md: Testing requirements for infrastructure
 - docs/rubric.md: Stage 1 maintainability requirements

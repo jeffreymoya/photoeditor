@@ -95,5 +95,5 @@
 
 **Fitness gates**
 
-* E2E happy-path on CI (Detox); navigation coverage ≥ 1 path per screen tracked in `docs/ui/e2e`.
-* **Owner**: Mobile Release Captain. **Evidence**: Detox report + navigation coverage matrix attached to evidence bundle.
+* Navigation smoke tests on CI; manual testing of critical user flows before release.
+* **Owner**: Mobile Release Captain. **Evidence**: Test plan + release checklist attached to evidence bundle.

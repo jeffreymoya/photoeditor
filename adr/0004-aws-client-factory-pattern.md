@@ -5,30 +5,29 @@
 
 ## Context
 
-STANDARDS.md enforces strict dependency layering (handlers → services → adapters) and mandates that services and handlers must not directly instantiate AWS SDK clients (`STANDARDS.md:25,32`). The codebase must support both production AWS endpoints and LocalStack endpoints for local development, requiring consistent endpoint configuration across all AWS services (S3, DynamoDB, SQS, SNS). Existing services directly construct clients with `new S3Client()`, `new DynamoDBClient()`, etc., violating the adapter layer principle and creating inconsistent endpoint handling. The architecture refactor plan (Phase 0) requires an endpoint-aware factory that provides reusable, testable AWS clients with LocalStack support (`tasks/backend/TASK-0100-phase0-foundations.task.yaml:104-111`).
+STANDARDS.md enforces strict dependency layering (handlers → services → adapters) and mandates that services and handlers must not directly instantiate AWS SDK clients (`STANDARDS.md:25,32`). Services require consistent endpoint configuration across all AWS services (S3, DynamoDB, SQS, SNS). Existing services directly construct clients with `new S3Client()`, `new DynamoDBClient()`, etc., violating the adapter layer principle and creating inconsistent endpoint handling. The architecture refactor plan (Phase 0) requires a centralized factory that provides reusable, testable AWS clients through dependency injection (`tasks/backend/TASK-0100-phase0-foundations.task.yaml:104-111`).
 
 ## Decision
 
-Implement a centralized AWS client factory (`backend/libs/aws-clients.ts`) that provides factory functions for creating S3, DynamoDB, SQS, and SNS clients. The factory detects the environment (`LOCALSTACK_ENDPOINT` or `AWS_ENDPOINT_URL` environment variables) and configures clients accordingly. Services must use these factory functions instead of direct client construction. The factory supports custom configuration overrides while maintaining consistent endpoint and region defaults.
+Implement a centralized AWS client factory (`backend/libs/aws-clients.ts`) that provides factory functions for creating S3, DynamoDB, SQS, and SNS clients. The factory is environment-agnostic and configurable for any AWS-compatible endpoint. Services must use these factory functions via dependency injection instead of direct client construction. The factory supports custom configuration overrides while maintaining consistent region defaults.
 
 **Key Design Elements**:
 - Factory functions: `createS3Client()`, `createDynamoDBClient()`, `createSQSClient()`, `createSNSClient()`
-- Environment detection: `getAWSEnvironment()` checks for LocalStack or custom endpoints
-- LocalStack support: S3 clients automatically enable `forcePathStyle` when LocalStack is detected
 - Region defaulting: Uses `AWS_REGION` environment variable or defaults to `us-east-1`
 - Custom overrides: Factory functions accept optional config objects for service-specific settings
-- Comprehensive testing: 24 unit tests cover all endpoint scenarios and configuration options
+- Comprehensive testing: 24 unit tests cover all configuration options
+- Dependency injection: Services receive pre-configured clients, enabling flexible environment configuration
 
 ## Consequences
 
 **Positive**:
 - Eliminates STANDARDS.md hard fail violation (no direct SDK construction in services/handlers)
 - Provides single source of truth for AWS client configuration
-- Enables seamless LocalStack support without code changes (environment variable only)
 - Improves testability through dependency injection (services can receive pre-configured clients)
 - Establishes clear adapter layer boundary between business logic and infrastructure
 - Extensible for future AWS services (Secrets Manager, SSM, EventBridge, etc.)
 - Reduces configuration duplication across services
+- Supports flexible environment configuration (AWS, SST, local emulation)
 
 **Negative**:
 - Requires refactoring existing services to migrate from `new XClient()` to factory functions
@@ -39,6 +38,7 @@ Implement a centralized AWS client factory (`backend/libs/aws-clients.ts`) that 
 **Neutral**:
 - Pattern is simple and familiar (factory pattern is well-understood)
 - Migration path is straightforward (replace constructor calls with factory calls)
+- Works with SST, AWS CloudFormation, or Terraform-provisioned environments via configuration
 
 ## Alternatives Considered
 

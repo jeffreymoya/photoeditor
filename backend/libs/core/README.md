@@ -170,16 +170,15 @@ Valid values: `gemini` (analysis), `seedream` (editing), `stub` (both)
 ### Unit Tests
 
 ```bash
-pnpm turbo run test:unit --filter=@photoeditor/backend -- libs/core
+pnpm turbo run test --filter=@photoeditor/backend -- libs/core
 ```
 
-### Integration Tests
+### Contract Tests
 
-Requires LocalStack running:
+Validate API contracts:
 
 ```bash
-docker compose -f docker-compose.localstack.yml up -d
-pnpm turbo run test:integration --filter=@photoeditor/backend -- shared-core
+pnpm turbo run test:contract --filter=@photoeditor/backend
 ```
 
 ## Related ADRs

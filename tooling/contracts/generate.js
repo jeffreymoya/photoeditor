@@ -111,10 +111,6 @@ async function generateOpenAPI() {
       },
       servers: [
         {
-          url: 'http://localhost:4566',
-          description: 'LocalStack development server'
-        },
-        {
           url: 'https://api.photoeditor.dev',
           description: 'Development environment'
         },

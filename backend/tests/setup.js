@@ -25,20 +25,6 @@ delete process.env.AWS_SECRET_ACCESS_KEY;
 // Network isolation - disable all network by default
 beforeAll(() => {
   nock.disableNetConnect();
-  // Allow localhost for integration tests (will be overridden in integration suites)
-  if (process.env.ALLOW_LOCALHOST === 'true') {
-    const allowedHosts = new Set(['127.0.0.1', 'localhost']);
-    const endpoint = process.env.LOCALSTACK_ENDPOINT || 'http://localhost:4566';
-    try {
-      const { hostname } = new URL(endpoint);
-      if (hostname) {
-        allowedHosts.add(hostname);
-      }
-    } catch (err) {
-      // Ignore malformed endpoint values; fall back to defaults
-    }
-    allowedHosts.forEach(host => nock.enableNetConnect(host));
-  }
 });
 
 afterAll(() => {
@@ -140,10 +126,7 @@ afterEach(() => {
   // Restore environment
   process.env = { ...originalEnv };
   // Reset modules to clear any module-level state
-  // Skip for integration tests as they maintain stateful connections
-  if (process.env.ALLOW_LOCALHOST !== 'true') {
-    jest.resetModules();
-  }
+  jest.resetModules();
   mockUuidV4.mockReset();
   mockUuidV4.mockReturnValue('00000000-0000-4000-8000-000000000000');
 });

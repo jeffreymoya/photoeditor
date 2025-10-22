@@ -1,0 +1,114 @@
+schema_version: "1.0"
+id: TASK-0813
+title: "Document purity & immutability heuristics"
+status: todo
+priority: P1
+area: docs
+
+description: >-
+  Capture concrete heuristics for pure functions and immutability that align with the
+  project's TypeScript, neverthrow, Redux Toolkit, RTK Query, and OneTable usage so reviewers
+  can evaluate future changes consistently. The current standards mention targets but lack
+  operational guidance tied to the tech stack.
+
+outcome: >-
+  Standards in `standards/` clearly describe how to keep domain logic pure, how to structure
+  immutable data flows across backend and mobile tiers, and what evidence reviewers should expect
+  when assessing purity/immutability.
+
+scope:
+  in:
+    - standards/typescript.md
+    - standards/backend-tier.md
+    - standards/frontend-tier.md
+    - standards/cross-cutting.md
+  out:
+    - Code refactors to enforce the new guidance
+    - Changes to automation tooling or lint rules beyond documentation updates
+
+context:
+  standards_tier: ops
+  issues: []
+  related_docs:
+    - standards/AGENTS.md
+    - standards/testing-standards.md
+  repo_paths:
+    - standards/typescript.md
+    - standards/backend-tier.md
+    - standards/frontend-tier.md
+    - standards/cross-cutting.md
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "18.x"
+  tools:
+    - name: pnpm
+      version: ">=8 <9"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep diffs minimal and focused
+    - Respect repository conventions
+  prohibited:
+    - No secrets or tokens in code
+    - No unrelated file changes
+
+plan:
+  - id: 1
+    title: Audit current standards language
+    details: Review the referenced standards to catalog existing purity and immutability guidance.
+    commands: []
+    expected_files_touched: []
+  - id: 2
+    title: Draft heuristics per tier
+    details: Add concrete guidance mapping purity/immutability expectations to the technologies used in backend and mobile tiers.
+    commands: []
+    expected_files_touched:
+      - standards/typescript.md
+      - standards/backend-tier.md
+      - standards/frontend-tier.md
+  - id: 3
+    title: Define evidence expectations
+    details: Update cross-cutting standards with reviewer heuristics and artefact expectations for purity and immutability.
+    commands: []
+    expected_files_touched:
+      - standards/cross-cutting.md
+  - id: 4
+    title: Self-review and align references
+    details: Ensure terminology matches existing standards and cross-link sections where helpful.
+    commands: []
+    expected_files_touched:
+      - standards/typescript.md
+      - standards/backend-tier.md
+      - standards/frontend-tier.md
+      - standards/cross-cutting.md
+
+acceptance_criteria:
+  - TypeScript standards define what constitutes a pure function and immutable structure with examples tied to neverthrow, Zod mappers, and DTO usage.
+  - Backend and frontend tier standards describe how services/hooks should remain pure and immutable when using OneTable, Redux Toolkit, RTK Query, and XState.
+  - Cross-cutting standards list the artefacts reviewers should request to validate purity/immutability claims.
+  - No lint errors; `pnpm turbo run qa:static --parallel` completes successfully.
+
+validation:
+  commands:
+    - pnpm turbo run qa:static --parallel
+  manual_checks:
+    - Verify new guidance cross-links relevant standards sections without conflicting terminology.
+  artifacts:
+    - screenshots: []
+
+deliverables:
+  - standards/typescript.md
+  - standards/backend-tier.md
+  - standards/frontend-tier.md
+  - standards/cross-cutting.md
+
+risks:
+  - description: Guidance could conflict with existing enforcement automation or reviewer workflow.
+    mitigation: Cross-reference existing standards and call out when additional automation is future work.

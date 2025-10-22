@@ -37,7 +37,7 @@ module.exports = {
     }
   },
   verbose: true,
-  testTimeout: 10000, // Unit default; raise in integration suites only
+  testTimeout: 10000, // Default for unit suites
 
   // Set up environment variables for tests
   setupFilesAfterEnv: ['<rootDir>/tests/setup.js'],

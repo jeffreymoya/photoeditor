@@ -1,14 +1,11 @@
 /**
  * AWS SDK Client Factory
  *
- * Central factory for creating AWS SDK clients with environment-aware endpoint configuration.
- * Supports both production AWS endpoints and LocalStack endpoints for local development.
- *
+ * Central factory for creating AWS SDK clients with consistent regional configuration.
  * This adapter layer ensures:
  * - No direct AWS SDK client construction in services/handlers (STANDARDS.md hard fail)
- * - Consistent endpoint configuration across all AWS services
+ * - Consistent regional configuration across AWS services
  * - Testability through dependency injection
- * - Support for LocalStack in dev/test environments
  */
 
 import {
@@ -29,34 +26,7 @@ import {
 } from '@aws-sdk/client-sns';
 
 /**
- * Configuration for AWS client factory
- */
-export interface AWSClientConfig {
-  region: string;
-  endpoint?: string;
-  forcePathStyle?: boolean; // Required for LocalStack S3
-}
-
-/**
- * Environment detection for endpoint configuration
- */
-export function getAWSEnvironment(): { isLocalStack: boolean; endpoint?: string } {
-  const localstackEndpoint = process.env.LOCALSTACK_ENDPOINT;
-  const awsEndpoint = process.env.AWS_ENDPOINT_URL;
-
-  if (localstackEndpoint) {
-    return { isLocalStack: true, endpoint: localstackEndpoint };
-  }
-
-  if (awsEndpoint) {
-    return { isLocalStack: false, endpoint: awsEndpoint };
-  }
-
-  return { isLocalStack: false };
-}
-
-/**
- * Creates an S3 client with environment-aware endpoint configuration
+ * Creates an S3 client with regional configuration
  *
  * @param region - AWS region (defaults to AWS_REGION env var or 'us-east-1')
  * @param customConfig - Optional custom configuration to override defaults
@@ -67,27 +37,16 @@ export function createS3Client(
   customConfig?: Partial<S3ClientConfig>
 ): S3Client {
   const awsRegion = region || process.env.AWS_REGION || 'us-east-1';
-  const { isLocalStack, endpoint } = getAWSEnvironment();
-
   const config: S3ClientConfig = {
     region: awsRegion,
     ...customConfig,
   };
 
-  if (endpoint) {
-    config.endpoint = endpoint;
-  }
-
-  // LocalStack requires forcePathStyle for S3
-  if (isLocalStack) {
-    config.forcePathStyle = true;
-  }
-
   return new S3Client(config);
 }
 
 /**
- * Creates a DynamoDB client with environment-aware endpoint configuration
+ * Creates a DynamoDB client with regional configuration
  *
  * @param region - AWS region (defaults to AWS_REGION env var or 'us-east-1')
  * @param customConfig - Optional custom configuration to override defaults
@@ -98,22 +57,17 @@ export function createDynamoDBClient(
   customConfig?: Partial<DynamoDBClientConfig>
 ): DynamoDBClient {
   const awsRegion = region || process.env.AWS_REGION || 'us-east-1';
-  const { endpoint } = getAWSEnvironment();
 
   const config: DynamoDBClientConfig = {
     region: awsRegion,
     ...customConfig,
   };
 
-  if (endpoint) {
-    config.endpoint = endpoint;
-  }
-
   return new DynamoDBClient(config);
 }
 
 /**
- * Creates an SQS client with environment-aware endpoint configuration
+ * Creates an SQS client with regional configuration
  *
  * @param region - AWS region (defaults to AWS_REGION env var or 'us-east-1')
  * @param customConfig - Optional custom configuration to override defaults
@@ -124,22 +78,17 @@ export function createSQSClient(
   customConfig?: Partial<SQSClientConfig>
 ): SQSClient {
   const awsRegion = region || process.env.AWS_REGION || 'us-east-1';
-  const { endpoint } = getAWSEnvironment();
 
   const config: SQSClientConfig = {
     region: awsRegion,
     ...customConfig,
   };
 
-  if (endpoint) {
-    config.endpoint = endpoint;
-  }
-
   return new SQSClient(config);
 }
 
 /**
- * Creates an SNS client with environment-aware endpoint configuration
+ * Creates an SNS client with regional configuration
  *
  * @param region - AWS region (defaults to AWS_REGION env var or 'us-east-1')
  * @param customConfig - Optional custom configuration to override defaults
@@ -150,16 +99,11 @@ export function createSNSClient(
   customConfig?: Partial<SNSClientConfig>
 ): SNSClient {
   const awsRegion = region || process.env.AWS_REGION || 'us-east-1';
-  const { endpoint } = getAWSEnvironment();
 
   const config: SNSClientConfig = {
     region: awsRegion,
     ...customConfig,
   };
-
-  if (endpoint) {
-    config.endpoint = endpoint;
-  }
 
   return new SNSClient(config);
 }
@@ -173,5 +117,4 @@ export const AWSClients = {
   createDynamoDBClient,
   createSQSClient,
   createSNSClient,
-  getAWSEnvironment,
 };

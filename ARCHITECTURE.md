@@ -33,14 +33,12 @@ The photoeditor project is a multi-package monorepo composed of a React Native m
 - Defines constants such as size limits, lifecycle parameters, and provider defaults (`shared/constants/index.ts`).
 - Exposes TypeScript types for S3 key strategy, errors, and provider responses (`shared/types/`).
 
-## Infrastructure (`infrastructure/`)
-- Local development uses Terraform modules tailored for LocalStack (`infrastructure/main.tf`), provisioning:
-  - KMS CMK, temp/final S3 buckets, queue + DLQ, SNS topic, DynamoDB jobs table, and supporting IAM policies.
-  - Lambda functions for presign, status, worker, and download flows, exposed via an HTTP API Gateway for LocalStack.
-- Production and staging environments are modeled with SST stacks (`infra/sst/stacks/*.ts`) that compose equivalent resources—KMS, S3, DynamoDB, SQS/SNS, and the Lambda suite—while enforcing `STANDARDS.md` tags, alarms, and log retention policies.
-- Batch job support relies on a DynamoDB companion table but still needs an API surface for `/batch-status` resolution.
-- Device token management is implemented in code yet lacks infrastructure definitions (table, Lambda deployment, API Gateway integration); these additions are required before enabling the feature outside of tests.
-- A production VPC/data-plane build-out (e.g., NAT, VPC endpoints, Lambda per-subnet configuration) remains future work referenced in `docs/tech.md` but not yet codified.
+## Infrastructure (`infra/sst/`)
+- SST stacks (`infra/sst/stacks/*.ts`) provision the AWS resources that back live environments, including S3 buckets, DynamoDB tables, SNS topics, SQS queues, and Lambda functions for presign/status/worker/download flows.
+- The same stacks attach Powertools log groups, CloudWatch alarms, and mandatory tags defined in `STANDARDS.md`.
+- Batch job support relies on a DynamoDB companion table and still needs an API surface for `/batch-status` before it can be exposed publicly.
+- Device token storage will ship via the SST stack once the API surface and DynamoDB table definitions move out of code comments and into infrastructure code.
+- Future work: codify VPC/data-plane hardening (NAT gateways, VPC endpoints, Lambda subnet placements) that currently lives only in design notes under `docs/tech.md`.
 
 ## Data & Control Flow
 1. Mobile client requests presigned upload URLs for single or batch workflows via `POST /v1/upload/presign`; `presign` creates the necessary job and batch records, returning temp S3 details.

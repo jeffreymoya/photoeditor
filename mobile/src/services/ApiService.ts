@@ -17,7 +17,6 @@ class ApiService {
 
   constructor() {
     // Default to development endpoint; allow override via Expo public env var
-    // The Makefile passes EXPO_PUBLIC_API_BASE_URL to point the app at LocalStack API
     this.baseUrl = process.env.EXPO_PUBLIC_API_BASE_URL || 'https://api.photoeditor.dev';
   }
 

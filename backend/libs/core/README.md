@@ -6,7 +6,7 @@
 
 The core library consolidates duplicated wiring across the Nest BFF and standalone Lambda workers, providing:
 
-1. **AWS Client Factories** - Environment-aware SDK client creation with LocalStack support
+1. **AWS Client Factories** - Region-aware SDK client creation shared across runtimes
 2. **Configuration Service** - Centralized SSM Parameter Store access
 3. **Provider Management** - Factory pattern for AI provider instantiation (real + stub)
 4. **Idempotency** - Conditional write patterns for duplicate message detection
@@ -115,20 +115,9 @@ const count = await dlq.getApproximateMessageCount();
 1. **No Direct SDK Construction** - All AWS clients must be created via factory functions (STANDARDS.md line 32)
 2. **No Mutable Singletons** - Stateless factories; dependencies injected via constructors (STANDARDS.md line 59)
 3. **Framework Agnostic** - Core library has no Nest-specific dependencies; supports pure Lambda execution
-4. **Environment Aware** - Automatic LocalStack endpoint detection via `LOCALSTACK_ENDPOINT` env var
-5. **Configuration from SSM** - All provider configuration loaded from Parameter Store, no hardcoded secrets
+4. **Configuration from SSM** - All provider configuration loaded from Parameter Store, no hardcoded secrets
 
 ## Edge Cases
-
-### LocalStack Development
-
-Core automatically detects LocalStack via `LOCALSTACK_ENDPOINT` or `AWS_ENDPOINT_URL`:
-
-```bash
-export LOCALSTACK_ENDPOINT=http://localhost:4566
-```
-
-S3 clients automatically enable `forcePathStyle` for LocalStack compatibility.
 
 ### Stub Providers
 

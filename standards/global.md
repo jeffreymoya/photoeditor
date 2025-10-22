@@ -44,7 +44,7 @@
 
 * **Static**: eslint (strict), depcruise rules, ts-prune zero unused exports, knip zero unused deps (CI uploads reports to `docs/quality/static`).
 * **Contracts**: zod/openapi diff == 0 (or approved), RTK Query client regenerated (orval only with ADR); artefacts stored in `docs/contracts`.
-* **Tests**: unit ≥ 80% lines, mutation ≥ 60%, integration suite green, pact verifications with dashboard snapshots archived.
+* **Tests**: unit ≥ 80% lines, branch ≥ 70% for services/adapters, pact verifications with dashboard snapshots archived.
 * **Bundles**: RN bundle size budget; Lambda zipped size budget; cold-start P50 budget recorded per release.
 * **Obs**: trace propagation test (contract test validates correlation id in logs) including mobile instrumentation evidence.
 * **Docs**: generated dep graph + statecharts uploaded to KB; ADR linked; include depreciation plans where applicable.
@@ -53,5 +53,5 @@
 
 * **Owners**: each tier designates a maintainer responsible for uploading fitness-gate artefacts to the shared evidence bundle.
 * **Audit cadence**: quarterly cross-tier review ensures reports remain accessible; gaps become tasks in `tasks/` with linked remediation.
-* **Evidence bundle scope**: include import graphs with fan-in/out and propagation-cost histograms, structural-debt trends, OpenAPI specs with semantic diff and compatibility matrix, trace coverage %, MTTP P95, API→worker latency P95, DLQ drill summary, coverage + mutation reports, flake-rate trend, reuse ratio, pen-test/access review notes, and cost reports with optimisations.
+* **Evidence bundle scope**: include import graphs with fan-in/out and propagation-cost histograms, structural-debt trends, OpenAPI specs with semantic diff and compatibility matrix, trace coverage %, MTTP P95, API→worker latency P95, DLQ drill summary, coverage reports, flake-rate trend, reuse ratio, pen-test/access review notes, and cost reports with optimisations.
 * **Tooling**: `scripts/evidence-bundle` orchestrates report collection via `pnpm turbo run qa --parallel`. Contributions must extend the turbo pipeline in `turbo.json` when adding new fitness functions.

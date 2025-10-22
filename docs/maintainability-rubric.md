@@ -362,30 +362,25 @@
 
 * **Signals**
   * Unit tests: 80%+ coverage on business logic
-  * Integration tests: API contracts, database operations
-  * E2E tests: Critical user journeys only
   * Contract tests: All service boundaries
-  * Mutation testing: >60% kill rate on critical paths
-  * Performance tests: Load testing on key endpoints
+  * Performance tests: Load testing on key endpoints when budgets change
 
 * **Measurement Tools**
   * Jest/Vitest with coverage reports
-  * Stryker for mutation testing
   * Pact for contract testing
   * K6/Artillery for load testing
-  * Playwright/Cypress for E2E
 
 * **Score Guide**
-  * 0–1: <30% coverage, no integration tests
-  * 2: 50% coverage, some integration
-  * 3: 70% coverage, good integration
-  * 4: 80%+ coverage, contract tests
-  * 5: 90%+ coverage, mutation testing, performance baselines
+  * 0–1: <30% coverage, missing core unit tests
+  * 2: 50% coverage, limited contract assertions
+  * 3: 70% coverage, solid contract coverage
+  * 4: 80%+ coverage with contract tests in CI
+  * 5: 90%+ coverage plus automated performance baselines
 
 ### E2. **Deterministic Test Environments**
 
 * **Signals**
-  * LocalStack/Docker for local AWS services
+  * SST live-dev stack for AWS services
   * Seed data versioned and deterministic
   * Test data factories (not fixtures)
   * Snapshot tests with deterministic IDs
@@ -394,7 +389,7 @@
 
 * **Measurement Tools**
   * Docker Compose for services
-  * Testcontainers for integration tests
+  * Testcontainers for targeted service emulation
   * Flakiness dashboard
   * Test execution time tracking
 
@@ -493,7 +488,7 @@
 
 3. **Week 3**: Core testing
    - Unit test critical paths
-   - Add integration tests for APIs
+   - Expand contract tests for APIs
    - Setup coverage reporting
 
 4. **Week 4**: Documentation

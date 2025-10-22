@@ -28,7 +28,7 @@ Per standards/cross-cutting.md L81:
 
 - Build times stable over last 4 sprints
 - Unit test times decreased 12% after parallelization improvements (Sprint 42)
-- Integration test times within budget; LocalStack optimization completed
+- Integration test suite retired; unit coverage remains within budget
 
 ## Standards Reference
 

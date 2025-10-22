@@ -364,7 +364,7 @@ Per STANDARDS.md line 44, all resources tagged:
 ## Deployment
 
 ### Environments
-- **Dev:** LocalStack (emulated) + SST (live AWS dev)
+- **Dev:** SST live-dev stack
 - **Staging:** AWS (Terraform)
 - **Production:** AWS (Terraform, manual approval)
 

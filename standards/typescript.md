@@ -53,7 +53,7 @@
 * Strive for ≥ 70% of domain code to be pure. Test pure units without mocks; test IO via adapters behind ports.
 * Use generated clients/contracts in tests; never hand‑craft wire payloads.
 * Property‑based tests are encouraged for pure logic (e.g., `fast-check`).
-* Enforce coverage floors per tier (see `standards/testing-standards.md`); mutation score targets apply.
+* Enforce coverage floors per tier (see `standards/testing-standards.md`).
 
 ---
 
@@ -119,10 +119,10 @@
 
 * Static: typecheck, eslint, depcruise, ts-prune, knip run via `pnpm turbo run qa:static --parallel`; artefacts are attached to the evidence bundle.
 * Contracts: Zod/OpenAPI diff approved; RTK Query/clients regenerated and committed.
-* Coverage: services/adapters ≥ 80% lines, ≥ 70% branches; mutation ≥ 60% now (80% target). Attach reports per `standards/testing-standards.md`.
+* Coverage: services/adapters ≥ 80% lines, ≥ 70% branches. Attach reports per `standards/testing-standards.md`.
 * Complexity & size budgets: functions and modules must stay under published thresholds (`standards/cross-cutting.md`).
 * TSDoc: exported APIs reach 70% coverage (warn 60%, fail 50%).
-* Owner: Developer Experience Lead. Evidence: CI uploads static analysis, dep graphs, api-extractor report, and coverage/mutation dashboards.
+* Owner: Developer Experience Lead. Evidence: CI uploads static analysis, dep graphs, api-extractor report, and coverage dashboards.
 
 ---
 
@@ -135,11 +135,10 @@
 - Exhaustive switches over unions with `assertNever`.
 - Functions small and focused; complexity within budgets; pure where possible.
 - Tests cover pure logic without mocks; adapters tested via ports; contracts re‑generated.
-- Evidence bundle attached (static analysis, dep graph, coverage, mutation, API report).
+- Evidence bundle attached (static analysis, dep graph, coverage, API report).
 
 ---
 
 ## Exceptions & ADRs
 
 * Any deviation (e.g., class‑validator, default exports, disabling strict flags, skipping schema validation) requires an ADR, an entry in the Exception Registry with expiry ≤ 90 days, and links from the driving task and PR.
-

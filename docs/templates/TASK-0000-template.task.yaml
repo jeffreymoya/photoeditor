@@ -11,7 +11,7 @@
 #   - area: backend → standards/backend-tier.md (Edge, Lambda, Domain, Provider, Shared Utils, Platform layers)
 #   - area: frontend → standards/frontend-tier.md (UI, State, Services, Platform layers)
 #   - area: shared → standards/shared-contracts-tier.md (Zod SSOT, versioning, client generation)
-#   - area: infra → standards/infrastructure-tier.md (Terraform, SST, LocalStack)
+#   - area: infra → standards/infrastructure-tier.md (SST deployments, AWS infrastructure)
 #   - area: ops → standards/cross-cutting.md (Observability, DX, Governance)
 # - standards/testing-standards.md (test coverage expectations and validation)
 #
@@ -57,7 +57,7 @@ context:
     - REPLACE: standards/backend-tier.md      # If area: backend (Edge & Interface, Lambda Application, Domain Service, Provider Integration, Shared Backend Utilities, Platform & Quality)
     - REPLACE: standards/frontend-tier.md     # If area: frontend (UI Components, State & Logic, Services & Integration, Platform & Delivery)
     - REPLACE: standards/shared-contracts-tier.md  # If area: shared (Zod SSOT, OpenAPI, versioning, client generation)
-    - REPLACE: standards/infrastructure-tier.md    # If area: infra (Terraform, Terragrunt, SST, LocalStack)
+    - REPLACE: standards/infrastructure-tier.md    # If area: infra (SST, AWS infrastructure, deployment workflows)
     - REPLACE: standards/cross-cutting.md          # If area: ops or cross-cutting concerns (Observability, DX, Governance)
     - standards/testing-standards.md  # REQUIRED: validation expectations
     - REPLACE: docs/design/feature-x.md
@@ -115,7 +115,7 @@ constraints:
     - "Pure units (no I/O) ≥ 70% of domain code (Domain Service)"
     - "Provider can be toggled via flag; CI tests against stubbed provider (Provider Integration)"
     - "Single errors/ catalog with code uniqueness enforced (Shared Backend Utilities)"
-    - "Mutation ≥ 60% now → 80% later; unit ≥ 80% line; integration ≥ 60% (Platform & Quality)"
+    - "Unit ≥ 80% line coverage; branch ≥ 70% for services/providers (Platform & Quality)"
 
     # standards/frontend-tier.md (if area: frontend):
     - "Radix UI (web) or Tamagui (native) over design tokens; Atomic Design (UI Components)"
@@ -141,7 +141,7 @@ constraints:
     - "Trace Context Propagation: inject trace id into every log; front→back correlation (Observability)"
     - "100% of incoming requests carry a correlation id (Observability)"
     - "Task time budgets: build < 3 min, unit < 2 min (Developer Experience)"
-    - "Evidence bundle on PR: contract diff, dep graph, test matrix, mutation report, ADR (Governance)"
+    - "Evidence bundle on PR: contract diff, dep graph, test matrix, coverage report, ADR (Governance)"
 
 plan:
   - id: 1
@@ -165,11 +165,10 @@ plan:
       - "W3C traceparent propagation on async calls"
   - id: 3
     title: Add/adjust tests with coverage thresholds
-    details: Ensure edge cases, error paths, and idempotency are covered; meet mutation score ≥60%.
+    details: Ensure edge cases, error paths, and idempotency are covered; meet coverage thresholds.
     commands:
       - pnpm turbo run test --filter=@photoeditor/backend -- --testPathPattern=lambdas --coverage
       - pnpm turbo run test --filter=@photoeditor/backend -- --testPathPattern=services --coverage --coverageThreshold='{"global":{"lines":80,"branches":70}}'
-      - pnpm turbo run test:mutation --filter=@photoeditor/backend -- --threshold 60
       - pnpm turbo run test:contract --filter=@photoeditor/backend
     expected_files_touched:
       - REPLACE: test/module/a.spec.ts
@@ -185,16 +184,14 @@ plan:
       - grep -q "SSE-KMS" infrastructure/modules/storage/
   - id: 5
     title: Update docs and generate evidence bundle
-    details: Update usage docs; generate import graphs, coverage reports, mutation reports.
+    details: Update usage docs; generate import graphs and coverage reports.
     commands:
       - npx dependency-cruiser --output-type dot src/ | dot -T png > docs/evidence/import-graph.png
       - pnpm turbo run test --filter=@photoeditor/backend -- --testPathPattern=services --coverage --coverageReporters=html
-      - pnpm turbo run test:mutation --filter=@photoeditor/backend -- --coverageReporters=html
     expected_files_touched:
       - REPLACE: docs/usage/feature-x.md
       - docs/evidence/import-graph.png
       - docs/evidence/coverage/services-coverage.html
-      - docs/evidence/mutation/services-mutation.html
 
 acceptance_criteria:
   - REPLACE: Criterion 1 (clear, testable, and repo-verifiable)
@@ -251,7 +248,6 @@ validation:
     # Test execution with coverage thresholds
     - pnpm turbo run test --filter=@photoeditor/backend -- --testPathPattern=lambdas --coverage --coverageThreshold='{"global":{"lines":80,"branches":70}}'
     - pnpm turbo run test --filter=@photoeditor/backend -- --testPathPattern=services --coverage --coverageThreshold='{"global":{"lines":80,"branches":70}}'
-    - pnpm turbo run test:mutation --filter=@photoeditor/backend -- --threshold 60 || echo 'Mutation score below 60%'
     - pnpm turbo run test:contract --filter=@photoeditor/backend || echo 'Contract tests failed'
 
     # Infrastructure validation
@@ -294,8 +290,6 @@ deliverables:
     quality:
       - path: docs/evidence/coverage/services-coverage.html
         description: "Service layer coverage report (≥80% lines, ≥70% branches)"
-      - path: docs/evidence/mutation/services-mutation.html
-        description: "Service layer mutation report (≥60% score)"
       - path: docs/evidence/complexity/metrics.json
         description: "Cyclomatic complexity report (handlers ≤10, services ≤15, module ≤50)"
     infrastructure:
@@ -325,7 +319,7 @@ risks:
   - description: "Complexity budget exceeded (maintainability decline)"
     mitigation: "ESLint complexity rules; fail >10 handlers, >15 services, >50 module"
   - description: "Insufficient test coverage (quality gate failure)"
-    mitigation: "Jest coverage thresholds; mutation testing ≥60% for services/adapters"
+    mitigation: "Jest coverage thresholds; contract tests for service boundaries"
   - description: "Secrets exposed in code (security breach)"
     mitigation: "gitleaks pre-commit hook; SSM SecureString enforcement in terraform"
   - description: "Missing encryption on S3 (compliance violation)"

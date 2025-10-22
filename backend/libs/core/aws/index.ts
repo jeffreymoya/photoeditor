@@ -8,8 +8,6 @@
  */
 
 export {
-  AWSClientConfig,
-  getAWSEnvironment,
   createS3Client,
   createDynamoDBClient,
   createSQSClient,

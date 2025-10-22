@@ -21,7 +21,7 @@
 * Renovate processes minor upgrades weekly and major upgrades quarterly with rollback plans logged in tasks/ADRs.
 * Track files-touched P50/P95 trends to spot rising change-impact.
 * Contract compatibility matrix (old↔new) must pass before merge.
-* Services and adapters maintain ≥ 80% line, ≥ 70% branch, and ≥ 60% mutation coverage; failure blocks promotion.
+* Services and adapters maintain ≥ 80% line and ≥ 70% branch coverage; failure blocks promotion.
 * DLQ configuration and redrive drills must remain green in CI; failures block release.
 * Module flake-rate above 1% for more than 7 days blocks merges until remediated.
 
@@ -93,5 +93,5 @@
 
 **Fitness gates**
 
-* "Evidence bundle" on PR: contract diff, dep graph, test matrix, mutation report, size budget, ADR link (include Lighthouse only for web surfaces).
+* "Evidence bundle" on PR: contract diff, dep graph, test matrix, coverage report, size budget, ADR link (include Lighthouse only for web surfaces).
 * **Owner**: Governance Steward. **Evidence**: PR template automation attaches bundle checklist; exceptions logged in registry.

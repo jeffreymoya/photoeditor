@@ -62,7 +62,7 @@ The shared package (`@photoeditor/shared`) includes:
 
 Backend maintains full evidence generation:
 
-- **`qa#@photoeditor/backend`**: Produces mutation testing reports and evidence artifacts in `docs/evidence/**`
+- **`qa#@photoeditor/backend`**: Produces coverage reports and evidence artifacts in `docs/evidence/**`
 - Includes `build:lambdas` as part of QA to ensure deployable artifacts
 
 ## Running QA Tasks

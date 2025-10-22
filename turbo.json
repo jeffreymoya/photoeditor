@@ -47,7 +47,7 @@
       "dependsOn": ["build"],
       "cache": true,
       "outputs": ["coverage/**", "test-results/**"],
-      "env": ["NODE_ENV", "ALLOW_LOCALHOST"]
+      "env": ["NODE_ENV"]
     },
     "test#photoeditor-mobile": {
       "dependsOn": ["^build"],

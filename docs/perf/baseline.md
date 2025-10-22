@@ -37,7 +37,7 @@ Artillery will output metrics including:
 
 ### Development/Local Environment
 
-These thresholds are for local testing against LocalStack or a development environment:
+These thresholds are for local testing against a development environment:
 
 | Endpoint | P95 Latency Target | P99 Latency Target | Notes |
 |----------|-------------------|-------------------|-------|
@@ -118,7 +118,7 @@ Common causes:
 ### Variable Results
 
 Local testing may show variance due to:
-- LocalStack performance characteristics
+- Development endpoint performance characteristics
 - CPU/memory availability on dev machine
 - Network conditions
 - Concurrent processes

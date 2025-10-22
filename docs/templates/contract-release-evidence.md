@@ -100,8 +100,8 @@ Checksums stored in `docs/contracts/clients/vX.Y.Z-checksums.json`
 |---------------|--------|-------|
 | Old client (vX.Y-1) → New server (vX.Y) | ✓ Pass | Backward compatible |
 | New client (vX.Y) → Old server (vX.Y-1) | ✓ Pass | Forward compatible |
-| Mobile e2e tests | ✓ Pass | All scenarios covered |
-| Backend integration tests | ✓ Pass | All handlers validated |
+| Backend unit tests | ✓ Pass | Core services and handlers validated |
+| Mobile unit tests | ✓ Pass | UI and services validated |
 
 ---
 

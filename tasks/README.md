@@ -72,8 +72,8 @@ Choose a complexity size, then split work accordingly. Use these heuristics to k
 
 1) Add server‑side image auto‑rotate (EXIF)
 - TASK-0201 (shared): Extend image processing options schema; update Zod and OpenAPI; acceptance: semantic diff shows backward‑compatible addition.
-- TASK-0202 (backend): Implement service + provider; unit + reliability tests; acceptance: coverage thresholds met, mutation ≥60%.
-- TASK-0203 (mobile): Wire new option to UI; contract client regen; acceptance: E2E happy path on iOS/Android.
+- TASK-0202 (backend): Implement service + provider; unit tests updated; acceptance: coverage thresholds met.
+- TASK-0203 (mobile): Wire new option to UI; contract client regen; acceptance: mobile unit tests updated with new flows.
 
 2) Introduce S3 lifecycle policy for temp assets
 - TASK-0210 (infra): Terraform lifecycle rules + tags; acceptance: `terraform validate`, `tfsec` soft‑fail reports, plan evidence artifact.

@@ -23,7 +23,7 @@ This document provides an overview of the architectural standards organized by t
 - **Domain Service**: neverthrow, DDD-lite, synchronized state machines
 - **Provider Integration**: cockatiel policies, Strategy + Abstract Factory
 - **Shared Backend Utilities**: Zod validation, consolidated error catalogs
-- **Platform & Quality**: Jest/Vitest, Pact contracts, LocalStack, mutation dashboards
+- **Platform & Quality**: Jest/Vitest, Pact contracts, coverage dashboards
 
 ### Shared Contracts Tier
 - **Libraries**: Zod as SSOT, OpenAPI generation, api-extractor
@@ -31,9 +31,9 @@ This document provides an overview of the architectural standards organized by t
 - **Fitness Gates**: API diff review, semantic versioning, downstream client regeneration logs
 
 ### Infrastructure Tier
-- **Terraform**: tfenv, pre-commit hooks, versioned modules with Terragrunt orchestration
-- **SST Alternative**: IaC Ports & Adapters, documented decision record
-- **Local Dev**: docker-compose, LocalStack, remote dev guardrails
+- **SST**: IaC Ports & Adapters, documented decision record
+- **Deployment**: Environment promotion via SST stages, change audit requirements
+- **Local Dev**: Expo simulators and backend unit suites; AWS resources exercised via live-dev stack
 
 ### Cross-Cutting
 - **Observability**: OpenTelemetry, AWS Powertools, Sentry with mobile correlation guidance
@@ -53,7 +53,7 @@ This document provides an overview of the architectural standards organized by t
 | Attribute | Primary Guardrails |
 | --- | --- |
 | Modularity | Strict tier boundaries, Ports & Adapters, dependency-cruiser rules |
-| Analyzability | Unified tracing/correlation policy, published coverage and mutation dashboards |
+| Analyzability | Unified tracing/correlation policy, published coverage dashboards |
 | Modifiability | Centralized technology decisions, upgrade/deprecation playbooks per tier |
 | Reusability | Shared component libraries, contract-first APIs, design token governance |
 | Testability | Layer-specific fitness gates, automated evidence bundles, enforceable CI targets |

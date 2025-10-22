@@ -77,10 +77,10 @@ Tasks reference specific `standards/` tier files and `standards/testing-standard
 ### Quick Start
 
 ```bash
-make deps                 # Install dependencies
-make dev-ios             # LocalStack + infra + iOS simulator
-make dev-android         # LocalStack + infra + Android emulator
-make infra-down          # Tear down everything
+make deps          # Install dependencies
+make mobile-ios    # iOS simulator
+make mobile-android# Android emulator
+make mobile-stop   # Stop Expo dev server
 ```
 
 ### Backend
@@ -164,16 +164,6 @@ See `standards/testing-standards.md` for complete requirements. Key thresholds:
 - **No handler AWS SDK imports** (hard fail control in `standards/cross-cutting.md`)
 
 Run tests via task validation commands defined in `tasks/*.task.yaml`.
-
-## LocalStack
-
-Local development uses LocalStack (S3, DynamoDB, SQS, SNS, Lambda, API Gateway, KMS).
-
-```bash
-make infra-up                                          # Start + deploy
-curl -s http://localhost:4566/_localstack/health | jq # Health check
-docker compose -f docker-compose.localstack.yml logs -f localstack
-```
 
 ## Platform Notes
 

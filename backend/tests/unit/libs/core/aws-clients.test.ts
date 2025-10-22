@@ -1,10 +1,9 @@
 /**
  * Unit tests for AWS Client Factory
- * Tests environment detection and client creation
+ * Ensures client builders honor regional defaults and overrides.
  */
 
 import {
-  getAWSEnvironment,
   createS3Client,
   createDynamoDBClient,
   createSQSClient,
@@ -12,103 +11,85 @@ import {
   createSSMClient
 } from '../../../../libs/core/aws';
 
+const resolveRegion = async (regionValue: unknown): Promise<string | undefined> => {
+  if (typeof regionValue === 'function') {
+    return regionValue();
+  }
+  return regionValue as string | undefined;
+};
+
 describe('AWS Client Factory', () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
     jest.resetModules();
     process.env = { ...originalEnv };
+    delete process.env.AWS_REGION;
   });
 
   afterAll(() => {
     process.env = originalEnv;
   });
 
-  describe('getAWSEnvironment', () => {
-    it('should detect LocalStack endpoint', () => {
-      process.env.LOCALSTACK_ENDPOINT = 'http://localhost:4566';
-
-      const env = getAWSEnvironment();
-
-      expect(env.isLocalStack).toBe(true);
-      expect(env.endpoint).toBe('http://localhost:4566');
-    });
-
-    it('should detect AWS endpoint URL', () => {
-      process.env.AWS_ENDPOINT_URL = 'https://custom.aws.endpoint';
-
-      const env = getAWSEnvironment();
-
-      expect(env.isLocalStack).toBe(false);
-      expect(env.endpoint).toBe('https://custom.aws.endpoint');
-    });
-
-    it('should return default when no endpoints configured', () => {
-      delete process.env.LOCALSTACK_ENDPOINT;
-      delete process.env.AWS_ENDPOINT_URL;
-
-      const env = getAWSEnvironment();
-
-      expect(env.isLocalStack).toBe(false);
-      expect(env.endpoint).toBeUndefined();
-    });
-  });
-
   describe('createS3Client', () => {
-    it('should create S3 client with default region', () => {
-      process.env.AWS_REGION = 'us-east-1';
-
+    it('uses default region when none provided', async () => {
       const client = createS3Client();
-
-      expect(client).toBeDefined();
-      expect(client.config.region).toBeDefined();
+      await expect(resolveRegion(client.config.region)).resolves.toBe('us-east-1');
+      expect(client.config.forcePathStyle).toBeUndefined();
     });
 
-    it('should create S3 client with forcePathStyle for LocalStack', () => {
-      process.env.LOCALSTACK_ENDPOINT = 'http://localhost:4566';
-
-      const client = createS3Client('us-east-1');
-
-      expect(client).toBeDefined();
+    it('applies custom region and config overrides', async () => {
+      const client = createS3Client('eu-west-1', { forcePathStyle: true });
+      await expect(resolveRegion(client.config.region)).resolves.toBe('eu-west-1');
       expect(client.config.forcePathStyle).toBe(true);
-    });
-
-    it('should accept custom region', () => {
-      const client = createS3Client('eu-west-1');
-
-      expect(client).toBeDefined();
     });
   });
 
   describe('createDynamoDBClient', () => {
-    it('should create DynamoDB client', () => {
-      const client = createDynamoDBClient('us-east-1');
+    it('uses default region when none provided', async () => {
+      const client = createDynamoDBClient();
+      await expect(resolveRegion(client.config.region)).resolves.toBe('us-east-1');
+    });
 
-      expect(client).toBeDefined();
+    it('allows overriding the region', async () => {
+      const client = createDynamoDBClient('ap-southeast-2');
+      await expect(resolveRegion(client.config.region)).resolves.toBe('ap-southeast-2');
     });
   });
 
   describe('createSQSClient', () => {
-    it('should create SQS client', () => {
-      const client = createSQSClient('us-east-1');
+    it('uses default region when none provided', async () => {
+      const client = createSQSClient();
+      await expect(resolveRegion(client.config.region)).resolves.toBe('us-east-1');
+    });
 
-      expect(client).toBeDefined();
+    it('allows overriding the region', async () => {
+      const client = createSQSClient('us-west-2');
+      await expect(resolveRegion(client.config.region)).resolves.toBe('us-west-2');
     });
   });
 
   describe('createSNSClient', () => {
-    it('should create SNS client', () => {
-      const client = createSNSClient('us-east-1');
+    it('uses default region when none provided', async () => {
+      const client = createSNSClient();
+      await expect(resolveRegion(client.config.region)).resolves.toBe('us-east-1');
+    });
 
-      expect(client).toBeDefined();
+    it('allows overriding the region', async () => {
+      const client = createSNSClient('ca-central-1');
+      await expect(resolveRegion(client.config.region)).resolves.toBe('ca-central-1');
     });
   });
 
   describe('createSSMClient', () => {
-    it('should create SSM client', () => {
-      const client = createSSMClient('us-east-1');
+    it('uses default region when none provided', async () => {
+      const client = createSSMClient();
+      await expect(resolveRegion(client.config.region)).resolves.toBe('us-east-1');
+    });
 
-      expect(client).toBeDefined();
+    it('allows overriding the region', async () => {
+      const client = createSSMClient('eu-central-1');
+      await expect(resolveRegion(client.config.region)).resolves.toBe('eu-central-1');
     });
   });
 });

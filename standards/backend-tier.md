@@ -101,14 +101,14 @@
 
 * **Jest** (default) or **Vitest** (ADR-backed exception); **supertest**; **pact** for consumer contracts.
 * **k6** or **Artillery** for load; **powertools metrics** to CloudWatch/XRay.
-* **localstack** for integration (with explicit fallbacks where CE lacks features).
+* **SST live-dev stack** for exercising AWS resources in shared sandboxes.
 
 **Fitness gates**
 
-* Mutation score ≥ 60% now → 80% later; unit ≥ 80% line coverage; integration ≥ 60%.
+* Unit ≥ 80% line coverage; branch ≥ 70% for services/providers.
 * Pact broker check in CI; breaking changes hard-fail.
 * Function complexity budgets: handlers fail above CC 10 or 75 LOC, services/adapters fail above CC 15 or 200 LOC, and module cyclomatic complexity fails above 50.
-* **Owner**: Quality Guild. **Evidence**: attach mutation dashboard export and pact verification log to the evidence bundle.
+* **Owner**: Quality Guild. **Evidence**: attach coverage summary and pact verification log to the evidence bundle.
 
 ## Change Management
 

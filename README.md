@@ -2,134 +2,81 @@
 
 This repo contains:
 - `backend/` — AWS Lambda handlers (TypeScript) bundled with esbuild
-- `infrastructure/` — Terraform for AWS resources (LocalStack for local)
 - `mobile/` — React Native (Expo) client app
+- `shared/` — Cross-cutting DTOs, validation schemas, and config
+- `infra/sst/` — Serverless Stack (SST) project for live-dev deployments
 
-The fastest way to run the full stack locally and test through the app is via the Makefile targets below.
+The fastest way to iterate is to install dependencies once and use the Makefile shortcuts for repeatable backend builds, QA runs, and mobile workflows.
 
 ## Prerequisites
 - Node.js 18+
 - pnpm 8.x (install via `npm install -g pnpm` or enable corepack)
-- Docker and Docker Compose
-- Terraform >= 1.6
-- AWS CLI v2
 - iOS: Xcode + Simulator (macOS)
 - Android: Android Studio + Emulator
 
-Optional
-- `jq` for inspecting JSON
-- `zip`/unzip tools (lambda packaging)
-- graphviz (for dependency graphs)
+Optional tooling
+- `jq` for inspecting JSON during debugging
+- `zip`/`unzip` for examining lambda bundles
+- graphviz for dependency graphs
 
 ## Quickstart (Run via the App)
 
-1) Install dependencies
-```
-make deps
-```
+1. Install dependencies
+   ```bash
+   make deps
+   ```
 
-2) Launch end‑to‑end with iOS or Android
-```
-# iOS simulator (macOS)
-make dev-ios
+2. Launch the Expo app in your preferred simulator
+   ```bash
+   # iOS simulator (macOS)
+   make mobile-ios
 
-# Android emulator (uses host alias 10.0.2.2)
-make dev-android
-```
+   # Android emulator
+   make mobile-android
+   ```
 
-What these do
-- Starts LocalStack (`docker-compose.localstack.yml`)
-- Builds backend lambda bundles (`backend/dist/lambdas/.../*.zip`)
-- Applies Terraform to LocalStack (`infrastructure/`)
-- Reads the API url from Terraform output and passes it to Expo as `EXPO_PUBLIC_API_BASE_URL`
-- Starts the mobile app (Expo) pointed at the local API
+3. Alternatively, start the Expo dev server without selecting a platform yet:
+   ```bash
+   make mobile-start
+   ```
 
-Open the app and run the flows (presign → upload → status → download) entirely through the UI.
+While Expo is running you can exercise the flows (presign → upload → status → download) directly through the UI. Point the app at any API by setting `EXPO_PUBLIC_API_BASE_URL` before launching Expo or via the in-app developer settings.
 
 ## Common Tasks
 
-- Start LocalStack only
-```
-make localstack-up
-```
-
 - Build backend lambda bundles
-```
-make backend-build
-```
+  ```bash
+  make backend-build
+  ```
 
-- Initialize + Apply Terraform to LocalStack
-```
-make infra-init
-make infra-apply
-```
+- Run the default QA fitness functions (static analysis, contracts, tests)
+  ```bash
+  make qa-suite
+  ```
 
-- Start Expo without choosing platform yet
-```
-make mobile-start
-```
+- Stop the Expo dev server
+  ```bash
+  make mobile-stop
+  ```
 
-- Launch platform directly (injects API url into Expo)
-```
-make mobile-ios
-make mobile-android
-make mobile-web
-```
+- Deploy the SST live-dev stack for an AWS sandbox and open the hot-reload loop
+  ```bash
+  make live-dev
+  ```
 
-- Print the API url (from Terraform outputs)
-```
-make print-api
-```
-
-## Stopping / Cleanup
-
-- Stop Expo dev server
-```
-make mobile-stop
-```
-
-- Destroy infra and stop LocalStack (full teardown)
-```
-make infra-down
-```
-
-You can also destroy or stop individually:
-```
-make infra-destroy
-make localstack-down
-```
+- Run smoke checks against the live SST stack
+  ```bash
+  make live-test
+  ```
 
 ## Mobile App API Configuration
 
-The app reads its API base URL from the public Expo env var `EXPO_PUBLIC_API_BASE_URL`. The Make targets set this automatically from Terraform outputs. If needed, you can override manually when starting Expo, for example:
-```
-EXPO_PUBLIC_API_BASE_URL="http://localhost:4566/restapis/<apiId>/dev/_user_request_" pnpm turbo run start --filter=photoeditor-mobile
-```
-
-Android note: Emulators cannot reach the host via `localhost`. The Make target rewrites `localhost` to `10.0.2.2` for Android.
-
-## Troubleshooting
-
-- LocalStack health
-```
-curl -s http://localhost:4566/_localstack/health | jq
+The mobile app reads its API base URL from the public Expo env var `EXPO_PUBLIC_API_BASE_URL`. When unset, the client defaults to `https://api.photoeditor.dev`. Override it when starting Expo, for example:
+```bash
+EXPO_PUBLIC_API_BASE_URL="https://staging.api.photoeditor.dev" pnpm turbo run start --filter=photoeditor-mobile
 ```
 
-- LocalStack logs
-```
-docker compose -f docker-compose.localstack.yml logs -f localstack
-```
-
-- Re‑apply infra after code changes
-```
-make backend-build
-make infra-apply
-```
-
-- Get API url again
-```
-make print-api
-```
+Android note: Emulators cannot reach the host via `localhost`. Use an IP or host alias that resolves from the emulator (e.g. `10.0.2.2`).
 
 ## QA and Build Pipeline
 
@@ -150,8 +97,6 @@ All lint, typecheck, test, contract, and build tasks are defined in `turbo.json`
 
 ### Remote Caching Setup (Optional)
 
-Turborepo remote caching accelerates local development by sharing build artifacts across your team and CI. To enable:
-
 1. Generate a Vercel token: https://vercel.com/account/tokens
 2. Add to your shell profile (`~/.bashrc`, `~/.zshrc`, etc.):
    ```bash
@@ -161,8 +106,6 @@ Turborepo remote caching accelerates local development by sharing build artifact
 3. Verify: `pnpm turbo run build --dry-run` (should show remote cache enabled)
 
 **CI setup**: Token is automatically configured in GitHub Actions via secrets (sourced from AWS SSM).
-
-**Note**: Remote caching is optional. If not configured, Turbo uses local-only caching with no impact on builds.
 
 ### Skip Controls
 
@@ -181,7 +124,6 @@ pnpm turbo run build --dry-run
 See `turbo.json` for complete pipeline definitions.
 
 ## Related Docs
-- Infra overview: `infrastructure/README.md`
-- E2E steps and scenarios: `docs/e2e-tests.md`
 - Architecture: `ARCHITECTURE.md`
 - Testing standards: `standards/testing-standards.md`
+- ADRs: `adr/`

@@ -59,3 +59,4 @@ backend/tmp/
 .claude/
 .turbo/
 .turbo-prune-test/
+backend/.stryker-tmp/

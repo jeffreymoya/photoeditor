@@ -20,6 +20,8 @@ Thumbs.db
 # Package managers and build output
 **/node_modules/
 .pnpm-store/
+package-lock.json
+**/package-lock.json
 backend/dist/
 shared/dist/
 mobile/dist/

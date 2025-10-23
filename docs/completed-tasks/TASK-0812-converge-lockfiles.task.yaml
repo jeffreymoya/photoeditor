@@ -1,7 +1,7 @@
 schema_version: "1.0"
 id: TASK-0812
 title: "Converge dependency lockfiles on pnpm"
-status: todo
+status: completed
 priority: P1
 area: ops
 

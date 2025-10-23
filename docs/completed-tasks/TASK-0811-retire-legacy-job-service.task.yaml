@@ -1,7 +1,7 @@
 schema_version: "1.0"
 id: TASK-0811
 title: "Remove legacy JobService implementation"
-status: todo
+status: completed
 priority: P1
 area: backend
 

@@ -1,4 +1,4 @@
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import type { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { Result, err } from 'neverthrow';
 import { Job, JobStatusType, CreateJobRequest, BatchJob, CreateBatchJobRequest } from '@photoeditor/shared';
 import { createDynamoDBClient } from '@backend/core';

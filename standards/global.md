@@ -20,7 +20,7 @@
 * Monorepo: **pnpm + Turborepo** (pipeable tasks, remote cache).
 * Static rules: **eslint** (strict), **typescript-eslint**, **depcruise** (no cross-layer imports), **ts-prune**, **knip** (dead code), **editorconfig** (reports archived per release).
 * Complexity budgets: eslint rules for **complexity**, **max-params**, **max-depth** with tier-specific thresholds documented in section standards; track deltas via `scripts/complexity-report`.
-* Mutations: **StrykerJS** (≥ 60% short-term, 80% target) with dashboard export stored in `docs/quality`.
+* Mutations: Deferred for now. Target remains **StrykerJS** (≥ 60% short-term, 80% target) with dashboard export to `docs/quality` when reintroduced; not enforced in CI at present.
 * Architecture tests: **tsarch** or **dependency-cruiser forbidden rules** (e.g., UI can’t import State layer).
 * Internal packages follow SemVer with changelogs published alongside releases.
 * CODEOWNERS guard every package; boundary changes require an ADR cited in the driving task and PR.

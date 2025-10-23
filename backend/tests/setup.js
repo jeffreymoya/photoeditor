@@ -13,6 +13,7 @@ process.env.NODE_ENV = 'test';
 process.env.TEMP_BUCKET_NAME = 'test-temp-bucket';
 process.env.FINAL_BUCKET_NAME = 'test-final-bucket';
 process.env.JOBS_TABLE_NAME = 'test-jobs-table';
+process.env.BATCH_TABLE_NAME = 'test-batch-table';
 process.env.SNS_TOPIC_ARN = 'arn:aws:sns:us-east-1:123456789012:test-topic';
 process.env.TEST_RUN_ID = process.env.TEST_RUN_ID || 'test-run-' + Date.now();
 process.env.LOG_LEVEL = process.env.LOG_LEVEL || 'error';

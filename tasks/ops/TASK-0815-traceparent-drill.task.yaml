@@ -1,0 +1,120 @@
+schema_version: "1.0"
+id: TASK-0815
+title: "Automate traceparent live drill evidence"
+status: completed
+priority: P1
+area: ops
+
+description: >-
+  Add a CI-friendly drill that parses Powertools log samples (from live-dev or fixtures) to
+  prove W3C traceparent propagation and required structured log fields per cross-cutting
+  standards. The script should emit a coverage summary for the evidence bundle and fail when
+  correlation, trace, or request identifiers are missing.
+
+outcome: >-
+  Running `node scripts/ci/traceparent-drill.mjs` validates logs, writes
+  `docs/evidence/trace-drill-report.json`, and exits non-zero if traceparent/correlation
+  coverage falls below standards thresholds so PRs surface observability regressions.
+
+scope:
+  in:
+    - scripts/ci/traceparent-drill.mjs
+    - scripts/evidence-bundle (invoke drill during evidence collection)
+    - docs/evidence/trace-drill-report.json
+    - docs/evidence/logs/powertools-sample.json (baseline fixture)
+  out:
+    - Real AWS log ingestion (script consumes local fixture or exported logs)
+    - Broader observability dashboards beyond trace propagation summary
+
+context:
+  standards_tier: ops
+  issues: []
+  related_docs:
+    - standards/cross-cutting.md#observability--operations
+    - standards/global.md#example-quality-gate
+    - docs/evidence/trace-propagation-example.json
+  repo_paths:
+    - scripts/ci/traceparent-drill.mjs
+    - scripts/evidence-bundle
+    - docs/evidence/trace-drill-report.json
+    - docs/evidence/logs/powertools-sample.json
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: pnpm
+      version: "8.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep diffs minimal and focused
+    - Respect repository conventions
+  prohibited:
+    - No secrets or tokens in code
+    - No unrelated file changes
+
+plan:
+  - id: 1
+    title: Confirm required observability fields
+    details: Review standards and existing sample evidence to list mandatory log keys and thresholds.
+    commands:
+      - cat docs/evidence/logs/powertools-sample.json
+    expected_files_touched: []
+  - id: 2
+    title: Implement trace drill script
+    details: Build scripts/ci/traceparent-drill.mjs to parse JSON or JSONL logs and compute coverage metrics.
+    commands:
+      - node --version
+    expected_files_touched:
+      - scripts/ci/traceparent-drill.mjs
+  - id: 3
+    title: Integrate drill into evidence bundle
+    details: Update scripts/evidence-bundle to run the drill and capture the resulting JSON artifact.
+    commands:
+      - node scripts/ci/traceparent-drill.mjs --logs docs/evidence/logs/powertools-sample.json
+    expected_files_touched:
+      - scripts/evidence-bundle
+  - id: 4
+    title: Verify success and failure paths
+    details: Run drill against valid samples and mutated data to confirm exit codes and artifact contents.
+    commands:
+      - node scripts/ci/traceparent-drill.mjs --logs docs/evidence/logs/powertools-sample.json
+    expected_files_touched:
+      - docs/evidence/trace-drill-report.json
+
+acceptance_criteria:
+  - Drill parses Powertools JSON or JSONL logs and enforces correlationId, traceId, requestId, function, env, and version fields.
+  - Missing required fields or trace coverage below 95 percent causes non-zero exit code with clear diagnostics.
+  - Successful run saves docs/evidence/trace-drill-report.json summarizing coverage stats and thresholds.
+  - Evidence bundle run includes the drill and captures the artifact for the release bundle.
+  modularity:
+    - "Handlers <=75 LOC, complexity <=10"
+    - "Services <=200 LOC, complexity <=15"
+    - "No cross-layer imports (dependency-cruiser enforced)"
+  testability:
+    - "Service/Adapter: Line >=80%, Branch >=70%"
+    - "Contract tests pass for all routes"
+
+validation:
+  commands:
+    - node scripts/ci/traceparent-drill.mjs --logs docs/evidence/logs/powertools-sample.json
+  manual_checks:
+    - Inspect docs/evidence/trace-drill-report.json to confirm coverage >=95 percent and required field list.
+  artifacts:
+    - docs/evidence/trace-drill-report.json
+
+deliverables:
+  - scripts/ci/traceparent-drill.mjs
+  - scripts/evidence-bundle
+  - docs/evidence/trace-drill-report.json
+
+risks:
+  - description: Log schemas may evolve, breaking the parser.
+    mitigation: Keep required field list configurable and document fixture update workflow in task notes.

@@ -42,11 +42,14 @@ const processMultipleImages = async (
   individualPrompts: string[],
   onProgress: (progress: number, batchId?: string) => void
 ): Promise<string[]> => {
-  const mappedImages = images.map(img => ({
-    uri: img.uri,
-    fileName: img.fileName ?? undefined,
-    fileSize: img.fileSize ?? undefined,
-  }));
+  const mappedImages = images.map(img => {
+    const result: { uri: string; fileName?: string; fileSize?: number } = {
+      uri: img.uri,
+    };
+    if (img.fileName != null) result.fileName = img.fileName;
+    if (img.fileSize != null) result.fileSize = img.fileSize;
+    return result;
+  });
 
   const downloadUrls = await apiService.processBatchImages(
     mappedImages,
@@ -164,7 +167,7 @@ export const EditScreen = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [resultUrls, setResultUrls] = useState<string[]>([]);
-  const [, setBatchJobId] = useState<string | null>(null);
+  const [, setBatchJobId] = useState<string | undefined>();
 
   const selectImage = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();

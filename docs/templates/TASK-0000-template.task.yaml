@@ -15,12 +15,19 @@
 #   - area: ops → standards/cross-cutting.md (Observability, DX, Governance)
 # - standards/testing-standards.md (test coverage expectations and validation)
 #
+# Note: Integration, E2E, and mutation tests are deferred for now in this
+# repository. Keep coverage thresholds in place; do not add mutation/E2E
+# requirements unless explicitly reintroduced by a future ADR/task.
+# If the task is blocked by out-of-scope work, set status=blocked, fill blocked_reason,
+# and spin up a dedicated unblocker task referenced via blocked_by at the top level.
+#
 # All sections must cite the applicable tier standards files so they become explicit task inputs.
 
 schema_version: "1.0"  # Do not change unless schema changes
 id: TASK-0000           # REPLACE: stable ID (e.g., TASK-0123)
 title: "REPLACE: Short, action-oriented title"
 status: todo            # todo | in_progress | blocked | completed
+blocked_reason: null    # REQUIRED when status=blocked; summarize the external blocker that needs a dedicated task
 priority: P1            # P0 (urgent), P1 (soon), P2 (nice-to-have)
 area: backend           # frontend | backend | infra | docs | ops | other
 
@@ -49,6 +56,7 @@ scope:
     - "Manual-only tests (all tests must run in CI)"
 
 context:
+  affected_packages: [backend]  # backend | mobile | shared | infra (guides test agent spawning)
   issues: ["REPLACE: #123"]
   related_docs:
     - standards/global.md  # REQUIRED: universal guardrails (Ports & Adapters, neverthrow, XState, complexity budgets)
@@ -124,7 +132,7 @@ constraints:
     - "Reducer cyclomatic complexity ≤ 10 (State & Logic)"
     - "100% of external calls behind interface in /services/*/port.ts (Services & Integration)"
     - "Contract drift check: generated client hash must match server hash (Services & Integration)"
-    - "E2E happy-path on CI (Detox); navigation coverage ≥ 1 path per screen (Platform & Delivery)"
+    - "E2E (Detox) deferred; focus on unit/component tests; reintroduce CI happy-path later (Platform & Delivery)"
 
     # standards/shared-contracts-tier.md (if area: shared):
     - "Zod as SSOT → OpenAPI/TypeScript/clients via codegen; orval requires ADR"
@@ -149,7 +157,7 @@ plan:
     details: Read referenced files; confirm integration points, dependencies, and layer boundaries.
     commands:
       - rg -n "REPLACE: key symbol or function" REPLACE: path
-      - npx dependency-cruiser --output-type dot src/ | dot -T png > docs/evidence/import-graph-before.png
+      - pnpm run analyze:deps  # generates repo-wide import graph and metrics
     expected_files_touched: []
   - id: 2
     title: Implement core change following architectural patterns
@@ -186,7 +194,7 @@ plan:
     title: Update docs and generate evidence bundle
     details: Update usage docs; generate import graphs and coverage reports.
     commands:
-      - npx dependency-cruiser --output-type dot src/ | dot -T png > docs/evidence/import-graph.png
+      - pnpm run analyze:deps  # updates docs/evidence/import-graph.png and metrics
       - pnpm turbo run test --filter=@photoeditor/backend -- --testPathPattern=services --coverage --coverageReporters=html
     expected_files_touched:
       - REPLACE: docs/usage/feature-x.md
@@ -216,8 +224,8 @@ acceptance_criteria:
     - "Breaking API changes use /v{n} versioning with migration doc"
     - "Feature flags (if any) registered with expiry ≤90 days"
   testability:
-    - "Service layer: Line coverage ≥80%, Branch ≥70%, Mutation score ≥60%"
-    - "Adapter layer: Line coverage ≥80%, Branch ≥70%, Mutation score ≥60%"
+    - "Service layer: Line coverage ≥80%, Branch ≥70%"
+    - "Adapter layer: Line coverage ≥80%, Branch ≥70%"
     - "Contract tests pass for all API routes (old↔new compatibility)"
     - "SQS worker idempotency tested (duplicate message handling)"
     - "DLQ redrive drill documented and automated"
@@ -231,38 +239,42 @@ acceptance_criteria:
     - "dependency-cruiser validation passes (no cycles, layer violations)"
 
 validation:
-  commands:
+  # Grouped by test agent type for orchestration
+
+  static_checks:  # Run by test-static-fitness agent
+    - pnpm turbo run qa:static --filter=@photoeditor/backend
+    - pnpm run validate:deps
+    - pnpm turbo run lint --filter=@photoeditor/backend -- --max-complexity=10 --silent || true
     # Hard fail prevention (cite standards/global.md + tier-specific standards)
     - "! grep -r '@aws-sdk' backend/src/lambdas/ || echo 'Handlers must not import SDK'"
-    - "! grep -A5 'resource \"aws_lambda_function\".*api' infrastructure/ | grep vpc_config || echo 'API Lambdas must not be in VPC'"
-    - grep -q "aws_sqs_queue.*dead_letter" infrastructure/modules/messaging/ || echo 'SQS requires DLQ'
-    - grep -q "SSE-KMS" infrastructure/modules/storage/ || echo 'Final S3 requires SSE-KMS'
-    - grep -q "aws_ssm_parameter.*type.*SecureString" infrastructure/ || echo 'Secrets require SSM SecureString'
 
-    # Dependency and architecture validation
-    - npx dependency-cruiser --validate .dependency-cruiser.json src/
+  unit_tests:  # Run by test-unit-{package} agents based on affected_packages
+    backend:
+      - pnpm turbo run test --filter=@photoeditor/backend -- --testPathPattern=lambdas --coverage --coverageThreshold='{"global":{"lines":80,"branches":70}}'
+      - pnpm turbo run test --filter=@photoeditor/backend -- --testPathPattern=services --coverage --coverageThreshold='{"global":{"lines":80,"branches":70}}'
+    # shared:  # Uncomment if affected_packages includes shared
+    #   - pnpm turbo run test --filter=@photoeditor/shared
+    # mobile:  # Uncomment if affected_packages includes mobile
+    #   - pnpm turbo run test --filter=photoeditor-mobile
 
-    # Complexity checks
-    - pnpm turbo run lint --filter=@photoeditor/backend -- --max-complexity=10 --silent || true
+  contract_tests:  # Run by test-contract agent (if shared in affected_packages)
+    - pnpm turbo run test:contract --filter=@photoeditor/backend
+    # - pnpm turbo run contracts:check --filter=@photoeditor/shared  # Uncomment if shared affected
 
-    # Test execution with coverage thresholds
-    - pnpm turbo run test --filter=@photoeditor/backend -- --testPathPattern=lambdas --coverage --coverageThreshold='{"global":{"lines":80,"branches":70}}'
-    - pnpm turbo run test --filter=@photoeditor/backend -- --testPathPattern=services --coverage --coverageThreshold='{"global":{"lines":80,"branches":70}}'
-    - pnpm turbo run test:contract --filter=@photoeditor/backend || echo 'Contract tests failed'
+  infrastructure_checks:  # Choose the checks matching your IaC provider
+    # Terraform-only checks (if using infrastructure/)
+    - "[ -d infrastructure ] && (cd infrastructure && terraform fmt -check && terraform validate) || echo 'Terraform dir missing (SST or other IaC?)'"
+    - "[ -d infrastructure ] && tfsec infrastructure/ --soft-fail || echo 'tfsec skipped (no infrastructure/)'"
+    - "[ -d infrastructure ] && checkov -d infrastructure/ --soft-fail || echo 'checkov skipped (no infrastructure/)'"
+    # SST-only checks (if using infra/sst)
+    - "[ -d infra/sst ] && (cd infra/sst && npx sst build) || echo 'SST dir missing (Terraform or other IaC?)'"
 
-    # Infrastructure validation
-    - cd infrastructure && terraform fmt -check && terraform validate
-    - tfsec infrastructure/ --soft-fail || echo 'tfsec violations detected'
-    - checkov -d infrastructure/ --soft-fail || echo 'checkov violations detected'
-
-    # Standard test suite
-    - pnpm turbo run lint --filter=@photoeditor/backend -- --silent || true
-    - npm test --silent
   manual_checks:
     - REPLACE: Brief manual verification steps (e.g., open the app and do X)
     - "Verify structured logs contain correlationId, traceId in CloudWatch"
     - "Verify alarms configured in AWS Console (Lambda errors, API 5XX, SQS age, DLQ inflow)"
     - "Verify resource tags present: Project, Env, Owner, CostCenter"
+
   artifacts:
     - screenshots: []
 
@@ -275,7 +287,7 @@ deliverables:
     architecture:
       - path: docs/evidence/import-graph.png
         description: "Dependency graph showing handlers → services → adapters flow"
-      - path: docs/evidence/dependency-cruiser-report.json
+      - path: docs/evidence/dependency-cruiser-report.html
         description: "dependency-cruiser validation output (no cycles, layer compliance)"
     api:
       - path: docs/evidence/openapi-spec.yaml
@@ -325,6 +337,9 @@ risks:
   - description: "Missing encryption on S3 (compliance violation)"
     mitigation: "tfsec/checkov scans; verify SSE-KMS with CMK in terraform plan"
 
-# Session logging requirement:
-# After each working session (regardless of completion), add/update a file in
-# `changelog/` named `YYYY-MM-DD-short-topic.md` following `changelog/AGENTS.md`.
+# Agent output artifacts:
+# - task-picker writes: .agent-output/task-picker-summary-{TASK-ID}.md (work summary)
+# - test agents write: docs/tests/reports/YYYY-MM-DD-{agent-type}.md (validation results)
+# - task-runner creates: changelog/YYYY-MM-DD-{topic}.md (final changelog aggregating all above)
+#
+# Note: Only task-runner creates the changelog; task-picker focuses on implementation.

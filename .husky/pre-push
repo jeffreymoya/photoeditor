@@ -9,6 +9,11 @@ echo ""
 # Run full QA suite before pushing
 ./node_modules/.bin/turbo run qa --parallel
 
+TMP_DIR=$(mktemp -d)
+node scripts/ci/check-domain-purity.mjs --output "$TMP_DIR/domain-purity.json"
+node scripts/ci/traceparent-drill.mjs --logs docs/evidence/logs/powertools-sample.json --output "$TMP_DIR/trace-drill-report.json"
+rm -rf "$TMP_DIR"
+
 echo ""
 echo "Pre-push validation passed!"
 echo "Pushing to remote..."

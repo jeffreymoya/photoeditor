@@ -89,6 +89,25 @@ import { handler } from '../../src/lambdas/presign';
 type APIGatewayResponse = Exclude<Awaited<ReturnType<typeof handler>>, string>;
 
 describe('Presign Handler Contract Tests', () => {
+  // Create mock services needed by the handler
+  const mockPresignService = {
+    generatePresignedUpload: jest.fn(),
+    generateBatchPresignedUpload: jest.fn()
+  };
+
+  const mockJobService = {};
+
+  const mockTracer = {
+    getSegment: jest.fn().mockReturnValue({
+      addNewSubsegment: jest.fn().mockReturnValue(undefined)
+    }),
+    setSegment: jest.fn()
+  };
+
+  const mockMetrics = {
+    addMetric: jest.fn()
+  };
+
   beforeEach(() => {
     dynamoMock.reset();
     s3Mock.reset();
@@ -97,8 +116,43 @@ describe('Presign Handler Contract Tests', () => {
     mockLogger.warn.mockClear();
     jest.useRealTimers();
 
+    // Reset mock service methods
+    mockPresignService.generatePresignedUpload.mockClear();
+    mockPresignService.generateBatchPresignedUpload.mockClear();
+    mockMetrics.addMetric.mockClear();
+
     // Mock successful DynamoDB PutItem for all tests
     dynamoMock.on(PutItemCommand).resolves({});
+
+    // Set up default presign service responses
+    mockPresignService.generatePresignedUpload.mockResolvedValue({
+      jobId: '00000000-0000-4000-8000-000000000000',
+      presignedUrl: 'https://mock-presigned-url.s3.amazonaws.com/test-key',
+      s3Key: 'temp/00000000-0000-4000-8000-000000000000',
+      expiresAt: new Date(Date.now() + 3600000).toISOString()
+    });
+
+    mockPresignService.generateBatchPresignedUpload.mockResolvedValue({
+      batchJobId: '00000000-0000-4000-8000-000000000000',
+      uploads: [
+        {
+          presignedUrl: 'https://mock-presigned-url.s3.amazonaws.com/test-key-1',
+          s3Key: 'temp/00000000-0000-4000-8000-000000000001',
+          expiresAt: new Date(Date.now() + 3600000).toISOString()
+        }
+      ],
+      childJobIds: ['00000000-0000-4000-8000-000000000001']
+    });
+  });
+
+  const createMockContext = () => ({
+    container: {
+      logger: mockLogger,
+      metrics: mockMetrics,
+      tracer: mockTracer,
+      jobService: mockJobService,
+      presignService: mockPresignService
+    }
   });
 
   const createEvent = (body: any): APIGatewayProxyEventV2 => ({
@@ -151,7 +205,7 @@ describe('Presign Handler Contract Tests', () => {
       expect(requestValidation.success).toBe(true);
 
       const event = createEvent(requestBody);
-      const result = await handler(event, {} as any) as APIGatewayResponse;
+      const result = await handler(event, createMockContext() as any) as APIGatewayResponse;
 
       // Validate response structure
       expect(result).toBeDefined();
@@ -184,7 +238,7 @@ describe('Presign Handler Contract Tests', () => {
       };
 
       const event = createEvent(invalidBody);
-      const result = await handler(event, {} as any) as APIGatewayResponse;
+      const result = await handler(event, createMockContext() as any) as APIGatewayResponse;
 
       expect(result.statusCode).toBe(400);
       const responseBody = JSON.parse(result.body as string);
@@ -209,7 +263,7 @@ describe('Presign Handler Contract Tests', () => {
       };
 
       const event = createEvent(invalidBody);
-      const result = await handler(event, {} as any) as APIGatewayResponse;
+      const result = await handler(event, createMockContext() as any) as APIGatewayResponse;
 
       expect(result.statusCode).toBe(400);
       const responseBody = JSON.parse(result.body as string);
@@ -225,7 +279,7 @@ describe('Presign Handler Contract Tests', () => {
       };
 
       const event = createEvent(invalidBody);
-      const result = await handler(event, {} as any) as APIGatewayResponse;
+      const result = await handler(event, createMockContext() as any) as APIGatewayResponse;
 
       expect(result.statusCode).toBe(400);
       const responseBody = JSON.parse(result.body as string);
@@ -257,7 +311,7 @@ describe('Presign Handler Contract Tests', () => {
       expect(requestValidation.success).toBe(true);
 
       const event = createEvent(requestBody);
-      const result = await handler(event, {} as any) as APIGatewayResponse;
+      const result = await handler(event, createMockContext() as any) as APIGatewayResponse;
 
       // Validate response structure
       expect(result).toBeDefined();
@@ -300,7 +354,7 @@ describe('Presign Handler Contract Tests', () => {
       };
 
       const event = createEvent(invalidBody);
-      const result = await handler(event, {} as any) as APIGatewayResponse;
+      const result = await handler(event, createMockContext() as any) as APIGatewayResponse;
 
       expect(result.statusCode).toBe(400);
       const responseBody = JSON.parse(result.body as string);
@@ -321,7 +375,7 @@ describe('Presign Handler Contract Tests', () => {
       };
 
       const event = createEvent(invalidBody);
-      const result = await handler(event, {} as any) as APIGatewayResponse;
+      const result = await handler(event, createMockContext() as any) as APIGatewayResponse;
 
       expect(result.statusCode).toBe(400);
       const responseBody = JSON.parse(result.body as string);
@@ -342,7 +396,7 @@ describe('Presign Handler Contract Tests', () => {
       };
 
       const event = createEvent(invalidBody);
-      const result = await handler(event, {} as any) as APIGatewayResponse;
+      const result = await handler(event, createMockContext() as any) as APIGatewayResponse;
 
       expect(result.statusCode).toBe(400);
       const responseBody = JSON.parse(result.body as string);
@@ -360,7 +414,7 @@ describe('Presign Handler Contract Tests', () => {
       };
 
       const event = createEvent(requestBody);
-      const result = await handler(event, {} as any) as APIGatewayResponse;
+      const result = await handler(event, createMockContext() as any) as APIGatewayResponse;
 
       expect(result.headers).toBeDefined();
       expect(result.headers?.['x-request-id']).toBe('test-request-id');
@@ -374,7 +428,7 @@ describe('Presign Handler Contract Tests', () => {
       };
 
       const event = createEvent(requestBody);
-      const result = await handler(event, {} as any) as APIGatewayResponse;
+      const result = await handler(event, createMockContext() as any) as APIGatewayResponse;
 
       expect(result.headers).toBeDefined();
       expect(result.headers?.['Content-Type']).toBe('application/json');

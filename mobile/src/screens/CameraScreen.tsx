@@ -69,12 +69,8 @@ export const CameraScreen = ({ navigation }: CameraScreenProps) => {
           height: photo.height,
           type: 'image',
           fileName: `photo_${Date.now()}.jpg`,
-          fileSize: undefined,
           exif: photo.exif,
-          base64: undefined,
-          duration: undefined,
           mimeType: 'image/jpeg',
-          assetId: undefined,
         };
 
         dispatch(addSelectedImage(imageAsset));

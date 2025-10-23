@@ -1,9 +1,12 @@
 /**
- * AWS SDK Client Factory
+ * AWS SDK Client Factory (Deprecated)
  *
- * Central factory for creating AWS SDK clients with consistent regional configuration.
- * This adapter layer ensures:
- * - No direct AWS SDK client construction in services/handlers (STANDARDS.md hard fail)
+ * DEPRECATED: Prefer the consolidated factory exported from `@backend/core`
+ * (see `backend/libs/core/aws/clients.ts`). This legacy module remains to
+ * preserve compatibility but should not be referenced in new code.
+ *
+ * Guarantees:
+ * - No direct AWS SDK client construction in services/handlers (standards hard fail)
  * - Consistent regional configuration across AWS services
  * - Testability through dependency injection
  */
@@ -32,6 +35,7 @@ import {
  * @param customConfig - Optional custom configuration to override defaults
  * @returns Configured S3Client instance
  */
+/** @deprecated Use `@backend/core`'s createS3Client */
 export function createS3Client(
   region?: string,
   customConfig?: Partial<S3ClientConfig>
@@ -52,6 +56,7 @@ export function createS3Client(
  * @param customConfig - Optional custom configuration to override defaults
  * @returns Configured DynamoDBClient instance
  */
+/** @deprecated Use `@backend/core`'s createDynamoDBClient */
 export function createDynamoDBClient(
   region?: string,
   customConfig?: Partial<DynamoDBClientConfig>
@@ -73,6 +78,7 @@ export function createDynamoDBClient(
  * @param customConfig - Optional custom configuration to override defaults
  * @returns Configured SQSClient instance
  */
+/** @deprecated Use `@backend/core`'s createSQSClient */
 export function createSQSClient(
   region?: string,
   customConfig?: Partial<SQSClientConfig>
@@ -94,6 +100,7 @@ export function createSQSClient(
  * @param customConfig - Optional custom configuration to override defaults
  * @returns Configured SNSClient instance
  */
+/** @deprecated Use `@backend/core`'s createSNSClient */
 export function createSNSClient(
   region?: string,
   customConfig?: Partial<SNSClientConfig>

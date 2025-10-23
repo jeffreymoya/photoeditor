@@ -7,11 +7,18 @@
 # - standards/AGENTS.md (tier taxonomy)
 # - Tier-specific: backend-tier.md | frontend-tier.md | shared-contracts-tier.md | infrastructure-tier.md | cross-cutting.md
 # - standards/testing-standards.md (coverage expectations)
+#
+# Note: Integration, E2E, and mutation tests are deferred for now in this
+# repository. Keep coverage thresholds in place; do not add mutation/E2E
+# requirements unless explicitly reintroduced by a future ADR/task.
+# If the task is blocked by an unrelated issue, set status=blocked, fill blocked_reason,
+# and author a separate unblocker task referenced via blocked_by.
 
 schema_version: "1.0"
 id: TASK-0000           # REPLACE: stable ID (e.g., TASK-0123)
 title: "REPLACE: Short, action-oriented title"
 status: todo            # todo | in_progress | blocked | completed
+blocked_reason: null    # REQUIRED when status=blocked; one-line external blocker so unblocker task can be tracked
 priority: P1            # P0 (urgent), P1 (soon), P2 (nice-to-have)
 area: backend           # frontend | backend | infra | docs | ops | other
 
@@ -29,6 +36,7 @@ scope:
     # Standard exclusions: See standards/cross-cutting.md#hard-fail-controls
 
 context:
+  affected_packages: [backend]  # backend | mobile | shared | infra (guides test agent spawning)
   standards_tier: backend  # backend | frontend | shared | infra | ops (auto-includes global.md, AGENTS.md, testing-standards.md)
   issues: ["REPLACE: #123"]
   related_docs:
@@ -78,14 +86,14 @@ plan:
     title: Add/adjust tests
     details: Cover edge cases, error paths, idempotency; ensure coverage thresholds are met.
     commands:
-      - npm run test:unit -- --coverage
+      - pnpm turbo run test --filter=@photoeditor/backend -- --coverage
     expected_files_touched:
       - REPLACE: test/module/a.spec.ts
   - id: 4
     title: Update docs
     details: Update usage docs; generate coverage reports if they change.
     commands:
-      - npm run test:unit -- --coverage --coverageReporters=html
+      - pnpm turbo run test --filter=@photoeditor/backend -- --coverage --coverageReporters=html
     expected_files_touched:
       - REPLACE: docs/usage/feature-x.md
 
@@ -103,23 +111,28 @@ acceptance_criteria:
     - "Contract tests pass for all routes"
 
 validation:
-  commands:
-    # Hard fail prevention (standards/global.md + tier-specific)
-    - "! grep -r '@aws-sdk' backend/src/lambdas/ || echo 'Handlers must not import SDK'"
-    - npx dependency-cruiser --validate .dependency-cruiser.json src/
+  # Grouped by test agent type for orchestration
 
-    # Complexity checks
-    - npm run lint -- --max-complexity=10 --silent || true
+  static_checks:  # Run by test-static-fitness agent
+    - pnpm turbo run qa:static --filter=@photoeditor/backend
+    - pnpm run validate:deps
+    - "! grep -r '@aws-sdk' backend/src/lambdas/ || echo 'Handlers must not import SDK'"  # Hard fail check
 
-    # Test execution with coverage
-    - npm run test:unit -- --coverage --coverageThreshold='{"global":{"lines":80,"branches":70}}'
-    - npm run test:contract || echo 'Contract tests failed'
+  unit_tests:  # Run by test-unit-{package} agents based on affected_packages
+    backend:
+      - pnpm turbo run test --filter=@photoeditor/backend -- --coverage --coverageThreshold='{"global":{"lines":80,"branches":70}}'
+    # shared:  # Uncomment if affected_packages includes shared
+    #   - pnpm turbo run test --filter=@photoeditor/shared
+    # mobile:  # Uncomment if affected_packages includes mobile
+    #   - pnpm turbo run test --filter=photoeditor-mobile
 
-    # Standard suite
-    - npm run lint --silent || true
-    - npm test --silent
+  contract_tests:  # Run by test-contract agent (if shared in affected_packages)
+    - pnpm turbo run test:contract --filter=@photoeditor/backend
+    # - pnpm turbo run contracts:check --filter=@photoeditor/shared  # Uncomment if shared affected
+
   manual_checks:
     - REPLACE: Brief manual verification steps
+
   artifacts:
     - screenshots: []
 
@@ -134,4 +147,9 @@ risks:
   - description: REPLACE: task-specific risk
     mitigation: REPLACE: detection/mitigation strategy
 
-# Session logging: Update changelog/YYYY-MM-DD-short-topic.md after each session
+# Agent output artifacts:
+# - task-picker writes: .agent-output/task-picker-summary-{TASK-ID}.md (work summary)
+# - test agents write: docs/tests/reports/YYYY-MM-DD-{agent-type}.md (validation results)
+# - task-runner creates: changelog/YYYY-MM-DD-{topic}.md (final changelog aggregating all above)
+#
+# Note: Only task-runner creates the changelog; task-picker focuses on implementation.

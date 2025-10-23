@@ -1,7 +1,7 @@
 module.exports = {
   root: true,
-  extends: 'expo',
-  plugins: ['boundaries'],
+  extends: ['expo', 'plugin:import/recommended', 'plugin:import/typescript'],
+  plugins: ['boundaries', 'import', 'unicorn', 'sonarjs', 'unused-imports', 'jsdoc'],
   settings: {
     'boundaries/elements': [
       {
@@ -38,16 +38,54 @@ module.exports = {
       },
     ],
     'boundaries/ignore': ['**/*.test.ts', '**/*.test.tsx', '**/*.spec.ts', '**/*.spec.tsx'],
+    'import/resolver': {
+      typescript: {
+        project: ['./tsconfig.json'],
+      },
+    },
   },
   rules: {
     'react/react-in-jsx-scope': 'off',
-    '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    '@typescript-eslint/no-unused-vars': 'off',
+    'unused-imports/no-unused-imports': 'warn',
+    'unused-imports/no-unused-vars': [
+      'warn',
+      {
+        vars: 'all',
+        varsIgnorePattern: '^_',
+        args: 'after-used',
+        argsIgnorePattern: '^_',
+      },
+    ],
     '@typescript-eslint/no-explicit-any': 'error',
     'no-console': ['warn', { allow: ['warn', 'error'] }],
     '@typescript-eslint/ban-types': 'off',
     '@typescript-eslint/array-type': ['warn', { default: 'array' }],
     'complexity': ['error', { max: 10 }],
     'max-lines-per-function': ['error', { max: 200, skipBlankLines: true, skipComments: true }],
+    'import/no-duplicates': 'warn',
+    'import/newline-after-import': ['warn', { count: 1 }],
+    'import/order': [
+      'warn',
+      {
+        groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index', 'object', 'type'],
+        'newlines-between': 'always',
+        alphabetize: { order: 'asc', caseInsensitive: true },
+        pathGroups: [
+          {
+            pattern: '@/**',
+            group: 'internal',
+            position: 'after',
+          },
+        ],
+        pathGroupsExcludedImportTypes: ['builtin'],
+      },
+    ],
+    'unicorn/prefer-node-protocol': 'warn',
+    'unicorn/prevent-abbreviations': 'off',
+    'sonarjs/no-identical-functions': 'warn',
+    'jsdoc/check-alignment': 'warn',
+    'jsdoc/tag-lines': ['warn', 'any', { startLines: 1 }],
 
     // Mobile layering rules (STANDARDS.md line 53)
     'boundaries/element-types': [

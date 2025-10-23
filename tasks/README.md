@@ -10,7 +10,7 @@ Choose a template based on task complexity to optimize token usage:
 |----------|---------|--------------|------|
 | **Minimal** | Bug fixes, doc updates, single-file changes | ~200 tokens | `TASK-0000-template-minimal.yaml` |
 | **Lean** | Most features, typical backend/mobile work | ~1,000 tokens | `TASK-0000-template-lean.yaml` |
-| **Comprehensive** | Major refactors, API changes, infra overhauls | ~3,600 tokens | `TASK-0000-template.yaml` |
+| **Comprehensive** | Major refactors, API changes, infra overhauls | ~3,600 tokens | `TASK-0000-template.task.yaml` |
 
 **Recommendation:** Start with **lean** template for 80% of tasks. Use minimal for trivial changes, comprehensive only for high-stakes architectural work.
 
@@ -21,7 +21,7 @@ Choose a template based on task complexity to optimize token usage:
 - Copy the template and start editing:
   - Minimal: `cp docs/templates/TASK-0000-template-minimal.yaml tasks/<area>/TASK-<id>-<slug>.task.yaml`
   - Lean: `cp docs/templates/TASK-0000-template-lean.yaml tasks/<area>/TASK-<id>-<slug>.task.yaml`
-  - Comprehensive: `cp docs/templates/TASK-0000-template.yaml tasks/<area>/TASK-<id>-<slug>.task.yaml`
+  - Comprehensive: `cp docs/templates/TASK-0000-template.task.yaml tasks/<area>/TASK-<id>-<slug>.task.yaml`
 - Fill in all placeholders. Do not remove required sections. Keep IDs and titles stable.
 - Link relevant standards via `context.standards_tier` (lean/minimal) or `context.related_docs` (comprehensive).
 - Commit alongside the code branch that will implement the task.
@@ -41,6 +41,12 @@ Use the comments in the template as your checklist. At minimum, complete:
 - `deliverables` and `risks`
 
 If sequencing matters, also set `blocked_by` and `order`.
+
+### Handling Blockers
+- When work is impeded by an issue outside the task scope, change `status` to `blocked` and record a one-line reason in `blocked_reason` (see template updates below).
+- Create a dedicated unblocker task in the appropriate `tasks/<area>/` folder. Its description must focus on clearing the blocker, and its `priority` should match or exceed the highest-priority task depending on it (default to the parent task’s priority unless an escalation to P0 is warranted).
+- Add the new task’s ID to the original task’s `blocked_by` list so orchestration scripts understand the dependency chain.
+- Treat unblocker tasks as top-of-queue items; close them promptly, then flip the original task back to `in_progress` or `todo` and continue.
 
 ## Deciding Breakdown by Complexity
 Choose a complexity size, then split work accordingly. Use these heuristics to keep tasks small, testable, and independently shippable.
@@ -79,10 +85,129 @@ Choose a complexity size, then split work accordingly. Use these heuristics to k
 - TASK-0210 (infra): Terraform lifecycle rules + tags; acceptance: `terraform validate`, `tfsec` soft‑fail reports, plan evidence artifact.
 
 ## Validation & Evidence
-- Prefer the template’s `validation.commands`. Typical quick checks before PR:
+- Prefer the template's `validation.commands`. Typical quick checks before PR:
   - `pnpm turbo run qa:static --parallel`
   - Area‑specific tests (see package scripts), e.g., `pnpm turbo run test:ci --filter=@photoeditor/backend`
 - Attach artifacts listed under `deliverables.evidence` when applicable.
+
+## Agent Orchestration Model
+
+Tasks are executed by Claude Code agents following a structured workflow. Understanding this model helps you write agent-compatible task files.
+
+### Agent Roles
+
+| Agent | Responsibility | Output |
+|-------|---------------|--------|
+| task-runner | Orchestrate workflow, spawn agents, create changelog, commit | `changelog/YYYY-MM-DD-{topic}.md` |
+| task-picker | Claim task, implement plan, write tests | `.agent-output/task-picker-summary-{TASK-ID}.md` |
+| test-static-fitness | Run qa:static, fitness functions | `docs/tests/reports/YYYY-MM-DD-static-fitness.md` |
+| test-unit-backend | Run backend unit tests | `docs/tests/reports/YYYY-MM-DD-unit-backend.md` |
+| test-unit-mobile | Run mobile unit tests | `docs/tests/reports/YYYY-MM-DD-unit-mobile.md` |
+| test-unit-shared | Run shared unit tests | `docs/tests/reports/YYYY-MM-DD-unit-shared.md` |
+| test-contract | Validate API contracts | `docs/tests/reports/YYYY-MM-DD-contract.md` |
+
+### Task File Requirements for Agent Compatibility
+
+1. **Declare affected packages:**
+   ```yaml
+   context:
+     affected_packages: [backend, shared]  # Guides test agent spawning
+   ```
+
+2. **Group validation commands by test type:**
+   ```yaml
+   validation:
+     static_checks:      # test-static-fitness
+       - pnpm turbo run qa:static --filter=@photoeditor/backend
+       - npx dependency-cruiser --validate .dependency-cruiser.json src/
+
+     unit_tests:         # test-unit-{package} agents
+       backend:
+         - pnpm turbo run test --filter=@photoeditor/backend
+       shared:
+         - pnpm turbo run test --filter=@photoeditor/shared
+
+     contract_tests:     # test-contract agent
+       - pnpm turbo run test:contract --filter=@photoeditor/backend
+       - pnpm turbo run contracts:check --filter=@photoeditor/shared
+   ```
+
+3. **Use correct package manager syntax:**
+   - Always: `pnpm turbo run {script} --filter=@photoeditor/{package}`
+   - Backend: `--filter=@photoeditor/backend`
+   - Mobile: `--filter=photoeditor-mobile`
+   - Shared: `--filter=@photoeditor/shared`
+
+4. **Cite tier standards:**
+   ```yaml
+   context:
+     standards_tier: backend  # Auto-includes global.md, AGENTS.md, testing-standards.md
+   ```
+
+### Agent Workflow Diagram
+
+```
+┌─────────────┐
+│ task-runner │ Orchestrator picks task, spawns agents
+└──────┬──────┘
+       │
+       ├─────> task-picker (implements plan)
+       │       └─> writes: .agent-output/task-picker-summary-{ID}.md
+       │
+       ├─────> test-static-fitness (runs qa:static, fitness functions)
+       │       └─> writes: docs/tests/reports/YYYY-MM-DD-static-fitness.md
+       │           └─> If BLOCKED: task-runner stops, creates changelog, reports
+       │
+       ├─────> test-unit-backend, test-unit-mobile, test-unit-shared (parallel)
+       │       └─> each writes: docs/tests/reports/YYYY-MM-DD-unit-{package}.md
+       │           └─> If any BLOCKED/FAIL: task-runner stops, creates changelog, reports
+       │
+       ├─────> test-contract (if shared affected)
+       │       └─> writes: docs/tests/reports/YYYY-MM-DD-contract.md
+       │           └─> If BLOCKED/FAIL: task-runner stops, creates changelog, reports
+       │
+       └─────> All PASS:
+               1. Aggregate work summary + test reports
+               2. Create changelog/YYYY-MM-DD-{topic}.md
+               3. Archive task to docs/completed-tasks/
+               4. Git commit
+               5. If pre-commit fails: update changelog, stop loop
+```
+
+### File Handoff Contract
+
+Each agent produces predictable outputs:
+
+**task-picker:**
+```markdown
+# .agent-output/task-picker-summary-TASK-0123.md
+**Packages Modified:** backend, shared
+**Files Changed:** 15
+**Features Added:** [list]
+**Standards Enforced:** backend-tier.md, typescript.md
+**Tests Created/Updated:** [list]
+```
+
+**test agents:**
+```markdown
+# docs/tests/reports/2025-10-23-unit-backend.md
+**Status:** PASS | FAIL | BLOCKED
+**Summary:** Brief description
+**Issues Fixed:** 3
+**Issues Deferred:** 2
+**Blocking Reason:** (if BLOCKED)
+```
+
+**task-runner:**
+Reads all agent outputs → creates final changelog.
+
+### Important Notes
+
+- Test agents have limited scope: they fix test infrastructure issues only (timeouts, selectors, imports)
+- Test agents defer application bugs as P0/P1 issues for manual fixing
+- Fitness function agents validate architectural constraints and code quality metrics
+- Always read validation reports—don't assume PASS means no action needed (may have deferred issues)
+- **Key principle:** Run fitness functions scoped to your edits during implementation, not just pre-PR
 
 ## Status Flow & Archival
 - Default flow: `todo → in_progress → completed` (use `blocked` only with a concrete reason).

@@ -14,7 +14,7 @@ Notifications.setNotificationHandler({
 });
 
 class NotificationService {
-  private expoPushToken: string | null = null;
+  private expoPushToken: string | undefined = undefined;
 
   async initialize() {
     await this.registerForPushNotificationsAsync();
@@ -150,12 +150,16 @@ class NotificationService {
     body: string,
     data?: Record<string, unknown>
   ) {
+    const content: { title: string; body: string; data?: Record<string, unknown> } = {
+      title,
+      body,
+    };
+    if (data !== undefined) {
+      content.data = data;
+    }
+
     await Notifications.scheduleNotificationAsync({
-      content: {
-        title,
-        body,
-        data,
-      },
+      content,
       trigger: null,
     });
   }

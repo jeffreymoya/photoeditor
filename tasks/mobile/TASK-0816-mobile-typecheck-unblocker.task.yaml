@@ -1,0 +1,117 @@
+schema_version: "1.0"
+id: TASK-0816
+title: "Fix mobile typecheck regressions from exact optional enforcement"
+status: blocked
+blocked_reason: "Pre-commit hook failure: test-static-fitness agent introduced conflicting type changes that contradict task-picker implementation. task-picker correctly omitted optional properties per exactOptionalPropertyTypes, but test-static-fitness incorrectly added explicit | undefined types causing 5 new type errors."
+priority: P0
+area: mobile
+blocked_by: [TASK-0817]
+
+description: >-
+  Resolve the Expo client TypeScript errors surfaced on 2025-10-23 when qa:static ran for Task-0810.
+  exactOptionalPropertyTypes/noImplicitOverride are enabled in mobile/tsconfig.json, but several components still assume
+  legacy optional semantics. Clean up those call sites so pre-commit qa:static succeeds and unblock TASK-0810.
+
+outcome: >-
+  `pnpm turbo run typecheck --filter=photoeditor-mobile` and `pnpm turbo run qa:static --filter=photoeditor-mobile` both succeed,
+  with no lingering TS4114/TS2375/TS2345 errors; pre-commit qa:static completes without mobile package failures.
+
+scope:
+  in:
+    - mobile/src/components/ErrorBoundary.tsx
+    - mobile/src/screens/CameraScreen.tsx
+    - mobile/src/screens/EditScreen.tsx
+    - mobile/src/services/NotificationService.ts
+    - mobile/src/features/upload/hooks/useUpload.ts
+    - mobile/src/lib/upload/retry.ts
+    - mobile/tsconfig.json (only if type definitions require alignment)
+  out:
+    - Backend/shared/infra changes (tracked separately by TASK-0810)
+    - Any product UX updates beyond type fixes
+
+context:
+  affected_packages: [mobile]
+  standards_tier: frontend
+  issues: []
+  related_docs:
+    - changelog/2025-10-23-sst-config-alignment.md
+    - standards/typescript.md
+  repo_paths:
+    - mobile/src/components/ErrorBoundary.tsx
+    - mobile/src/screens/CameraScreen.tsx
+    - mobile/src/screens/EditScreen.tsx
+    - mobile/src/services/NotificationService.ts
+    - mobile/src/features/upload/hooks/useUpload.ts
+    - mobile/src/lib/upload/retry.ts
+    - mobile/tsconfig.json
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: pnpm
+      version: "8.x"
+
+deliverables:
+  - mobile/src/components/ErrorBoundary.tsx
+  - mobile/src/screens/CameraScreen.tsx
+  - mobile/src/screens/EditScreen.tsx
+  - mobile/src/services/NotificationService.ts
+  - mobile/src/features/upload/hooks/useUpload.ts
+  - mobile/src/lib/upload/retry.ts
+  - mobile/tsconfig.json
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep diffs focused on type correctness; no stylistic churn.
+    - Preserve Expo/React Native patterns in shared hooks and components.
+  prohibited:
+    - Introducing `any` types or disabling exactOptionalPropertyTypes.
+    - Modifying unrelated features or redux slices.
+
+plan:
+  - id: 1
+    title: Reproduce and catalogue TypeScript failures
+    details: Run mobile typecheck to confirm current error set matches changelog output; note any additional failures.
+    commands:
+      - pnpm turbo run typecheck --filter=photoeditor-mobile
+    expected_files_touched: []
+  - id: 2
+    title: Patch components/hooks to satisfy strict optional typing
+    details: Update state shapes, optional props, and overrides to align with exact optional semantics; remove unused variables.
+    commands: []
+    expected_files_touched:
+      - mobile/src/components/ErrorBoundary.tsx
+      - mobile/src/screens/CameraScreen.tsx
+      - mobile/src/screens/EditScreen.tsx
+      - mobile/src/services/NotificationService.ts
+      - mobile/src/features/upload/hooks/useUpload.ts
+      - mobile/src/lib/upload/retry.ts
+      - mobile/tsconfig.json
+  - id: 3
+    title: Validate mobile static analysis gate
+    details: Ensure both targeted scripts pass so pre-commit qa:static is green again.
+    commands:
+      - pnpm turbo run typecheck --filter=photoeditor-mobile
+      - pnpm turbo run qa:static --filter=photoeditor-mobile
+    expected_files_touched: []
+
+acceptance_criteria:
+  - Mobile typecheck completes with zero errors under exactOptionalPropertyTypes/noImplicitOverride.
+  - Mobile qa:static passes without new lint or type regressions.
+  - No new `eslint-disable` or `@ts-ignore` directives introduced.
+
+validation:
+  commands:
+    - pnpm turbo run typecheck --filter=photoeditor-mobile
+    - pnpm turbo run qa:static --filter=photoeditor-mobile
+
+risks:
+  - Minimal functional risk; adjustments might surface latent null-handling gaps—add targeted tests if behavior changes.
+  - Expo SDK typings may evolve; ensure fixes align with current version to avoid future regressions.

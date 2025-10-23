@@ -145,7 +145,7 @@ Handlers (lambdas/) → Services → Providers
 
 ### AWS Client Factory (ADR-0004)
 
-All AWS SDK clients instantiated in `backend/src/libs/aws-clients.ts`. Services receive via DI — never `new SomeClient()` in services/handlers.
+Prefer the consolidated factory exported from the core library: `@backend/core` (see `backend/libs/core/aws/clients.ts`). Services receive clients via DI — never `new SomeClient()` in services/handlers.
 
 ### Contract-First API (ADR-0003, ADR-0005)
 

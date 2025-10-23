@@ -11,6 +11,11 @@ echo ""
 # Full QA suite runs on pre-push
 ./node_modules/.bin/turbo run qa:static --parallel
 
+TMP_DIR=$(mktemp -d)
+node scripts/ci/check-domain-purity.mjs --output "$TMP_DIR/domain-purity.json"
+node scripts/ci/traceparent-drill.mjs --logs docs/evidence/logs/powertools-sample.json --output "$TMP_DIR/trace-drill-report.json"
+rm -rf "$TMP_DIR"
+
 echo ""
 echo "Pre-commit checks passed!"
 echo "Tip: Full QA suite will run on pre-push or in CI."

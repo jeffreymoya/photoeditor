@@ -53,7 +53,7 @@ export interface UploadProgress {
 /**
  * Upload options
  */
-export interface UploadOptions {
+export type UploadOptions = {
   /**
    * Whether to allow uploads on metered connections. Default: false
    */
@@ -74,7 +74,7 @@ export interface UploadOptions {
    * Callback for upload error
    */
   onError?: (error: Error) => void;
-}
+};
 
 /**
  * Upload result
@@ -204,7 +204,7 @@ export function useUpload(options: UploadOptions = {}) {
         },
         {
           maxAttempts: maxRetries,
-          onRetry: (attempt, error, _delay) => {
+          onRetry: (_attempt, error, _delay) => {
             const newRetryState = updateRetryState(retryState, error);
             updateProgress({
               retryState: newRetryState,

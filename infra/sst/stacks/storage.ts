@@ -151,6 +151,7 @@ export default function StorageStack() {
       userId: "string",
       status: "string",
       createdAt: "string",
+      batchJobId: "string",
     },
     primaryIndex: { hashKey: "jobId" },
     globalIndexes: {
@@ -160,6 +161,10 @@ export default function StorageStack() {
       },
       StatusIndex: {
         hashKey: "status",
+        rangeKey: "createdAt",
+      },
+      BatchJobIdIndex: {
+        hashKey: "batchJobId",
         rangeKey: "createdAt",
       },
     },
@@ -215,10 +220,48 @@ export default function StorageStack() {
     },
   });
 
+  // DynamoDB table for batch jobs - PITR enabled, on-demand billing
+  const batchTable = new sst.aws.Dynamo("BatchJobsTable", {
+    fields: {
+      batchJobId: "string",
+      userId: "string",
+      status: "string",
+      createdAt: "string",
+    },
+    primaryIndex: { hashKey: "batchJobId" },
+    globalIndexes: {
+      UserBatchJobsIndex: {
+        hashKey: "userId",
+        rangeKey: "createdAt",
+      },
+    },
+    stream: "new-and-old-images",
+    transform: {
+      table: {
+        billingMode: "PAY_PER_REQUEST",
+        pointInTimeRecovery: {
+          enabled: true,
+        },
+        serverSideEncryption: {
+          enabled: true,
+          kmsMasterKeyId: kmsKey.arn,
+        },
+        tags: {
+          Project: "PhotoEditor",
+          Env: $app.stage,
+          Owner: "DevTeam",
+          CostCenter: "Engineering",
+          Purpose: "BatchJobs",
+        },
+      },
+    },
+  });
+
   return {
     tempBucket,
     finalBucket,
     jobsTable,
+    batchTable,
     deviceTokensTable,
     kmsKey,
   };

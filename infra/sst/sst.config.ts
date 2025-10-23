@@ -28,7 +28,7 @@ export default $config({
     const api = await import("./stacks/api");
 
     // Deploy stacks
-    const { tempBucket, finalBucket, jobsTable, deviceTokensTable, kmsKey } = storage.default();
+    const { tempBucket, finalBucket, jobsTable, batchTable, deviceTokensTable, kmsKey } = storage.default();
     const { processingQueue, processingDLQ, notificationTopic } = messaging.default({
       kmsKey,
     });
@@ -36,6 +36,7 @@ export default $config({
       tempBucket,
       finalBucket,
       jobsTable,
+      batchTable,
       deviceTokensTable,
       processingQueue,
       notificationTopic,
@@ -48,6 +49,7 @@ export default $config({
       tempBucket: tempBucket.name,
       finalBucket: finalBucket.name,
       jobsTable: jobsTable.name,
+      batchTable: batchTable.name,
       processingQueue: processingQueue.url,
       processingDLQ: processingDLQ.url,
       notificationTopic: notificationTopic.arn,

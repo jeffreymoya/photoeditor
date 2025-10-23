@@ -8,6 +8,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 EVIDENCE_DIR="$REPO_ROOT/docs/evidence"
+TRACE_LOG_SOURCE="$REPO_ROOT/docs/evidence/logs/powertools-sample.json"
 
 echo "========================================="
 echo "Evidence Bundle Collection"
@@ -18,21 +19,33 @@ echo ""
 mkdir -p "$EVIDENCE_DIR/qa"
 
 # Run QA pipeline and capture output
-echo "[1/3] Running QA pipelines..."
+echo "[1/5] Running QA pipelines..."
 pnpm turbo run qa --parallel > "$EVIDENCE_DIR/qa/turbo-run.log" 2>&1 || {
     echo "WARNING: Some QA checks failed. Evidence captured in $EVIDENCE_DIR/qa/turbo-run.log"
 }
 
 # Generate dependency graph
-echo "[2/3] Generating dependency graph..."
+echo "[2/5] Generating dependency graph..."
 if command -v dot >/dev/null 2>&1; then
     pnpm turbo run qa:dependencies --parallel || echo "WARNING: Dependency analysis failed"
 else
     echo "WARNING: graphviz (dot) not installed, skipping dependency graph generation"
 fi
 
+# Check backend domain purity
+echo "[3/5] Verifying backend domain purity..."
+if ! node "$REPO_ROOT/scripts/ci/check-domain-purity.mjs" --output "$EVIDENCE_DIR/domain-purity.json"; then
+    echo "WARNING: Domain purity check failed. Inspect $EVIDENCE_DIR/domain-purity.json for violations"
+fi
+
+# Run traceparent drill
+echo "[4/5] Running traceparent drill..."
+if ! node "$REPO_ROOT/scripts/ci/traceparent-drill.mjs" --logs "$TRACE_LOG_SOURCE" --output "$EVIDENCE_DIR/trace-drill-report.json"; then
+    echo "WARNING: Trace drill failed. Inspect $EVIDENCE_DIR/trace-drill-report.json for details"
+fi
+
 # Collect test artifacts
-echo "[3/3] Collecting test artifacts..."
+echo "[5/5] Collecting test artifacts..."
 if [ -d "$REPO_ROOT/backend/coverage" ]; then
     cp -r "$REPO_ROOT/backend/coverage" "$EVIDENCE_DIR/backend-coverage" || true
 fi
@@ -43,3 +56,4 @@ echo "Artifacts saved to: $EVIDENCE_DIR"
 echo ""
 echo "Contents:"
 ls -lh "$EVIDENCE_DIR" || true
+

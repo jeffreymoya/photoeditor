@@ -15,6 +15,7 @@ interface ApiStackProps {
   tempBucket: sst.aws.Bucket;
   finalBucket: sst.aws.Bucket;
   jobsTable: sst.aws.Dynamo;
+  batchTable: sst.aws.Dynamo;
   deviceTokensTable: sst.aws.Dynamo;
   processingQueue: sst.aws.Queue;
   notificationTopic: sst.aws.SnsTopic;
@@ -22,17 +23,20 @@ interface ApiStackProps {
 }
 
 export default function ApiStack(props: ApiStackProps) {
-  const { tempBucket, finalBucket, jobsTable, deviceTokensTable, processingQueue, notificationTopic, kmsKey } = props;
+  const { tempBucket, finalBucket, jobsTable, batchTable, deviceTokensTable, processingQueue, notificationTopic, kmsKey } = props;
 
   // Lambda environment variables (shared)
   const lambdaEnv = {
     NODE_ENV: $app.stage === "production" ? "production" : "development",
     STAGE: $app.stage,
+    PROJECT_NAME: "PhotoEditor",
     TEMP_BUCKET_NAME: tempBucket.name,
     FINAL_BUCKET_NAME: finalBucket.name,
     JOBS_TABLE_NAME: jobsTable.name,
+    BATCH_TABLE_NAME: batchTable.name,
     PROCESSING_QUEUE_URL: processingQueue.url,
     NOTIFICATION_TOPIC_ARN: notificationTopic.arn,
+    SNS_TOPIC_ARN: notificationTopic.arn,
     LOG_LEVEL: "info",
     POWERTOOLS_SERVICE_NAME: "photoeditor-api",
     POWERTOOLS_METRICS_NAMESPACE: "PhotoEditor",
@@ -52,7 +56,7 @@ export default function ApiStack(props: ApiStackProps) {
       },
       {
         actions: ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:Query"],
-        resources: [jobsTable.arn, `${jobsTable.arn}/index/*`],
+        resources: [jobsTable.arn, `${jobsTable.arn}/index/*`, batchTable.arn, `${batchTable.arn}/index/*`],
       },
       {
         actions: ["sqs:SendMessage"],
@@ -87,7 +91,7 @@ export default function ApiStack(props: ApiStackProps) {
     permissions: [
       {
         actions: ["dynamodb:GetItem", "dynamodb:Query"],
-        resources: [jobsTable.arn, `${jobsTable.arn}/index/*`],
+        resources: [jobsTable.arn, `${jobsTable.arn}/index/*`, batchTable.arn, `${batchTable.arn}/index/*`],
       },
       {
         actions: ["kms:Decrypt"],
@@ -187,8 +191,8 @@ export default function ApiStack(props: ApiStackProps) {
         resources: [tempBucket.arn, `${tempBucket.arn}/*`, finalBucket.arn, `${finalBucket.arn}/*`],
       },
       {
-        actions: ["dynamodb:GetItem", "dynamodb:UpdateItem"],
-        resources: [jobsTable.arn],
+        actions: ["dynamodb:GetItem", "dynamodb:UpdateItem", "dynamodb:Query"],
+        resources: [jobsTable.arn, `${jobsTable.arn}/index/*`, batchTable.arn, `${batchTable.arn}/index/*`],
       },
       {
         actions: ["sns:Publish"],

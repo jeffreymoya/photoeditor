@@ -19,6 +19,7 @@ Thumbs.db
 
 # Package managers and build output
 **/node_modules/
+.pnpm-store/
 backend/dist/
 shared/dist/
 mobile/dist/
@@ -57,6 +58,7 @@ crash.log
 backend/tmp/
 .npm-cache/
 .claude/
+.agent-output/
 .turbo/
 .turbo-prune-test/
 backend/.stryker-tmp/

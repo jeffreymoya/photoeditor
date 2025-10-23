@@ -6,7 +6,7 @@
 /**
  * Retry configuration options
  */
-export interface RetryOptions {
+export type RetryOptions = {
   /**
    * Maximum number of retry attempts. Default: 3
    */
@@ -35,7 +35,7 @@ export interface RetryOptions {
    * Optional callback called before each retry
    */
   onRetry?: (attempt: number, error: Error, delay: number) => void;
-}
+};
 
 /**
  * Default retry options
@@ -236,14 +236,21 @@ export function updateRetryState(
   options: RetryOptions = {}
 ): RetryState {
   const nextAttempt = state.attempt + 1;
+  const willRetry = nextAttempt < state.maxAttempts;
 
-  return {
+  const baseState: RetryState = {
     ...state,
     attempt: nextAttempt,
     lastError: error,
-    nextRetryDelay: nextAttempt < state.maxAttempts
-      ? calculateBackoffDelay(nextAttempt - 1, options)
-      : undefined,
-    isRetrying: nextAttempt < state.maxAttempts,
+    isRetrying: willRetry,
   };
+
+  if (willRetry) {
+    return {
+      ...baseState,
+      nextRetryDelay: calculateBackoffDelay(nextAttempt - 1, options),
+    };
+  }
+
+  return baseState;
 }

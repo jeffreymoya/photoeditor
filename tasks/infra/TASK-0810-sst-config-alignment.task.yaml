@@ -1,7 +1,8 @@
 schema_version: "1.0"
 id: TASK-0810
 title: "Align SST stacks with backend service container"
-status: todo
+status: blocked
+blocked_reason: "Pre-commit qa:static fails: mobile typecheck errors (TS4114/TS2375 etc.) uncovered on 2025-10-23"
 priority: P1
 area: infra
 
@@ -34,7 +35,9 @@ context:
   repo_paths:
     - infra/sst/stacks/api.ts
     - infra/sst/stacks/storage.ts
-  dependencies: []
+dependencies: []
+blocked_by:
+  - TASK-0816
 
 environment:
   os: ubuntu-22.04

@@ -10,7 +10,10 @@ jest.mock('@aws-lambda-powertools/tracer');
 
 // Set required env vars before importing handler
 process.env.AWS_REGION = 'us-east-1';
+process.env.PROJECT_NAME = 'photoeditor';
+process.env.NODE_ENV = 'test';
 process.env.JOBS_TABLE_NAME = 'test-jobs-table';
+process.env.BATCH_TABLE_NAME = 'test-batch-table';
 
 const dynamoMock = mockClient(DynamoDBClient);
 

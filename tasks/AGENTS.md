@@ -7,6 +7,7 @@ Scope: applies to everything under `tasks/`.
 ## Canonical Template (Do Not Inline)
 - The single source of truth for task structure, required fields, and examples is `docs/templates/TASK-0000-template.task.yaml`.
 - Always copy that file verbatim when starting a new task, then fill in the placeholders. Never rebuild the schema from memory or copy fragments from older tasks.
+- There are no alternate templates. If the scope exceeds what fits cleanly in one task, split the work into multiple task files instead of stretching the template.
 - If you need the schema in another format, update the template file first and reference it from there. Keeping this document light ensures the template stays authoritative.
 
 For step‑by‑step authoring guidance, see `tasks/README.md`.
@@ -16,6 +17,7 @@ For step‑by‑step authoring guidance, see `tasks/README.md`.
 - Populate each field directly in the new task file. Remove any comment lines you have satisfied to keep the task concise.
 - When the repo standards evolve, update the template and link the change to the driving task/ADR so every future task inherits the revision automatically.
 - If you discover a need the template cannot express, propose improvements to the template (and supporting standards) instead of diverging inside an individual task file.
+- If the work feels like an epic after you draft the plan, pause and break it down into smaller tasks—the orchestrator expects each task to be independently completable.
 
 ## Authoring Reminders
 - Cite the relevant standards files listed in the template so validation inputs remain explicit.

@@ -1,0 +1,196 @@
+# Lean template for LLM-executable tasks (token-optimized for solo developer)
+# Subtask of TASK-0817: Frontend tier hardening
+# Focus: State layer - RTK Query and XState integration
+
+schema_version: "1.0"
+id: TASK-0819
+title: "Integrate RTK Query and XState for mobile state management"
+status: completed
+blocked_reason: null
+blocked_by: [TASK-0818]
+priority: P1
+area: frontend
+
+description: >-
+  Part 2 of TASK-0817 frontend-tier hardening. Mobile state management currently uses
+  basic Redux Toolkit slices without RTK Query for server state. standards/frontend-tier.md
+  mandates RTK Query for network calls and XState for job lifecycle state machines. This
+  subtask introduces uploadApi RTK Query slice and XState chart for upload/job workflows,
+  exporting statechart diagrams to docs/ui/state-metrics for auditability.
+
+outcome: >-
+  RTK Query slice (uploadApi) handles presign, upload, and job status polling with
+  optimistic updates. XState statechart models upload lifecycle (idle→uploading→processing
+  →completed/failed) with .scxml or Mermaid export. Screens delegate upload orchestration
+  to feature modules via /public exports. No direct apiService imports in screens.
+
+scope:
+  in:
+    - mobile/src/store/uploadApi.ts (new RTK Query slice)
+    - mobile/src/features/upload/machines/uploadMachine.ts (new XState chart)
+    - mobile/src/features/upload/public/index.ts (expand public API)
+    - mobile/src/screens/HomeScreen.tsx (refactor to use feature public API)
+    - mobile/src/screens/CameraScreen.tsx (refactor)
+    - mobile/src/screens/GalleryScreen.tsx (refactor)
+    - docs/ui/state-metrics/upload-statechart.scxml (statechart export)
+    - mobile/package.json (xstate dependency)
+  out:
+    - UI tokens/icons - covered by TASK-0818
+    - Services ports/adapters - covered by TASK-0820
+    - Storybook/Chromatic - covered by TASK-0821
+    - Backend contract changes
+
+context:
+  affected_packages: [mobile]
+  standards_tier: frontend
+  issues: []
+  related_docs:
+    - standards/AGENTS.md
+    - standards/frontend-tier.md
+    - standards/typescript.md
+    - standards/testing-standards.md
+  repo_paths:
+    - mobile/src/store
+    - mobile/src/features/upload
+    - mobile/src/screens
+    - docs/ui/state-metrics
+  dependencies:
+    - type: package
+      name: xstate
+      version: ">=4.38.0"
+    - type: package
+      name: "@xstate/react"
+      version: ">=3.2.0"
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "18.x"
+  tools:
+    - name: npm
+      version: "9.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep diffs minimal and focused
+    - Respect repository conventions
+  prohibited:
+    - No secrets or tokens in code
+    - No unrelated file changes
+  architecture:
+    - "Redux Toolkit + RTK Query mandated for network calls (standards/frontend-tier.md)"
+    - "XState for job lifecycle state machines with diagrams (standards/frontend-tier.md)"
+    - "Feature modules export /public surface; no deep imports (standards/frontend-tier.md)"
+    - "Screens delegate to features; no cross-feature imports (standards/frontend-tier.md)"
+
+plan:
+  - id: 1
+    title: Install XState dependencies
+    details: Add xstate and @xstate/react to mobile package.
+    commands:
+      - pnpm add xstate @xstate/react --filter=photoeditor-mobile
+    expected_files_touched:
+      - mobile/package.json
+  - id: 2
+    title: Create RTK Query uploadApi slice
+    details: Define uploadApi with endpoints for presign, upload, getJobStatus, and polling mutations.
+    commands:
+      - pnpm turbo run typecheck --filter=photoeditor-mobile
+    expected_files_touched:
+      - mobile/src/store/uploadApi.ts
+      - mobile/src/store/index.ts
+  - id: 3
+    title: Create XState upload state machine
+    details: Model upload lifecycle with states (idle, uploading, processing, completed, failed) and transitions.
+    commands:
+      - pnpm turbo run typecheck --filter=photoeditor-mobile
+    expected_files_touched:
+      - mobile/src/features/upload/machines/uploadMachine.ts
+      - mobile/src/features/upload/hooks/useUploadMachine.ts
+  - id: 4
+    title: Export statechart diagram to docs
+    details: Generate .scxml or Mermaid diagram from XState machine and save to docs/ui/state-metrics.
+    commands: []
+    expected_files_touched:
+      - docs/ui/state-metrics/upload-statechart.scxml
+      - docs/ui/state-metrics/upload-statechart.md
+  - id: 5
+    title: Update feature public API
+    details: Expand features/upload/public/index.ts to export uploadApi hooks and uploadMachine hooks.
+    commands:
+      - pnpm turbo run typecheck --filter=photoeditor-mobile
+    expected_files_touched:
+      - mobile/src/features/upload/public/index.ts
+  - id: 6
+    title: Refactor screens to use feature public API
+    details: Update HomeScreen, CameraScreen, GalleryScreen to consume uploadApi and uploadMachine via feature exports.
+    commands:
+      - pnpm turbo run lint --filter=photoeditor-mobile
+      - pnpm turbo run typecheck --filter=photoeditor-mobile
+    expected_files_touched:
+      - mobile/src/screens/HomeScreen.tsx
+      - mobile/src/screens/CameraScreen.tsx
+      - mobile/src/screens/GalleryScreen.tsx
+  - id: 7
+    title: Add tests for RTK Query and XState
+    details: Write unit tests for uploadApi endpoints and uploadMachine transitions.
+    commands:
+      - pnpm turbo run test --filter=photoeditor-mobile
+    expected_files_touched:
+      - mobile/src/store/__tests__/uploadApi.test.ts
+      - mobile/src/features/upload/machines/__tests__/uploadMachine.test.ts
+
+acceptance_criteria:
+  - uploadApi RTK Query slice handles presign, upload, and job polling with typed responses
+  - XState uploadMachine models upload lifecycle with at least 5 states and testable transitions
+  - Statechart exported to docs/ui/state-metrics/upload-statechart.scxml with checksum
+  - Screens import from features/upload/public only; no direct apiService imports in screens
+  - No cross-feature imports exist
+  - No lint/type/test regressions
+  modularity:
+    - "Feature entry points export named APIs only (standards/frontend-tier.md)"
+    - "Layers follow screens → feature → shared UI → hooks (standards/frontend-tier.md)"
+  testability:
+    - "XState machine has test for each transition (standards/frontend-tier.md)"
+    - "Reducer cyclomatic complexity ≤10 (standards/frontend-tier.md)"
+
+validation:
+  static_checks:
+    - pnpm turbo run qa:static --filter=photoeditor-mobile
+    - test -f docs/ui/state-metrics/upload-statechart.scxml
+
+  unit_tests:
+    mobile:
+      - pnpm turbo run test --filter=photoeditor-mobile
+
+  contract_tests: []
+
+  manual_checks:
+    - Verify upload flow works end-to-end on mobile simulator
+    - Verify state transitions visible in React DevTools Redux tab
+
+  artifacts:
+    - screenshots: []
+
+deliverables:
+  - mobile/src/store/uploadApi.ts
+  - mobile/src/features/upload/machines/uploadMachine.ts
+  - mobile/src/features/upload/hooks/useUploadMachine.ts
+  - mobile/src/features/upload/public/index.ts
+  - mobile/src/screens/HomeScreen.tsx
+  - mobile/src/screens/CameraScreen.tsx
+  - mobile/src/screens/GalleryScreen.tsx
+  - docs/ui/state-metrics/upload-statechart.scxml
+  - docs/ui/state-metrics/upload-statechart.md
+  - mobile/src/store/__tests__/uploadApi.test.ts
+  - mobile/src/features/upload/machines/__tests__/uploadMachine.test.ts
+
+risks:
+  - description: RTK Query adoption may introduce regressions in existing upload UX
+    mitigation: Maintain parity with existing apiService flow; add regression unit tests
+  - description: XState machine complexity may exceed reducer complexity budget (≤10)
+    mitigation: Keep machine simple with clear state definitions; validate with ESLint

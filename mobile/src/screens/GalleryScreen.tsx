@@ -2,6 +2,10 @@ import React from 'react';
 import { Text, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { colors, spacing, typography } from '@/lib/ui-tokens';
+// Future: Use RTK Query + XState for batch upload orchestration (TASK-0819)
+// import { useUploadMachine, useRequestBatchPresignUrlsMutation } from '@/features/upload/public';
+
 export const GalleryScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
@@ -16,16 +20,16 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.background,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#1d1d1f',
-    marginBottom: 8,
+    fontSize: typography.sizes.xxl,
+    fontWeight: typography.weights.semibold,
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
   },
   subtitle: {
-    fontSize: 17,
-    color: '#86868b',
+    fontSize: typography.sizes.md,
+    color: colors.textSecondary,
   },
 });

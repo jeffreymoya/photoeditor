@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<scxml xmlns="http://www.w3.org/2005/07/scxml" version="1.0" initial="idle" datamodel="ecmascript">
+  <!--
+    Upload State Machine SCXML
+    Generated from mobile/src/features/upload/machines/uploadMachine.ts
+    Per standards/frontend-tier.md: Statechart contracts exported for auditability
+
+    States: 8 total (idle, preprocessing, requesting_presign, uploading, paused, processing, completed, failed)
+    Transitions: 19 total
+  -->
+
+  <datamodel>
+    <data id="imageUri" expr="undefined"/>
+    <data id="fileName" expr="undefined"/>
+    <data id="fileSize" expr="undefined"/>
+    <data id="mimeType" expr="undefined"/>
+    <data id="jobId" expr="undefined"/>
+    <data id="s3Key" expr="undefined"/>
+    <data id="presignedUrl" expr="undefined"/>
+    <data id="progress" expr="0"/>
+    <data id="error" expr="undefined"/>
+    <data id="retryCount" expr="0"/>
+    <data id="maxRetries" expr="3"/>
+  </datamodel>
+
+  <state id="idle">
+    <transition event="START_UPLOAD" target="preprocessing">
+      <assign location="imageUri" expr="_event.data.imageUri"/>
+      <assign location="fileName" expr="_event.data.fileName"/>
+      <assign location="fileSize" expr="_event.data.fileSize"/>
+      <assign location="mimeType" expr="_event.data.mimeType"/>
+      <assign location="progress" expr="0"/>
+      <assign location="retryCount" expr="0"/>
+      <assign location="error" expr="undefined"/>
+    </transition>
+  </state>
+
+  <state id="preprocessing">
+    <transition event="PRESIGN_SUCCESS" target="requesting_presign"/>
+    <transition event="CANCEL" target="idle">
+      <assign location="imageUri" expr="undefined"/>
+      <assign location="fileName" expr="undefined"/>
+      <assign location="fileSize" expr="undefined"/>
+      <assign location="mimeType" expr="undefined"/>
+      <assign location="jobId" expr="undefined"/>
+      <assign location="s3Key" expr="undefined"/>
+      <assign location="presignedUrl" expr="undefined"/>
+      <assign location="progress" expr="0"/>
+      <assign location="error" expr="undefined"/>
+      <assign location="retryCount" expr="0"/>
+    </transition>
+  </state>
+
+  <state id="requesting_presign">
+    <transition event="PRESIGN_SUCCESS" target="uploading">
+      <assign location="jobId" expr="_event.data.jobId"/>
+      <assign location="presignedUrl" expr="_event.data.presignedUrl"/>
+      <assign location="s3Key" expr="_event.data.s3Key"/>
+    </transition>
+    <transition event="PRESIGN_FAILURE" target="failed">
+      <assign location="error" expr="_event.data.error"/>
+    </transition>
+    <transition event="CANCEL" target="idle">
+      <assign location="imageUri" expr="undefined"/>
+      <assign location="fileName" expr="undefined"/>
+      <assign location="fileSize" expr="undefined"/>
+      <assign location="mimeType" expr="undefined"/>
+      <assign location="jobId" expr="undefined"/>
+      <assign location="s3Key" expr="undefined"/>
+      <assign location="presignedUrl" expr="undefined"/>
+      <assign location="progress" expr="0"/>
+      <assign location="error" expr="undefined"/>
+      <assign location="retryCount" expr="0"/>
+    </transition>
+  </state>
+
+  <state id="uploading">
+    <transition event="UPLOAD_PROGRESS">
+      <assign location="progress" expr="_event.data.progress"/>
+    </transition>
+    <transition event="UPLOAD_SUCCESS" target="processing">
+      <assign location="progress" expr="100"/>
+    </transition>
+    <transition event="UPLOAD_FAILURE" target="failed" cond="retryCount >= maxRetries">
+      <assign location="error" expr="_event.data.error"/>
+    </transition>
+    <transition event="UPLOAD_FAILURE" target="uploading" cond="retryCount &lt; maxRetries">
+      <assign location="retryCount" expr="retryCount + 1"/>
+    </transition>
+    <transition event="PAUSE" target="paused"/>
+    <transition event="CANCEL" target="idle">
+      <assign location="imageUri" expr="undefined"/>
+      <assign location="fileName" expr="undefined"/>
+      <assign location="fileSize" expr="undefined"/>
+      <assign location="mimeType" expr="undefined"/>
+      <assign location="jobId" expr="undefined"/>
+      <assign location="s3Key" expr="undefined"/>
+      <assign location="presignedUrl" expr="undefined"/>
+      <assign location="progress" expr="0"/>
+      <assign location="error" expr="undefined"/>
+      <assign location="retryCount" expr="0"/>
+    </transition>
+  </state>
+
+  <state id="paused">
+    <transition event="RESUME" target="uploading"/>
+    <transition event="CANCEL" target="idle">
+      <assign location="imageUri" expr="undefined"/>
+      <assign location="fileName" expr="undefined"/>
+      <assign location="fileSize" expr="undefined"/>
+      <assign location="mimeType" expr="undefined"/>
+      <assign location="jobId" expr="undefined"/>
+      <assign location="s3Key" expr="undefined"/>
+      <assign location="presignedUrl" expr="undefined"/>
+      <assign location="progress" expr="0"/>
+      <assign location="error" expr="undefined"/>
+      <assign location="retryCount" expr="0"/>
+    </transition>
+  </state>
+
+  <state id="processing">
+    <transition event="JOB_PROCESSING">
+      <assign location="progress" expr="Math.min(progress + 5, 95)"/>
+    </transition>
+    <transition event="JOB_COMPLETED" target="completed"/>
+    <transition event="JOB_FAILED" target="failed">
+      <assign location="error" expr="_event.data.error"/>
+    </transition>
+    <transition event="CANCEL" target="idle">
+      <assign location="imageUri" expr="undefined"/>
+      <assign location="fileName" expr="undefined"/>
+      <assign location="fileSize" expr="undefined"/>
+      <assign location="mimeType" expr="undefined"/>
+      <assign location="jobId" expr="undefined"/>
+      <assign location="s3Key" expr="undefined"/>
+      <assign location="presignedUrl" expr="undefined"/>
+      <assign location="progress" expr="0"/>
+      <assign location="error" expr="undefined"/>
+      <assign location="retryCount" expr="0"/>
+    </transition>
+  </state>
+
+  <final id="completed">
+    <transition event="RESET" target="idle">
+      <assign location="imageUri" expr="undefined"/>
+      <assign location="fileName" expr="undefined"/>
+      <assign location="fileSize" expr="undefined"/>
+      <assign location="mimeType" expr="undefined"/>
+      <assign location="jobId" expr="undefined"/>
+      <assign location="s3Key" expr="undefined"/>
+      <assign location="presignedUrl" expr="undefined"/>
+      <assign location="progress" expr="0"/>
+      <assign location="error" expr="undefined"/>
+      <assign location="retryCount" expr="0"/>
+    </transition>
+  </final>
+
+  <state id="failed">
+    <transition event="RETRY" target="preprocessing" cond="retryCount &lt; maxRetries">
+      <assign location="retryCount" expr="retryCount + 1"/>
+    </transition>
+    <transition event="RETRY" target="failed" cond="retryCount >= maxRetries"/>
+    <transition event="RESET" target="idle">
+      <assign location="imageUri" expr="undefined"/>
+      <assign location="fileName" expr="undefined"/>
+      <assign location="fileSize" expr="undefined"/>
+      <assign location="mimeType" expr="undefined"/>
+      <assign location="jobId" expr="undefined"/>
+      <assign location="s3Key" expr="undefined"/>
+      <assign location="presignedUrl" expr="undefined"/>
+      <assign location="progress" expr="0"/>
+      <assign location="error" expr="undefined"/>
+      <assign location="retryCount" expr="0"/>
+    </transition>
+  </state>
+</scxml>

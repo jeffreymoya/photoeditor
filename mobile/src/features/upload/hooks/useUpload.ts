@@ -7,8 +7,9 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
-import { preprocessImage } from '@/lib/upload/preprocessing';
+
 import { getNetworkStatus, subscribeToNetworkStatus, NetworkStatus } from '@/lib/upload/network';
+import { preprocessImage } from '@/lib/upload/preprocessing';
 import { withRetry, createRetryState, updateRetryState, RetryState } from '@/lib/upload/retry';
 
 /**

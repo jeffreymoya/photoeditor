@@ -1,15 +1,15 @@
-import React from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
-import { Ionicons } from '@expo/vector-icons';
+import React from 'react';
 
-import { HomeScreen } from '@/screens/HomeScreen';
 import { CameraScreen } from '@/screens/CameraScreen';
-import { GalleryScreen } from '@/screens/GalleryScreen';
-import { JobsScreen } from '@/screens/JobsScreen';
-import { SettingsScreen } from '@/screens/SettingsScreen';
 import { EditScreen } from '@/screens/EditScreen';
+import { GalleryScreen } from '@/screens/GalleryScreen';
+import { HomeScreen } from '@/screens/HomeScreen';
+import { JobsScreen } from '@/screens/JobsScreen';
 import { PreviewScreen } from '@/screens/PreviewScreen';
+import { SettingsScreen } from '@/screens/SettingsScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();

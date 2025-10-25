@@ -1,0 +1,192 @@
+# Lean template for LLM-executable tasks (token-optimized for solo developer)
+# Subtask of TASK-0817: Frontend tier hardening
+# Focus: Services layer - ports and adapters pattern
+
+schema_version: "1.0"
+id: TASK-0820
+title: "Refactor mobile services to use ports and adapters with retry policies"
+status: todo
+blocked_reason: null
+blocked_by: [TASK-0818]
+priority: P1
+area: frontend
+
+description: >-
+  Part 3 of TASK-0817 frontend-tier hardening. Mobile ApiService and NotificationService
+  currently expose concrete implementations directly. standards/frontend-tier.md requires
+  100% of external calls behind interfaces in /services/*/port.ts with adapters using
+  cockatiel for retry/circuit breaker policies. This subtask introduces port interfaces
+  and adapter implementations, isolating platform APIs from feature and component layers.
+
+outcome: >-
+  ApiService and NotificationService refactored into port/adapter pairs. Port interfaces
+  define contracts in mobile/src/services/upload/port.ts and mobile/src/services/notification/port.ts.
+  Adapters use cockatiel retry policies. Feature layer depends only on port interfaces,
+  enabling testability via stub implementations.
+
+scope:
+  in:
+    - mobile/src/services/upload/port.ts (new interface)
+    - mobile/src/services/upload/adapter.ts (refactored ApiService)
+    - mobile/src/services/notification/port.ts (new interface)
+    - mobile/src/services/notification/adapter.ts (refactored NotificationService)
+    - mobile/src/services/__tests__/**/*.test.ts (updated tests)
+    - mobile/src/features/upload/hooks/useUpload.ts (update to use port)
+    - mobile/package.json (cockatiel dependency)
+  out:
+    - UI tokens/icons - covered by TASK-0818
+    - RTK Query/XState - covered by TASK-0819
+    - Storybook/Chromatic - covered by TASK-0821
+    - Backend API contract changes
+
+context:
+  affected_packages: [mobile]
+  standards_tier: frontend
+  issues: []
+  related_docs:
+    - standards/AGENTS.md
+    - standards/frontend-tier.md
+    - standards/typescript.md
+    - standards/testing-standards.md
+  repo_paths:
+    - mobile/src/services
+    - mobile/src/features/upload
+  dependencies:
+    - type: package
+      name: cockatiel
+      version: ">=3.1.0"
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "18.x"
+  tools:
+    - name: npm
+      version: "9.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep diffs minimal and focused
+    - Respect repository conventions
+  prohibited:
+    - No secrets or tokens in code
+    - No unrelated file changes
+  architecture:
+    - "Ports & Adapters (Hexagonal) for API/Notifications/Platform (standards/frontend-tier.md)"
+    - "100% of external calls behind interface in /services/*/port.ts (standards/frontend-tier.md)"
+    - "Retry + Circuit Breaker: cockatiel policy combinators (standards/frontend-tier.md)"
+
+plan:
+  - id: 1
+    title: Install cockatiel dependency
+    details: Add cockatiel for retry and circuit breaker policies.
+    commands:
+      - pnpm add cockatiel --filter=photoeditor-mobile
+    expected_files_touched:
+      - mobile/package.json
+  - id: 2
+    title: Define upload service port interface
+    details: Create IUploadService port with requestPresignedUrl, uploadImage, getJobStatus, processImage methods.
+    commands:
+      - pnpm turbo run typecheck --filter=photoeditor-mobile
+    expected_files_touched:
+      - mobile/src/services/upload/port.ts
+  - id: 3
+    title: Refactor ApiService into upload adapter
+    details: Move ApiService implementation to mobile/src/services/upload/adapter.ts implementing IUploadService.
+    commands:
+      - pnpm turbo run typecheck --filter=photoeditor-mobile
+    expected_files_touched:
+      - mobile/src/services/upload/adapter.ts
+      - mobile/src/services/ApiService.ts (deprecated or removed)
+  - id: 4
+    title: Add cockatiel retry policies to upload adapter
+    details: Wrap fetch calls with cockatiel retry and circuit breaker policies.
+    commands:
+      - pnpm turbo run typecheck --filter=photoeditor-mobile
+    expected_files_touched:
+      - mobile/src/services/upload/adapter.ts
+  - id: 5
+    title: Define notification service port interface
+    details: Create INotificationService port with registerToken, scheduleNotification methods.
+    commands:
+      - pnpm turbo run typecheck --filter=photoeditor-mobile
+    expected_files_touched:
+      - mobile/src/services/notification/port.ts
+  - id: 6
+    title: Refactor NotificationService into adapter
+    details: Move NotificationService to mobile/src/services/notification/adapter.ts implementing INotificationService.
+    commands:
+      - pnpm turbo run typecheck --filter=photoeditor-mobile
+    expected_files_touched:
+      - mobile/src/services/notification/adapter.ts
+      - mobile/src/services/NotificationService.ts (deprecated or removed)
+  - id: 7
+    title: Update feature hooks to depend on ports
+    details: Update useUpload and other hooks to inject IUploadService via dependency injection or context.
+    commands:
+      - pnpm turbo run lint --filter=photoeditor-mobile
+      - pnpm turbo run typecheck --filter=photoeditor-mobile
+    expected_files_touched:
+      - mobile/src/features/upload/hooks/useUpload.ts
+      - mobile/src/features/upload/context/ServiceContext.tsx
+  - id: 8
+    title: Update tests to use stub implementations
+    details: Create stub port implementations for testing; update existing tests.
+    commands:
+      - pnpm turbo run test --filter=photoeditor-mobile
+    expected_files_touched:
+      - mobile/src/services/upload/__tests__/adapter.test.ts
+      - mobile/src/services/__tests__/stubs.ts
+
+acceptance_criteria:
+  - IUploadService port defines contract for all upload operations
+  - INotificationService port defines contract for all notification operations
+  - Adapters implement ports with cockatiel retry/circuit breaker policies
+  - Feature layer depends only on port interfaces, not concrete adapters
+  - Tests use stub port implementations; no direct network calls in unit tests
+  - No lint/type/test regressions
+  modularity:
+    - "Adapters encapsulate platform APIs (standards/frontend-tier.md)"
+    - "No direct Expo/Fetch usage in feature or component layers (standards/frontend-tier.md)"
+  testability:
+    - "Services/Adapters: Line coverage ≥80%, Branch ≥70% (standards/testing-standards.md)"
+
+validation:
+  static_checks:
+    - pnpm turbo run qa:static --filter=photoeditor-mobile
+    - test -f mobile/src/services/upload/port.ts
+    - test -f mobile/src/services/notification/port.ts
+
+  unit_tests:
+    mobile:
+      - pnpm turbo run test --filter=photoeditor-mobile -- --coverage --coverageThreshold='{"global":{"lines":80,"branches":70}}'
+
+  contract_tests: []
+
+  manual_checks:
+    - Verify upload flow works with retry policies on poor network
+    - Verify circuit breaker opens after repeated failures
+
+  artifacts:
+    - screenshots: []
+
+deliverables:
+  - mobile/src/services/upload/port.ts
+  - mobile/src/services/upload/adapter.ts
+  - mobile/src/services/notification/port.ts
+  - mobile/src/services/notification/adapter.ts
+  - mobile/src/features/upload/hooks/useUpload.ts
+  - mobile/src/features/upload/context/ServiceContext.tsx
+  - mobile/src/services/__tests__/stubs.ts
+  - mobile/src/services/upload/__tests__/adapter.test.ts
+
+risks:
+  - description: Dependency injection pattern may increase complexity in React components
+    mitigation: Use React Context for service injection; keep provider setup simple
+  - description: cockatiel policies may introduce unexpected behavior if misconfigured
+    mitigation: Test retry/circuit breaker behavior with stub implementations; document policy parameters

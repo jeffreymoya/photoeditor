@@ -4,27 +4,19 @@ This guide shows how to create a new machine‑readable task file using the cano
 
 ## Template Selection
 
-Choose a template based on task complexity to optimize token usage:
+All work now uses a single canonical template: `docs/templates/TASK-0000-template.task.yaml`.
 
-| Template | Use For | Token Budget | File |
-|----------|---------|--------------|------|
-| **Minimal** | Bug fixes, doc updates, single-file changes | ~200 tokens | `TASK-0000-template-minimal.yaml` |
-| **Lean** | Most features, typical backend/mobile work | ~1,000 tokens | `TASK-0000-template-lean.yaml` |
-| **Comprehensive** | Major refactors, API changes, infra overhauls | ~3,600 tokens | `TASK-0000-template.task.yaml` |
-
-**Recommendation:** Start with **lean** template for 80% of tasks. Use minimal for trivial changes, comprehensive only for high-stakes architectural work.
+- Copy that file verbatim, then replace every `REPLACE` placeholder.
+- Delete comment lines once satisfied, but keep the YAML keys so automation can parse the task.
+- If the scope feels broader than one independently shippable change, stop and split the requirements into multiple task files—the template is intentionally concise, so multiple tasks are preferred over an oversized document.
 
 ## Quick Start
 - Choose an `area`: `frontend | backend | shared | infra | docs | ops | other`.
-- Choose a template (see table above).
 - Allocate a stable `id` (e.g., `TASK-0123`) and a short slug (e.g., `image-crop-bounds`).
-- Copy the template and start editing:
-  - Minimal: `cp docs/templates/TASK-0000-template-minimal.yaml tasks/<area>/TASK-<id>-<slug>.task.yaml`
-  - Lean: `cp docs/templates/TASK-0000-template-lean.yaml tasks/<area>/TASK-<id>-<slug>.task.yaml`
-  - Comprehensive: `cp docs/templates/TASK-0000-template.task.yaml tasks/<area>/TASK-<id>-<slug>.task.yaml`
-- Fill in all placeholders. Do not remove required sections. Keep IDs and titles stable.
-- Link relevant standards via `context.standards_tier` (lean/minimal) or `context.related_docs` (comprehensive).
-- Commit alongside the code branch that will implement the task.
+- Copy the single template: `cp docs/templates/TASK-0000-template.task.yaml tasks/<area>/TASK-<id>-<slug>.task.yaml`
+- Replace every placeholder. Keep IDs and titles stable.
+- Link the relevant standards via `context.standards_tier` and `context.related_docs`.
+- Commit the task alongside the code branch that will implement it.
 
 ## Fields You Must Fill
 Use the comments in the template as your checklist. At minimum, complete:
@@ -49,7 +41,7 @@ If sequencing matters, also set `blocked_by` and `order`.
 - Treat unblocker tasks as top-of-queue items; close them promptly, then flip the original task back to `in_progress` or `todo` and continue.
 
 ## Deciding Breakdown by Complexity
-Choose a complexity size, then split work accordingly. Use these heuristics to keep tasks small, testable, and independently shippable.
+Choose a complexity size, then split work accordingly. Use these heuristics to keep tasks small, testable, and independently shippable. When in doubt, create multiple task files—forcing everything into a single task is an anti-pattern and makes the template’s guidance ambiguous for downstream agents.
 
 ### Complexity Levels
 - `XS` — Trivial change, ≤2 files, low risk, same layer.
@@ -85,10 +77,10 @@ Choose a complexity size, then split work accordingly. Use these heuristics to k
 - TASK-0210 (infra): Terraform lifecycle rules + tags; acceptance: `terraform validate`, `tfsec` soft‑fail reports, plan evidence artifact.
 
 ## Validation & Evidence
-- Prefer the template's `validation.commands`. Typical quick checks before PR:
+- Prefer the template's grouped `validation` commands. Typical quick checks before PR:
   - `pnpm turbo run qa:static --parallel`
   - Area‑specific tests (see package scripts), e.g., `pnpm turbo run test:ci --filter=@photoeditor/backend`
-- Attach artifacts listed under `deliverables.evidence` when applicable.
+- Attach artifacts listed under the task’s `artifacts` list when applicable.
 
 ## Agent Orchestration Model
 

@@ -1,6 +1,8 @@
+import { AlertTriangle } from 'lucide-react-native';
 import React, { Component, ReactNode, ErrorInfo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+
+import { colors, spacing, typography, borderRadius } from '@/lib/ui-tokens';
 
 interface Props {
   children: ReactNode;
@@ -36,7 +38,7 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         <View style={styles.container}>
-          <Ionicons name="warning" size={64} color="#FF3B30" />
+          <AlertTriangle size={64} color={colors.error} />
           <Text style={styles.title}>Something went wrong</Text>
           <Text style={styles.message}>
             The app encountered an unexpected error. Please try restarting.
@@ -65,44 +67,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 40,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.background,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#1d1d1f',
-    marginTop: 24,
-    marginBottom: 12,
+    fontSize: typography.sizes.xxl,
+    fontWeight: typography.weights.semibold,
+    color: colors.textPrimary,
+    marginTop: spacing.lg,
+    marginBottom: spacing.md,
     textAlign: 'center',
   },
   message: {
-    fontSize: 17,
-    color: '#86868b',
+    fontSize: typography.sizes.md,
+    color: colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 32,
+    lineHeight: spacing.lg,
+    marginBottom: spacing.xl,
   },
   errorDetails: {
-    backgroundColor: '#f5f5f5',
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 24,
+    backgroundColor: colors.border,
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    marginBottom: spacing.lg,
     width: '100%',
   },
   errorText: {
-    fontSize: 12,
+    fontSize: typography.sizes.xs,
     fontFamily: 'monospace',
-    color: '#FF3B30',
+    color: colors.error,
   },
   button: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 32,
-    paddingVertical: 16,
-    borderRadius: 12,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.lg,
   },
   buttonText: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: 'white',
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.semibold,
+    color: colors.textInverse,
   },
 });

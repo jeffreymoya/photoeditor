@@ -1,3 +1,7 @@
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { CompositeNavigationProp } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { Camera, Images, List } from 'lucide-react-native';
 import React from 'react';
 import {
   View,
@@ -7,12 +11,11 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { CompositeNavigationProp } from '@react-navigation/native';
-import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { StackNavigationProp } from '@react-navigation/stack';
 
+import { useHealthCheckQuery } from '@/features/upload/public';
+import { colors, spacing, typography, shadows, borderRadius } from '@/lib/ui-tokens';
 import { useAppSelector } from '@/store';
+// RTK Query health check per standards/frontend-tier.md: RTK Query mandated for network calls
 
 type RootStackParamList = {
   Tabs: undefined;
@@ -41,24 +44,31 @@ export const HomeScreen = ({ navigation }: HomeScreenProps) => {
   const { jobs } = useAppSelector((state) => state.job);
   const recentJobs = jobs.slice(0, 5);
 
+  // Example: Health check using RTK Query (TASK-0819)
+  // Per standards/frontend-tier.md: RTK Query mandated for network calls
+  const { data: _healthData } = useHealthCheckQuery(undefined, {
+    pollingInterval: 60000, // Poll every 60s
+    skip: false,
+  });
+
   const quickActions = [
     {
       title: 'Take Photo',
-      icon: 'camera' as const,
+      icon: Camera,
       action: () => navigation.navigate('Camera'),
-      color: '#007AFF',
+      color: colors.primary,
     },
     {
       title: 'Select from Gallery',
-      icon: 'images' as const,
+      icon: Images,
       action: () => navigation.navigate('Gallery'),
-      color: '#34C759',
+      color: colors.success,
     },
     {
       title: 'View Jobs',
-      icon: 'list' as const,
+      icon: List,
       action: () => navigation.navigate('Jobs'),
-      color: '#FF9500',
+      color: colors.warning,
     },
   ];
 
@@ -75,21 +85,23 @@ export const HomeScreen = ({ navigation }: HomeScreenProps) => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.quickActionsGrid}>
-            {quickActions.map((action, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[styles.quickAction, { borderColor: action.color }]}
-                onPress={action.action}
-              >
-                <Ionicons
-                  name={action.icon}
-                  size={32}
-                  color={action.color}
-                  style={styles.quickActionIcon}
-                />
-                <Text style={styles.quickActionText}>{action.title}</Text>
-              </TouchableOpacity>
-            ))}
+            {quickActions.map((action, index) => {
+              const Icon = action.icon;
+              return (
+                <TouchableOpacity
+                  key={index}
+                  style={[styles.quickAction, { borderColor: action.color }]}
+                  onPress={action.action}
+                >
+                  <Icon
+                    size={32}
+                    color={action.color}
+                    style={styles.quickActionIcon}
+                  />
+                  <Text style={styles.quickActionText}>{action.title}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
 
@@ -131,130 +143,116 @@ export const HomeScreen = ({ navigation }: HomeScreenProps) => {
 const getStatusColor = (status: string) => {
   switch (status) {
     case 'completed':
-      return '#34C759';
+      return colors.success;
     case 'processing':
-      return '#FF9500';
+      return colors.warning;
     case 'failed':
-      return '#FF3B30';
+      return colors.error;
     default:
-      return '#8E8E93';
+      return colors.textSecondary;
   }
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.background,
   },
   scrollView: {
     flex: 1,
   },
   header: {
-    padding: 24,
-    paddingTop: 16,
+    padding: spacing.lg,
+    paddingTop: spacing.md,
   },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#1d1d1f',
-    marginBottom: 8,
+    fontSize: typography.sizes.xxxl,
+    fontWeight: typography.weights.bold,
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
   },
   subtitle: {
-    fontSize: 17,
-    color: '#86868b',
-    lineHeight: 22,
+    fontSize: typography.sizes.md,
+    color: colors.textSecondary,
+    lineHeight: typography.sizes.xl,
   },
   section: {
-    marginBottom: 32,
-    paddingHorizontal: 24,
+    marginBottom: spacing.xl,
+    paddingHorizontal: spacing.lg,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   sectionTitle: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: '#1d1d1f',
+    fontSize: typography.sizes.xl,
+    fontWeight: typography.weights.semibold,
+    color: colors.textPrimary,
   },
   viewAllText: {
-    fontSize: 17,
-    color: '#007AFF',
-    fontWeight: '500',
+    fontSize: typography.sizes.md,
+    color: colors.primary,
+    fontWeight: typography.weights.medium,
   },
   quickActionsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 16,
+    gap: spacing.md,
   },
   quickAction: {
     flex: 1,
     minWidth: 100,
-    backgroundColor: 'white',
-    borderRadius: 12,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
     borderWidth: 2,
-    padding: 20,
+    padding: spacing.lg,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    ...shadows.md,
   },
   quickActionIcon: {
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   quickActionText: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#1d1d1f',
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.medium,
+    color: colors.textPrimary,
     textAlign: 'center',
   },
   jobItem: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    ...shadows.sm,
   },
   jobInfo: {
     flex: 1,
   },
   jobPrompt: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#1d1d1f',
-    marginBottom: 4,
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.medium,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
   },
   jobTime: {
-    fontSize: 14,
-    color: '#86868b',
+    fontSize: typography.sizes.sm,
+    color: colors.textSecondary,
   },
   jobStatus: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginLeft: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: borderRadius.md,
+    marginLeft: spacing.md,
   },
   jobStatusText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: 'white',
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.semibold,
+    color: colors.textInverse,
     textTransform: 'uppercase',
   },
 });

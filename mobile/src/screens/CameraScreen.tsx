@@ -1,3 +1,9 @@
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { CompositeNavigationProp } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { Camera as ExpoCamera, CameraType } from 'expo-camera';
+import * as ImagePicker from 'expo-image-picker';
+import { X, SwitchCamera, Images, Camera } from 'lucide-react-native';
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
@@ -6,16 +12,13 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
-import { Camera, CameraType } from 'expo-camera';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import * as ImagePicker from 'expo-image-picker';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { CompositeNavigationProp } from '@react-navigation/native';
-import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 
+import { colors, spacing, typography, borderRadius } from '@/lib/ui-tokens';
 import { useAppDispatch } from '@/store';
 import { addSelectedImage } from '@/store/slices/imageSlice';
+// Future: Use RTK Query + XState for upload orchestration (TASK-0819)
+// import { useUploadMachine, useRequestPresignUrlMutation, uploadToS3 } from '@/features/upload/public';
 
 type RootStackParamList = {
   Tabs: undefined;
@@ -44,12 +47,12 @@ export const CameraScreen = ({ navigation }: CameraScreenProps) => {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [type, setType] = useState(CameraType.back);
   const [isReady, setIsReady] = useState(false);
-  const cameraRef = useRef<Camera>(null);
+  const cameraRef = useRef<ExpoCamera>(null);
   const dispatch = useAppDispatch();
 
   useEffect(() => {
     (async () => {
-      const { status } = await Camera.requestCameraPermissionsAsync();
+      const { status } = await ExpoCamera.requestCameraPermissionsAsync();
       setHasPermission(status === 'granted');
     })();
   }, []);
@@ -120,7 +123,7 @@ export const CameraScreen = ({ navigation }: CameraScreenProps) => {
   if (hasPermission === false) {
     return (
       <SafeAreaView style={styles.permissionContainer}>
-        <Ionicons name="camera-outline" size={64} color="#86868b" />
+        <Camera size={64} color={colors.textSecondary} />
         <Text style={styles.permissionTitle}>Camera access needed</Text>
         <Text style={styles.permissionText}>
           Please enable camera permission in settings to take photos
@@ -137,7 +140,7 @@ export const CameraScreen = ({ navigation }: CameraScreenProps) => {
 
   return (
     <View style={styles.container}>
-      <Camera
+      <ExpoCamera
         ref={cameraRef}
         style={styles.camera}
         type={type}
@@ -150,14 +153,14 @@ export const CameraScreen = ({ navigation }: CameraScreenProps) => {
             style={styles.headerButton}
             onPress={() => navigation.goBack()}
           >
-            <Ionicons name="close" size={28} color="white" />
+            <X size={28} color={colors.textInverse} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Take Photo</Text>
           <TouchableOpacity
             style={styles.headerButton}
             onPress={toggleCameraType}
           >
-            <Ionicons name="camera-reverse" size={28} color="white" />
+            <SwitchCamera size={28} color={colors.textInverse} />
           </TouchableOpacity>
         </View>
 
@@ -166,7 +169,7 @@ export const CameraScreen = ({ navigation }: CameraScreenProps) => {
             style={styles.galleryButton}
             onPress={pickFromGallery}
           >
-            <Ionicons name="images" size={24} color="white" />
+            <Images size={24} color={colors.textInverse} />
             <Text style={styles.controlText}>Gallery</Text>
           </TouchableOpacity>
 
@@ -204,21 +207,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
   },
   headerButton: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.overlay,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: 'white',
+    fontSize: typography.sizes.lg,
+    fontWeight: typography.weights.semibold,
+    color: colors.textInverse,
   },
   controls: {
     flexDirection: 'row',
@@ -234,15 +237,15 @@ const styles = StyleSheet.create({
     height: 60,
   },
   controlText: {
-    color: 'white',
-    fontSize: 12,
-    marginTop: 4,
+    color: colors.textInverse,
+    fontSize: typography.sizes.xs,
+    marginTop: spacing.xs,
   },
   captureButton: {
     width: 80,
     height: 80,
-    borderRadius: 40,
-    backgroundColor: 'white',
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -252,10 +255,10 @@ const styles = StyleSheet.create({
   captureButtonInner: {
     width: 60,
     height: 60,
-    borderRadius: 30,
-    backgroundColor: 'white',
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.surface,
     borderWidth: 2,
-    borderColor: '#ddd',
+    borderColor: colors.border,
   },
   placeholder: {
     width: 60,
@@ -265,26 +268,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 40,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.background,
   },
   permissionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: '#1d1d1f',
-    marginTop: 24,
-    marginBottom: 12,
+    fontSize: typography.sizes.xxl,
+    fontWeight: typography.weights.semibold,
+    color: colors.textPrimary,
+    marginTop: spacing.lg,
+    marginBottom: spacing.md,
     textAlign: 'center',
   },
   permissionText: {
-    fontSize: 17,
-    color: '#86868b',
+    fontSize: typography.sizes.md,
+    color: colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 32,
+    lineHeight: spacing.lg,
+    marginBottom: spacing.xl,
   },
   galleryButtonText: {
-    fontSize: 17,
-    fontWeight: '500',
-    color: 'white',
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.medium,
+    color: colors.textInverse,
   },
 });

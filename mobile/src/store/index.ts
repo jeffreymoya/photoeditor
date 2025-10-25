@@ -4,12 +4,15 @@ import { useDispatch, useSelector, TypedUseSelectorHook } from 'react-redux';
 import { imageSlice } from './slices/imageSlice';
 import { jobSlice } from './slices/jobSlice';
 import { settingsSlice } from './slices/settingsSlice';
+import { uploadApi } from './uploadApi';
 
 export const store = configureStore({
   reducer: {
     image: imageSlice.reducer,
     job: jobSlice.reducer,
     settings: settingsSlice.reducer,
+    // RTK Query API slice per standards/frontend-tier.md
+    [uploadApi.reducerPath]: uploadApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -17,7 +20,9 @@ export const store = configureStore({
         ignoredActions: ['image/setSelectedImage'],
         ignoredPaths: ['image.selectedImage'],
       },
-    }),
+    })
+      // Add RTK Query middleware for caching, invalidation, polling
+      .concat(uploadApi.middleware),
   devTools: __DEV__,
 });
 

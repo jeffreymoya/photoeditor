@@ -1,25 +1,69 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="jest tests" tests="42" failures="0" errors="0" time="7.487">
-  <testsuite name="ApiService - Shared Schema Integration" errors="0" failures="0" skipped="0" timestamp="2025-10-22T12:24:04" time="0.335" tests="18">
-    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Request Presigned URL should validate request body using PresignUploadRequestSchema" name="ApiService - Shared Schema Integration Schema Validation - Request Presigned URL should validate request body using PresignUploadRequestSchema" time="0.031">
+<testsuites name="jest tests" tests="73" failures="0" errors="0" time="8.685">
+  <testsuite name="uploadMachine" errors="0" failures="0" skipped="0" timestamp="2025-10-25T03:39:47" time="0.523" tests="21">
+    <testcase classname="uploadMachine initial state should start in idle state" name="uploadMachine initial state should start in idle state" time="0.012">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Request Presigned URL should reject invalid request data that violates schema" name="ApiService - Shared Schema Integration Schema Validation - Request Presigned URL should reject invalid request data that violates schema" time="0.015">
+    <testcase classname="uploadMachine state transitions should transition from idle to preprocessing on START_UPLOAD" name="uploadMachine state transitions should transition from idle to preprocessing on START_UPLOAD" time="0.004">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Request Presigned URL should reject invalid response data that violates schema" name="ApiService - Shared Schema Integration Schema Validation - Request Presigned URL should reject invalid response data that violates schema" time="0.007">
+    <testcase classname="uploadMachine state transitions should transition from preprocessing to requesting_presign automatically via `always` transition" name="uploadMachine state transitions should transition from preprocessing to requesting_presign automatically via `always` transition" time="0.002">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Job Status should validate job status response using JobSchema" name="ApiService - Shared Schema Integration Schema Validation - Job Status should validate job status response using JobSchema" time="0.001">
+    <testcase classname="uploadMachine state transitions should transition from requesting_presign to uploading on PRESIGN_SUCCESS" name="uploadMachine state transitions should transition from requesting_presign to uploading on PRESIGN_SUCCESS" time="0.003">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Job Status should validate all possible job statuses" name="ApiService - Shared Schema Integration Schema Validation - Job Status should validate all possible job statuses" time="0.001">
+    <testcase classname="uploadMachine state transitions should transition from requesting_presign to failed on PRESIGN_FAILURE" name="uploadMachine state transitions should transition from requesting_presign to failed on PRESIGN_FAILURE" time="0.002">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Job Status should reject invalid job status" name="ApiService - Shared Schema Integration Schema Validation - Job Status should reject invalid job status" time="0.001">
+    <testcase classname="uploadMachine state transitions should update progress in uploading state on UPLOAD_PROGRESS" name="uploadMachine state transitions should update progress in uploading state on UPLOAD_PROGRESS" time="0.003">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Batch Upload should validate batch upload request using BatchUploadRequestSchema" name="ApiService - Shared Schema Integration Schema Validation - Batch Upload should validate batch upload request using BatchUploadRequestSchema" time="0.002">
+    <testcase classname="uploadMachine state transitions should transition from uploading to processing on UPLOAD_SUCCESS" name="uploadMachine state transitions should transition from uploading to processing on UPLOAD_SUCCESS" time="0.002">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Batch Upload should reject batch request with too many files" name="ApiService - Shared Schema Integration Schema Validation - Batch Upload should reject batch request with too many files" time="0">
+    <testcase classname="uploadMachine state transitions should retry upload on UPLOAD_FAILURE when retries available" name="uploadMachine state transitions should retry upload on UPLOAD_FAILURE when retries available" time="0.002">
+    </testcase>
+    <testcase classname="uploadMachine state transitions should transition to failed on UPLOAD_FAILURE when max retries exceeded" name="uploadMachine state transitions should transition to failed on UPLOAD_FAILURE when max retries exceeded" time="0.002">
+    </testcase>
+    <testcase classname="uploadMachine state transitions should transition from uploading to paused on PAUSE" name="uploadMachine state transitions should transition from uploading to paused on PAUSE" time="0.001">
+    </testcase>
+    <testcase classname="uploadMachine state transitions should transition from paused to uploading on RESUME" name="uploadMachine state transitions should transition from paused to uploading on RESUME" time="0.001">
+    </testcase>
+    <testcase classname="uploadMachine state transitions should transition from processing to completed on JOB_COMPLETED" name="uploadMachine state transitions should transition from processing to completed on JOB_COMPLETED" time="0.001">
+    </testcase>
+    <testcase classname="uploadMachine state transitions should transition from processing to failed on JOB_FAILED" name="uploadMachine state transitions should transition from processing to failed on JOB_FAILED" time="0.002">
+    </testcase>
+    <testcase classname="uploadMachine state transitions should transition to idle on CANCEL from any state" name="uploadMachine state transitions should transition to idle on CANCEL from any state" time="0.001">
+    </testcase>
+    <testcase classname="uploadMachine state transitions should transition from failed to preprocessing on RETRY when retries available" name="uploadMachine state transitions should transition from failed to preprocessing on RETRY when retries available" time="0.002">
+    </testcase>
+    <testcase classname="uploadMachine state transitions should reach completed state on JOB_COMPLETED" name="uploadMachine state transitions should reach completed state on JOB_COMPLETED" time="0.001">
+    </testcase>
+    <testcase classname="uploadMachine helper functions isUploadInProgress should return true for active states" name="uploadMachine helper functions isUploadInProgress should return true for active states" time="0.002">
+    </testcase>
+    <testcase classname="uploadMachine helper functions isUploadPauseable should return true only for uploading state" name="uploadMachine helper functions isUploadPauseable should return true only for uploading state" time="0.001">
+    </testcase>
+    <testcase classname="uploadMachine helper functions isUploadTerminal should return true for terminal states" name="uploadMachine helper functions isUploadTerminal should return true for terminal states" time="0.001">
+    </testcase>
+    <testcase classname="uploadMachine context actions should update progress incrementally in processing state" name="uploadMachine context actions should update progress incrementally in processing state" time="0.002">
+    </testcase>
+    <testcase classname="uploadMachine context actions should preserve context data when paused" name="uploadMachine context actions should preserve context data when paused" time="0.002">
+    </testcase>
+  </testsuite>
+  <testsuite name="ApiService - Shared Schema Integration" errors="0" failures="0" skipped="0" timestamp="2025-10-25T03:39:47" time="0.591" tests="18">
+    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Request Presigned URL should validate request body using PresignUploadRequestSchema" name="ApiService - Shared Schema Integration Schema Validation - Request Presigned URL should validate request body using PresignUploadRequestSchema" time="0.057">
+    </testcase>
+    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Request Presigned URL should reject invalid request data that violates schema" name="ApiService - Shared Schema Integration Schema Validation - Request Presigned URL should reject invalid request data that violates schema" time="0.02">
+    </testcase>
+    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Request Presigned URL should reject invalid response data that violates schema" name="ApiService - Shared Schema Integration Schema Validation - Request Presigned URL should reject invalid response data that violates schema" time="0.012">
+    </testcase>
+    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Job Status should validate job status response using JobSchema" name="ApiService - Shared Schema Integration Schema Validation - Job Status should validate job status response using JobSchema" time="0.003">
+    </testcase>
+    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Job Status should validate all possible job statuses" name="ApiService - Shared Schema Integration Schema Validation - Job Status should validate all possible job statuses" time="0.006">
+    </testcase>
+    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Job Status should reject invalid job status" name="ApiService - Shared Schema Integration Schema Validation - Job Status should reject invalid job status" time="0.002">
+    </testcase>
+    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Batch Upload should validate batch upload request using BatchUploadRequestSchema" name="ApiService - Shared Schema Integration Schema Validation - Batch Upload should validate batch upload request using BatchUploadRequestSchema" time="0.003">
+    </testcase>
+    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Batch Upload should reject batch request with too many files" name="ApiService - Shared Schema Integration Schema Validation - Batch Upload should reject batch request with too many files" time="0.001">
     </testcase>
     <testcase classname="ApiService - Shared Schema Integration Schema Validation - Batch Upload should reject batch request with empty files array" name="ApiService - Shared Schema Integration Schema Validation - Batch Upload should reject batch request with empty files array" time="0.001">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Batch Job Status should validate batch job status using BatchJobSchema" name="ApiService - Shared Schema Integration Schema Validation - Batch Job Status should validate batch job status using BatchJobSchema" time="0.003">
+    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Batch Job Status should validate batch job status using BatchJobSchema" name="ApiService - Shared Schema Integration Schema Validation - Batch Job Status should validate batch job status using BatchJobSchema" time="0.002">
     </testcase>
     <testcase classname="ApiService - Shared Schema Integration Schema Validation - Device Token Registration should validate device token request using DeviceTokenRegistrationSchema" name="ApiService - Shared Schema Integration Schema Validation - Device Token Registration should validate device token request using DeviceTokenRegistrationSchema" time="0.001">
     </testcase>
@@ -27,65 +71,87 @@
     </testcase>
     <testcase classname="ApiService - Shared Schema Integration Schema Validation - Device Token Registration should validate device token deactivation response" name="ApiService - Shared Schema Integration Schema Validation - Device Token Registration should validate device token deactivation response" time="0.001">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Contract Drift Prevention should use shared schemas directly without local copies" name="ApiService - Shared Schema Integration Contract Drift Prevention should use shared schemas directly without local copies" time="0">
+    <testcase classname="ApiService - Shared Schema Integration Contract Drift Prevention should use shared schemas directly without local copies" name="ApiService - Shared Schema Integration Contract Drift Prevention should use shared schemas directly without local copies" time="0.002">
     </testcase>
     <testcase classname="ApiService - Shared Schema Integration Contract Drift Prevention should not re-export shared schemas from mobile modules" name="ApiService - Shared Schema Integration Contract Drift Prevention should not re-export shared schemas from mobile modules" time="0">
     </testcase>
     <testcase classname="ApiService - Shared Schema Integration API Error Handling should throw error on non-ok HTTP response" name="ApiService - Shared Schema Integration API Error Handling should throw error on non-ok HTTP response" time="0.001">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration API Error Handling should throw error on network failure" name="ApiService - Shared Schema Integration API Error Handling should throw error on network failure" time="0">
+    <testcase classname="ApiService - Shared Schema Integration API Error Handling should throw error on network failure" name="ApiService - Shared Schema Integration API Error Handling should throw error on network failure" time="0.001">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration API Error Handling should throw error on schema validation failure" name="ApiService - Shared Schema Integration API Error Handling should throw error on schema validation failure" time="0.001">
+    <testcase classname="ApiService - Shared Schema Integration API Error Handling should throw error on schema validation failure" name="ApiService - Shared Schema Integration API Error Handling should throw error on schema validation failure" time="0.002">
     </testcase>
   </testsuite>
-  <testsuite name="preprocessing utilities" errors="0" failures="0" skipped="0" timestamp="2025-10-22T12:24:04" time="0.438" tests="9">
-    <testcase classname="preprocessing utilities needsResize returns false for images within max dimension" name="preprocessing utilities needsResize returns false for images within max dimension" time="0.004">
+  <testsuite name="uploadApi" errors="0" failures="0" skipped="0" timestamp="2025-10-25T03:39:47" time="0.529" tests="10">
+    <testcase classname="uploadApi uploadApi slice configuration should be configured with correct reducer path" name="uploadApi uploadApi slice configuration should be configured with correct reducer path" time="0.012">
+    </testcase>
+    <testcase classname="uploadApi uploadApi slice configuration should have all required endpoints" name="uploadApi uploadApi slice configuration should have all required endpoints" time="0.004">
+    </testcase>
+    <testcase classname="uploadApi uploadApi slice configuration should initialize reducer with empty state" name="uploadApi uploadApi slice configuration should initialize reducer with empty state" time="0.002">
+    </testcase>
+    <testcase classname="uploadApi uploadApi slice configuration should have middleware configured" name="uploadApi uploadApi slice configuration should have middleware configured" time="0.001">
+    </testcase>
+    <testcase classname="uploadApi uploadApi slice configuration should provide util methods for cache management" name="uploadApi uploadApi slice configuration should provide util methods for cache management" time="0.001">
+    </testcase>
+    <testcase classname="uploadApi endpoints requestPresignUrl should be a mutation" name="uploadApi endpoints requestPresignUrl should be a mutation" time="0.001">
+    </testcase>
+    <testcase classname="uploadApi endpoints requestBatchPresignUrls should be a mutation" name="uploadApi endpoints requestBatchPresignUrls should be a mutation" time="0.001">
+    </testcase>
+    <testcase classname="uploadApi endpoints getJobStatus should be a query" name="uploadApi endpoints getJobStatus should be a query" time="0.001">
+    </testcase>
+    <testcase classname="uploadApi endpoints getBatchJobStatus should be a query" name="uploadApi endpoints getBatchJobStatus should be a query" time="0.002">
+    </testcase>
+    <testcase classname="uploadApi endpoints healthCheck should be a query" name="uploadApi endpoints healthCheck should be a query" time="0.002">
+    </testcase>
+  </testsuite>
+  <testsuite name="preprocessing utilities" errors="0" failures="0" skipped="0" timestamp="2025-10-25T03:39:47" time="0.758" tests="9">
+    <testcase classname="preprocessing utilities needsResize returns false for images within max dimension" name="preprocessing utilities needsResize returns false for images within max dimension" time="0.006">
     </testcase>
     <testcase classname="preprocessing utilities needsResize returns true for images exceeding max dimension" name="preprocessing utilities needsResize returns true for images exceeding max dimension" time="0.001">
     </testcase>
-    <testcase classname="preprocessing utilities needsResize handles exact boundary case" name="preprocessing utilities needsResize handles exact boundary case" time="0">
+    <testcase classname="preprocessing utilities needsResize handles exact boundary case" name="preprocessing utilities needsResize handles exact boundary case" time="0.001">
     </testcase>
     <testcase classname="preprocessing utilities needsResize uses default max dimension of 4096" name="preprocessing utilities needsResize uses default max dimension of 4096" time="0.001">
     </testcase>
     <testcase classname="preprocessing utilities isHEIC detects HEIC from file extension" name="preprocessing utilities isHEIC detects HEIC from file extension" time="0">
     </testcase>
-    <testcase classname="preprocessing utilities isHEIC detects HEIF from file extension" name="preprocessing utilities isHEIC detects HEIF from file extension" time="0.001">
+    <testcase classname="preprocessing utilities isHEIC detects HEIF from file extension" name="preprocessing utilities isHEIC detects HEIF from file extension" time="0">
     </testcase>
-    <testcase classname="preprocessing utilities isHEIC detects HEIC from MIME type" name="preprocessing utilities isHEIC detects HEIC from MIME type" time="0">
+    <testcase classname="preprocessing utilities isHEIC detects HEIC from MIME type" name="preprocessing utilities isHEIC detects HEIC from MIME type" time="0.001">
     </testcase>
     <testcase classname="preprocessing utilities isHEIC returns false for non-HEIC images" name="preprocessing utilities isHEIC returns false for non-HEIC images" time="0">
     </testcase>
     <testcase classname="preprocessing utilities isHEIC handles missing MIME type" name="preprocessing utilities isHEIC handles missing MIME type" time="0">
     </testcase>
   </testsuite>
-  <testsuite name="retry utilities" errors="0" failures="0" skipped="0" timestamp="2025-10-22T12:24:04" time="7.033" tests="15">
-    <testcase classname="retry utilities calculateBackoffDelay calculates exponential backoff correctly" name="retry utilities calculateBackoffDelay calculates exponential backoff correctly" time="0.004">
+  <testsuite name="retry utilities" errors="0" failures="0" skipped="0" timestamp="2025-10-25T03:39:47" time="7.932" tests="15">
+    <testcase classname="retry utilities calculateBackoffDelay calculates exponential backoff correctly" name="retry utilities calculateBackoffDelay calculates exponential backoff correctly" time="0.007">
     </testcase>
     <testcase classname="retry utilities calculateBackoffDelay respects max delay cap" name="retry utilities calculateBackoffDelay respects max delay cap" time="0.001">
     </testcase>
-    <testcase classname="retry utilities calculateBackoffDelay applies jitter when enabled" name="retry utilities calculateBackoffDelay applies jitter when enabled" time="0.001">
+    <testcase classname="retry utilities calculateBackoffDelay applies jitter when enabled" name="retry utilities calculateBackoffDelay applies jitter when enabled" time="0.003">
     </testcase>
     <testcase classname="retry utilities calculateBackoffDelay uses default options when not specified" name="retry utilities calculateBackoffDelay uses default options when not specified" time="0.001">
     </testcase>
     <testcase classname="retry utilities withRetry succeeds on first attempt" name="retry utilities withRetry succeeds on first attempt" time="0.001">
     </testcase>
-    <testcase classname="retry utilities withRetry retries on failure and eventually succeeds" name="retry utilities withRetry retries on failure and eventually succeeds" time="2.695">
+    <testcase classname="retry utilities withRetry retries on failure and eventually succeeds" name="retry utilities withRetry retries on failure and eventually succeeds" time="2.343">
     </testcase>
-    <testcase classname="retry utilities withRetry throws after max retries exhausted" name="retry utilities withRetry throws after max retries exhausted" time="1.957">
+    <testcase classname="retry utilities withRetry throws after max retries exhausted" name="retry utilities withRetry throws after max retries exhausted" time="2.629">
     </testcase>
     <testcase classname="retry utilities withRetry does not retry non-retryable errors" name="retry utilities withRetry does not retry non-retryable errors" time="0.001">
     </testcase>
-    <testcase classname="retry utilities withRetry calls onRetry callback" name="retry utilities withRetry calls onRetry callback" time="0.746">
+    <testcase classname="retry utilities withRetry calls onRetry callback" name="retry utilities withRetry calls onRetry callback" time="0.743">
     </testcase>
-    <testcase classname="retry utilities withRetry retries 5xx server errors by default" name="retry utilities withRetry retries 5xx server errors by default" time="0.804">
+    <testcase classname="retry utilities withRetry retries 5xx server errors by default" name="retry utilities withRetry retries 5xx server errors by default" time="0.907">
     </testcase>
-    <testcase classname="retry utilities withRetry retries 429 Too Many Requests by default" name="retry utilities withRetry retries 429 Too Many Requests by default" time="0.559">
+    <testcase classname="retry utilities withRetry retries 429 Too Many Requests by default" name="retry utilities withRetry retries 429 Too Many Requests by default" time="0.865">
     </testcase>
-    <testcase classname="retry utilities createRetryState creates initial retry state" name="retry utilities createRetryState creates initial retry state" time="0">
+    <testcase classname="retry utilities createRetryState creates initial retry state" name="retry utilities createRetryState creates initial retry state" time="0.001">
     </testcase>
     <testcase classname="retry utilities createRetryState uses default maxAttempts" name="retry utilities createRetryState uses default maxAttempts" time="0">
     </testcase>
-    <testcase classname="retry utilities updateRetryState updates state after failed attempt" name="retry utilities updateRetryState updates state after failed attempt" time="0.001">
+    <testcase classname="retry utilities updateRetryState updates state after failed attempt" name="retry utilities updateRetryState updates state after failed attempt" time="0">
     </testcase>
     <testcase classname="retry utilities updateRetryState sets isRetrying to false when max attempts reached" name="retry utilities updateRetryState sets isRetrying to false when max attempts reached" time="0">
     </testcase>

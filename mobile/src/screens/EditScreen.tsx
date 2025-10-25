@@ -1,3 +1,4 @@
+import * as ImagePicker from 'expo-image-picker';
 import React, { useState } from 'react';
 import {
   View,
@@ -11,9 +12,11 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as ImagePicker from 'expo-image-picker';
-import { apiService } from '../services/ApiService';
+
+import { colors, spacing, typography, borderRadius } from '@/lib/ui-tokens';
 import { useAppSelector } from '@/store';
+
+import { apiService } from '../services/ApiService';
 
 // Helper: Process single image
 const processSingleImage = async (
@@ -280,121 +283,121 @@ export const EditScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.background,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    padding: 20,
+    padding: spacing.lg,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1d1d1f',
+    fontSize: typography.sizes.xxxl - 4,
+    fontWeight: typography.weights.bold,
+    color: colors.textPrimary,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#86868b',
+    fontSize: typography.sizes.md,
+    color: colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 30,
+    marginBottom: spacing.xl - 2,
   },
   imageSection: {
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: spacing.xl - 2,
   },
   imageGrid: {
     flexDirection: 'row',
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   selectedImage: {
     width: 120,
     height: 120,
-    borderRadius: 12,
-    marginRight: 12,
+    borderRadius: borderRadius.lg,
+    marginRight: spacing.md,
     resizeMode: 'cover',
   },
   imagePlaceholder: {
     width: 300,
     height: 300,
-    backgroundColor: '#e5e5e7',
-    borderRadius: 12,
+    backgroundColor: colors.border,
+    borderRadius: borderRadius.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: spacing.md,
     borderWidth: 2,
-    borderColor: '#d1d1d6',
+    borderColor: colors.divider,
     borderStyle: 'dashed',
   },
   placeholderText: {
-    fontSize: 16,
-    color: '#86868b',
+    fontSize: typography.sizes.md,
+    color: colors.textSecondary,
   },
   selectButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
   },
   promptSection: {
-    marginBottom: 30,
+    marginBottom: spacing.xl - 2,
   },
   promptLabel: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1d1d1f',
-    marginBottom: 12,
+    fontSize: typography.sizes.lg,
+    fontWeight: typography.weights.semibold,
+    color: colors.textPrimary,
+    marginBottom: spacing.md,
   },
   promptInput: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    color: '#1d1d1f',
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    fontSize: typography.sizes.md,
+    color: colors.textPrimary,
     borderWidth: 1,
-    borderColor: '#d1d1d6',
+    borderColor: colors.divider,
     minHeight: 100,
   },
   processButton: {
-    backgroundColor: '#34C759',
-    paddingVertical: 16,
-    borderRadius: 12,
+    backgroundColor: colors.success,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.lg,
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: spacing.xl - 2,
   },
   disabledButton: {
-    backgroundColor: '#d1d1d6',
+    backgroundColor: colors.divider,
   },
   buttonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
+    color: colors.textInverse,
+    fontSize: typography.sizes.md,
+    fontWeight: typography.weights.semibold,
   },
   processingContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
   },
   resultSection: {
     alignItems: 'center',
-    padding: 20,
-    backgroundColor: 'white',
-    borderRadius: 12,
+    padding: spacing.lg,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
     borderWidth: 1,
-    borderColor: '#d1d1d6',
+    borderColor: colors.divider,
   },
   resultTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#34C759',
-    marginBottom: 16,
+    fontSize: typography.sizes.lg,
+    fontWeight: typography.weights.semibold,
+    color: colors.success,
+    marginBottom: spacing.md,
   },
   downloadButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
   },
 });

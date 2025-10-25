@@ -1,0 +1,199 @@
+# Lean template for LLM-executable tasks (token-optimized for solo developer)
+# Subtask of TASK-0817: Frontend tier hardening
+# Focus: Storybook and Chromatic infrastructure
+
+schema_version: "1.0"
+id: TASK-0821
+title: "Setup Storybook and Chromatic for mobile component library"
+status: todo
+blocked_reason: null
+blocked_by: [TASK-0818, TASK-0819, TASK-0820]
+priority: P1
+area: frontend
+
+description: >-
+  Part 4 of TASK-0817 frontend-tier hardening. Mobile lacks Storybook infrastructure for
+  component documentation and visual regression testing. standards/frontend-tier.md mandates
+  story coverage ≥85% of atoms/molecules with Chromatic baseline per commit and axe a11y
+  CI gates. This subtask establishes Storybook for React Native, Chromatic integration,
+  and generates coverage reports stored in docs/ui/storybook for evidence bundles.
+
+outcome: >-
+  Storybook configured for React Native with stories covering ≥85% of UI components.
+  Chromatic integrated for visual regression testing with CI workflow. Axe a11y addon
+  enabled. Coverage reports and Chromatic gate status archived in docs/ui/storybook.
+  Component tests backfilled to meet ≥80% line coverage threshold.
+
+scope:
+  in:
+    - mobile/storybook/**/* (new Storybook config)
+    - mobile/.storybook/**/* (Storybook React Native config)
+    - mobile/src/components/**/*.stories.tsx (new stories)
+    - mobile/src/features/upload/components/**/*.stories.tsx (new stories)
+    - mobile/src/components/__tests__/**/*.test.tsx (backfill tests)
+    - docs/ui/storybook/**/* (coverage reports, Chromatic summaries)
+    - mobile/package.json (Storybook dependencies)
+    - .github/workflows/chromatic.yml (CI workflow)
+  out:
+    - UI tokens/icons migration - covered by TASK-0818
+    - RTK Query/XState - covered by TASK-0819
+    - Services ports/adapters - covered by TASK-0820
+    - Storybook deployment infrastructure beyond Chromatic
+
+context:
+  affected_packages: [mobile]
+  standards_tier: frontend
+  issues: []
+  related_docs:
+    - standards/AGENTS.md
+    - standards/frontend-tier.md
+    - standards/typescript.md
+    - standards/testing-standards.md
+  repo_paths:
+    - mobile/storybook
+    - mobile/.storybook
+    - mobile/src/components
+    - mobile/src/features
+    - docs/ui/storybook
+    - .github/workflows
+  dependencies:
+    - type: package
+      name: "@storybook/react-native"
+      version: ">=6.5.0"
+    - type: package
+      name: chromatic
+      version: ">=7.0.0"
+    - type: package
+      name: "@storybook/addon-a11y"
+      version: ">=7.0.0"
+    - type: package
+      name: "@storybook/addon-interactions"
+      version: ">=7.0.0"
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "18.x"
+  tools:
+    - name: npm
+      version: "9.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep diffs minimal and focused
+    - Respect repository conventions
+  prohibited:
+    - No secrets or tokens in code
+    - No unrelated file changes
+  architecture:
+    - "Storybook + addon-a11y + addon-interactions with Chromatic baseline (standards/frontend-tier.md)"
+    - "Story coverage ≥85% of atoms/molecules with coverage report archived (standards/frontend-tier.md)"
+    - "Chromatic no-change gate; a11y violations = hard fail (standards/frontend-tier.md)"
+
+plan:
+  - id: 1
+    title: Install Storybook for React Native
+    details: Add @storybook/react-native and required addons to mobile package.
+    commands:
+      - pnpm add -D @storybook/react-native @storybook/addon-a11y @storybook/addon-interactions chromatic --filter=photoeditor-mobile
+    expected_files_touched:
+      - mobile/package.json
+  - id: 2
+    title: Configure Storybook for React Native
+    details: Create .storybook/main.js and storybook/index.js entry point.
+    commands:
+      - pnpm turbo run typecheck --filter=photoeditor-mobile
+    expected_files_touched:
+      - mobile/.storybook/main.js
+      - mobile/storybook/index.js
+      - mobile/storybook/storybook.requires.js
+  - id: 3
+    title: Write stories for existing components
+    details: Create .stories.tsx files for ErrorBoundary and UploadButton components.
+    commands: []
+    expected_files_touched:
+      - mobile/src/components/ErrorBoundary.stories.tsx
+      - mobile/src/features/upload/components/UploadButton.stories.tsx
+  - id: 4
+    title: Configure Chromatic integration
+    details: Add chromatic script to package.json and create CI workflow for visual regression.
+    commands: []
+    expected_files_touched:
+      - mobile/package.json
+      - .github/workflows/chromatic.yml
+  - id: 5
+    title: Generate story coverage report
+    details: Run Storybook coverage analysis and save report to docs/ui/storybook.
+    commands:
+      - pnpm storybook -- --smoke-test
+    expected_files_touched:
+      - docs/ui/storybook/coverage-report.json
+      - docs/ui/storybook/README.md
+  - id: 6
+    title: Backfill component tests
+    details: Write unit tests for components to meet ≥80% line coverage threshold.
+    commands:
+      - pnpm turbo run test --filter=photoeditor-mobile -- --coverage
+    expected_files_touched:
+      - mobile/src/components/__tests__/ErrorBoundary.test.tsx
+      - mobile/src/features/upload/components/__tests__/UploadButton.test.tsx
+  - id: 7
+    title: Document Storybook usage
+    details: Create docs/ui/storybook/README.md with instructions for running Storybook and Chromatic.
+    commands: []
+    expected_files_touched:
+      - docs/ui/storybook/README.md
+
+acceptance_criteria:
+  - Storybook configured for React Native with addon-a11y and addon-interactions enabled
+  - Stories exist for ≥85% of atoms/molecules components
+  - Chromatic integrated with CI workflow using --exit-zero-on-changes for local runs
+  - Story coverage report saved to docs/ui/storybook/coverage-report.json
+  - Component tests meet ≥80% line coverage and ≥70% branch coverage
+  - No lint/type/test regressions
+  modularity:
+    - "Atomic Design with export barrels per atom/molecule/organism (standards/frontend-tier.md)"
+  testability:
+    - "Story coverage ≥85% of atoms/molecules (standards/frontend-tier.md)"
+    - "Mobile package line coverage ≥80% and branch coverage ≥70% (standards/testing-standards.md)"
+
+validation:
+  static_checks:
+    - pnpm turbo run qa:static --filter=photoeditor-mobile
+    - test -f mobile/.storybook/main.js
+    - test -f docs/ui/storybook/coverage-report.json
+
+  unit_tests:
+    mobile:
+      - pnpm turbo run test --filter=photoeditor-mobile -- --coverage --coverageThreshold='{"global":{"lines":80,"branches":70}}'
+
+  contract_tests: []
+
+  manual_checks:
+    - Run Storybook locally and verify stories render correctly
+    - Run Chromatic and confirm no unresolved visual diffs
+    - Verify a11y violations are reported in Storybook
+
+  artifacts:
+    - screenshots: [docs/ui/storybook/chromatic-summary.png]
+
+deliverables:
+  - mobile/.storybook/main.js
+  - mobile/storybook/index.js
+  - mobile/src/components/ErrorBoundary.stories.tsx
+  - mobile/src/features/upload/components/UploadButton.stories.tsx
+  - mobile/src/components/__tests__/ErrorBoundary.test.tsx
+  - mobile/src/features/upload/components/__tests__/UploadButton.test.tsx
+  - docs/ui/storybook/coverage-report.json
+  - docs/ui/storybook/README.md
+  - .github/workflows/chromatic.yml
+
+risks:
+  - description: Storybook/Chromatic integration could slow CI if misconfigured
+    mitigation: Use Chromatic async workflow with --exit-zero-on-changes locally; document caching strategy
+  - description: React Native Storybook may have compatibility issues with Expo
+    mitigation: Use latest @storybook/react-native version; test with Expo dev client

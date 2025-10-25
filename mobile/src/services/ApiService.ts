@@ -1,6 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// Import shared contract schemas (SSOT)
 import {
   PresignUploadRequestSchema,
   PresignUploadResponseSchema,
@@ -11,6 +8,9 @@ import {
   JobSchema,
   BatchJobSchema,
 } from '@photoeditor/shared';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Import shared contract schemas (SSOT)
 
 class ApiService {
   private baseUrl: string;

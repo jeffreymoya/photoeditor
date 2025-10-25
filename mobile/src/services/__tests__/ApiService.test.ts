@@ -13,7 +13,6 @@
 
 import { readFileSync } from 'fs';
 
-import { apiService } from '../ApiService';
 import {
   PresignUploadRequestSchema,
   PresignUploadResponseSchema,
@@ -24,6 +23,8 @@ import {
   DeviceTokenRegistrationSchema,
   DeviceTokenResponseSchema,
 } from '@photoeditor/shared';
+
+import { apiService } from '../ApiService';
 
 // Mock global fetch
 global.fetch = jest.fn();

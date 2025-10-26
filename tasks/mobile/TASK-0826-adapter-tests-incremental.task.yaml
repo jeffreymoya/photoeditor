@@ -1,0 +1,245 @@
+# Incremental test development for mobile service adapters
+# Unblocker for TASK-0820 - builds tests from scratch with validation at each step
+
+schema_version: "1.0"
+id: TASK-0826
+title: "Build mobile adapter tests incrementally with validation"
+status: todo
+blocked_reason: null
+blocked_by: []
+priority: P0
+area: mobile
+unblocker: true
+order: null
+
+description: >-
+  TASK-0820 adapter implementations are architecturally sound (100% standards compliant per
+  implementation-reviewer) but lack tests. Previous attempt (TASK-0823) failed because agent
+  hallucinated test existence, created 50 tests from scratch without running them, which
+  accumulated bugs from multiple agent edits. This task builds tests incrementally: write 5-10
+  tests, validate they pass, commit, repeat until coverage thresholds met (80% lines, 70% branches).
+
+outcome: >-
+  Mobile service adapters have validated test suites with ≥80% line coverage and ≥70% branch
+  coverage. Tests are committed incrementally (not all at once). All tests pass. Test infrastructure
+  includes proper mocks for cockatiel retry policies and Response objects.
+
+scope:
+  in:
+    - mobile/src/services/__tests__/stubs.ts (mock Response factory, stub services)
+    - mobile/src/services/upload/__tests__/adapter.test.ts (incremental development)
+    - mobile/src/services/notification/__tests__/adapter.test.ts (incremental development)
+    - Test infrastructure for cockatiel retry policies (jest.useFakeTimers or proper mocking)
+  out:
+    - Adapter implementation files (no changes to adapter.ts or port.ts)
+    - Feature layer code (no changes to screens or context)
+    - Backend API contracts (no schema changes)
+
+context:
+  affected_packages: [mobile]
+  standards_tier: mobile
+  issues: []
+  related_docs:
+    - standards/AGENTS.md
+    - standards/frontend-tier.md
+    - standards/testing-standards.md
+    - standards/typescript.md
+    - changelog/2025-10-26-TASK-0823-adapter-tests-blocked.md (what NOT to do)
+    - .agent-output/task-implementer-summary-TASK-0820.md (hallucination analysis)
+  repo_paths:
+    - mobile/src/services/upload/__tests__
+    - mobile/src/services/notification/__tests__
+    - mobile/src/services/__tests__
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "18.x"
+  tools:
+    - name: npm
+      version: "9.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Incremental development - write 5-10 tests, validate, commit, repeat
+    - Run tests after EVERY batch to catch bugs immediately
+    - DO NOT create all 50 tests at once like TASK-0823 did
+    - Keep diffs minimal and focused
+  prohibited:
+    - No changes to adapter implementation files
+    - No changes to port interface files
+    - No secrets or tokens in code
+    - No creating 20+ tests without running them first
+  architecture:
+    - "Tests must handle cockatiel retry policies (3 attempts per operation)"
+    - "Mock Response objects must implement full Response interface"
+    - "Tests validate adapter behavior without network calls (standards/frontend-tier.md)"
+
+plan:
+  - id: 1
+    title: Create test infrastructure
+    details: >-
+      Create mobile/src/services/__tests__/stubs.ts with:
+      1. createMockResponse() factory that returns complete Response objects (ok, status, statusText, json, blob, text, etc.)
+      2. Basic StubUploadService and StubNotificationService for component tests
+      Run a simple test to verify mocks work before proceeding.
+    actor: agent
+    inputs:
+      - mobile/src/services/upload/adapter.ts (to understand Response usage)
+      - mobile/src/services/notification/adapter.ts
+    outputs:
+      - mobile/src/services/__tests__/stubs.ts
+    definition_of_done:
+      - createMockResponse returns objects with all required Response methods
+      - Simple smoke test passes
+    estimate: S
+    expected_files_touched:
+      - mobile/src/services/__tests__/stubs.ts
+
+  - id: 2
+    title: Write and validate first batch of upload tests (5-8 tests)
+    details: >-
+      Create mobile/src/services/upload/__tests__/adapter.test.ts with ONLY:
+      1. Basic happy path tests (presignUpload, uploadToS3, getJobStatus)
+      2. Simple error tests (network failure, HTTP 4xx)
+      IMPORTANT: Mock fetch with mockResolvedValue (no "Once") to handle retry policies (3 attempts).
+      Run tests, verify all pass. DO NOT proceed to step 3 until these pass.
+    actor: agent
+    inputs:
+      - mobile/src/services/upload/adapter.ts
+      - mobile/src/services/__tests__/stubs.ts
+    outputs:
+      - mobile/src/services/upload/__tests__/adapter.test.ts (5-8 tests)
+    definition_of_done:
+      - All 5-8 tests pass
+      - No timeout errors
+      - Coverage report generated
+    estimate: M
+    expected_files_touched:
+      - mobile/src/services/upload/__tests__/adapter.test.ts
+
+  - id: 3
+    title: Expand upload tests to reach 80%/70% coverage
+    details: >-
+      Add tests in small batches (5-8 tests at a time), running after each batch:
+      1. Batch operations (processBatchImages, getBatchJobStatus)
+      2. Device token management (registerDeviceToken, deactivateDeviceToken)
+      3. Edge cases (missing parameters, malformed responses)
+      4. Resilience policy behavior (retry on transient failures)
+      Stop when coverage reaches ≥80% lines, ≥70% branches.
+    actor: agent
+    inputs:
+      - mobile/src/services/upload/__tests__/adapter.test.ts (existing tests)
+      - Coverage report from step 2
+    outputs:
+      - mobile/src/services/upload/__tests__/adapter.test.ts (expanded)
+    definition_of_done:
+      - Upload adapter: ≥80% line coverage, ≥70% branch coverage
+      - All tests pass (0 failures)
+    estimate: L
+    expected_files_touched:
+      - mobile/src/services/upload/__tests__/adapter.test.ts
+
+  - id: 4
+    title: Write and validate notification adapter tests
+    details: >-
+      Create mobile/src/services/notification/__tests__/adapter.test.ts incrementally:
+      1. First batch: initialization, permissions, basic notifications (5-8 tests)
+      2. Validate first batch passes
+      3. Second batch: backend registration, device ID management, error paths
+      4. Validate second batch passes
+      Continue until coverage reaches ≥80% lines, ≥70% branches.
+    actor: agent
+    inputs:
+      - mobile/src/services/notification/adapter.ts
+      - mobile/src/services/__tests__/stubs.ts
+    outputs:
+      - mobile/src/services/notification/__tests__/adapter.test.ts
+    definition_of_done:
+      - Notification adapter: ≥80% line coverage, ≥70% branch coverage
+      - All tests pass (0 failures)
+    estimate: L
+    expected_files_touched:
+      - mobile/src/services/notification/__tests__/adapter.test.ts
+
+  - id: 5
+    title: Final validation and documentation
+    details: >-
+      Run full test suite, verify all adapters meet coverage thresholds.
+      Document approach in changelog with lessons learned from TASK-0823 failure.
+    actor: agent
+    inputs:
+      - All test files
+    outputs:
+      - changelog/2025-10-26-TASK-0826-adapter-tests-incremental.md
+    definition_of_done:
+      - All adapter tests pass (0 failures)
+      - Upload adapter: ≥80% lines, ≥70% branches
+      - Notification adapter: ≥80% lines, ≥70% branches
+      - Changelog documents incremental approach
+    estimate: S
+    expected_files_touched:
+      - changelog/2025-10-26-TASK-0826-adapter-tests-incremental.md
+
+acceptance_criteria:
+  must:
+    - All upload adapter tests pass (target: 20-30 tests total)
+    - All notification adapter tests pass (target: 15-25 tests total)
+    - Upload adapter line coverage ≥80%
+    - Upload adapter branch coverage ≥70%
+    - Notification adapter line coverage ≥80%
+    - Notification adapter branch coverage ≥70%
+    - Mock Response objects implement full Response interface
+    - Tests handle cockatiel retry policies (no mockResolvedValueOnce for retried operations)
+    - No changes to adapter implementation files (adapter.ts, port.ts)
+    - Tests developed incrementally with validation at each step (not all 50 at once)
+  quality_gates:
+    - "Coverage thresholds per standards/testing-standards.md (80% lines, 70% branches)"
+    - "No lint/type errors in mobile package"
+    - "Tests validate resilience policies (retry, circuit breaker) behavior"
+    - "All tests pass before task marked complete"
+
+validation:
+  static_checks:
+    - pnpm turbo run qa:static --filter=photoeditor-mobile
+
+  unit_tests:
+    mobile:
+      - pnpm turbo run test --filter=photoeditor-mobile -- --coverage --testPathPattern="adapter.test.ts"
+      - pnpm turbo run test --filter=photoeditor-mobile -- --coverage
+
+  contract_tests: []
+
+  manual_checks:
+    - Verify incremental commits show progressive test additions (not one massive commit)
+    - Review coverage report to confirm thresholds met for both adapters
+
+  artifacts:
+    - screenshots: []
+
+artifacts:
+  - path: changelog/2025-10-26-TASK-0826-adapter-tests-incremental.md
+    description: Documents incremental test development approach and lessons learned
+  - path: mobile/tmp/test-results/junit.xml
+    description: Test execution results
+  - path: mobile/coverage/coverage-summary.json
+    description: Coverage metrics proving thresholds met
+
+deliverables:
+  - mobile/src/services/__tests__/stubs.ts (mock Response factory, stub services)
+  - mobile/src/services/upload/__tests__/adapter.test.ts (complete test suite)
+  - mobile/src/services/notification/__tests__/adapter.test.ts (complete test suite)
+  - changelog/2025-10-26-TASK-0826-adapter-tests-incremental.md
+
+risks:
+  - description: Cockatiel retry policies may complicate test mocking
+    mitigation: Use mockResolvedValue (no "Once") for all fetch mocks to handle 3 retry attempts; document pattern in first test batch
+  - description: Agent may try to create all tests at once like TASK-0823
+    mitigation: Plan explicitly requires running tests after every 5-8 test batch; validation agent will fail task if massive test dump detected
+  - description: Coverage thresholds may be difficult to reach
+    mitigation: Focus on error paths and edge cases; if stuck at 75%, assess if remaining uncovered code is dead code or needs implementation fixes

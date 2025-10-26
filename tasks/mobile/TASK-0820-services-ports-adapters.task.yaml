@@ -6,10 +6,10 @@ schema_version: "1.0"
 id: TASK-0820
 title: "Refactor mobile services to use ports and adapters with retry policies"
 status: todo
-blocked_reason: null
-blocked_by: [TASK-0818]
+blocked_reason: "Reset to clean state - adapter implementation exists but tests were hallucinated. Needs incremental test development from scratch. See TASK-0826."
+blocked_by: [TASK-0826]
 priority: P1
-area: frontend
+area: mobile
 
 description: >-
   Part 3 of TASK-0817 frontend-tier hardening. Mobile ApiService and NotificationService
@@ -41,7 +41,7 @@ scope:
 
 context:
   affected_packages: [mobile]
-  standards_tier: frontend
+  standards_tier: mobile
   issues: []
   related_docs:
     - standards/AGENTS.md
@@ -84,61 +84,104 @@ plan:
   - id: 1
     title: Install cockatiel dependency
     details: Add cockatiel for retry and circuit breaker policies.
-    commands:
-      - pnpm add cockatiel --filter=photoeditor-mobile
+    actor: agent
+    inputs: []
+    outputs:
+      - mobile/package.json
+    definition_of_done:
+      - Dependency installed and lockfile updated
+    estimate: S
     expected_files_touched:
       - mobile/package.json
   - id: 2
     title: Define upload service port interface
     details: Create IUploadService port with requestPresignedUrl, uploadImage, getJobStatus, processImage methods.
-    commands:
-      - pnpm turbo run typecheck --filter=photoeditor-mobile
+    actor: agent
+    inputs: []
+    outputs:
+      - mobile/src/services/upload/port.ts
+    definition_of_done:
+      - Port interface compiles and is exported
+    estimate: S
     expected_files_touched:
       - mobile/src/services/upload/port.ts
   - id: 3
     title: Refactor ApiService into upload adapter
     details: Move ApiService implementation to mobile/src/services/upload/adapter.ts implementing IUploadService.
-    commands:
-      - pnpm turbo run typecheck --filter=photoeditor-mobile
+    actor: agent
+    inputs: []
+    outputs:
+      - mobile/src/services/upload/adapter.ts
+      - mobile/src/services/ApiService.ts
+    definition_of_done:
+      - Adapter implements port; ApiService deprecated or removed
+    estimate: M
     expected_files_touched:
       - mobile/src/services/upload/adapter.ts
       - mobile/src/services/ApiService.ts (deprecated or removed)
   - id: 4
     title: Add cockatiel retry policies to upload adapter
     details: Wrap fetch calls with cockatiel retry and circuit breaker policies.
-    commands:
-      - pnpm turbo run typecheck --filter=photoeditor-mobile
+    actor: agent
+    inputs: []
+    outputs:
+      - mobile/src/services/upload/adapter.ts
+    definition_of_done:
+      - Policies applied and compile cleanly
+    estimate: S
     expected_files_touched:
       - mobile/src/services/upload/adapter.ts
   - id: 5
     title: Define notification service port interface
     details: Create INotificationService port with registerToken, scheduleNotification methods.
-    commands:
-      - pnpm turbo run typecheck --filter=photoeditor-mobile
+    actor: agent
+    inputs: []
+    outputs:
+      - mobile/src/services/notification/port.ts
+    definition_of_done:
+      - Port interface compiles and is exported
+    estimate: S
     expected_files_touched:
       - mobile/src/services/notification/port.ts
   - id: 6
     title: Refactor NotificationService into adapter
     details: Move NotificationService to mobile/src/services/notification/adapter.ts implementing INotificationService.
-    commands:
-      - pnpm turbo run typecheck --filter=photoeditor-mobile
+    actor: agent
+    inputs: []
+    outputs:
+      - mobile/src/services/notification/adapter.ts
+      - mobile/src/services/NotificationService.ts
+    definition_of_done:
+      - Adapter implements port; NotificationService deprecated or removed
+    estimate: M
     expected_files_touched:
       - mobile/src/services/notification/adapter.ts
       - mobile/src/services/NotificationService.ts (deprecated or removed)
   - id: 7
     title: Update feature hooks to depend on ports
     details: Update useUpload and other hooks to inject IUploadService via dependency injection or context.
-    commands:
-      - pnpm turbo run lint --filter=photoeditor-mobile
-      - pnpm turbo run typecheck --filter=photoeditor-mobile
+    actor: agent
+    inputs: []
+    outputs:
+      - mobile/src/features/upload/hooks/useUpload.ts
+      - mobile/src/features/upload/context/ServiceContext.tsx
+    definition_of_done:
+      - Feature layer depends only on ports
+    estimate: M
     expected_files_touched:
       - mobile/src/features/upload/hooks/useUpload.ts
       - mobile/src/features/upload/context/ServiceContext.tsx
   - id: 8
     title: Update tests to use stub implementations
     details: Create stub port implementations for testing; update existing tests.
-    commands:
-      - pnpm turbo run test --filter=photoeditor-mobile
+    actor: agent
+    inputs: []
+    outputs:
+      - mobile/src/services/upload/__tests__/adapter.test.ts
+      - mobile/src/services/__tests__/stubs.ts
+    definition_of_done:
+      - Tests pass using stubs; no real network calls
+    estimate: M
     expected_files_touched:
       - mobile/src/services/upload/__tests__/adapter.test.ts
       - mobile/src/services/__tests__/stubs.ts
@@ -154,7 +197,7 @@ acceptance_criteria:
     - "Adapters encapsulate platform APIs (standards/frontend-tier.md)"
     - "No direct Expo/Fetch usage in feature or component layers (standards/frontend-tier.md)"
   testability:
-    - "Services/Adapters: Line coverage ≥80%, Branch ≥70% (standards/testing-standards.md)"
+    - "Coverage thresholds per standards/testing-standards.md"
 
 validation:
   static_checks:
@@ -164,7 +207,7 @@ validation:
 
   unit_tests:
     mobile:
-      - pnpm turbo run test --filter=photoeditor-mobile -- --coverage --coverageThreshold='{"global":{"lines":80,"branches":70}}'
+      - pnpm turbo run test --filter=photoeditor-mobile -- --coverage
 
   contract_tests: []
 

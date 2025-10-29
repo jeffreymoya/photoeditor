@@ -1,7 +1,7 @@
 import { DynamoDBClient, PutItemCommand, GetItemCommand, UpdateItemCommand, QueryCommand } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
-import { Result, ok, err } from 'neverthrow';
 import { Job, JobStatusType, BatchJob } from '@photoeditor/shared';
+import { Result, ok, err } from 'neverthrow';
 
 /**
  * Repository errors with specific error types for domain layer handling

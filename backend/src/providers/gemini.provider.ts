@@ -1,5 +1,3 @@
-import { BaseProvider } from './base.provider';
-import { AnalysisProvider } from './analysis.provider';
 import {
   GeminiAnalysisRequest,
   GeminiAnalysisResponse,
@@ -7,6 +5,9 @@ import {
   ProviderConfig,
   PROVIDER_CONFIG
 } from '@photoeditor/shared';
+
+import { AnalysisProvider } from './analysis.provider';
+import { BaseProvider } from './base.provider';
 
 export class GeminiProvider extends BaseProvider implements AnalysisProvider {
   constructor(config: ProviderConfig) {

@@ -12,21 +12,21 @@
  */
 
 import {
-  S3Client,
-  S3ClientConfig,
-} from '@aws-sdk/client-s3';
-import {
   DynamoDBClient,
   DynamoDBClientConfig,
 } from '@aws-sdk/client-dynamodb';
 import {
-  SQSClient,
-  SQSClientConfig,
-} from '@aws-sdk/client-sqs';
+  S3Client,
+  S3ClientConfig,
+} from '@aws-sdk/client-s3';
 import {
   SNSClient,
   SNSClientConfig,
 } from '@aws-sdk/client-sns';
+import {
+  SQSClient,
+  SQSClientConfig,
+} from '@aws-sdk/client-sqs';
 
 /**
  * Creates an S3 client with regional configuration

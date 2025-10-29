@@ -1,6 +1,8 @@
-import { ConfigService } from './config.service';
-import { ProviderFactory, ProviderFactoryConfig } from '../providers/factory';
 import { ProviderConfig } from '@photoeditor/shared';
+
+import { ProviderFactory, ProviderFactoryConfig } from '../providers/factory';
+
+import { ConfigService } from './config.service';
 
 export class BootstrapService {
   private configService: ConfigService;

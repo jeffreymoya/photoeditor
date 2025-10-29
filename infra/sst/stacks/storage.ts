@@ -1,12 +1,23 @@
 /**
  * Storage Stack - S3 Buckets, DynamoDB, KMS
  *
- * STANDARDS.md compliance:
+ * ADR-0008 Phase 1: Inline resource provisioning with standards compliance.
+ * Phase 2 migration: Extract KMS, S3, DynamoDB into versioned Terraform modules.
+ * See adr/0008-sst-parity.md for parity contract and migration plan.
+ *
+ * Standards compliance (inherited from future modules):
  * - S3 SSE-KMS encryption with customer-managed keys (cross-cutting.md L52)
  * - S3 block-public-access enabled (cross-cutting.md L10, L52)
  * - Cost tags: Project, Env, Owner, CostCenter (cross-cutting.md L11)
- * - Temp bucket: 48h lifecycle
- * - Final bucket: versioning, incomplete multipart cleanup
+ * - Temp bucket: 48h lifecycle (infrastructure-tier.md L26)
+ * - Final bucket: versioning, incomplete multipart cleanup (infrastructure-tier.md L27)
+ * - DynamoDB PITR enabled (infrastructure-tier.md L37)
+ * - DynamoDB TTL for device tokens (infrastructure-tier.md L38)
+ *
+ * Module migration status:
+ * - KMS key → Future module (TASK-0823)
+ * - S3 buckets → Future module (TASK-0823)
+ * - DynamoDB tables → Future module (TASK-0823)
  */
 
 export default function StorageStack() {

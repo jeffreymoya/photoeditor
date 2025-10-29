@@ -1,6 +1,3 @@
-import { BaseProvider } from './base.provider';
-import { AnalysisProvider } from './analysis.provider';
-import { EditingProvider } from './editing.provider';
 import {
   GeminiAnalysisRequest,
   GeminiAnalysisResponse,
@@ -9,6 +6,11 @@ import {
   ProviderResponse,
   ProviderConfig
 } from '@photoeditor/shared';
+
+import { AnalysisProvider } from './analysis.provider';
+import { BaseProvider } from './base.provider';
+import { EditingProvider } from './editing.provider';
+
 
 // Stub Analysis Provider for testing/development
 export class StubAnalysisProvider extends BaseProvider implements AnalysisProvider {

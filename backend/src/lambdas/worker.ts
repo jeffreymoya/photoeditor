@@ -1,8 +1,10 @@
-import { SQSEvent, SQSRecord } from 'aws-lambda';
-import middy from '@middy/core';
 import { MetricUnits } from '@aws-lambda-powertools/metrics';
+import middy from '@middy/core';
 import { JobStatus, GeminiAnalysisResponse, SeedreamEditingResponse } from '@photoeditor/shared';
+import { SQSEvent, SQSRecord } from 'aws-lambda';
+
 import { serviceInjection, ServiceContext, __resetContainerCache } from '@backend/core';
+
 import { logger } from '../utils/logger';
 
 interface ParsedS3Event {

@@ -1,6 +1,7 @@
-import { ZodSchema, ZodError } from 'zod';
-import { AppErrorBuilder } from './errors';
 import { ValidationError } from '@photoeditor/shared';
+import { ZodSchema, ZodError } from 'zod';
+
+import { AppErrorBuilder } from './errors';
 
 export class ValidationHelper {
   static validate<T>(schema: ZodSchema<T>, data: unknown): T {

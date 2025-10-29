@@ -1,7 +1,7 @@
 schema_version: "1.0"
 id: TASK-0822
 title: "Author SST parity ADR and adopt versioned modules"
-status: todo
+status: completed
 blocked_reason: null
 priority: P0
 area: infra
@@ -161,3 +161,4 @@ deliverables:
 risks:
   - description: Module interfaces may not fully cover SST stack needs, delaying parity.
     mitigation: Document gaps, create follow-up tasks, and maintain existing resources temporarily with feature flags.
+

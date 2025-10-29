@@ -4,8 +4,8 @@
  * SST Dev Stack Configuration for PhotoEditor
  *
  * This stack provides rapid live AWS development loop with <2s inner loop for BFF Lambda.
- * Follows STANDARDS.md: handlers→services→adapters, no VPC for API Lambdas (line 127),
- * KMS encryption (line 112), DLQ config (line 121), cost tags (line 44).
+ * See adr/0008-sst-parity.md for SST/Terraform coexistence strategy.
+ * Standards: infrastructure-tier.md L16 (SST for local dev), cross-cutting.md L4-6 (layering, complexity).
  */
 
 export default $config({

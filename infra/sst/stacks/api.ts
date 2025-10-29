@@ -1,14 +1,25 @@
 /**
  * API Stack - HTTP API Gateway, BFF Lambda, Worker Lambda
  *
- * STANDARDS.md compliance:
- * - API Lambdas outside VPC (line 127)
- * - Handlers ≤75 LOC, complexity ≤5 (line 36)
- * - No handler imports @aws-sdk/* (line 32)
- * - Lambda errors >0 for 5m alarm (line 76)
- * - API 5XX >1% for 5m alarm (line 77)
- * - Structured JSON logs with correlationId, traceId, etc. (line 72)
- * - Log retention: Dev 14d (line 82)
+ * ADR-0008 Phase 1: Inline Lambda and API Gateway provisioning (remains SST-native).
+ * Phase 2 migration: CloudWatch log groups and alarms extracted to Terraform modules.
+ * See adr/0008-sst-parity.md for parity contract and migration plan.
+ *
+ * Standards compliance:
+ * - API Lambdas outside VPC (infrastructure-tier.md L16)
+ * - Handlers ≤75 LOC, complexity ≤10 (cross-cutting.md L6)
+ * - No handler imports @aws-sdk/* (cross-cutting.md L4, backend-tier.md)
+ * - Lambda errors >0 for 5m alarm (cross-cutting.md L47)
+ * - API 5XX >1% for 5m alarm (cross-cutting.md L47)
+ * - Structured JSON logs with correlationId, traceId, etc. (cross-cutting.md L40)
+ * - Log retention: Dev 14d, Prod 90d (cross-cutting.md L46)
+ * - Cost tags: Project, Env, Owner, CostCenter (cross-cutting.md L11)
+ *
+ * Module migration status:
+ * - Lambda functions → Remain SST-native (ADR-0008)
+ * - API Gateway → Remain SST-native (ADR-0008)
+ * - CloudWatch log groups → Future module (TASK-0823)
+ * - CloudWatch alarms → Future module (TASK-0823)
  */
 
 interface ApiStackProps {
@@ -67,7 +78,6 @@ export default function ApiStack(props: ApiStackProps) {
         resources: [kmsKey.arn],
       },
     ],
-    // No VPC configuration (STANDARDS.md line 127)
     transform: {
       function: {
         tags: {
@@ -282,7 +292,7 @@ export default function ApiStack(props: ApiStackProps) {
     sourceArn: $interpolate`${httpApi.executionArn}/*/*`,
   });
 
-  // CloudWatch Log Groups with retention (Dev 14d per STANDARDS.md line 82)
+  // CloudWatch Log Groups with retention (Dev 14d, Prod 90d per cross-cutting.md L46)
   new aws.cloudwatch.LogGroup("BffLogGroup", {
     name: `/aws/lambda/${bffFunction.name}`,
     retentionInDays: $app.stage === "production" ? 90 : 14,

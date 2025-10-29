@@ -1,8 +1,8 @@
-import type { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { Result, err } from 'neverthrow';
 import { Job, JobStatusType, CreateJobRequest, BatchJob, CreateBatchJobRequest } from '@photoeditor/shared';
+import { Result, err } from 'neverthrow';
+
 import { createDynamoDBClient } from '@backend/core';
-import { JobRepository, JobNotFoundError, JobAlreadyExistsError, RepositoryError } from '../repositories/job.repository';
+
 import {
   createJobEntity,
   createBatchJobEntity,
@@ -16,6 +16,9 @@ import {
   InvalidStateTransitionError,
   JobValidationError
 } from '../domain/job.domain';
+import { JobRepository, JobNotFoundError, JobAlreadyExistsError, RepositoryError } from '../repositories/job.repository';
+
+import type { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 
 /**
  * Service-level errors that combine domain and repository errors
@@ -67,6 +70,7 @@ export class JobService {
 
   /**
    * Creates a new job - Legacy method that throws on error
+   *
    * @deprecated Use createJobResult for proper error handling
    */
   async createJob(request: CreateJobRequest): Promise<Job> {
@@ -86,6 +90,7 @@ export class JobService {
 
   /**
    * Retrieves a job by ID - Legacy method that returns null on error
+   *
    * @deprecated Use getJobResult for proper error handling
    */
   async getJob(jobId: string): Promise<Job | null> {
@@ -112,6 +117,7 @@ export class JobService {
 
   /**
    * Updates job status - Legacy method that throws on error
+   *
    * @deprecated Use updateJobStatusResult for proper error handling
    */
   async updateJobStatus(
@@ -150,6 +156,7 @@ export class JobService {
 
   /**
    * Marks job as failed - Legacy method that throws on error
+   *
    * @deprecated Use markJobFailedResult for proper error handling
    */
   async markJobFailed(jobId: string, error: string): Promise<Job> {
@@ -180,6 +187,7 @@ export class JobService {
 
   /**
    * Marks job as processing - Legacy method that throws on error
+   *
    * @deprecated Use markJobProcessingResult for proper error handling
    */
   async markJobProcessing(jobId: string, tempS3Key: string): Promise<Job> {
@@ -210,6 +218,7 @@ export class JobService {
 
   /**
    * Marks job as editing - Legacy method that throws on error
+   *
    * @deprecated Use markJobEditingResult for proper error handling
    */
   async markJobEditing(jobId: string): Promise<Job> {
@@ -240,6 +249,7 @@ export class JobService {
 
   /**
    * Marks job as completed - Legacy method that throws on error
+   *
    * @deprecated Use markJobCompletedResult for proper error handling
    */
   async markJobCompleted(jobId: string, finalS3Key: string): Promise<Job> {
@@ -282,6 +292,7 @@ export class JobService {
 
   /**
    * Creates a new batch job - Legacy method that throws on error
+   *
    * @deprecated Use createBatchJobResult for proper error handling
    */
   async createBatchJob(request: CreateBatchJobRequest): Promise<BatchJob> {
@@ -301,6 +312,7 @@ export class JobService {
 
   /**
    * Retrieves a batch job by ID - Legacy method that returns null on error
+   *
    * @deprecated Use getBatchJobResult for proper error handling
    */
   async getBatchJob(batchJobId: string): Promise<BatchJob | null> {
@@ -325,6 +337,7 @@ export class JobService {
 
   /**
    * Updates batch job status - Legacy method that throws on error
+   *
    * @deprecated Use updateBatchJobStatusResult for proper error handling
    */
   async updateBatchJobStatus(
@@ -362,6 +375,7 @@ export class JobService {
 
   /**
    * Increments batch job progress - Legacy method that throws on error
+   *
    * @deprecated Use incrementBatchJobProgressResult for proper error handling
    */
   async incrementBatchJobProgress(batchJobId: string): Promise<BatchJob> {
@@ -381,6 +395,7 @@ export class JobService {
 
   /**
    * Retrieves all jobs for a batch - Legacy method that throws on error
+   *
    * @deprecated Use getJobsByBatchIdResult for proper error handling
    */
   async getJobsByBatchId(batchJobId: string): Promise<Job[]> {

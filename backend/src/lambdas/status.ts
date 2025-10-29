@@ -1,8 +1,10 @@
-import { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from 'aws-lambda';
-import middy from '@middy/core';
 import { MetricUnits } from '@aws-lambda-powertools/metrics';
+import middy from '@middy/core';
 import { ErrorType } from '@photoeditor/shared';
+import { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from 'aws-lambda';
+
 import { serviceInjection, ServiceContext } from '@backend/core';
+
 import { ErrorHandler } from '../utils/errors';
 
 async function handleJobStatus(

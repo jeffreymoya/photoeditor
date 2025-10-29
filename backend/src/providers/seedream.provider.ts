@@ -1,5 +1,3 @@
-import { BaseProvider } from './base.provider';
-import { EditingProvider } from './editing.provider';
 import {
   SeedreamEditingRequest,
   SeedreamEditingResponse,
@@ -7,6 +5,9 @@ import {
   ProviderConfig,
   PROVIDER_CONFIG
 } from '@photoeditor/shared';
+
+import { BaseProvider } from './base.provider';
+import { EditingProvider } from './editing.provider';
 
 export class SeedreamProvider extends BaseProvider implements EditingProvider {
   constructor(config: ProviderConfig) {

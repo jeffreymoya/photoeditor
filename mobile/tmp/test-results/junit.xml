@@ -1,49 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="jest tests" tests="148" failures="0" errors="0" time="8.449">
-  <testsuite name="uploadApi" errors="0" failures="0" skipped="0" timestamp="2025-10-29T01:21:13" time="0.488" tests="10">
-    <testcase classname="uploadApi uploadApi slice configuration should be configured with correct reducer path" name="uploadApi uploadApi slice configuration should be configured with correct reducer path" time="0.014">
-    </testcase>
-    <testcase classname="uploadApi uploadApi slice configuration should have all required endpoints" name="uploadApi uploadApi slice configuration should have all required endpoints" time="0.004">
-    </testcase>
-    <testcase classname="uploadApi uploadApi slice configuration should initialize reducer with empty state" name="uploadApi uploadApi slice configuration should initialize reducer with empty state" time="0.004">
-    </testcase>
-    <testcase classname="uploadApi uploadApi slice configuration should have middleware configured" name="uploadApi uploadApi slice configuration should have middleware configured" time="0.002">
-    </testcase>
-    <testcase classname="uploadApi uploadApi slice configuration should provide util methods for cache management" name="uploadApi uploadApi slice configuration should provide util methods for cache management" time="0.002">
-    </testcase>
-    <testcase classname="uploadApi endpoints requestPresignUrl should be a mutation" name="uploadApi endpoints requestPresignUrl should be a mutation" time="0.003">
-    </testcase>
-    <testcase classname="uploadApi endpoints requestBatchPresignUrls should be a mutation" name="uploadApi endpoints requestBatchPresignUrls should be a mutation" time="0.003">
-    </testcase>
-    <testcase classname="uploadApi endpoints getJobStatus should be a query" name="uploadApi endpoints getJobStatus should be a query" time="0.001">
-    </testcase>
-    <testcase classname="uploadApi endpoints getBatchJobStatus should be a query" name="uploadApi endpoints getBatchJobStatus should be a query" time="0.002">
-    </testcase>
-    <testcase classname="uploadApi endpoints healthCheck should be a query" name="uploadApi endpoints healthCheck should be a query" time="0.002">
-    </testcase>
-  </testsuite>
-  <testsuite name="Test Infrastructure" errors="0" failures="0" skipped="0" timestamp="2025-10-29T01:21:13" time="0.449" tests="6">
-    <testcase classname="Test Infrastructure createMockResponse should create a mock Response with default values" name="Test Infrastructure createMockResponse should create a mock Response with default values" time="0.009">
-    </testcase>
-    <testcase classname="Test Infrastructure createMockResponse should create a mock Response with custom values" name="Test Infrastructure createMockResponse should create a mock Response with custom values" time="0.001">
-    </testcase>
-    <testcase classname="Test Infrastructure createMockResponse should support json() method" name="Test Infrastructure createMockResponse should support json() method" time="0.002">
-    </testcase>
-    <testcase classname="Test Infrastructure createMockResponse should support text() method" name="Test Infrastructure createMockResponse should support text() method" time="0.001">
-    </testcase>
-    <testcase classname="Test Infrastructure StubUploadService should provide working stub implementation" name="Test Infrastructure StubUploadService should provide working stub implementation" time="0.002">
-    </testcase>
-    <testcase classname="Test Infrastructure StubNotificationService should provide working stub implementation" name="Test Infrastructure StubNotificationService should provide working stub implementation" time="0.001">
-    </testcase>
-  </testsuite>
-  <testsuite name="uploadMachine" errors="0" failures="0" skipped="0" timestamp="2025-10-29T01:21:13" time="0.568" tests="21">
-    <testcase classname="uploadMachine initial state should start in idle state" name="uploadMachine initial state should start in idle state" time="0.012">
+<testsuites name="jest tests" tests="148" failures="0" errors="0" time="8.531">
+  <testsuite name="uploadMachine" errors="0" failures="0" skipped="0" timestamp="2025-10-29T01:28:43" time="0.504" tests="21">
+    <testcase classname="uploadMachine initial state should start in idle state" name="uploadMachine initial state should start in idle state" time="0.016">
     </testcase>
     <testcase classname="uploadMachine state transitions should transition from idle to preprocessing on START_UPLOAD" name="uploadMachine state transitions should transition from idle to preprocessing on START_UPLOAD" time="0.004">
     </testcase>
-    <testcase classname="uploadMachine state transitions should transition from preprocessing to requesting_presign automatically via `always` transition" name="uploadMachine state transitions should transition from preprocessing to requesting_presign automatically via `always` transition" time="0.003">
+    <testcase classname="uploadMachine state transitions should transition from preprocessing to requesting_presign automatically via `always` transition" name="uploadMachine state transitions should transition from preprocessing to requesting_presign automatically via `always` transition" time="0.002">
     </testcase>
-    <testcase classname="uploadMachine state transitions should transition from requesting_presign to uploading on PRESIGN_SUCCESS" name="uploadMachine state transitions should transition from requesting_presign to uploading on PRESIGN_SUCCESS" time="0.002">
+    <testcase classname="uploadMachine state transitions should transition from requesting_presign to uploading on PRESIGN_SUCCESS" name="uploadMachine state transitions should transition from requesting_presign to uploading on PRESIGN_SUCCESS" time="0.003">
     </testcase>
     <testcase classname="uploadMachine state transitions should transition from requesting_presign to failed on PRESIGN_FAILURE" name="uploadMachine state transitions should transition from requesting_presign to failed on PRESIGN_FAILURE" time="0.002">
     </testcase>
@@ -55,49 +19,85 @@
     </testcase>
     <testcase classname="uploadMachine state transitions should transition to failed on UPLOAD_FAILURE when max retries exceeded" name="uploadMachine state transitions should transition to failed on UPLOAD_FAILURE when max retries exceeded" time="0.003">
     </testcase>
-    <testcase classname="uploadMachine state transitions should transition from uploading to paused on PAUSE" name="uploadMachine state transitions should transition from uploading to paused on PAUSE" time="0.001">
+    <testcase classname="uploadMachine state transitions should transition from uploading to paused on PAUSE" name="uploadMachine state transitions should transition from uploading to paused on PAUSE" time="0.002">
     </testcase>
-    <testcase classname="uploadMachine state transitions should transition from paused to uploading on RESUME" name="uploadMachine state transitions should transition from paused to uploading on RESUME" time="0.002">
+    <testcase classname="uploadMachine state transitions should transition from paused to uploading on RESUME" name="uploadMachine state transitions should transition from paused to uploading on RESUME" time="0.001">
     </testcase>
     <testcase classname="uploadMachine state transitions should transition from processing to completed on JOB_COMPLETED" name="uploadMachine state transitions should transition from processing to completed on JOB_COMPLETED" time="0.002">
     </testcase>
-    <testcase classname="uploadMachine state transitions should transition from processing to failed on JOB_FAILED" name="uploadMachine state transitions should transition from processing to failed on JOB_FAILED" time="0.001">
+    <testcase classname="uploadMachine state transitions should transition from processing to failed on JOB_FAILED" name="uploadMachine state transitions should transition from processing to failed on JOB_FAILED" time="0.002">
     </testcase>
-    <testcase classname="uploadMachine state transitions should transition to idle on CANCEL from any state" name="uploadMachine state transitions should transition to idle on CANCEL from any state" time="0.001">
+    <testcase classname="uploadMachine state transitions should transition to idle on CANCEL from any state" name="uploadMachine state transitions should transition to idle on CANCEL from any state" time="0.002">
     </testcase>
-    <testcase classname="uploadMachine state transitions should transition from failed to preprocessing on RETRY when retries available" name="uploadMachine state transitions should transition from failed to preprocessing on RETRY when retries available" time="0.001">
+    <testcase classname="uploadMachine state transitions should transition from failed to preprocessing on RETRY when retries available" name="uploadMachine state transitions should transition from failed to preprocessing on RETRY when retries available" time="0.002">
     </testcase>
-    <testcase classname="uploadMachine state transitions should reach completed state on JOB_COMPLETED" name="uploadMachine state transitions should reach completed state on JOB_COMPLETED" time="0.003">
+    <testcase classname="uploadMachine state transitions should reach completed state on JOB_COMPLETED" name="uploadMachine state transitions should reach completed state on JOB_COMPLETED" time="0.002">
     </testcase>
     <testcase classname="uploadMachine helper functions isUploadInProgress should return true for active states" name="uploadMachine helper functions isUploadInProgress should return true for active states" time="0.001">
     </testcase>
-    <testcase classname="uploadMachine helper functions isUploadPauseable should return true only for uploading state" name="uploadMachine helper functions isUploadPauseable should return true only for uploading state" time="0.006">
+    <testcase classname="uploadMachine helper functions isUploadPauseable should return true only for uploading state" name="uploadMachine helper functions isUploadPauseable should return true only for uploading state" time="0.005">
     </testcase>
-    <testcase classname="uploadMachine helper functions isUploadTerminal should return true for terminal states" name="uploadMachine helper functions isUploadTerminal should return true for terminal states" time="0">
+    <testcase classname="uploadMachine helper functions isUploadTerminal should return true for terminal states" name="uploadMachine helper functions isUploadTerminal should return true for terminal states" time="0.001">
     </testcase>
-    <testcase classname="uploadMachine context actions should update progress incrementally in processing state" name="uploadMachine context actions should update progress incrementally in processing state" time="0.001">
+    <testcase classname="uploadMachine context actions should update progress incrementally in processing state" name="uploadMachine context actions should update progress incrementally in processing state" time="0.002">
     </testcase>
-    <testcase classname="uploadMachine context actions should preserve context data when paused" name="uploadMachine context actions should preserve context data when paused" time="0.001">
+    <testcase classname="uploadMachine context actions should preserve context data when paused" name="uploadMachine context actions should preserve context data when paused" time="0.002">
     </testcase>
   </testsuite>
-  <testsuite name="NotificationServiceAdapter - Initialization and Permissions" errors="0" failures="0" skipped="0" timestamp="2025-10-29T01:21:13" time="0.637" tests="30">
-    <testcase classname="NotificationServiceAdapter - Initialization and Permissions Constructor should initialize with default base URL" name="NotificationServiceAdapter - Initialization and Permissions Constructor should initialize with default base URL" time="0.005">
+  <testsuite name="Test Infrastructure" errors="0" failures="0" skipped="0" timestamp="2025-10-29T01:28:43" time="0.415" tests="6">
+    <testcase classname="Test Infrastructure createMockResponse should create a mock Response with default values" name="Test Infrastructure createMockResponse should create a mock Response with default values" time="0.006">
+    </testcase>
+    <testcase classname="Test Infrastructure createMockResponse should create a mock Response with custom values" name="Test Infrastructure createMockResponse should create a mock Response with custom values" time="0.001">
+    </testcase>
+    <testcase classname="Test Infrastructure createMockResponse should support json() method" name="Test Infrastructure createMockResponse should support json() method" time="0.001">
+    </testcase>
+    <testcase classname="Test Infrastructure createMockResponse should support text() method" name="Test Infrastructure createMockResponse should support text() method" time="0.001">
+    </testcase>
+    <testcase classname="Test Infrastructure StubUploadService should provide working stub implementation" name="Test Infrastructure StubUploadService should provide working stub implementation" time="0.002">
+    </testcase>
+    <testcase classname="Test Infrastructure StubNotificationService should provide working stub implementation" name="Test Infrastructure StubNotificationService should provide working stub implementation" time="0">
+    </testcase>
+  </testsuite>
+  <testsuite name="uploadApi" errors="0" failures="0" skipped="0" timestamp="2025-10-29T01:28:43" time="0.54" tests="10">
+    <testcase classname="uploadApi uploadApi slice configuration should be configured with correct reducer path" name="uploadApi uploadApi slice configuration should be configured with correct reducer path" time="0.012">
+    </testcase>
+    <testcase classname="uploadApi uploadApi slice configuration should have all required endpoints" name="uploadApi uploadApi slice configuration should have all required endpoints" time="0.004">
+    </testcase>
+    <testcase classname="uploadApi uploadApi slice configuration should initialize reducer with empty state" name="uploadApi uploadApi slice configuration should initialize reducer with empty state" time="0.003">
+    </testcase>
+    <testcase classname="uploadApi uploadApi slice configuration should have middleware configured" name="uploadApi uploadApi slice configuration should have middleware configured" time="0.002">
+    </testcase>
+    <testcase classname="uploadApi uploadApi slice configuration should provide util methods for cache management" name="uploadApi uploadApi slice configuration should provide util methods for cache management" time="0.003">
+    </testcase>
+    <testcase classname="uploadApi endpoints requestPresignUrl should be a mutation" name="uploadApi endpoints requestPresignUrl should be a mutation" time="0.002">
+    </testcase>
+    <testcase classname="uploadApi endpoints requestBatchPresignUrls should be a mutation" name="uploadApi endpoints requestBatchPresignUrls should be a mutation" time="0.002">
+    </testcase>
+    <testcase classname="uploadApi endpoints getJobStatus should be a query" name="uploadApi endpoints getJobStatus should be a query" time="0.006">
+    </testcase>
+    <testcase classname="uploadApi endpoints getBatchJobStatus should be a query" name="uploadApi endpoints getBatchJobStatus should be a query" time="0.003">
+    </testcase>
+    <testcase classname="uploadApi endpoints healthCheck should be a query" name="uploadApi endpoints healthCheck should be a query" time="0.002">
+    </testcase>
+  </testsuite>
+  <testsuite name="NotificationServiceAdapter - Initialization and Permissions" errors="0" failures="0" skipped="0" timestamp="2025-10-29T01:28:43" time="0.576" tests="30">
+    <testcase classname="NotificationServiceAdapter - Initialization and Permissions Constructor should initialize with default base URL" name="NotificationServiceAdapter - Initialization and Permissions Constructor should initialize with default base URL" time="0.01">
     </testcase>
     <testcase classname="NotificationServiceAdapter - Initialization and Permissions Constructor should initialize with environment base URL when set" name="NotificationServiceAdapter - Initialization and Permissions Constructor should initialize with environment base URL when set" time="0.001">
     </testcase>
-    <testcase classname="NotificationServiceAdapter - Initialization and Permissions initialize - Permission Granted should successfully initialize with granted permissions" name="NotificationServiceAdapter - Initialization and Permissions initialize - Permission Granted should successfully initialize with granted permissions" time="0.029">
+    <testcase classname="NotificationServiceAdapter - Initialization and Permissions initialize - Permission Granted should successfully initialize with granted permissions" name="NotificationServiceAdapter - Initialization and Permissions initialize - Permission Granted should successfully initialize with granted permissions" time="0.021">
     </testcase>
     <testcase classname="NotificationServiceAdapter - Initialization and Permissions initialize - Permission Request Flow should request permissions when not granted" name="NotificationServiceAdapter - Initialization and Permissions initialize - Permission Request Flow should request permissions when not granted" time="0.004">
     </testcase>
     <testcase classname="NotificationServiceAdapter - Initialization and Permissions initialize - Permission Request Flow should handle denied permissions gracefully" name="NotificationServiceAdapter - Initialization and Permissions initialize - Permission Request Flow should handle denied permissions gracefully" time="0.001">
     </testcase>
-    <testcase classname="NotificationServiceAdapter - Initialization and Permissions scheduleLocalNotification should schedule local notification with title and body" name="NotificationServiceAdapter - Initialization and Permissions scheduleLocalNotification should schedule local notification with title and body" time="0">
+    <testcase classname="NotificationServiceAdapter - Initialization and Permissions scheduleLocalNotification should schedule local notification with title and body" name="NotificationServiceAdapter - Initialization and Permissions scheduleLocalNotification should schedule local notification with title and body" time="0.001">
     </testcase>
-    <testcase classname="NotificationServiceAdapter - Initialization and Permissions scheduleLocalNotification should schedule local notification with data payload" name="NotificationServiceAdapter - Initialization and Permissions scheduleLocalNotification should schedule local notification with data payload" time="0">
+    <testcase classname="NotificationServiceAdapter - Initialization and Permissions scheduleLocalNotification should schedule local notification with data payload" name="NotificationServiceAdapter - Initialization and Permissions scheduleLocalNotification should schedule local notification with data payload" time="0.001">
     </testcase>
     <testcase classname="NotificationServiceAdapter - Initialization and Permissions scheduleLocalNotification should handle scheduling errors gracefully" name="NotificationServiceAdapter - Initialization and Permissions scheduleLocalNotification should handle scheduling errors gracefully" time="0.024">
     </testcase>
-    <testcase classname="NotificationServiceAdapter - Initialization and Permissions cancelAllNotifications should cancel all scheduled notifications" name="NotificationServiceAdapter - Initialization and Permissions cancelAllNotifications should cancel all scheduled notifications" time="0.001">
+    <testcase classname="NotificationServiceAdapter - Initialization and Permissions cancelAllNotifications should cancel all scheduled notifications" name="NotificationServiceAdapter - Initialization and Permissions cancelAllNotifications should cancel all scheduled notifications" time="0">
     </testcase>
     <testcase classname="NotificationServiceAdapter - Backend Registration Device Token Registration should register device token with backend on iOS" name="NotificationServiceAdapter - Backend Registration Device Token Registration should register device token with backend on iOS" time="0.002">
     </testcase>
@@ -105,19 +105,19 @@
     </testcase>
     <testcase classname="NotificationServiceAdapter - Backend Registration Device Token Registration should handle backend registration HTTP 4xx errors" name="NotificationServiceAdapter - Backend Registration Device Token Registration should handle backend registration HTTP 4xx errors" time="0.002">
     </testcase>
-    <testcase classname="NotificationServiceAdapter - Backend Registration Device Token Registration should handle backend registration HTTP 5xx errors" name="NotificationServiceAdapter - Backend Registration Device Token Registration should handle backend registration HTTP 5xx errors" time="0.001">
+    <testcase classname="NotificationServiceAdapter - Backend Registration Device Token Registration should handle backend registration HTTP 5xx errors" name="NotificationServiceAdapter - Backend Registration Device Token Registration should handle backend registration HTTP 5xx errors" time="0.003">
     </testcase>
     <testcase classname="NotificationServiceAdapter - Backend Registration Device Token Registration should handle network failures during registration" name="NotificationServiceAdapter - Backend Registration Device Token Registration should handle network failures during registration" time="0.002">
     </testcase>
     <testcase classname="NotificationServiceAdapter - Backend Registration Device Token Registration should generate device ID when not stored" name="NotificationServiceAdapter - Backend Registration Device Token Registration should generate device ID when not stored" time="0.001">
     </testcase>
-    <testcase classname="NotificationServiceAdapter - Backend Registration unregisterFromBackend should unregister device token from backend" name="NotificationServiceAdapter - Backend Registration unregisterFromBackend should unregister device token from backend" time="0.001">
+    <testcase classname="NotificationServiceAdapter - Backend Registration unregisterFromBackend should unregister device token from backend" name="NotificationServiceAdapter - Backend Registration unregisterFromBackend should unregister device token from backend" time="0.002">
     </testcase>
     <testcase classname="NotificationServiceAdapter - Backend Registration unregisterFromBackend should handle unregister HTTP errors gracefully" name="NotificationServiceAdapter - Backend Registration unregisterFromBackend should handle unregister HTTP errors gracefully" time="0.001">
     </testcase>
     <testcase classname="NotificationServiceAdapter - Backend Registration unregisterFromBackend should handle unregister network failures gracefully" name="NotificationServiceAdapter - Backend Registration unregisterFromBackend should handle unregister network failures gracefully" time="0.001">
     </testcase>
-    <testcase classname="NotificationServiceAdapter - Edge Cases and Platform Behavior scheduleJobCompletionNotification should schedule job completion notification with push token" name="NotificationServiceAdapter - Edge Cases and Platform Behavior scheduleJobCompletionNotification should schedule job completion notification with push token" time="0.001">
+    <testcase classname="NotificationServiceAdapter - Edge Cases and Platform Behavior scheduleJobCompletionNotification should schedule job completion notification with push token" name="NotificationServiceAdapter - Edge Cases and Platform Behavior scheduleJobCompletionNotification should schedule job completion notification with push token" time="0.002">
     </testcase>
     <testcase classname="NotificationServiceAdapter - Edge Cases and Platform Behavior scheduleJobCompletionNotification should skip job completion notification when no push token available" name="NotificationServiceAdapter - Edge Cases and Platform Behavior scheduleJobCompletionNotification should skip job completion notification when no push token available" time="0.004">
     </testcase>
@@ -131,27 +131,27 @@
     </testcase>
     <testcase classname="NotificationServiceAdapter - Edge Cases and Platform Behavior Notification Listeners should set up notification listeners on initialization" name="NotificationServiceAdapter - Edge Cases and Platform Behavior Notification Listeners should set up notification listeners on initialization" time="0.002">
     </testcase>
-    <testcase classname="NotificationServiceAdapter - Edge Cases and Platform Behavior Backend Registration Response Validation should parse successful backend response" name="NotificationServiceAdapter - Edge Cases and Platform Behavior Backend Registration Response Validation should parse successful backend response" time="0.001">
+    <testcase classname="NotificationServiceAdapter - Edge Cases and Platform Behavior Backend Registration Response Validation should parse successful backend response" name="NotificationServiceAdapter - Edge Cases and Platform Behavior Backend Registration Response Validation should parse successful backend response" time="0.002">
     </testcase>
-    <testcase classname="NotificationServiceAdapter - Edge Cases and Platform Behavior Backend Registration Response Validation should handle backend response with success=false" name="NotificationServiceAdapter - Edge Cases and Platform Behavior Backend Registration Response Validation should handle backend response with success=false" time="0.002">
+    <testcase classname="NotificationServiceAdapter - Edge Cases and Platform Behavior Backend Registration Response Validation should handle backend response with success=false" name="NotificationServiceAdapter - Edge Cases and Platform Behavior Backend Registration Response Validation should handle backend response with success=false" time="0.001">
     </testcase>
-    <testcase classname="NotificationServiceAdapter - Edge Cases and Platform Behavior Backend Registration Response Validation should handle malformed backend response" name="NotificationServiceAdapter - Edge Cases and Platform Behavior Backend Registration Response Validation should handle malformed backend response" time="0.016">
+    <testcase classname="NotificationServiceAdapter - Edge Cases and Platform Behavior Backend Registration Response Validation should handle malformed backend response" name="NotificationServiceAdapter - Edge Cases and Platform Behavior Backend Registration Response Validation should handle malformed backend response" time="0.012">
     </testcase>
     <testcase classname="NotificationServiceAdapter - Edge Cases and Platform Behavior getExpoPushToken should return undefined when not initialized" name="NotificationServiceAdapter - Edge Cases and Platform Behavior getExpoPushToken should return undefined when not initialized" time="0">
     </testcase>
-    <testcase classname="NotificationServiceAdapter - Edge Cases and Platform Behavior getExpoPushToken should return token after successful initialization" name="NotificationServiceAdapter - Edge Cases and Platform Behavior getExpoPushToken should return token after successful initialization" time="0.002">
+    <testcase classname="NotificationServiceAdapter - Edge Cases and Platform Behavior getExpoPushToken should return token after successful initialization" name="NotificationServiceAdapter - Edge Cases and Platform Behavior getExpoPushToken should return token after successful initialization" time="0.001">
     </testcase>
   </testsuite>
-  <testsuite name="preprocessing utilities" errors="0" failures="0" skipped="0" timestamp="2025-10-29T01:21:13" time="0.709" tests="9">
-    <testcase classname="preprocessing utilities needsResize returns false for images within max dimension" name="preprocessing utilities needsResize returns false for images within max dimension" time="0.012">
+  <testsuite name="preprocessing utilities" errors="0" failures="0" skipped="0" timestamp="2025-10-29T01:28:43" time="0.675" tests="9">
+    <testcase classname="preprocessing utilities needsResize returns false for images within max dimension" name="preprocessing utilities needsResize returns false for images within max dimension" time="0.006">
     </testcase>
-    <testcase classname="preprocessing utilities needsResize returns true for images exceeding max dimension" name="preprocessing utilities needsResize returns true for images exceeding max dimension" time="0.001">
+    <testcase classname="preprocessing utilities needsResize returns true for images exceeding max dimension" name="preprocessing utilities needsResize returns true for images exceeding max dimension" time="0">
     </testcase>
     <testcase classname="preprocessing utilities needsResize handles exact boundary case" name="preprocessing utilities needsResize handles exact boundary case" time="0.001">
     </testcase>
-    <testcase classname="preprocessing utilities needsResize uses default max dimension of 4096" name="preprocessing utilities needsResize uses default max dimension of 4096" time="0">
+    <testcase classname="preprocessing utilities needsResize uses default max dimension of 4096" name="preprocessing utilities needsResize uses default max dimension of 4096" time="0.001">
     </testcase>
-    <testcase classname="preprocessing utilities isHEIC detects HEIC from file extension" name="preprocessing utilities isHEIC detects HEIC from file extension" time="0">
+    <testcase classname="preprocessing utilities isHEIC detects HEIC from file extension" name="preprocessing utilities isHEIC detects HEIC from file extension" time="0.001">
     </testcase>
     <testcase classname="preprocessing utilities isHEIC detects HEIF from file extension" name="preprocessing utilities isHEIC detects HEIF from file extension" time="0">
     </testcase>
@@ -162,20 +162,20 @@
     <testcase classname="preprocessing utilities isHEIC handles missing MIME type" name="preprocessing utilities isHEIC handles missing MIME type" time="0.001">
     </testcase>
   </testsuite>
-  <testsuite name="ApiService - Shared Schema Integration" errors="0" failures="0" skipped="0" timestamp="2025-10-29T01:21:13" time="0.901" tests="25">
-    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Request Presigned URL should validate request body using PresignUploadRequestSchema" name="ApiService - Shared Schema Integration Schema Validation - Request Presigned URL should validate request body using PresignUploadRequestSchema" time="0.041">
+  <testsuite name="ApiService - Shared Schema Integration" errors="0" failures="0" skipped="0" timestamp="2025-10-29T01:28:43" time="0.87" tests="25">
+    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Request Presigned URL should validate request body using PresignUploadRequestSchema" name="ApiService - Shared Schema Integration Schema Validation - Request Presigned URL should validate request body using PresignUploadRequestSchema" time="0.063">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Request Presigned URL should reject invalid request data that violates schema" name="ApiService - Shared Schema Integration Schema Validation - Request Presigned URL should reject invalid request data that violates schema" time="0.029">
+    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Request Presigned URL should reject invalid request data that violates schema" name="ApiService - Shared Schema Integration Schema Validation - Request Presigned URL should reject invalid request data that violates schema" time="0.034">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Request Presigned URL should reject invalid response data that violates schema" name="ApiService - Shared Schema Integration Schema Validation - Request Presigned URL should reject invalid response data that violates schema" time="0.021">
+    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Request Presigned URL should reject invalid response data that violates schema" name="ApiService - Shared Schema Integration Schema Validation - Request Presigned URL should reject invalid response data that violates schema" time="0.01">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Job Status should validate job status response using JobSchema" name="ApiService - Shared Schema Integration Schema Validation - Job Status should validate job status response using JobSchema" time="0.002">
+    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Job Status should validate job status response using JobSchema" name="ApiService - Shared Schema Integration Schema Validation - Job Status should validate job status response using JobSchema" time="0.004">
     </testcase>
     <testcase classname="ApiService - Shared Schema Integration Schema Validation - Job Status should validate all possible job statuses" name="ApiService - Shared Schema Integration Schema Validation - Job Status should validate all possible job statuses" time="0.001">
     </testcase>
     <testcase classname="ApiService - Shared Schema Integration Schema Validation - Job Status should reject invalid job status" name="ApiService - Shared Schema Integration Schema Validation - Job Status should reject invalid job status" time="0.001">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Batch Upload should validate batch upload request using BatchUploadRequestSchema" name="ApiService - Shared Schema Integration Schema Validation - Batch Upload should validate batch upload request using BatchUploadRequestSchema" time="0.003">
+    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Batch Upload should validate batch upload request using BatchUploadRequestSchema" name="ApiService - Shared Schema Integration Schema Validation - Batch Upload should validate batch upload request using BatchUploadRequestSchema" time="0.004">
     </testcase>
     <testcase classname="ApiService - Shared Schema Integration Schema Validation - Batch Upload should reject batch request with too many files" name="ApiService - Shared Schema Integration Schema Validation - Batch Upload should reject batch request with too many files" time="0.001">
     </testcase>
@@ -183,25 +183,25 @@
     </testcase>
     <testcase classname="ApiService - Shared Schema Integration Schema Validation - Batch Job Status should validate batch job status using BatchJobSchema" name="ApiService - Shared Schema Integration Schema Validation - Batch Job Status should validate batch job status using BatchJobSchema" time="0.001">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Device Token Registration should validate device token request using DeviceTokenRegistrationSchema" name="ApiService - Shared Schema Integration Schema Validation - Device Token Registration should validate device token request using DeviceTokenRegistrationSchema" time="0.002">
+    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Device Token Registration should validate device token request using DeviceTokenRegistrationSchema" name="ApiService - Shared Schema Integration Schema Validation - Device Token Registration should validate device token request using DeviceTokenRegistrationSchema" time="0.001">
     </testcase>
     <testcase classname="ApiService - Shared Schema Integration Schema Validation - Device Token Registration should reject invalid platform values" name="ApiService - Shared Schema Integration Schema Validation - Device Token Registration should reject invalid platform values" time="0.001">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Device Token Registration should validate device token deactivation response" name="ApiService - Shared Schema Integration Schema Validation - Device Token Registration should validate device token deactivation response" time="0.002">
+    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Device Token Registration should validate device token deactivation response" name="ApiService - Shared Schema Integration Schema Validation - Device Token Registration should validate device token deactivation response" time="0.001">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Polling Logic - processImage should resolve when job completes successfully" name="ApiService - Shared Schema Integration Polling Logic - processImage should resolve when job completes successfully" time="0.008">
+    <testcase classname="ApiService - Shared Schema Integration Polling Logic - processImage should resolve when job completes successfully" name="ApiService - Shared Schema Integration Polling Logic - processImage should resolve when job completes successfully" time="0.009">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Polling Logic - processImage should reject when job fails" name="ApiService - Shared Schema Integration Polling Logic - processImage should reject when job fails" time="0.065">
+    <testcase classname="ApiService - Shared Schema Integration Polling Logic - processImage should reject when job fails" name="ApiService - Shared Schema Integration Polling Logic - processImage should reject when job fails" time="0.062">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Polling Logic - processImage should timeout after max polling attempts" name="ApiService - Shared Schema Integration Polling Logic - processImage should timeout after max polling attempts" time="0.052">
+    <testcase classname="ApiService - Shared Schema Integration Polling Logic - processImage should timeout after max polling attempts" name="ApiService - Shared Schema Integration Polling Logic - processImage should timeout after max polling attempts" time="0.044">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Polling Logic - processImage should continue polling after temporary network errors" name="ApiService - Shared Schema Integration Polling Logic - processImage should continue polling after temporary network errors" time="0.003">
+    <testcase classname="ApiService - Shared Schema Integration Polling Logic - processImage should continue polling after temporary network errors" name="ApiService - Shared Schema Integration Polling Logic - processImage should continue polling after temporary network errors" time="0.002">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Polling Logic - processBatchImages should resolve when batch completes successfully" name="ApiService - Shared Schema Integration Polling Logic - processBatchImages should resolve when batch completes successfully" time="0.004">
+    <testcase classname="ApiService - Shared Schema Integration Polling Logic - processBatchImages should resolve when batch completes successfully" name="ApiService - Shared Schema Integration Polling Logic - processBatchImages should resolve when batch completes successfully" time="0.003">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Polling Logic - processBatchImages should reject when batch fails" name="ApiService - Shared Schema Integration Polling Logic - processBatchImages should reject when batch fails" time="0.095">
+    <testcase classname="ApiService - Shared Schema Integration Polling Logic - processBatchImages should reject when batch fails" name="ApiService - Shared Schema Integration Polling Logic - processBatchImages should reject when batch fails" time="0.086">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Polling Logic - processBatchImages should timeout after max polling attempts" name="ApiService - Shared Schema Integration Polling Logic - processBatchImages should timeout after max polling attempts" time="0.074">
+    <testcase classname="ApiService - Shared Schema Integration Polling Logic - processBatchImages should timeout after max polling attempts" name="ApiService - Shared Schema Integration Polling Logic - processBatchImages should timeout after max polling attempts" time="0.073">
     </testcase>
     <testcase classname="ApiService - Shared Schema Integration Contract Drift Prevention should use shared schemas directly without local copies" name="ApiService - Shared Schema Integration Contract Drift Prevention should use shared schemas directly without local copies" time="0.001">
     </testcase>
@@ -209,35 +209,35 @@
     </testcase>
     <testcase classname="ApiService - Shared Schema Integration API Error Handling should throw error on non-ok HTTP response" name="ApiService - Shared Schema Integration API Error Handling should throw error on non-ok HTTP response" time="0.001">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration API Error Handling should throw error on network failure" name="ApiService - Shared Schema Integration API Error Handling should throw error on network failure" time="0">
+    <testcase classname="ApiService - Shared Schema Integration API Error Handling should throw error on network failure" name="ApiService - Shared Schema Integration API Error Handling should throw error on network failure" time="0.001">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration API Error Handling should throw error on schema validation failure" name="ApiService - Shared Schema Integration API Error Handling should throw error on schema validation failure" time="0">
+    <testcase classname="ApiService - Shared Schema Integration API Error Handling should throw error on schema validation failure" name="ApiService - Shared Schema Integration API Error Handling should throw error on schema validation failure" time="0.001">
     </testcase>
   </testsuite>
-  <testsuite name="UploadServiceAdapter - Basic Operations" errors="0" failures="0" skipped="0" timestamp="2025-10-29T01:21:13" time="3.629" tests="32">
-    <testcase classname="UploadServiceAdapter - Basic Operations setBaseUrl should set base URL and persist to storage" name="UploadServiceAdapter - Basic Operations setBaseUrl should set base URL and persist to storage" time="0.007">
+  <testsuite name="UploadServiceAdapter - Basic Operations" errors="0" failures="0" skipped="0" timestamp="2025-10-29T01:28:43" time="3.914" tests="32">
+    <testcase classname="UploadServiceAdapter - Basic Operations setBaseUrl should set base URL and persist to storage" name="UploadServiceAdapter - Basic Operations setBaseUrl should set base URL and persist to storage" time="0.008">
     </testcase>
     <testcase classname="UploadServiceAdapter - Basic Operations loadBaseUrl should load base URL from storage if available" name="UploadServiceAdapter - Basic Operations loadBaseUrl should load base URL from storage if available" time="0.001">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations loadBaseUrl should use default URL if storage is empty" name="UploadServiceAdapter - Basic Operations loadBaseUrl should use default URL if storage is empty" time="0">
+    <testcase classname="UploadServiceAdapter - Basic Operations loadBaseUrl should use default URL if storage is empty" name="UploadServiceAdapter - Basic Operations loadBaseUrl should use default URL if storage is empty" time="0.001">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations requestPresignedUrl should request presigned URL successfully" name="UploadServiceAdapter - Basic Operations requestPresignedUrl should request presigned URL successfully" time="0.043">
+    <testcase classname="UploadServiceAdapter - Basic Operations requestPresignedUrl should request presigned URL successfully" name="UploadServiceAdapter - Basic Operations requestPresignedUrl should request presigned URL successfully" time="0.057">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations requestPresignedUrl should handle HTTP 4xx errors with retry" name="UploadServiceAdapter - Basic Operations requestPresignedUrl should handle HTTP 4xx errors with retry" time="0.634">
+    <testcase classname="UploadServiceAdapter - Basic Operations requestPresignedUrl should handle HTTP 4xx errors with retry" name="UploadServiceAdapter - Basic Operations requestPresignedUrl should handle HTTP 4xx errors with retry" time="0.569">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations uploadImage should upload image to S3 successfully" name="UploadServiceAdapter - Basic Operations uploadImage should upload image to S3 successfully" time="0.001">
+    <testcase classname="UploadServiceAdapter - Basic Operations uploadImage should upload image to S3 successfully" name="UploadServiceAdapter - Basic Operations uploadImage should upload image to S3 successfully" time="0.002">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations uploadImage should handle S3 upload failures with retry" name="UploadServiceAdapter - Basic Operations uploadImage should handle S3 upload failures with retry" time="0.458">
+    <testcase classname="UploadServiceAdapter - Basic Operations uploadImage should handle S3 upload failures with retry" name="UploadServiceAdapter - Basic Operations uploadImage should handle S3 upload failures with retry" time="0.677">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations getJobStatus should get job status successfully" name="UploadServiceAdapter - Basic Operations getJobStatus should get job status successfully" time="0.001">
+    <testcase classname="UploadServiceAdapter - Basic Operations getJobStatus should get job status successfully" name="UploadServiceAdapter - Basic Operations getJobStatus should get job status successfully" time="0.002">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations testConnection should return true when API is reachable" name="UploadServiceAdapter - Basic Operations testConnection should return true when API is reachable" time="0.001">
+    <testcase classname="UploadServiceAdapter - Basic Operations testConnection should return true when API is reachable" name="UploadServiceAdapter - Basic Operations testConnection should return true when API is reachable" time="0.002">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations testConnection should return false when API is unreachable" name="UploadServiceAdapter - Basic Operations testConnection should return false when API is unreachable" time="0.001">
+    <testcase classname="UploadServiceAdapter - Basic Operations testConnection should return false when API is unreachable" name="UploadServiceAdapter - Basic Operations testConnection should return false when API is unreachable" time="0">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations processImage should process image end-to-end with polling" name="UploadServiceAdapter - Basic Operations processImage should process image end-to-end with polling" time="0.003">
+    <testcase classname="UploadServiceAdapter - Basic Operations processImage should process image end-to-end with polling" name="UploadServiceAdapter - Basic Operations processImage should process image end-to-end with polling" time="0.004">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations Batch Operations should request batch presigned URLs successfully" name="UploadServiceAdapter - Basic Operations Batch Operations should request batch presigned URLs successfully" time="0.002">
+    <testcase classname="UploadServiceAdapter - Basic Operations Batch Operations should request batch presigned URLs successfully" name="UploadServiceAdapter - Basic Operations Batch Operations should request batch presigned URLs successfully" time="0.003">
     </testcase>
     <testcase classname="UploadServiceAdapter - Basic Operations Batch Operations should get batch job status successfully" name="UploadServiceAdapter - Basic Operations Batch Operations should get batch job status successfully" time="0.001">
     </testcase>
@@ -247,69 +247,69 @@
     </testcase>
     <testcase classname="UploadServiceAdapter - Basic Operations Device Token Management should register android device token" name="UploadServiceAdapter - Basic Operations Device Token Management should register android device token" time="0.001">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should poll until job completes successfully" name="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should poll until job completes successfully" time="0.006">
+    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should poll until job completes successfully" name="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should poll until job completes successfully" time="0.008">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should stop polling when job fails" name="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should stop polling when job fails" time="0.047">
+    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should stop polling when job fails" name="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should stop polling when job fails" time="0.048">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should timeout after 120 polling attempts" name="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should timeout after 120 polling attempts" time="0.039">
+    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should timeout after 120 polling attempts" name="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should timeout after 120 polling attempts" time="0.045">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should invoke progress callback during polling" name="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should invoke progress callback during polling" time="0.005">
+    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should invoke progress callback during polling" name="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should invoke progress callback during polling" time="0.009">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should continue polling on temporary network errors" name="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should continue polling on temporary network errors" time="0.002">
+    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should continue polling on temporary network errors" name="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should continue polling on temporary network errors" time="0.003">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should track batch progress correctly" name="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should track batch progress correctly" time="0.005">
+    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should track batch progress correctly" name="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should track batch progress correctly" time="0.006">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should complete batch when all jobs succeed" name="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should complete batch when all jobs succeed" time="0.002">
+    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should complete batch when all jobs succeed" name="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should complete batch when all jobs succeed" time="0.003">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should handle batch failure" name="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should handle batch failure" time="0.087">
+    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should handle batch failure" name="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should handle batch failure" time="0.125">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should timeout batch after 240 polling attempts" name="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should timeout batch after 240 polling attempts" time="0.079">
+    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should timeout batch after 240 polling attempts" name="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should timeout batch after 240 polling attempts" time="0.082">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should continue batch polling on temporary network errors" name="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should continue batch polling on temporary network errors" time="0.002">
+    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should continue batch polling on temporary network errors" name="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should continue batch polling on temporary network errors" time="0.004">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations Error Handling should handle network errors in uploadImage" name="UploadServiceAdapter - Basic Operations Error Handling should handle network errors in uploadImage" time="0.4">
+    <testcase classname="UploadServiceAdapter - Basic Operations Error Handling should handle network errors in uploadImage" name="UploadServiceAdapter - Basic Operations Error Handling should handle network errors in uploadImage" time="0.658">
     </testcase>
     <testcase classname="UploadServiceAdapter - Basic Operations Error Handling should handle malformed response data" name="UploadServiceAdapter - Basic Operations Error Handling should handle malformed response data" time="0.002">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations Error Handling should propagate error when processImage fails during presign" name="UploadServiceAdapter - Basic Operations Error Handling should propagate error when processImage fails during presign" time="0.665">
+    <testcase classname="UploadServiceAdapter - Basic Operations Error Handling should propagate error when processImage fails during presign" name="UploadServiceAdapter - Basic Operations Error Handling should propagate error when processImage fails during presign" time="0.502">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations Error Handling should propagate error when processImage fails during upload" name="UploadServiceAdapter - Basic Operations Error Handling should propagate error when processImage fails during upload" time="0.584">
+    <testcase classname="UploadServiceAdapter - Basic Operations Error Handling should propagate error when processImage fails during upload" name="UploadServiceAdapter - Basic Operations Error Handling should propagate error when processImage fails during upload" time="0.599">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations Request Headers should include traceparent and correlation-id headers" name="UploadServiceAdapter - Basic Operations Request Headers should include traceparent and correlation-id headers" time="0.003">
+    <testcase classname="UploadServiceAdapter - Basic Operations Request Headers should include traceparent and correlation-id headers" name="UploadServiceAdapter - Basic Operations Request Headers should include traceparent and correlation-id headers" time="0.001">
     </testcase>
     <testcase classname="UploadServiceAdapter - Basic Operations Request Headers should include Content-Type header in requests" name="UploadServiceAdapter - Basic Operations Request Headers should include Content-Type header in requests" time="0.001">
     </testcase>
   </testsuite>
-  <testsuite name="retry utilities" errors="0" failures="0" skipped="0" timestamp="2025-10-29T01:21:13" time="7.759" tests="15">
-    <testcase classname="retry utilities calculateBackoffDelay calculates exponential backoff correctly" name="retry utilities calculateBackoffDelay calculates exponential backoff correctly" time="0.005">
+  <testsuite name="retry utilities" errors="0" failures="0" skipped="0" timestamp="2025-10-29T01:28:43" time="7.815" tests="15">
+    <testcase classname="retry utilities calculateBackoffDelay calculates exponential backoff correctly" name="retry utilities calculateBackoffDelay calculates exponential backoff correctly" time="0.008">
     </testcase>
     <testcase classname="retry utilities calculateBackoffDelay respects max delay cap" name="retry utilities calculateBackoffDelay respects max delay cap" time="0.001">
     </testcase>
-    <testcase classname="retry utilities calculateBackoffDelay applies jitter when enabled" name="retry utilities calculateBackoffDelay applies jitter when enabled" time="0.002">
+    <testcase classname="retry utilities calculateBackoffDelay applies jitter when enabled" name="retry utilities calculateBackoffDelay applies jitter when enabled" time="0.003">
     </testcase>
     <testcase classname="retry utilities calculateBackoffDelay uses default options when not specified" name="retry utilities calculateBackoffDelay uses default options when not specified" time="0.001">
     </testcase>
-    <testcase classname="retry utilities withRetry succeeds on first attempt" name="retry utilities withRetry succeeds on first attempt" time="0.002">
+    <testcase classname="retry utilities withRetry succeeds on first attempt" name="retry utilities withRetry succeeds on first attempt" time="0.003">
     </testcase>
-    <testcase classname="retry utilities withRetry retries on failure and eventually succeeds" name="retry utilities withRetry retries on failure and eventually succeeds" time="2.873">
+    <testcase classname="retry utilities withRetry retries on failure and eventually succeeds" name="retry utilities withRetry retries on failure and eventually succeeds" time="2.849">
     </testcase>
-    <testcase classname="retry utilities withRetry throws after max retries exhausted" name="retry utilities withRetry throws after max retries exhausted" time="1.939">
+    <testcase classname="retry utilities withRetry throws after max retries exhausted" name="retry utilities withRetry throws after max retries exhausted" time="2.037">
     </testcase>
-    <testcase classname="retry utilities withRetry does not retry non-retryable errors" name="retry utilities withRetry does not retry non-retryable errors" time="0">
+    <testcase classname="retry utilities withRetry does not retry non-retryable errors" name="retry utilities withRetry does not retry non-retryable errors" time="0.001">
     </testcase>
-    <testcase classname="retry utilities withRetry calls onRetry callback" name="retry utilities withRetry calls onRetry callback" time="0.84">
+    <testcase classname="retry utilities withRetry calls onRetry callback" name="retry utilities withRetry calls onRetry callback" time="0.967">
     </testcase>
-    <testcase classname="retry utilities withRetry retries 5xx server errors by default" name="retry utilities withRetry retries 5xx server errors by default" time="0.915">
+    <testcase classname="retry utilities withRetry retries 5xx server errors by default" name="retry utilities withRetry retries 5xx server errors by default" time="0.886">
     </testcase>
-    <testcase classname="retry utilities withRetry retries 429 Too Many Requests by default" name="retry utilities withRetry retries 429 Too Many Requests by default" time="0.783">
+    <testcase classname="retry utilities withRetry retries 429 Too Many Requests by default" name="retry utilities withRetry retries 429 Too Many Requests by default" time="0.645">
     </testcase>
-    <testcase classname="retry utilities createRetryState creates initial retry state" name="retry utilities createRetryState creates initial retry state" time="0">
+    <testcase classname="retry utilities createRetryState creates initial retry state" name="retry utilities createRetryState creates initial retry state" time="0.001">
     </testcase>
-    <testcase classname="retry utilities createRetryState uses default maxAttempts" name="retry utilities createRetryState uses default maxAttempts" time="0.001">
+    <testcase classname="retry utilities createRetryState uses default maxAttempts" name="retry utilities createRetryState uses default maxAttempts" time="0">
     </testcase>
-    <testcase classname="retry utilities updateRetryState updates state after failed attempt" name="retry utilities updateRetryState updates state after failed attempt" time="0">
+    <testcase classname="retry utilities updateRetryState updates state after failed attempt" name="retry utilities updateRetryState updates state after failed attempt" time="0.001">
     </testcase>
-    <testcase classname="retry utilities updateRetryState sets isRetrying to false when max attempts reached" name="retry utilities updateRetryState sets isRetrying to false when max attempts reached" time="0.001">
+    <testcase classname="retry utilities updateRetryState sets isRetrying to false when max attempts reached" name="retry utilities updateRetryState sets isRetrying to false when max attempts reached" time="0">
     </testcase>
   </testsuite>
 </testsuites>

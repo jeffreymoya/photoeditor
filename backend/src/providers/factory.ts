@@ -1,9 +1,10 @@
+import { ProviderConfig } from '@photoeditor/shared';
+
 import { AnalysisProvider } from './analysis.provider';
 import { EditingProvider } from './editing.provider';
 import { GeminiProvider } from './gemini.provider';
 import { SeedreamProvider } from './seedream.provider';
 import { StubAnalysisProvider, StubEditingProvider } from './stub.providers';
-import { ProviderConfig } from '@photoeditor/shared';
 
 export interface ProviderFactoryConfig {
   analysis: {

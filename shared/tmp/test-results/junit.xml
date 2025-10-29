@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="jest tests" tests="28" failures="0" errors="0" time="0.723">
-  <testsuite name="Job Lifecycle State Machine" errors="0" failures="0" skipped="0" timestamp="2025-10-22T12:24:02" time="0.49" tests="28">
+<testsuites name="jest tests" tests="28" failures="0" errors="0" time="0.782">
+  <testsuite name="Job Lifecycle State Machine" errors="0" failures="0" skipped="0" timestamp="2025-10-29T01:28:38" time="0.536" tests="28">
     <testcase classname="Job Lifecycle State Machine isValidTransition should allow QUEUED -&gt; PROCESSING transition" name="Job Lifecycle State Machine isValidTransition should allow QUEUED -&gt; PROCESSING transition" time="0.001">
     </testcase>
-    <testcase classname="Job Lifecycle State Machine isValidTransition should allow QUEUED -&gt; FAILED transition" name="Job Lifecycle State Machine isValidTransition should allow QUEUED -&gt; FAILED transition" time="0">
+    <testcase classname="Job Lifecycle State Machine isValidTransition should allow QUEUED -&gt; FAILED transition" name="Job Lifecycle State Machine isValidTransition should allow QUEUED -&gt; FAILED transition" time="0.001">
     </testcase>
     <testcase classname="Job Lifecycle State Machine isValidTransition should reject QUEUED -&gt; EDITING transition" name="Job Lifecycle State Machine isValidTransition should reject QUEUED -&gt; EDITING transition" time="0.001">
     </testcase>
     <testcase classname="Job Lifecycle State Machine isValidTransition should reject QUEUED -&gt; COMPLETED transition" name="Job Lifecycle State Machine isValidTransition should reject QUEUED -&gt; COMPLETED transition" time="0">
     </testcase>
-    <testcase classname="Job Lifecycle State Machine isValidTransition should allow PROCESSING -&gt; EDITING transition" name="Job Lifecycle State Machine isValidTransition should allow PROCESSING -&gt; EDITING transition" time="0">
+    <testcase classname="Job Lifecycle State Machine isValidTransition should allow PROCESSING -&gt; EDITING transition" name="Job Lifecycle State Machine isValidTransition should allow PROCESSING -&gt; EDITING transition" time="0.001">
     </testcase>
     <testcase classname="Job Lifecycle State Machine isValidTransition should allow PROCESSING -&gt; FAILED transition" name="Job Lifecycle State Machine isValidTransition should allow PROCESSING -&gt; FAILED transition" time="0">
     </testcase>
@@ -17,11 +17,11 @@
     </testcase>
     <testcase classname="Job Lifecycle State Machine isValidTransition should allow EDITING -&gt; COMPLETED transition" name="Job Lifecycle State Machine isValidTransition should allow EDITING -&gt; COMPLETED transition" time="0">
     </testcase>
-    <testcase classname="Job Lifecycle State Machine isValidTransition should allow EDITING -&gt; FAILED transition" name="Job Lifecycle State Machine isValidTransition should allow EDITING -&gt; FAILED transition" time="0">
+    <testcase classname="Job Lifecycle State Machine isValidTransition should allow EDITING -&gt; FAILED transition" name="Job Lifecycle State Machine isValidTransition should allow EDITING -&gt; FAILED transition" time="0.001">
     </testcase>
     <testcase classname="Job Lifecycle State Machine isValidTransition should reject all transitions from COMPLETED" name="Job Lifecycle State Machine isValidTransition should reject all transitions from COMPLETED" time="0">
     </testcase>
-    <testcase classname="Job Lifecycle State Machine isValidTransition should reject all transitions from FAILED" name="Job Lifecycle State Machine isValidTransition should reject all transitions from FAILED" time="0.001">
+    <testcase classname="Job Lifecycle State Machine isValidTransition should reject all transitions from FAILED" name="Job Lifecycle State Machine isValidTransition should reject all transitions from FAILED" time="0.006">
     </testcase>
     <testcase classname="Job Lifecycle State Machine getNextState should return PROCESSING for QUEUED + START_PROCESSING" name="Job Lifecycle State Machine getNextState should return PROCESSING for QUEUED + START_PROCESSING" time="0">
     </testcase>
@@ -33,9 +33,9 @@
     </testcase>
     <testcase classname="Job Lifecycle State Machine getNextState should return COMPLETED for EDITING + COMPLETE" name="Job Lifecycle State Machine getNextState should return COMPLETED for EDITING + COMPLETE" time="0">
     </testcase>
-    <testcase classname="Job Lifecycle State Machine getNextState should return FAILED for any state + FAIL (except terminals)" name="Job Lifecycle State Machine getNextState should return FAILED for any state + FAIL (except terminals)" time="0">
+    <testcase classname="Job Lifecycle State Machine getNextState should return FAILED for any state + FAIL (except terminals)" name="Job Lifecycle State Machine getNextState should return FAILED for any state + FAIL (except terminals)" time="0.001">
     </testcase>
-    <testcase classname="Job Lifecycle State Machine isTerminalState should return true for COMPLETED" name="Job Lifecycle State Machine isTerminalState should return true for COMPLETED" time="0">
+    <testcase classname="Job Lifecycle State Machine isTerminalState should return true for COMPLETED" name="Job Lifecycle State Machine isTerminalState should return true for COMPLETED" time="0.001">
     </testcase>
     <testcase classname="Job Lifecycle State Machine isTerminalState should return true for FAILED" name="Job Lifecycle State Machine isTerminalState should return true for FAILED" time="0">
     </testcase>
@@ -43,15 +43,15 @@
     </testcase>
     <testcase classname="Job Lifecycle State Machine isInProgressState should return true for in-progress states" name="Job Lifecycle State Machine isInProgressState should return true for in-progress states" time="0">
     </testcase>
-    <testcase classname="Job Lifecycle State Machine isInProgressState should return false for terminal states" name="Job Lifecycle State Machine isInProgressState should return false for terminal states" time="0">
+    <testcase classname="Job Lifecycle State Machine isInProgressState should return false for terminal states" name="Job Lifecycle State Machine isInProgressState should return false for terminal states" time="0.001">
     </testcase>
-    <testcase classname="Job Lifecycle State Machine getAllowedEvents should return correct allowed events for QUEUED" name="Job Lifecycle State Machine getAllowedEvents should return correct allowed events for QUEUED" time="0">
+    <testcase classname="Job Lifecycle State Machine getAllowedEvents should return correct allowed events for QUEUED" name="Job Lifecycle State Machine getAllowedEvents should return correct allowed events for QUEUED" time="0.001">
     </testcase>
-    <testcase classname="Job Lifecycle State Machine getAllowedEvents should return correct allowed events for PROCESSING" name="Job Lifecycle State Machine getAllowedEvents should return correct allowed events for PROCESSING" time="0">
+    <testcase classname="Job Lifecycle State Machine getAllowedEvents should return correct allowed events for PROCESSING" name="Job Lifecycle State Machine getAllowedEvents should return correct allowed events for PROCESSING" time="0.001">
     </testcase>
     <testcase classname="Job Lifecycle State Machine getAllowedEvents should return correct allowed events for EDITING" name="Job Lifecycle State Machine getAllowedEvents should return correct allowed events for EDITING" time="0">
     </testcase>
-    <testcase classname="Job Lifecycle State Machine getAllowedEvents should return empty array for terminal states" name="Job Lifecycle State Machine getAllowedEvents should return empty array for terminal states" time="0">
+    <testcase classname="Job Lifecycle State Machine getAllowedEvents should return empty array for terminal states" name="Job Lifecycle State Machine getAllowedEvents should return empty array for terminal states" time="0.001">
     </testcase>
     <testcase classname="Job Lifecycle State Machine Complete job lifecycle paths should allow complete success path: QUEUED -&gt; PROCESSING -&gt; EDITING -&gt; COMPLETED" name="Job Lifecycle State Machine Complete job lifecycle paths should allow complete success path: QUEUED -&gt; PROCESSING -&gt; EDITING -&gt; COMPLETED" time="0.001">
     </testcase>

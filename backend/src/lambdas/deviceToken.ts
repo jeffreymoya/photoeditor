@@ -1,9 +1,10 @@
-import { APIGatewayProxyEventV2, APIGatewayProxyResultV2, Context } from 'aws-lambda';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { Metrics, MetricUnits } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
-import { DeviceTokenService } from '../services/deviceToken.service';
 import { DeviceTokenRegistrationSchema } from '@photoeditor/shared';
+import { APIGatewayProxyEventV2, APIGatewayProxyResultV2, Context } from 'aws-lambda';
+
+import { DeviceTokenService } from '../services/deviceToken.service';
 
 const logger = new Logger();
 const metrics = new Metrics();

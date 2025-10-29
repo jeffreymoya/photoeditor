@@ -1,6 +1,7 @@
-import { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from 'aws-lambda';
-import middy from '@middy/core';
 import { MetricUnits } from '@aws-lambda-powertools/metrics';
+import middy from '@middy/core';
+import { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from 'aws-lambda';
+
 import { serviceInjection, ServiceContext } from '@backend/core';
 
 async function validateAndFetchJob(

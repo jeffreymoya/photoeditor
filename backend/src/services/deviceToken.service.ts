@@ -1,6 +1,7 @@
 import { DynamoDBClient, PutItemCommand, GetItemCommand, UpdateItemCommand, DeleteItemCommand } from '@aws-sdk/client-dynamodb';
 import { marshall, unmarshall } from '@aws-sdk/util-dynamodb';
 import { DeviceTokenRegistration } from '@photoeditor/shared';
+
 import { createDynamoDBClient } from '@backend/core';
 
 export interface DeviceToken {

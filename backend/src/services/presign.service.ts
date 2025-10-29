@@ -1,5 +1,3 @@
-import { JobService } from './job.service';
-import { S3Service } from './s3.service';
 import {
   CreateJobRequest,
   PresignUploadRequest,
@@ -8,6 +6,9 @@ import {
   BatchUploadResponse,
   CreateBatchJobRequest
 } from '@photoeditor/shared';
+
+import { JobService } from './job.service';
+import { S3Service } from './s3.service';
 
 export class PresignService {
   private jobService: JobService;

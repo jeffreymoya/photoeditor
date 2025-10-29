@@ -1,6 +1,4 @@
-import { Result, ok, err } from 'neverthrow';
 import { Job, JobStatus, JobStatusType, CreateJobRequest, BatchJob, CreateBatchJobRequest, APP_CONFIG } from '@photoeditor/shared';
-import { v4 as uuidv4 } from 'uuid';
 import {
   isValidTransition,
   getNextState,
@@ -8,6 +6,8 @@ import {
   isInProgressState,
   JobEvent
 } from '@photoeditor/shared/statecharts/jobLifecycle.machine';
+import { Result, ok, err } from 'neverthrow';
+import { v4 as uuidv4 } from 'uuid';
 
 /**
  * Domain errors - pure, no infrastructure dependencies

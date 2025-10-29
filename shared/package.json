@@ -8,6 +8,7 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "lint": "eslint {constants,schemas,types}/**/*.ts *.ts",
+    "lint:fix": "eslint {constants,schemas,types}/**/*.ts *.ts --fix",
     "typecheck": "tsc --noEmit",
     "test": "jest --passWithNoTests",
     "clean": "rm -rf dist",

@@ -1,0 +1,220 @@
+# Upload adapter polling tests with fake timers
+# Unblocker for TASK-0826 - complete coverage for polling logic
+
+schema_version: "1.0"
+id: TASK-0827
+title: "Add upload adapter polling tests with fake timers"
+status: completed
+blocked_reason: null
+blocked_by: []
+priority: P0
+area: mobile
+unblocker: true
+order: null
+
+agent_completion_state:
+  task_implementer: completed
+  implementation_reviewer: completed
+  test_validation_mobile: completed
+
+description: >-
+  TASK-0826 delivered 22 upload adapter tests with 64.46% line coverage and 40.54% branch coverage,
+  falling short of 80%/70% thresholds. The gap is polling logic (lines 234-270, 348-393) requiring
+  jest.useFakeTimers. This task adds 8-10 polling tests to reach thresholds and unblock TASK-0826.
+  Completed 2025-10-29 after stabilising Cockatiel retry behaviour under fake timers per
+  docs/investigation/2025-10-28-cockatiel-jest.md.
+
+outcome: >-
+  Upload adapter has ≥80% line coverage and ≥70% branch coverage with validated polling tests.
+  All tests pass. Fake timer configuration documented for future polling tests.
+  Evidence captured in docs/investigation/2025-10-28-cockatiel-jest.md with green runs on
+  2025-10-28 and 2025-10-29 using fake timers and open-handle detection.
+
+scope:
+  in:
+    - mobile/src/services/upload/__tests__/adapter.test.ts (expand existing tests)
+    - Fake timer configuration (jest.useFakeTimers('modern'))
+    - Polling logic tests (pollJobCompletion, pollBatchJobCompletion)
+  out:
+    - Adapter implementation files (no changes to adapter.ts or port.ts)
+    - Test infrastructure (stubs.ts already complete)
+    - Notification adapter tests (separate task: TASK-0828)
+
+context:
+  affected_packages: [mobile]
+  standards_tier: mobile
+  issues: []
+  related_docs:
+    - standards/AGENTS.md
+    - standards/frontend-tier.md
+    - standards/testing-standards.md
+    - standards/typescript.md
+    - changelog/2025-10-26-TASK-0826-adapter-tests-blocked.md
+    - .agent-output/implementation-reviewer-summary-TASK-0826.md
+    - docs/investigation/2025-10-28-cockatiel-jest.md
+  repo_paths:
+    - mobile/src/services/upload/__tests__
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "18.x"
+  tools:
+    - name: npm
+      version: "9.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Use jest.useFakeTimers('modern') for controlled time progression
+    - Use jest.advanceTimersByTime(5000) to control polling intervals
+    - Test each polling path: success, failure, timeout
+    - Keep tests deterministic (no real setTimeout delays)
+  prohibited:
+    - No changes to adapter implementation files
+    - No changes to port interface files
+    - No sleep-based polling (use fake timers only)
+    - No secrets or tokens in code
+  architecture:
+    - "Polling uses setTimeout with 5-second intervals"
+    - "Timeout after 120 attempts (10 minutes total)"
+    - "Tests must handle cockatiel retry policies (3 attempts per operation)"
+
+plan:
+  - id: 1
+    title: Configure fake timers for polling tests
+    details: >-
+      Add beforeEach/afterEach setup for fake timers in existing test suite.
+      Create a dedicated describe block for polling tests with timer management.
+    actor: agent
+    inputs:
+      - mobile/src/services/upload/__tests__/adapter.test.ts (existing tests)
+      - mobile/src/services/upload/adapter.ts (to understand polling intervals)
+    outputs:
+      - Fake timer configuration in test file
+    definition_of_done:
+      - jest.useFakeTimers('modern') called in beforeEach
+      - jest.runOnlyPendingTimers() called in afterEach
+      - jest.useRealTimers() called in afterEach to restore
+    estimate: S
+    expected_files_touched:
+      - mobile/src/services/upload/__tests__/adapter.test.ts
+
+  - id: 2
+    title: Add pollJobCompletion tests (4-5 tests)
+    details: >-
+      Test pollJobCompletion covering:
+      1. QUEUED → PROCESSING → COMPLETED flow (advance timers progressively)
+      2. FAILED status handling (job fails, polling stops)
+      3. Timeout after 120 attempts (600 seconds total)
+      4. Progress callback invocation during polling
+      Run tests, verify all pass.
+    actor: agent
+    inputs:
+      - mobile/src/services/upload/adapter.ts (lines 234-270)
+      - mobile/src/services/__tests__/stubs.ts (createMockResponse)
+    outputs:
+      - 4-5 new tests for pollJobCompletion
+    definition_of_done:
+      - All pollJobCompletion tests pass
+      - Fake timers control time progression
+      - Coverage for lines 234-270 increases
+    estimate: M
+    expected_files_touched:
+      - mobile/src/services/upload/__tests__/adapter.test.ts
+
+  - id: 3
+    title: Add pollBatchJobCompletion tests (4-5 tests)
+    details: >-
+      Test pollBatchJobCompletion covering:
+      1. Batch progress tracking (completedCount/totalCount updates)
+      2. All jobs complete successfully
+      3. Partial failures (some jobs fail, polling continues for others)
+      4. Timeout after 120 attempts
+      Run tests, verify all pass. Check coverage reaches ≥80%/70%.
+    actor: agent
+    inputs:
+      - mobile/src/services/upload/adapter.ts (lines 348-393)
+      - mobile/src/services/__tests__/stubs.ts (createMockResponse)
+    outputs:
+      - 4-5 new tests for pollBatchJobCompletion
+    definition_of_done:
+      - All pollBatchJobCompletion tests pass
+      - Batch progress tracking validated
+      - Coverage for lines 348-393 increases
+      - Upload adapter reaches ≥80% lines, ≥70% branches
+    estimate: M
+    expected_files_touched:
+      - mobile/src/services/upload/__tests__/adapter.test.ts
+
+  - id: 4
+    title: Validate coverage thresholds and document
+    details: >-
+      Run full test suite with coverage report. Verify ≥80% lines, ≥70% branches.
+      Document fake timer pattern in code comments for future polling tests.
+    actor: agent
+    inputs:
+      - All upload adapter tests
+    outputs:
+      - Coverage report showing ≥80%/70%
+      - Code comments documenting fake timer pattern
+    definition_of_done:
+      - All tests pass (0 failures)
+      - Upload adapter: ≥80% lines, ≥70% branches
+      - Fake timer pattern documented in test comments
+    estimate: S
+    expected_files_touched:
+      - mobile/src/services/upload/__tests__/adapter.test.ts
+
+acceptance_criteria:
+  must:
+    - All upload adapter tests pass (existing 22 + new 8-10 = ~30 total)
+    - Upload adapter line coverage ≥80%
+    - Upload adapter branch coverage ≥70%
+    - Fake timers configuration documented in test comments
+    - Tests control time progression with jest.advanceTimersByTime
+    - Polling tests cover success, failure, and timeout paths
+    - No changes to adapter implementation files (adapter.ts, port.ts)
+    - No real setTimeout delays in tests (deterministic execution)
+  quality_gates:
+    - "Coverage thresholds per standards/testing-standards.md (80% lines, 70% branches)"
+    - "No lint/type errors in mobile package"
+    - "All tests pass before task marked complete"
+
+validation:
+  static_checks:
+    - pnpm turbo run qa:static --filter=photoeditor-mobile
+
+  unit_tests:
+    mobile:
+      - pnpm turbo run test --filter=photoeditor-mobile -- --coverage --testPathPattern="upload.*adapter.test.ts"
+      - pnpm turbo run test --filter=photoeditor-mobile -- --coverage
+
+  contract_tests: []
+
+  manual_checks:
+    - Verify coverage report shows ≥80% lines, ≥70% branches for upload adapter
+    - Review fake timer configuration for clarity and reusability
+
+  artifacts:
+    - screenshots: []
+
+artifacts:
+  - path: mobile/tmp/test-results/junit.xml
+    description: Test execution results
+  - path: mobile/coverage/coverage-summary.json
+    description: Coverage metrics proving thresholds met
+
+deliverables:
+  - mobile/src/services/upload/__tests__/adapter.test.ts (expanded with 8-10 polling tests)
+  - Coverage report showing ≥80% lines, ≥70% branches
+
+risks:
+  - description: Fake timer configuration may conflict with existing tests
+    mitigation: Use separate describe block with isolated timer setup/teardown; test existing tests still pass
+  - description: Polling logic may have edge cases not covered by 8-10 tests
+    mitigation: Focus on critical paths (success, failure, timeout); defer exotic edge cases if coverage thresholds met

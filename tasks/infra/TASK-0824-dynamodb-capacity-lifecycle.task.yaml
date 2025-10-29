@@ -1,0 +1,144 @@
+schema_version: "1.0"
+id: TASK-0824
+title: "Tune DynamoDB capacity and storage lifecycle per stage"
+status: todo
+blocked_reason: null
+priority: P1
+area: infra
+order: null
+blocked_by: []
+
+description: >-
+  Adjust the SST storage stack so DynamoDB tables honor the standards requirement for stage-aware capacity
+  (on-demand for dev/stage, provisioned for production) and enable Glacier transitions on the final asset bucket.
+  The current implementation keeps all tables on on-demand and skips archival rules, violating infrastructure-tier.md 12.
+
+outcome: >-
+  Production tables run with provisioned throughput sized from documented forecasts, lower environments remain on
+  on-demand, and the final bucket enforces Glacier transitions while preserving existing encryption and lifecycle settings.
+
+scope:
+  in:
+    - infra/sst/stacks/storage.ts
+    - Associated SST helper utilities for storage configuration
+    - Documentation describing throughput calculations and lifecycle rationale
+  out:
+    - Non-storage stacks (messaging/api)
+    - Data migration tooling (tracked separately)
+
+context:
+  affected_packages: []
+  standards_tier: infra
+  related_docs:
+    - standards/AGENTS.md
+    - standards/infrastructure-tier.md
+    - standards/cross-cutting.md
+    - standards/testing-standards.md
+    - docs/storage/forecast.md
+  repo_paths:
+    - infra/sst/stacks/storage.ts
+    - docs/storage
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: pnpm
+      version: "8.x"
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep SST constructs immutable and typed.
+    - Reflect throughput decisions in documentation with references to forecasts.
+  prohibited:
+    - Do not disable encryption or change table names.
+
+plan:
+  - id: 1
+    title: Gather capacity requirements
+    details: Review infrastructure-tier.md 12 and existing traffic forecasts to determine provisioned throughput targets
+      for production and validate on-demand suitability elsewhere.
+    actor: agent
+    inputs:
+      - standards/infrastructure-tier.md
+      - docs/storage/forecast.md
+    outputs: []
+    definition_of_done:
+      - Documented read/write capacity targets with references to forecasts.
+    estimate: S
+    expected_files_touched: []
+  - id: 2
+    title: Implement stage-aware capacity configuration
+    details: Update storage stack to branch throughput settings by stage, ensure alarms cover provisioned mode, and keep
+      TypeScript strictness intact.
+    actor: agent
+    inputs:
+      - infra/sst/stacks/storage.ts
+    outputs:
+      - infra/sst/stacks/storage.ts
+    definition_of_done:
+      - Production tables use provisioned throughput with configurable values.
+      - Non-production tables stay on on-demand billing.
+      - Type checks pass without suppressions.
+    estimate: M
+    expected_files_touched:
+      - infra/sst/stacks/storage.ts
+  - id: 3
+    title: Add Glacier transition lifecycle rule
+    details: Extend final bucket lifecycle to transition completed objects to Glacier after the standards-defined window,
+      preserving existing cleanup and encryption settings.
+    actor: agent
+    inputs:
+      - infra/sst/stacks/storage.ts
+    outputs:
+      - infra/sst/stacks/storage.ts
+    definition_of_done:
+      - Glacier transition rule configured with documented retention period.
+      - No regressions to existing lifecycle actions.
+    estimate: S
+    expected_files_touched:
+      - infra/sst/stacks/storage.ts
+  - id: 4
+    title: Record evidence and follow-ups
+    details: Capture throughput rationale and lifecycle settings in docs/storage, including validation steps for
+      monitoring throughput and lifecycle states.
+    actor: agent
+    inputs:
+      - infra/sst/stacks/storage.ts
+    outputs:
+      - docs/storage/capacity-and-lifecycle.md
+    definition_of_done:
+      - Documentation cites standards clauses and includes monitoring instructions.
+      - Any required follow-up tasks logged for data migration or reindexing.
+    estimate: S
+    expected_files_touched:
+      - docs/storage/capacity-and-lifecycle.md
+
+acceptance_criteria:
+  must:
+    - Production DynamoDB tables use provisioned throughput with values derived from forecast documentation.
+    - Non-production tables explicitly retain on-demand billing with justification.
+    - Final bucket applies Glacier transitions without removing existing lifecycle rules.
+    - Documentation references standards/infrastructure-tier.md 12 and explains monitoring steps.
+  quality_gates:
+    - Affected standards references remain satisfied; note any deviations and link the follow-up standards change request.
+    - No lint/type errors in affected packages.
+
+artifacts:
+  - path: docs/storage/capacity-and-lifecycle.md
+    description: Evidence of throughput decisions, lifecycle configuration, and monitoring instructions.
+
+deliverables:
+  - infra/sst/stacks/storage.ts
+  - docs/storage/capacity-and-lifecycle.md
+
+risks:
+  - description: Provisioned throughput misconfiguration could cause throttling or excess cost.
+    mitigation: Model throughput with CloudWatch metrics, include alarms, and adjust after validation window.

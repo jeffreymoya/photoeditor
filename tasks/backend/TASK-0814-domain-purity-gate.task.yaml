@@ -66,29 +66,50 @@ plan:
   - id: 1
     title: Audit domain modules and confirm heuristics
     details: Inspect backend/src for domain exports and catalogue purity expectations.
-    commands:
-      - rg "export function" backend/src/domain
+    actor: agent
+    inputs:
+      - backend/src/domain
+    outputs: []
+    definition_of_done:
+      - Heuristics list and target modules enumerated
+    estimate: S
     expected_files_touched: []
   - id: 2
     title: Implement AST-based purity checker
     details: Write scripts/ci/check-domain-purity.mjs using TypeScript compiler API and emit evidence JSON.
-    commands:
-      - node --version
+    actor: agent
+    inputs: []
+    outputs:
+      - scripts/ci/check-domain-purity.mjs
+    definition_of_done:
+      - Script parses files and detects violations
+    estimate: M
     expected_files_touched:
       - scripts/ci/check-domain-purity.mjs
   - id: 3
     title: Wire checker into QA and evidence bundle
     details: Update backend qa:static script and evidence bundle workflow to execute the checker.
-    commands:
-      - pnpm --filter @photoeditor/backend run qa:static
+    actor: agent
+    inputs: []
+    outputs:
+      - backend/package.json
+      - scripts/evidence-bundle
+    definition_of_done:
+      - QA script invokes checker and captures artifact
+    estimate: S
     expected_files_touched:
       - backend/package.json
       - scripts/evidence-bundle
   - id: 4
     title: Validate failure/success scenarios
     details: Run checker against clean tree and with intentional violation to confirm exit codes and artifact.
-    commands:
-      - node scripts/ci/check-domain-purity.mjs --output docs/evidence/domain-purity.json
+    actor: agent
+    inputs: []
+    outputs:
+      - docs/evidence/domain-purity.json
+    definition_of_done:
+      - Evidence JSON written; failure path verified
+    estimate: S
     expected_files_touched:
       - docs/evidence/domain-purity.json
 
@@ -98,17 +119,14 @@ acceptance_criteria:
   - Successful run writes docs/evidence/domain-purity.json summarizing results and passes in CI.
   - Evidence bundle script invokes the checker and includes the JSON artifact.
   modularity:
-    - "Handlers <=75 LOC, complexity <=10"
-    - "Services <=200 LOC, complexity <=15"
+    - "Handler LOC/complexity within budgets per standards/cross-cutting.md"
+    - "Service/Adapter LOC/complexity within budgets per standards/cross-cutting.md"
     - "No cross-layer imports (dependency-cruiser enforced)"
   testability:
-    - "Service/Adapter: Line >=80%, Branch >=70%"
+    - "Coverage thresholds per standards/testing-standards.md"
     - "Contract tests pass for all routes"
 
 validation:
-  commands:
-    - pnpm --filter @photoeditor/backend run qa:static
-    - node scripts/ci/check-domain-purity.mjs --output docs/evidence/domain-purity.json
   manual_checks:
     - Open docs/evidence/domain-purity.json and confirm summary + zero violations when code is clean.
   artifacts:

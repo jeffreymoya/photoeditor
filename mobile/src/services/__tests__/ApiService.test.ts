@@ -11,23 +11,36 @@
  * - standards/testing-standards.md: Mobile services testing guidelines
  */
 
+// eslint-disable-next-line unicorn/prefer-node-protocol
 import { readFileSync } from 'fs';
 
 import {
-  PresignUploadRequestSchema,
-  PresignUploadResponseSchema,
+  BatchJobSchema,
   BatchUploadRequestSchema,
   BatchUploadResponseSchema,
-  JobSchema,
-  BatchJobSchema,
   DeviceTokenRegistrationSchema,
   DeviceTokenResponseSchema,
+  JobSchema,
+  PresignUploadRequestSchema,
+  PresignUploadResponseSchema,
 } from '@photoeditor/shared';
 
 import { apiService } from '../ApiService';
 
+import {
+  buildBatchJob,
+  buildBatchUploadResponse,
+  buildDeviceTokenResponse,
+  buildJob,
+  buildPresignUploadResponse,
+  createMockResponse,
+  schemaSafeResponse,
+} from './stubs';
+import { advanceTimersUntilSettled, createPollingScenario } from './testUtils';
+
 // Mock global fetch
 global.fetch = jest.fn();
+const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>;
 
 /**
  * Justification for max-lines-per-function override:
@@ -42,22 +55,26 @@ global.fetch = jest.fn();
 describe('ApiService - Shared Schema Integration', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (global.fetch as jest.Mock).mockClear();
+    mockFetch.mockReset();
+    jest.useRealTimers();
   });
 
   describe('Schema Validation - Request Presigned URL', () => {
     it('should validate request body using PresignUploadRequestSchema', async () => {
-      const mockResponse = {
+      const mockResponse = buildPresignUploadResponse({
         jobId: '123e4567-e89b-12d3-a456-426614174000',
         presignedUrl: 'https://s3.example.com/upload',
         s3Key: 'uploads/test.jpg',
         expiresAt: '2025-10-06T12:00:00.000Z',
-      };
-
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
       });
+
+      mockFetch.mockResolvedValueOnce(
+        schemaSafeResponse({
+          schema: PresignUploadResponseSchema,
+          build: buildPresignUploadResponse,
+          value: mockResponse,
+        })
+      );
 
       const result = await apiService.requestPresignedUrl(
         'test.jpg',
@@ -67,8 +84,8 @@ describe('ApiService - Shared Schema Integration', () => {
       );
 
       // Verify request body was validated against schema
-      const requestCall = (global.fetch as jest.Mock).mock.calls[0];
-      const requestBody = JSON.parse(requestCall[1].body);
+      const requestCall = mockFetch.mock.calls[0];
+      const requestBody = JSON.parse(requestCall[1]?.body as string);
 
       expect(() => PresignUploadRequestSchema.parse(requestBody)).not.toThrow();
       expect(requestBody).toEqual({
@@ -102,10 +119,7 @@ describe('ApiService - Shared Schema Integration', () => {
         expiresAt: 'not-a-datetime', // Invalid: must be ISO datetime
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: async () => invalidResponse,
-      });
+      mockFetch.mockResolvedValueOnce(createMockResponse({ data: invalidResponse }));
 
       await expect(
         apiService.requestPresignedUrl('test.jpg', 'image/jpeg', 1024000)
@@ -115,20 +129,23 @@ describe('ApiService - Shared Schema Integration', () => {
 
   describe('Schema Validation - Job Status', () => {
     it('should validate job status response using JobSchema', async () => {
-      const mockJobStatus = {
+      const mockJobStatus = buildJob({
         jobId: '123e4567-e89b-12d3-a456-426614174000',
         userId: 'user123',
-        status: 'COMPLETED' as const,
+        status: 'COMPLETED',
         createdAt: '2025-10-06T10:00:00.000Z',
         updatedAt: '2025-10-06T10:05:00.000Z',
         finalS3Key: 'processed/test.jpg',
         locale: 'en',
-      };
-
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockJobStatus,
       });
+
+      mockFetch.mockResolvedValueOnce(
+        schemaSafeResponse({
+          schema: JobSchema,
+          build: buildJob,
+          value: mockJobStatus,
+        })
+      );
 
       const result = await apiService.getJobStatus('123e4567-e89b-12d3-a456-426614174000');
 
@@ -170,8 +187,12 @@ describe('ApiService - Shared Schema Integration', () => {
 
   describe('Schema Validation - Batch Upload', () => {
     it('should validate batch upload request using BatchUploadRequestSchema', async () => {
-      const mockResponse = {
+      const mockResponse = buildBatchUploadResponse({
         batchJobId: '123e4567-e89b-12d3-a456-426614174000',
+        childJobIds: [
+          '223e4567-e89b-12d3-a456-426614174000',
+          '323e4567-e89b-12d3-a456-426614174000',
+        ],
         uploads: [
           {
             presignedUrl: 'https://s3.example.com/upload1',
@@ -184,16 +205,15 @@ describe('ApiService - Shared Schema Integration', () => {
             expiresAt: '2025-10-06T12:00:00.000Z',
           },
         ],
-        childJobIds: [
-          '223e4567-e89b-12d3-a456-426614174000',
-          '323e4567-e89b-12d3-a456-426614174000',
-        ],
-      };
-
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
       });
+
+      mockFetch.mockResolvedValueOnce(
+        schemaSafeResponse({
+          schema: BatchUploadResponseSchema,
+          build: buildBatchUploadResponse,
+          value: mockResponse,
+        })
+      );
 
       const files = [
         { fileName: 'test1.jpg', fileSize: 1024000 },
@@ -207,8 +227,8 @@ describe('ApiService - Shared Schema Integration', () => {
       );
 
       // Verify request body was validated
-      const requestCall = (global.fetch as jest.Mock).mock.calls[0];
-      const requestBody = JSON.parse(requestCall[1].body);
+      const requestCall = mockFetch.mock.calls[0];
+      const requestBody = JSON.parse(requestCall[1]?.body as string);
 
       expect(() => BatchUploadRequestSchema.parse(requestBody)).not.toThrow();
       expect(requestBody.files).toHaveLength(2);
@@ -247,10 +267,10 @@ describe('ApiService - Shared Schema Integration', () => {
 
   describe('Schema Validation - Batch Job Status', () => {
     it('should validate batch job status using BatchJobSchema', async () => {
-      const mockBatchStatus = {
+      const mockBatchStatus = buildBatchJob({
         batchJobId: '123e4567-e89b-12d3-a456-426614174000',
         userId: 'user123',
-        status: 'PROCESSING' as const,
+        status: 'PROCESSING',
         createdAt: '2025-10-06T10:00:00.000Z',
         updatedAt: '2025-10-06T10:05:00.000Z',
         sharedPrompt: 'test prompt',
@@ -261,12 +281,15 @@ describe('ApiService - Shared Schema Integration', () => {
         completedCount: 1,
         totalCount: 2,
         locale: 'en',
-      };
-
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockBatchStatus,
       });
+
+      mockFetch.mockResolvedValueOnce(
+        schemaSafeResponse({
+          schema: BatchJobSchema,
+          build: buildBatchJob,
+          value: mockBatchStatus,
+        })
+      );
 
       const result = await apiService.getBatchJobStatus('123e4567-e89b-12d3-a456-426614174000');
 
@@ -279,15 +302,12 @@ describe('ApiService - Shared Schema Integration', () => {
 
   describe('Schema Validation - Device Token Registration', () => {
     it('should validate device token request using DeviceTokenRegistrationSchema', async () => {
-      const mockResponse = {
-        success: true,
-        message: 'Device token registered successfully',
-      };
-
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
+      mockFetch.mockResolvedValueOnce(
+        schemaSafeResponse({
+          schema: DeviceTokenResponseSchema,
+          build: buildDeviceTokenResponse,
+        })
+      );
 
       const result = await apiService.registerDeviceToken(
         'ExponentPushToken[xxxxx]',
@@ -296,8 +316,8 @@ describe('ApiService - Shared Schema Integration', () => {
       );
 
       // Verify request body was validated
-      const requestCall = (global.fetch as jest.Mock).mock.calls[0];
-      const requestBody = JSON.parse(requestCall[1].body);
+      const requestCall = mockFetch.mock.calls[0];
+      const requestBody = JSON.parse(requestCall[1]?.body as string);
 
       expect(() => DeviceTokenRegistrationSchema.parse(requestBody)).not.toThrow();
       expect(requestBody.expoPushToken).toBe('ExponentPushToken[xxxxx]');
@@ -320,20 +340,438 @@ describe('ApiService - Shared Schema Integration', () => {
     });
 
     it('should validate device token deactivation response', async () => {
-      const mockResponse = {
-        success: true,
-        message: 'Device token deactivated successfully',
-      };
-
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
+      mockFetch.mockResolvedValueOnce(
+        schemaSafeResponse({
+          schema: DeviceTokenResponseSchema,
+          build: buildDeviceTokenResponse,
+          overrides: { message: 'Device token deactivated successfully' },
+        })
+      );
 
       const result = await apiService.deactivateDeviceToken('device-123');
 
       expect(() => DeviceTokenResponseSchema.parse(result)).not.toThrow();
       expect(result.success).toBe(true);
+    });
+  });
+
+  describe('Polling Logic - processImage', () => {
+    const imageUri = 'file:///path/to/image.jpg';
+
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.runOnlyPendingTimers();
+      jest.useRealTimers();
+    });
+
+    it('should resolve when job completes successfully', async () => {
+      const mockJobId = '123e4567-e89b-12d3-a456-426614174000';
+
+      mockFetch
+        .mockResolvedValueOnce(
+          schemaSafeResponse({
+            schema: PresignUploadResponseSchema,
+            build: buildPresignUploadResponse,
+            overrides: {
+              jobId: mockJobId,
+              s3Key: `uploads/${mockJobId}/test.jpg`,
+              presignedUrl: `https://s3.example.com/${mockJobId}`,
+            },
+          })
+        )
+        .mockResolvedValueOnce(createMockResponse({ data: {} }))
+        .mockResolvedValueOnce(createMockResponse({ status: 200 }));
+
+      createPollingScenario({
+        fetchMock: mockFetch,
+        matcher: (input) => typeof input === 'string' && input.includes('/status/'),
+        schema: JobSchema,
+        build: buildJob,
+        timeline: [
+          { jobId: mockJobId, status: 'QUEUED' },
+          { jobId: mockJobId, status: 'PROCESSING' },
+          {
+            jobId: mockJobId,
+            status: 'COMPLETED',
+            finalS3Key: `results/${mockJobId}/output.jpg`,
+          },
+        ],
+        repeatLast: true,
+        scenarioName: 'apiService processImage success',
+      });
+
+      const onProgress = jest.fn();
+
+      const processPromise = apiService.processImage(
+        imageUri,
+        'test.jpg',
+        1024,
+        'test prompt',
+        onProgress
+      );
+
+      const result = await advanceTimersUntilSettled(processPromise, { maxCycles: 10 });
+
+      expect(result).toContain(`/download/${mockJobId}`);
+      expect(onProgress).toHaveBeenCalledWith(25);
+      expect(onProgress).toHaveBeenCalledWith(50);
+      expect(onProgress).toHaveBeenCalledWith(100);
+    });
+
+    it('should reject when job fails', async () => {
+      const mockJobId = '123e4567-e89b-12d3-a456-426614174000';
+
+      mockFetch
+        .mockResolvedValueOnce(
+          schemaSafeResponse({
+            schema: PresignUploadResponseSchema,
+            build: buildPresignUploadResponse,
+            overrides: {
+              jobId: mockJobId,
+              s3Key: `uploads/${mockJobId}/test.jpg`,
+              presignedUrl: `https://s3.example.com/${mockJobId}`,
+            },
+          })
+        )
+        .mockResolvedValueOnce(createMockResponse({ data: {} }))
+        .mockResolvedValueOnce(createMockResponse({ status: 200 }));
+
+      createPollingScenario({
+        fetchMock: mockFetch,
+        matcher: (input) => typeof input === 'string' && input.includes('/status/'),
+        schema: JobSchema,
+        build: buildJob,
+        timeline: [
+          { jobId: mockJobId, status: 'QUEUED' },
+          {
+            jobId: mockJobId,
+            status: 'FAILED',
+            error: 'Processing failed: invalid image format',
+          },
+        ],
+        repeatLast: true,
+        scenarioName: 'apiService processImage failure',
+      });
+
+      let failure: Error | undefined;
+      const processPromise = apiService
+        .processImage(imageUri, 'test.jpg', 1024, 'test prompt')
+        .catch((error: unknown) => {
+          failure = error instanceof Error ? error : new Error(String(error));
+          return undefined;
+        });
+
+      await advanceTimersUntilSettled(processPromise, { maxCycles: 130 });
+
+      expect(failure).toBeInstanceOf(Error);
+      expect(failure?.message).toContain('Processing failed: invalid image format');
+    });
+
+    it('should timeout after max polling attempts', async () => {
+      const mockJobId = '123e4567-e89b-12d3-a456-426614174000';
+
+      mockFetch
+        .mockResolvedValueOnce(
+          schemaSafeResponse({
+            schema: PresignUploadResponseSchema,
+            build: buildPresignUploadResponse,
+            overrides: {
+              jobId: mockJobId,
+              s3Key: `uploads/${mockJobId}/test.jpg`,
+              presignedUrl: `https://s3.example.com/${mockJobId}`,
+            },
+          })
+        )
+        .mockResolvedValueOnce(createMockResponse({ data: {} }))
+        .mockResolvedValueOnce(createMockResponse({ status: 200 }));
+
+      createPollingScenario({
+        fetchMock: mockFetch,
+        matcher: (input) => typeof input === 'string' && input.includes('/status/'),
+        schema: JobSchema,
+        build: buildJob,
+        timeline: [{ jobId: mockJobId, status: 'PROCESSING' }],
+        repeatLast: true,
+        scenarioName: 'apiService processImage timeout',
+      });
+
+      let timeoutError: Error | undefined;
+      const processPromise = apiService
+        .processImage(imageUri, 'test.jpg', 1024, 'test prompt')
+        .catch((error: unknown) => {
+          timeoutError = error instanceof Error ? error : new Error(String(error));
+          return undefined;
+        });
+
+      await advanceTimersUntilSettled(processPromise, { maxCycles: 130 });
+
+      expect(timeoutError).toBeInstanceOf(Error);
+      expect(timeoutError?.message).toContain('Processing timeout - please check job status later');
+    });
+
+    it('should continue polling after temporary network errors', async () => {
+      const mockJobId = '123e4567-e89b-12d3-a456-426614174000';
+
+      mockFetch
+        .mockResolvedValueOnce(
+          schemaSafeResponse({
+            schema: PresignUploadResponseSchema,
+            build: buildPresignUploadResponse,
+            overrides: {
+              jobId: mockJobId,
+              s3Key: `uploads/${mockJobId}/test.jpg`,
+              presignedUrl: `https://s3.example.com/${mockJobId}`,
+            },
+          })
+        )
+        .mockResolvedValueOnce(createMockResponse({ data: {} }))
+        .mockResolvedValueOnce(createMockResponse({ status: 200 }));
+
+      mockFetch.mockRejectedValueOnce(new Error('Network timeout'));
+
+      createPollingScenario({
+        fetchMock: mockFetch,
+        matcher: (input) => typeof input === 'string' && input.includes('/status/'),
+        schema: JobSchema,
+        build: buildJob,
+        timeline: [
+          {
+            jobId: mockJobId,
+            status: 'COMPLETED',
+            finalS3Key: `results/${mockJobId}/output.jpg`,
+          },
+        ],
+        repeatLast: true,
+        scenarioName: 'apiService processImage transient error recovery',
+      });
+
+      const result = await advanceTimersUntilSettled(
+        apiService.processImage(imageUri, 'test.jpg', 1024, 'test prompt'),
+        { maxCycles: 20 }
+      );
+
+      expect(result).toContain(`/download/${mockJobId}`);
+    });
+  });
+
+  describe('Polling Logic - processBatchImages', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.runOnlyPendingTimers();
+      jest.useRealTimers();
+    });
+
+    it('should resolve when batch completes successfully', async () => {
+      const mockBatchJobId = '223e4567-e89b-12d3-a456-426614174000';
+      const childJobIds = [
+        '323e4567-e89b-12d3-a456-426614174000',
+        '423e4567-e89b-12d3-a456-426614174000',
+      ];
+
+      const batchPresignResponse = buildBatchUploadResponse({
+        batchJobId: mockBatchJobId,
+        childJobIds,
+        uploads: childJobIds.map((jobId, index) => ({
+          presignedUrl: `https://s3.example.com/${jobId}`,
+          s3Key: `uploads/${jobId}/file${index + 1}.jpg`,
+          expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+        })),
+      });
+
+      mockFetch.mockResolvedValueOnce(
+        schemaSafeResponse({
+          schema: BatchUploadResponseSchema,
+          build: buildBatchUploadResponse,
+          value: batchPresignResponse,
+        })
+      );
+
+      childJobIds.forEach(() => {
+        mockFetch.mockResolvedValueOnce(createMockResponse({ data: {} }));
+        mockFetch.mockResolvedValueOnce(createMockResponse({ status: 200 }));
+      });
+
+      createPollingScenario({
+        fetchMock: mockFetch,
+        matcher: (input) => typeof input === 'string' && input.includes('/batch-status/'),
+        schema: BatchJobSchema,
+        build: buildBatchJob,
+        timeline: [
+          buildBatchJob({ batchJobId: mockBatchJobId, childJobIds, completedCount: 1, totalCount: 2 }),
+          buildBatchJob({
+            batchJobId: mockBatchJobId,
+            childJobIds,
+            completedCount: 2,
+            totalCount: 2,
+            status: 'COMPLETED',
+          }),
+        ],
+        repeatLast: true,
+        scenarioName: 'apiService processBatchImages success',
+      });
+
+      const onProgress = jest.fn();
+
+      const result = await advanceTimersUntilSettled(
+        apiService.processBatchImages(
+          [
+            { uri: 'file:///path/to/image1.jpg', fileName: 'file1.jpg', fileSize: 1024 },
+            { uri: 'file:///path/to/image2.jpg', fileName: 'file2.jpg', fileSize: 2048 },
+          ],
+          'shared prompt',
+          undefined,
+          onProgress
+        ),
+        { maxCycles: 20 }
+      );
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toContain(`/download/${childJobIds[0]}`);
+      expect(result[1]).toContain(`/download/${childJobIds[1]}`);
+      expect(onProgress).toHaveBeenCalledWith(100, mockBatchJobId);
+    });
+
+    it('should reject when batch fails', async () => {
+      const mockBatchJobId = '223e4567-e89b-12d3-a456-426614174000';
+      const childJobIds = [
+        '323e4567-e89b-12d3-a456-426614174000',
+        '423e4567-e89b-12d3-a456-426614174000',
+      ];
+
+      const batchPresignResponse = buildBatchUploadResponse({
+        batchJobId: mockBatchJobId,
+        childJobIds,
+        uploads: childJobIds.map((jobId, index) => ({
+          presignedUrl: `https://s3.example.com/${jobId}`,
+          s3Key: `uploads/${jobId}/file${index + 1}.jpg`,
+          expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+        })),
+      });
+
+      mockFetch.mockResolvedValueOnce(
+        schemaSafeResponse({
+          schema: BatchUploadResponseSchema,
+          build: buildBatchUploadResponse,
+          value: batchPresignResponse,
+        })
+      );
+
+      childJobIds.forEach(() => {
+        mockFetch.mockResolvedValueOnce(createMockResponse({ data: {} }));
+        mockFetch.mockResolvedValueOnce(createMockResponse({ status: 200 }));
+      });
+
+      createPollingScenario({
+        fetchMock: mockFetch,
+        matcher: (input) => typeof input === 'string' && input.includes('/batch-status/'),
+        schema: BatchJobSchema,
+        build: buildBatchJob,
+        timeline: [
+          {
+            batchJobId: mockBatchJobId,
+            childJobIds,
+            status: 'FAILED',
+            error: 'Batch processing failed: insufficient credits',
+            completedCount: 1,
+            totalCount: 2,
+          },
+        ],
+        repeatLast: true,
+        scenarioName: 'apiService processBatchImages failure',
+      });
+
+      let failure: Error | undefined;
+      const processPromise = apiService
+        .processBatchImages(
+          [
+            { uri: 'file:///path/to/image1.jpg', fileName: 'file1.jpg', fileSize: 1024 },
+            { uri: 'file:///path/to/image2.jpg', fileName: 'file2.jpg', fileSize: 2048 },
+          ],
+          'shared prompt'
+        )
+        .catch((error: unknown) => {
+          failure = error instanceof Error ? error : new Error(String(error));
+          return undefined;
+        });
+
+      await advanceTimersUntilSettled(processPromise, { maxCycles: 260 });
+
+      expect(failure).toBeInstanceOf(Error);
+      expect(failure?.message).toContain('Batch processing failed: insufficient credits');
+    });
+
+    it('should timeout after max polling attempts', async () => {
+      const mockBatchJobId = '223e4567-e89b-12d3-a456-426614174000';
+      const childJobIds = [
+        '323e4567-e89b-12d3-a456-426614174000',
+        '423e4567-e89b-12d3-a456-426614174000',
+      ];
+
+      const batchPresignResponse = buildBatchUploadResponse({
+        batchJobId: mockBatchJobId,
+        childJobIds,
+        uploads: childJobIds.map((jobId, index) => ({
+          presignedUrl: `https://s3.example.com/${jobId}`,
+          s3Key: `uploads/${jobId}/file${index + 1}.jpg`,
+          expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+        })),
+      });
+
+      mockFetch.mockResolvedValueOnce(
+        schemaSafeResponse({
+          schema: BatchUploadResponseSchema,
+          build: buildBatchUploadResponse,
+          value: batchPresignResponse,
+        })
+      );
+
+      childJobIds.forEach(() => {
+        mockFetch.mockResolvedValueOnce(createMockResponse({ data: {} }));
+        mockFetch.mockResolvedValueOnce(createMockResponse({ status: 200 }));
+      });
+
+      createPollingScenario({
+        fetchMock: mockFetch,
+        matcher: (input) => typeof input === 'string' && input.includes('/batch-status/'),
+        schema: BatchJobSchema,
+        build: buildBatchJob,
+        timeline: [
+          {
+            batchJobId: mockBatchJobId,
+            childJobIds,
+            status: 'PROCESSING',
+            completedCount: 1,
+            totalCount: 2,
+          },
+        ],
+        repeatLast: true,
+        scenarioName: 'apiService processBatchImages timeout',
+      });
+
+      let timeoutError: Error | undefined;
+      const processPromise = apiService
+        .processBatchImages(
+          [
+            { uri: 'file:///path/to/image1.jpg', fileName: 'file1.jpg', fileSize: 1024 },
+            { uri: 'file:///path/to/image2.jpg', fileName: 'file2.jpg', fileSize: 2048 },
+          ],
+          'shared prompt'
+        )
+        .catch((error: unknown) => {
+          timeoutError = error instanceof Error ? error : new Error(String(error));
+          return undefined;
+        });
+
+      await advanceTimersUntilSettled(processPromise, { maxCycles: 260 });
+
+      expect(timeoutError).toBeInstanceOf(Error);
+      expect(timeoutError?.message).toContain('Batch processing timeout - please check job status later');
     });
   });
 
@@ -370,11 +808,13 @@ describe('ApiService - Shared Schema Integration', () => {
 
   describe('API Error Handling', () => {
     it('should throw error on non-ok HTTP response', async () => {
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: false,
-        status: 400,
-        statusText: 'Bad Request',
-      });
+      mockFetch.mockResolvedValueOnce(
+        createMockResponse({
+          ok: false,
+          status: 400,
+          statusText: 'Bad Request',
+        })
+      );
 
       await expect(
         apiService.requestPresignedUrl('test.jpg', 'image/jpeg', 1024000)
@@ -382,7 +822,7 @@ describe('ApiService - Shared Schema Integration', () => {
     });
 
     it('should throw error on network failure', async () => {
-      (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
+      mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
       await expect(
         apiService.requestPresignedUrl('test.jpg', 'image/jpeg', 1024000)
@@ -397,10 +837,7 @@ describe('ApiService - Shared Schema Integration', () => {
         expiresAt: 'invalid-date',
       };
 
-      (global.fetch as jest.Mock).mockResolvedValueOnce({
-        ok: true,
-        json: async () => invalidResponse,
-      });
+      mockFetch.mockResolvedValueOnce(createMockResponse({ data: invalidResponse }));
 
       await expect(
         apiService.requestPresignedUrl('test.jpg', 'image/jpeg', 1024000)

@@ -37,7 +37,7 @@ module.exports = {
         pattern: 'src/utils/*',
       },
     ],
-    'boundaries/ignore': ['**/*.test.ts', '**/*.test.tsx', '**/*.spec.ts', '**/*.spec.tsx'],
+    'boundaries/ignore': ['**/*.test.ts', '**/*.test.tsx', '**/*.spec.ts', '**/*.spec.tsx', '**/__tests__/**'],
     'import/resolver': {
       typescript: {
         project: ['./tsconfig.json'],
@@ -150,4 +150,12 @@ module.exports = {
     browser: true,
     es2021: true,
   },
+  overrides: [
+    {
+      files: ['**/__tests__/**/*.test.ts', '**/__tests__/**/*.test.tsx', '**/*.test.ts', '**/*.test.tsx'],
+      rules: {
+        'max-lines-per-function': ['error', { max: 1000, skipBlankLines: true, skipComments: true }],
+      },
+    },
+  ],
 };

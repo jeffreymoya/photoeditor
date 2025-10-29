@@ -1,3 +1,17 @@
+/**
+ * @deprecated This file is deprecated. Use the port/adapter pattern instead:
+ * - Port interface: mobile/src/services/upload/port.ts
+ * - Adapter implementation: mobile/src/services/upload/adapter.ts
+ *
+ * Migration path:
+ * 1. Import IUploadService from '../services/upload/port'
+ * 2. Use uploadService from '../services/upload/adapter'
+ * 3. Or inject via ServiceContext for better testability
+ *
+ * This file is kept temporarily for backward compatibility during migration (TASK-0820).
+ * Will be removed after all references are updated.
+ */
+
 import {
   PresignUploadRequestSchema,
   PresignUploadResponseSchema,

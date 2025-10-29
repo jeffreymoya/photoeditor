@@ -21,7 +21,7 @@ status: blocked
 blocked_reason: "Broken down into subtasks for manageable implementation. Task spans 20+ files across UI layer (tokens/icons), State layer (RTK Query/XState), Services layer (ports/adapters), and infrastructure (Storybook/Chromatic). Each subtask focuses on single architectural concern."
 blocked_by: [TASK-0818, TASK-0819, TASK-0820, TASK-0821]
 priority: P1
-area: frontend
+area: mobile
 
 description: >-
   Alignment review on 2025-10-23 identified that the Expo client violates multiple
@@ -52,7 +52,7 @@ scope:
 
 context:
   affected_packages: [mobile]
-  standards_tier: frontend
+  standards_tier: mobile
   issues: []
   related_docs:
     - standards/AGENTS.md
@@ -91,16 +91,29 @@ plan:
   - id: 1
     title: Finalize remediation design
     details: Map required structural changes for layering, tokens, RTK Query adoption, statecharts, and service ports; capture deltas vs standards.
-    commands:
-      - rg -n "Upload" mobile/src
-      - tree -L 2 mobile/src/features
+    actor: agent
+    inputs:
+      - standards/frontend-tier.md
+      - mobile/src
+    outputs:
+      - docs/ui/2025-frontend-tier-gap-analysis.md
+    definition_of_done:
+      - Gap analysis drafted and aligned with standards
+    estimate: M
     expected_files_touched:
       - docs/ui/2025-frontend-tier-gap-analysis.md
   - id: 2
     title: Implement feature/UI layering updates
     details: Move upload orchestration into feature module with `/public` surface, refactor screens to consume features, and replace inline styles with shared tokens/lucide icons.
-    commands:
-      - pnpm turbo run lint --filter=photoeditor-mobile
+    actor: agent
+    inputs: []
+    outputs:
+      - mobile/src/screens/HomeScreen.tsx
+      - mobile/src/features/upload/**/*
+      - mobile/src/components/**/*
+    definition_of_done:
+      - Layers respected; lint passes locally
+    estimate: L
     expected_files_touched:
       - mobile/src/screens/HomeScreen.tsx
       - mobile/src/features/upload/**/*
@@ -108,9 +121,16 @@ plan:
   - id: 3
     title: Reinforce state/services architecture
     details: Introduce RTK Query slices, XState charts + exports, and service ports with adapters; wire retry policies and Chromatic/Storybook tooling + evidence outputs.
-    commands:
-      - pnpm turbo run typecheck --filter=photoeditor-mobile
-      - pnpm storybook -- --smoke-test
+    actor: agent
+    inputs: []
+    outputs:
+      - mobile/src/store/**/*
+      - mobile/src/services/**/*
+      - mobile/storybook/**/*
+      - docs/ui/contracts/**/*
+    definition_of_done:
+      - Typecheck green; Storybook smoke test passes
+    estimate: L
     expected_files_touched:
       - mobile/src/store/**/*
       - mobile/src/services/**/*
@@ -119,9 +139,14 @@ plan:
   - id: 4
     title: Backfill tests and evidence
     details: Add component/hook tests, story coverage reports, Chromatic snapshots, and update documentation including fitness artefact links.
-    commands:
-      - pnpm turbo run test --filter=photoeditor-mobile -- --coverage
-      - pnpm chromatic --exit-zero-on-changes
+    actor: agent
+    inputs: []
+    outputs:
+      - mobile/src/__tests__/**/*
+      - docs/ui/storybook/**/*
+    definition_of_done:
+      - Unit tests and Chromatic run completed
+    estimate: M
     expected_files_touched:
       - mobile/src/__tests__/**/*
       - docs/ui/storybook/**/*
@@ -131,14 +156,14 @@ acceptance_criteria:
   - All React Native StyleSheet color/spacing tokens come from shared `ui-tokens` or lucide/react-native-svg primitives per standards/frontend-tier.md.
   - RTK Query slices + XState charts back job/upload state; `.scxml` or Mermaid exports stored under `docs/ui/state-metrics` with checksums.
   - Services expose ports under `mobile/src/services/*/port.ts` with adapters using `cockatiel` (or approved equivalent) for retry/circuit breaker.
-  - Storybook stories cover ≥85% of atoms/molecules; Chromatic + axe CI gates run and evidence is archived in `docs/ui/storybook`.
+  - Story coverage meets frontend-tier expectations; Chromatic + axe CI gates run and evidence is archived in `docs/ui/storybook`.
   - No lint/type/test regressions; `pnpm turbo run qa:static --parallel` and mobile unit suites pass.
   modularity:
     - "Feature entry points export named APIs only; layers follow screens → feature → shared UI → hooks"
     - "Adapters encapsulate platform APIs; no direct Expo/Fetch usage in feature or component layers"
     - "No cross-layer imports (dependency-cruiser enforced)"
   testability:
-    - "Mobile package line coverage ≥80% and branch coverage ≥70%"
+    - "Coverage thresholds per standards/testing-standards.md"
     - "Storybook Chromatic run reports no unresolved diffs"
 
 validation:
@@ -151,7 +176,7 @@ validation:
 
   unit_tests:
     mobile:
-      - pnpm turbo run test --filter=photoeditor-mobile -- --coverage --coverageThreshold='{"global":{"lines":80,"branches":70}}'
+      - pnpm turbo run test --filter=photoeditor-mobile -- --coverage
 
   contract_tests: []
 

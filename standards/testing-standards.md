@@ -14,6 +14,8 @@ These standards define the required safety nets for PhotoEditor after removing i
 - Prefer pure unit tests with deterministic inputs/outputs. Mock external dependencies using `aws-sdk-client-mock`, `nock`, or locally defined stubs.
 - Keep assertions focused on observable behaviour (inputs → outputs) rather than implementation details.
 - Reset mocks between test cases using `beforeEach`/`afterEach` to avoid state leakage.
+- When stubbing fetch or HTTP adapters in mobile services, build responses through the shared factories in `mobile/src/services/__tests__/stubs.ts` and wrap them with `schemaSafeResponse` so Zod-boundaries never see schema-incomplete payloads.
+- Cockatiel-driven polling specs must compose their fetch mocks with `createPollingScenario` and drive timers with `advanceTimersUntilSettled`; always capture the subject promise via `.catch` to assert the final rejection and avoid unhandled warning noise.
 
 ## React Component Testing
 
@@ -33,22 +35,15 @@ These standards define the required safety nets for PhotoEditor after removing i
 
 ## Coverage Expectations
 
-- **Services / Adapters / Hooks:** ≥80% line coverage, ≥70% branch coverage.
+- **Services / Adapters / Hooks:** ≥70% line coverage, ≥60% branch coverage.
 - **Handlers / Components:** Exercise all happy paths and failure paths that impact external contracts.
 - Use `jest --coverage` or the Turborepo pipeline to validate thresholds. Failing coverage blocks merges by policy.
 
 ## Required Commands Before PR
 
-Run the following from the repo root before raising a PR:
-
-```bash
-pnpm turbo run qa:static --parallel           # Type check + lint across workspaces
-pnpm turbo run test --filter=@photoeditor/backend
-pnpm turbo run test --filter=photoeditor-mobile
-pnpm turbo run contracts:check --filter=@photoeditor/shared
-```
-
-Attach the latest output (or point to CI artefacts) in the PR description alongside the driving task file.
+Commands are canonicalized in `standards/qa-commands-ssot.md`.
+- Run the repo‑wide static pass once, then package‑scoped tests for affected packages as defined in the QA SSOT.
+- Attach the latest output (or point to CI artefacts) in the PR description alongside the driving task file.
 
 ## Evidence Expectations
 

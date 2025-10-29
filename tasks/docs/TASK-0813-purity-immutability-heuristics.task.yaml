@@ -65,12 +65,29 @@ plan:
   - id: 1
     title: Audit current standards language
     details: Review the referenced standards to catalog existing purity and immutability guidance.
-    commands: []
+    actor: agent
+    inputs:
+      - standards/typescript.md
+      - standards/backend-tier.md
+      - standards/frontend-tier.md
+      - standards/cross-cutting.md
+    outputs: []
+    definition_of_done:
+      - Gap list drafted in task notes
+    estimate: S
     expected_files_touched: []
   - id: 2
     title: Draft heuristics per tier
     details: Add concrete guidance mapping purity/immutability expectations to the technologies used in backend and mobile tiers.
-    commands: []
+    actor: agent
+    inputs: []
+    outputs:
+      - standards/typescript.md
+      - standards/backend-tier.md
+      - standards/frontend-tier.md
+    definition_of_done:
+      - Drafted sections compile and read clearly
+    estimate: M
     expected_files_touched:
       - standards/typescript.md
       - standards/backend-tier.md
@@ -78,13 +95,28 @@ plan:
   - id: 3
     title: Define evidence expectations
     details: Update cross-cutting standards with reviewer heuristics and artefact expectations for purity and immutability.
-    commands: []
+    actor: agent
+    inputs: []
+    outputs:
+      - standards/cross-cutting.md
+    definition_of_done:
+      - Evidence expectations listed and cross-linked
+    estimate: S
     expected_files_touched:
       - standards/cross-cutting.md
   - id: 4
     title: Self-review and align references
     details: Ensure terminology matches existing standards and cross-link sections where helpful.
-    commands: []
+    actor: agent
+    inputs: []
+    outputs:
+      - standards/typescript.md
+      - standards/backend-tier.md
+      - standards/frontend-tier.md
+      - standards/cross-cutting.md
+    definition_of_done:
+      - Consistent terminology and links across files
+    estimate: S
     expected_files_touched:
       - standards/typescript.md
       - standards/backend-tier.md
@@ -98,8 +130,6 @@ acceptance_criteria:
   - No lint errors; `pnpm turbo run qa:static --parallel` completes successfully.
 
 validation:
-  commands:
-    - pnpm turbo run qa:static --parallel
   manual_checks:
     - Verify new guidance cross-links relevant standards sections without conflicting terminology.
   artifacts:

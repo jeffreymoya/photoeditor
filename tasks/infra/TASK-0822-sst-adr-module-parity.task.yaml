@@ -1,0 +1,163 @@
+schema_version: "1.0"
+id: TASK-0822
+title: "Author SST parity ADR and adopt versioned modules"
+status: todo
+blocked_reason: null
+priority: P0
+area: infra
+order: null
+blocked_by: []
+
+description: >-
+  Capture an architectural decision that justifies SST alongside Terraform, define the parity contract, and retrofit the
+  live-dev stacks to consume the approved versioned Terraform modules rather than provisioning raw resources. This closes
+  the standards gap flagged in infrastructure-tier 5-12 and aligns SST usage with ADR governance.
+
+outcome: >-
+  A published ADR codifies SST parity, module reuse expectations, and migration constraints, and the SST stacks import the
+  documented Terraform modules wherever available while pointing to migration tasks for any gaps.
+
+scope:
+  in:
+    - adr/0008-sst-parity.md (new)
+    - infra/sst/stacks/api.ts
+    - infra/sst/stacks/storage.ts
+    - infra/sst/stacks/messaging.ts
+    - Supporting SST construct helpers invoked by these stacks
+  out:
+    - Terraform module authoring (covered by control-plane task)
+    - Backend/mobile application code
+
+context:
+  affected_packages: []
+  standards_tier: infra
+  related_docs:
+    - standards/AGENTS.md
+    - standards/standards-governance-ssot.md
+    - standards/infrastructure-tier.md
+    - standards/cross-cutting.md
+    - standards/testing-standards.md
+    - adr/0002-serverless-media-pipeline.md
+  repo_paths:
+    - infra/sst/stacks/api.ts
+    - infra/sst/stacks/storage.ts
+    - infra/sst/stacks/messaging.ts
+    - adr
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: pnpm
+      version: "8.x"
+  data: []
+
+constraints:
+  approvals_required: true
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep diffs minimal and reference standards clauses in comments where needed.
+    - Preserve tagging and observability constructs already present in SST.
+  prohibited:
+    - Do not downgrade TypeScript or relax lint rules to make stacks compile.
+    - Do not introduce unstated standards without a linked Standards CR.
+
+plan:
+  - id: 1
+    title: Review standards and existing infrastructure ADRs
+    details: Read infrastructure-tier 5-32, cross-cutting hard fails, and ADR-0002 to establish current guidance and the
+      documented gaps; inventory Terraform modules intended for reuse.
+    actor: agent
+    inputs:
+      - standards/infrastructure-tier.md
+      - standards/cross-cutting.md
+      - adr/0002-serverless-media-pipeline.md
+      - infrastructure/modules
+    outputs: []
+    definition_of_done:
+      - Baseline notes capture required parity points, module inventory, and open questions.
+    estimate: M
+    expected_files_touched: []
+  - id: 2
+    title: Draft SST parity ADR
+    details: Author ADR describing SST coexistence with Terraform, module consumption rules, migration plan, and
+      compliance metrics; circulate for approval per standards-governance SSOT.
+    actor: agent
+    inputs: []
+    outputs:
+      - adr/0008-sst-parity.md
+    definition_of_done:
+      - ADR includes decision, status, consequences, and references to infrastructure-tier clauses.
+      - ADR accepted/approved via documented process.
+    estimate: M
+    expected_files_touched:
+      - adr/0008-sst-parity.md
+  - id: 3
+    title: Refactor SST stacks to reuse versioned modules
+    details: Replace direct resource definitions with imports from the approved Terraform modules, wiring parameters and
+      outputs per the ADR guidance, and document any module gaps as follow-up tasks.
+    actor: agent
+    inputs:
+      - adr/0008-sst-parity.md
+      - infra/sst/stacks/api.ts
+      - infra/sst/stacks/storage.ts
+      - infra/sst/stacks/messaging.ts
+    outputs:
+      - infra/sst/stacks/api.ts
+      - infra/sst/stacks/storage.ts
+      - infra/sst/stacks/messaging.ts
+    definition_of_done:
+      - Stacks reference module interfaces instead of raw SST constructs wherever modules exist.
+      - CI type checks pass without relaxing TypeScript rules.
+      - Follow-up task(s) recorded for any missing modules.
+    estimate: L
+    expected_files_touched:
+      - infra/sst/stacks/api.ts
+      - infra/sst/stacks/storage.ts
+      - infra/sst/stacks/messaging.ts
+  - id: 4
+    title: Document parity evidence
+    details: Update ADR and task notes with parity checklist results, link staged module usage, and capture evidence for
+      validation agents.
+    actor: agent
+    inputs:
+      - infra/sst/stacks/api.ts
+      - infra/sst/stacks/storage.ts
+      - infra/sst/stacks/messaging.ts
+    outputs:
+      - docs/infra/sst-parity-checklist.md
+    definition_of_done:
+      - Evidence doc lists modules consumed, remaining gaps, and validation steps.
+      - Task summary updated with links to ADR and evidence doc.
+    estimate: S
+    expected_files_touched:
+      - docs/infra/sst-parity-checklist.md
+
+acceptance_criteria:
+  must:
+    - ADR is merged with status "Accepted" and cites standards/infrastructure-tier.md 5-12 as authority.
+    - SST stacks no longer declare raw AWS resources where Terraform modules exist; instead they import modules via SST bindings.
+    - Task summary enumerates any residual gaps with linked follow-up tasks.
+    - `pnpm turbo run qa:static --parallel` completes without suppressions or TypeScript rule relaxations.
+  quality_gates:
+    - Affected standards references remain satisfied; note any deviations and link the follow-up standards change request.
+    - No lint/type errors in affected packages.
+
+artifacts:
+  - path: docs/infra/sst-parity-checklist.md
+    description: Checklist proving module reuse and parity per ADR.
+
+deliverables:
+  - adr/0008-sst-parity.md
+  - infra/sst/stacks/api.ts
+  - infra/sst/stacks/storage.ts
+  - infra/sst/stacks/messaging.ts
+  - docs/infra/sst-parity-checklist.md
+
+risks:
+  - description: Module interfaces may not fully cover SST stack needs, delaying parity.
+    mitigation: Document gaps, create follow-up tasks, and maintain existing resources temporarily with feature flags.

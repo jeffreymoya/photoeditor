@@ -20,7 +20,7 @@
 ### 1) Modularity
 
 * Enforce vertical layering: screen → feature → shared UI → hooks (mobile) and controller → service/use case → port → adapter (backend). Domain and IO do not mix.
-* Prefer small modules: ≤ 200 LOC per service/adapter, ≤ 75 LOC per handler; avoid cyclic deps (CI hard‑fails via dependency‑cruiser).
+* Prefer small modules; avoid cyclic deps (CI hard‑fails via dependency‑cruiser). See `standards/cross-cutting.md` for complexity/LOC budgets.
 * One responsibility per file. If a module’s public API keeps growing, extract a new module rather than widening surfaces.
 * No default exports in domain code; prefer named exports with a minimal public surface. Barrel files only at package root—never nest barrels that can create cycles.
 * Keep DTOs and domain types separate. Map at the edge using explicit mappers.
@@ -38,7 +38,7 @@
 * Strong typing everywhere: avoid `any`; prefer `unknown` + refinements; use `never` to prove exhaustiveness.
 * Runtime schemas are mandatory at boundaries: Zod is SSOT; generate OpenAPI/types/clients from Zod (see `standards/shared-contracts-tier.md`).
 * Typed errors and results: use `neverthrow` (`Result`/`ResultAsync`)—no exceptions for control flow. Encode `code`, `category`, and `cause`.
-* Use TSDoc on exported APIs; keep 70%+ coverage for public surface (warn 60%, fail 50%) as per cross‑cutting standards.
+* Use TSDoc on exported APIs; documentation coverage thresholds are defined in `standards/cross-cutting.md`.
 * Keep logs typed: structure log/event shapes, include correlation/trace ids; never log secrets.
 
 ### 4) Modifiability
@@ -71,6 +71,12 @@
 **Immutability & Readonly**
 
 * Use `as const`, `readonly` fields, and `ReadonlyArray<T>` for inputs and DTOs. Avoid mutating parameters—return new values.
+
+**Unused Variables & Parameters**
+
+* Prefix unused variables and parameters with underscore (`_`) to indicate intentional non-use. This satisfies both TypeScript's `noUnusedLocals`/`noUnusedParameters` and ESLint's `unused-imports/no-unused-vars` with `argsIgnorePattern: '^_'`.
+* Common in stub/mock implementations where function signatures must match interfaces but parameters aren't needed in the stub body.
+* Example: `async deactivateDeviceToken(_deviceId: string): Promise<Response> { ... }`
 
 **Nullish Strategy**
 
@@ -115,14 +121,13 @@
 
 ---
 
-## Fitness Gates (Executable Checks)
+## Fitness Gates (Pointers Only)
 
-* Static: typecheck, eslint, depcruise, ts-prune, knip run via `pnpm turbo run qa:static --parallel`; artefacts are attached to the evidence bundle.
-* Contracts: Zod/OpenAPI diff approved; RTK Query/clients regenerated and committed.
-* Coverage: services/adapters ≥ 80% lines, ≥ 70% branches. Attach reports per `standards/testing-standards.md`.
-* Complexity & size budgets: functions and modules must stay under published thresholds (`standards/cross-cutting.md`).
-* TSDoc: exported APIs reach 70% coverage (warn 60%, fail 50%).
-* Owner: Developer Experience Lead. Evidence: CI uploads static analysis, dep graphs, api-extractor report, and coverage dashboards.
+- Commands: see `standards/qa-commands-ssot.md`.
+- Coverage thresholds: see `standards/testing-standards.md`.
+- Complexity/size budgets and hard‑fail controls: see `standards/cross-cutting.md`.
+- Documentation coverage thresholds (TSDoc): see `standards/cross-cutting.md`.
+- Evidence expectations: see the relevant tier standards and `standards/testing-standards.md`.
 
 ---
 
@@ -136,6 +141,7 @@
 - Functions small and focused; complexity within budgets; pure where possible.
 - Tests cover pure logic without mocks; adapters tested via ports; contracts re‑generated.
 - Evidence bundle attached (static analysis, dep graph, coverage, API report).
+- Prefix unused variables with underscore.
 
 ---
 

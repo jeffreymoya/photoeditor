@@ -64,29 +64,50 @@ plan:
     title: Confirm backend expectations
     details: Trace createServiceContainer and JobRepository env/table usage;
       list required env vars and DynamoDB resources.
-    commands:
-      - rg -n "process.env" backend/libs/core/container/service-container.ts
+    actor: agent
+    inputs:
+      - backend/libs/core/container/service-container.ts
+      - backend/libs/core/repositories/JobRepository.ts
+    outputs: []
+    definition_of_done:
+      - List of required env vars and tables captured in task notes
+    estimate: S
     expected_files_touched: []
   - id: 2
     title: Patch SST API stack
     details: Add PROJECT_NAME/SNS_TOPIC_ARN env vars (or adjust consumers) for each Lambda;
       ensure naming matches backend expectations.
-    commands: []
+    actor: agent
+    inputs: []
+    outputs:
+      - infra/sst/stacks/api.ts
+    definition_of_done:
+      - All functions receive required env vars
+    estimate: M
     expected_files_touched:
       - infra/sst/stacks/api.ts
   - id: 3
     title: Extend storage stack
     details: Provision jobs batch table and BatchJobIdIndex matching backend expectations;
       update outputs as needed.
-    commands: []
+    actor: agent
+    inputs: []
+    outputs:
+      - infra/sst/stacks/storage.ts
+    definition_of_done:
+      - Table and GSI names match backend configuration
+    estimate: M
     expected_files_touched:
       - infra/sst/stacks/storage.ts
   - id: 4
     title: Validate
     details: Run SST diff/build checks and backend QA subset to ensure no regressions.
-    commands:
-      - pnpm turbo run qa:static --filter=@photoeditor/backend
-      - pnpm run -C infra/sst diff || echo "Capture diff output"
+    actor: agent
+    inputs: []
+    outputs: []
+    definition_of_done:
+      - SST diff/build clean; backend static QA green
+    estimate: S
     expected_files_touched: []
 
 acceptance_criteria:
@@ -95,15 +116,12 @@ acceptance_criteria:
   - `pnpm turbo run qa:static --filter=@photoeditor/backend` passes.
   - SST diff/build succeeds for the updated stacks.
   modularity:
-    - "Handlers retain ≤75 LOC; no handler imports @aws-sdk/*"
+    - "Handler LOC/complexity within budgets per standards/cross-cutting.md; no handler imports @aws-sdk/*"
     - "SST constructs keep tagging per standards/infrastructure-tier.md"
   testability:
     - "Backend static QA pipeline remains green"
 
 validation:
-  commands:
-    - pnpm turbo run qa:static --filter=@photoeditor/backend
-    - pnpm run -C infra/sst diff || true
   manual_checks:
     - Review SST diff to confirm env vars and table/index names match backend expectations.
   artifacts:

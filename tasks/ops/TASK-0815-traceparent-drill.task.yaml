@@ -64,49 +64,67 @@ plan:
   - id: 1
     title: Confirm required observability fields
     details: Review standards and existing sample evidence to list mandatory log keys and thresholds.
-    commands:
-      - cat docs/evidence/logs/powertools-sample.json
+    actor: agent
+    inputs:
+      - docs/evidence/logs/powertools-sample.json
+      - standards/cross-cutting.md
+    outputs: []
+    definition_of_done:
+      - Required keys and thresholds enumerated
+    estimate: S
     expected_files_touched: []
   - id: 2
     title: Implement trace drill script
     details: Build scripts/ci/traceparent-drill.mjs to parse JSON or JSONL logs and compute coverage metrics.
-    commands:
-      - node --version
+    actor: agent
+    inputs: []
+    outputs:
+      - scripts/ci/traceparent-drill.mjs
+    definition_of_done:
+      - Script parses sample and computes coverage
+    estimate: M
     expected_files_touched:
       - scripts/ci/traceparent-drill.mjs
   - id: 3
     title: Integrate drill into evidence bundle
     details: Update scripts/evidence-bundle to run the drill and capture the resulting JSON artifact.
-    commands:
-      - node scripts/ci/traceparent-drill.mjs --logs docs/evidence/logs/powertools-sample.json
+    actor: agent
+    inputs: []
+    outputs:
+      - scripts/evidence-bundle
+    definition_of_done:
+      - Evidence bundle includes drill and artifact path
+    estimate: S
     expected_files_touched:
       - scripts/evidence-bundle
   - id: 4
     title: Verify success and failure paths
     details: Run drill against valid samples and mutated data to confirm exit codes and artifact contents.
-    commands:
-      - node scripts/ci/traceparent-drill.mjs --logs docs/evidence/logs/powertools-sample.json
+    actor: agent
+    inputs: []
+    outputs:
+      - docs/evidence/trace-drill-report.json
+    definition_of_done:
+      - Report written; failure path produces non-zero exit code
+    estimate: S
     expected_files_touched:
       - docs/evidence/trace-drill-report.json
 
 acceptance_criteria:
   - Drill parses Powertools JSON or JSONL logs and enforces correlationId, traceId, requestId, function, env, and version fields.
-  - Missing required fields or trace coverage below 95 percent causes non-zero exit code with clear diagnostics.
+  - Missing required fields or trace coverage below thresholds per `standards/cross-cutting.md` causes non-zero exit code with clear diagnostics.
   - Successful run saves docs/evidence/trace-drill-report.json summarizing coverage stats and thresholds.
   - Evidence bundle run includes the drill and captures the artifact for the release bundle.
   modularity:
-    - "Handlers <=75 LOC, complexity <=10"
-    - "Services <=200 LOC, complexity <=15"
+    - "Handler and Service/Adapter LOC/complexity within budgets per standards/cross-cutting.md"
     - "No cross-layer imports (dependency-cruiser enforced)"
   testability:
-    - "Service/Adapter: Line >=80%, Branch >=70%"
+    - "Coverage thresholds per standards/testing-standards.md"
     - "Contract tests pass for all routes"
 
 validation:
-  commands:
-    - node scripts/ci/traceparent-drill.mjs --logs docs/evidence/logs/powertools-sample.json
   manual_checks:
-    - Inspect docs/evidence/trace-drill-report.json to confirm coverage >=95 percent and required field list.
+    - Inspect docs/evidence/trace-drill-report.json to confirm coverage meets thresholds in `standards/cross-cutting.md` and includes required fields.
   artifacts:
     - docs/evidence/trace-drill-report.json
 

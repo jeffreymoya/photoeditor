@@ -6,8 +6,9 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Provider } from 'react-redux';
 
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { ServiceProvider } from '@/features/upload/context/ServiceContext';
 import { AppNavigator } from '@/navigation/AppNavigator';
-import { notificationService } from '@/services/NotificationService';
+import { notificationService } from '@/services/notification/adapter';
 import { store } from '@/store';
 
 // Initialize notification service
@@ -18,12 +19,14 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Provider store={store}>
         <SafeAreaProvider>
-          <NavigationContainer>
-            <ErrorBoundary>
-              <AppNavigator />
-              <StatusBar style="auto" />
-            </ErrorBoundary>
-          </NavigationContainer>
+          <ServiceProvider>
+            <NavigationContainer>
+              <ErrorBoundary>
+                <AppNavigator />
+                <StatusBar style="auto" />
+              </ErrorBoundary>
+            </NavigationContainer>
+          </ServiceProvider>
         </SafeAreaProvider>
       </Provider>
     </GestureHandlerRootView>

@@ -4,13 +4,16 @@
 schema_version: "1.0"
 id: TASK-0826
 title: "Build mobile adapter tests incrementally with validation"
-status: todo
-blocked_reason: null
-blocked_by: []
+status: blocked
+blocked_reason: "Notification adapter tests still missing (0% coverage). Upload adapter polling suite is now green per docs/investigation/2025-10-28-cockatiel-jest.md; remaining blocker is completing TASK-0828 so both adapters hit ≥80%/≥70% thresholds."
+blocked_by: [TASK-0828]
 priority: P0
 area: mobile
 unblocker: true
 order: null
+agent_completion_state:
+  task_implementer: completed
+  implementation_reviewer: completed
 
 description: >-
   TASK-0820 adapter implementations are architecturally sound (100% standards compliant per
@@ -46,6 +49,7 @@ context:
     - standards/typescript.md
     - changelog/2025-10-26-TASK-0823-adapter-tests-blocked.md (what NOT to do)
     - .agent-output/task-implementer-summary-TASK-0820.md (hallucination analysis)
+    - docs/investigation/2025-10-28-cockatiel-jest.md
   repo_paths:
     - mobile/src/services/upload/__tests__
     - mobile/src/services/notification/__tests__

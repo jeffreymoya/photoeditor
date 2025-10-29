@@ -13,13 +13,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { useServices } from '@/features/upload/context/ServiceContext';
 import { colors, spacing, typography, borderRadius } from '@/lib/ui-tokens';
+import type { IUploadService } from '@/services/upload/port';
 import { useAppSelector } from '@/store';
-
-import { apiService } from '../services/ApiService';
 
 // Helper: Process single image
 const processSingleImage = async (
+  uploadService: IUploadService,
   image: ImagePicker.ImagePickerAsset,
   prompt: string,
   onProgress: (progress: number) => void
@@ -27,7 +28,7 @@ const processSingleImage = async (
   const fileName = image.fileName || `image_${Date.now()}.jpg`;
   const fileSize = image.fileSize || 1024 * 1024;
 
-  const downloadUrl = await apiService.processImage(
+  const downloadUrl = await uploadService.processImage(
     image.uri,
     fileName,
     fileSize,
@@ -40,6 +41,7 @@ const processSingleImage = async (
 
 // Helper: Process multiple images
 const processMultipleImages = async (
+  uploadService: IUploadService,
   images: ImagePicker.ImagePickerAsset[],
   prompt: string,
   individualPrompts: string[],
@@ -54,7 +56,7 @@ const processMultipleImages = async (
     return result;
   });
 
-  const downloadUrls = await apiService.processBatchImages(
+  const downloadUrls = await uploadService.processBatchImages(
     mappedImages,
     prompt,
     individualPrompts.length > 0 ? individualPrompts : undefined,
@@ -164,6 +166,7 @@ const ResultSection: React.FC<ResultSectionProps> = ({ resultUrls }) => {
 };
 
 export const EditScreen = () => {
+  const { uploadService } = useServices();
   const selectedImages = useAppSelector(state => state.image.selectedImages);
   const [prompt, setPrompt] = useState('');
   const [individualPrompts] = useState<string[]>([]);
@@ -213,6 +216,7 @@ export const EditScreen = () => {
 
       if (isSingleImage) {
         const downloadUrl = await processSingleImage(
+          uploadService,
           selectedImages[0],
           prompt,
           setProgress
@@ -221,6 +225,7 @@ export const EditScreen = () => {
         Alert.alert('Success', 'Your image has been processed successfully!');
       } else {
         const downloadUrls = await processMultipleImages(
+          uploadService,
           selectedImages,
           prompt,
           individualPrompts,

@@ -21,7 +21,7 @@
 * Renovate processes minor upgrades weekly and major upgrades quarterly with rollback plans logged in tasks/ADRs.
 * Track files-touched P50/P95 trends to spot rising change-impact.
 * Contract compatibility matrix (old↔new) must pass before merge.
-* Services and adapters maintain ≥ 80% line and ≥ 70% branch coverage; failure blocks promotion.
+* Coverage thresholds are enforced per `standards/testing-standards.md`.
 * DLQ configuration and redrive drills must remain green in CI; failures block release.
 * Module flake-rate above 1% for more than 7 days blocks merges until remediated.
 

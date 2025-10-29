@@ -1,3 +1,17 @@
+/**
+ * @deprecated This file is deprecated. Use the port/adapter pattern instead:
+ * - Port interface: mobile/src/services/notification/port.ts
+ * - Adapter implementation: mobile/src/services/notification/adapter.ts
+ *
+ * Migration path:
+ * 1. Import INotificationService from '../services/notification/port'
+ * 2. Use notificationService from '../services/notification/adapter'
+ * 3. Or inject via ServiceContext for better testability
+ *
+ * This file is kept temporarily for backward compatibility during migration (TASK-0820).
+ * Will be removed after all references are updated.
+ */
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';

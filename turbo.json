@@ -43,6 +43,12 @@
       "outputs": [],
       "inputs": ["src/**/*.ts", "src/**/*.tsx", ".eslintrc.*"]
     },
+    "lint:fix": {
+      "dependsOn": [],
+      "cache": false,
+      "outputs": [],
+      "inputs": ["src/**/*.ts", "src/**/*.tsx", ".eslintrc.*"]
+    },
     "test": {
       "dependsOn": ["build"],
       "cache": true,

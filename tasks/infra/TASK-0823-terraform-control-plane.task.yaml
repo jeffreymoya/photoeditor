@@ -1,0 +1,167 @@
+schema_version: "1.0"
+id: TASK-0823
+title: "Reinstate Terraform control plane and fitness evidence"
+status: todo
+blocked_reason: null
+priority: P0
+area: infra
+order: null
+blocked_by: []
+
+description: >-
+  Restore the Terraform control-plane required by standards/infrastructure-tier.md 20-23 by bringing the module sources
+  back under version control, wiring validate/plan and policy-as-code checks into automation, and publishing drift evidence
+  bundles. This work closes the audit gap created when SST took over provisioning but the mandated Terraform guardrails were
+  left behind.
+
+outcome: >-
+  Terraform sources live under infrastructure/, validate and plan run through CI with policy-as-code gates, and drift
+  artifacts are published weekly under docs/infra/drift with links from task notes.
+
+scope:
+  in:
+    - infrastructure/terraform modules and root configuration
+    - infra/policy-as-code (new OPA/Conftest policies or equivalent)
+    - CI workflow wiring Terraform validate/plan and policy checks
+    - docs/infra/drift evidence bundle
+  out:
+    - SST stack refactors (handled by TASK-0822)
+    - Production deploy execution (evidence only)
+
+context:
+  affected_packages: []
+  standards_tier: infra
+  related_docs:
+    - standards/AGENTS.md
+    - standards/infrastructure-tier.md
+    - standards/cross-cutting.md
+    - standards/testing-standards.md
+    - standards/standards-governance-ssot.md
+  repo_paths:
+    - infrastructure
+    - infra/policy-as-code
+    - .github/workflows
+    - docs/infra/drift
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: terraform
+      version: "1.9.x"
+    - name: pnpm
+      version: "8.x"
+    - name: conftest
+      version: "0.45.x"
+  data: []
+
+constraints:
+  approvals_required: true
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep Terraform changes modular with versioned modules.
+    - Reference standards clauses in comments for new controls.
+  prohibited:
+    - Do not commit state files or secrets.
+    - Do not disable mandatory gates to achieve a passing CI run.
+
+plan:
+  - id: 1
+    title: Inventory missing Terraform assets and controls
+    details: Compare infrastructure-tier 20-23 checklist against repo contents, list missing modules, pipelines, and drift
+      evidence artefacts.
+    actor: agent
+    inputs:
+      - standards/infrastructure-tier.md
+      - infrastructure
+      - docs/infra
+    outputs: []
+    definition_of_done:
+      - Gap list captured in task notes with direct mappings to standards clauses.
+    estimate: S
+    expected_files_touched: []
+  - id: 2
+    title: Restore Terraform modules and validation workflow
+    details: Bring Terraform module sources under infrastructure/, add validate/plan commands to CI, and integrate
+      policy-as-code (OPA/Conftest) checks with fail-fast behaviour.
+    actor: agent
+    inputs:
+      - infrastructure
+      - .github/workflows
+      - infra/policy-as-code
+    outputs:
+      - infrastructure
+      - .github/workflows
+      - infra/policy-as-code
+    definition_of_done:
+      - Terraform validate/plan succeed locally and in CI.
+      - Policy checks block non-compliant plans with documented rules.
+    estimate: L
+    expected_files_touched:
+      - infrastructure/main.tf
+      - .github/workflows/terraform.yml
+      - infra/policy-as-code
+  - id: 3
+    title: Publish drift detection artifacts
+    details: Automate weekly drift reports and persist generated plans/reports under docs/infra/drift with timestamps.
+    actor: agent
+    inputs:
+      - infrastructure
+      - docs/infra
+    outputs:
+      - docs/infra/drift
+    definition_of_done:
+      - Drift workflow documented and produces sample artifact checked into docs/infra/drift.
+      - README updated with schedule and retrieval instructions.
+    estimate: M
+    expected_files_touched:
+      - docs/infra/drift
+      - docs/infra/README.md
+  - id: 4
+    title: Document compliance evidence
+    details: Update task notes with links to workflows, policy definitions, and drift artifacts so auditors can trace the
+      controls.
+    actor: agent
+    inputs:
+      - .github/workflows
+      - docs/infra/drift
+      - infra/policy-as-code
+    outputs:
+      - docs/infra/terraform-control-plane-evidence.md
+    definition_of_done:
+      - Evidence doc enumerates commands, workflows, policy packages, and artifact locations.
+      - Validation agents have clear instructions for rerunning checks.
+    estimate: S
+    expected_files_touched:
+      - docs/infra/terraform-control-plane-evidence.md
+
+acceptance_criteria:
+  must:
+    - Terraform sources and modules reside under infrastructure/ with versioned modules referenced by SST.
+    - CI workflow runs terraform fmt, validate, plan, and policy-as-code checks on every PR touching infrastructure.
+    - docs/infra/drift contains at least one dated drift report plus instructions for weekly regeneration.
+    - Controls satisfy standards/infrastructure-tier.md 20-23 with references included in evidence doc.
+  quality_gates:
+    - Affected standards references remain satisfied; note any deviations and link the follow-up standards change request.
+    - No lint/type errors in affected packages.
+
+artifacts:
+  - path: docs/infra/terraform-control-plane-evidence.md
+    description: Blueprint of Terraform control-plane checks, policy packages, and drift artifacts.
+  - path: docs/infra/drift
+    description: Drift evidence bundle with sample report and README.
+
+deliverables:
+  - infrastructure/**
+  - infra/policy-as-code/**
+  - .github/workflows/terraform.yml
+  - docs/infra/drift
+  - docs/infra/terraform-control-plane-evidence.md
+
+risks:
+  - description: Terraform plans may diverge from current SST-managed resources causing destructive drift.
+    mitigation: Run plans in read-only mode first, coordinate cutover with SST parity task, and document mitigation steps.

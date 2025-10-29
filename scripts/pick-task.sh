@@ -2,10 +2,11 @@
 set -euo pipefail
 
 # Minimal task picker/claimer/completer for tasks/*.task.yaml
-# - Lists TODO tasks ordered by priority (P0->P2), then optional order, then id
+# - Lists TODO tasks ordered by priority (P0->P2), unblocker flag, then optional order, then id
 # - Supports sequencing via optional `blocked_by: [TASK-000X, ...]` (top-level YAML list)
 #   - Tasks with unmet blockers are skipped by --pick/--claim (treated as not ready)
 #   - Completed blockers are resolved by scanning both tasks/ and docs/completed-tasks/
+# - Optional `unblocker: true` to prioritize tasks that unblock other work
 # - Optional `order: <int>` to override id tie-break within the same priority
 # - --claim picks top ready task (or specific path) and sets status: in_progress
 # - --complete sets status: completed and archives to docs/completed-tasks/
@@ -18,17 +19,17 @@ TASK_GLOB='tasks/**/TASK-*.task.yaml'
 ARCHIVE_DIR="${ROOT_DIR}/docs/completed-tasks"
 
 usage() {
-  cat <<EOF
-Usage: $(basename "$0") [--list | --pick [auto|todo|in_progress|completed] | --claim [TASK_FILE] | --complete [TASK_FILE]]
+  cat <<'EOF'
+Usage: pick-task.sh [--list | --pick [auto|todo|in_progress|completed] | --claim [TASK_FILE] | --complete [TASK_FILE]]
 
 Examples:
-  $(basename "$0") --list
-  $(basename "$0") --pick                # print path to highest-priority in_progress task, else ready TODO
-  $(basename "$0") --pick in_progress    # explicitly print path to highest-priority in_progress task
-  $(basename "$0") --claim               # claim top-priority TODO task
-  $(basename "$0") --claim tasks/TASK-0104-edit-screen-cleanup.task.yaml
-  $(basename "$0") --complete            # complete current top in_progress task
-  $(basename "$0") --complete tasks/TASK-0104-edit-screen-cleanup.task.yaml
+  pick-task.sh --list
+  pick-task.sh --pick                # print path to highest-priority in_progress task, else ready TODO
+  pick-task.sh --pick in_progress    # explicitly print path to highest-priority in_progress task
+  pick-task.sh --claim               # claim top-priority TODO task
+  pick-task.sh --claim tasks/TASK-0104-edit-screen-cleanup.task.yaml
+  pick-task.sh --complete            # complete current top in_progress task
+  pick-task.sh --complete tasks/TASK-0104-edit-screen-cleanup.task.yaml
 
 Notes:
   - Sequencing: add `blocked_by:` at top level, e.g.
@@ -36,6 +37,7 @@ Notes:
         - TASK-0003
         - TASK-0008
     The picker will only choose tasks whose blockers are completed.
+  - Unblocker prioritization: add `unblocker: true` to prioritize tasks that unblock other work.
   - Manual ordering within same priority: add `order: 10` (lower first).
 EOF
 }
@@ -81,7 +83,15 @@ task_order() {
   echo "${o:-9999}"
 }
 
-# List candidate tasks with fields: status_rank\tprio_num\tid\tpath\ttitle\tstatus\tready\torder
+# Extract unblocker flag (returns 0 for true, 1 for false; lower value = higher priority)
+is_unblocker() {
+  local f="$1"
+  local ub
+  ub=$(rg -oN '^unblocker:\s*(true|false)' -r '$1' "$f" || true)
+  [ "$ub" = "true" ] && echo 0 || echo 1
+}
+
+# List candidate tasks with fields: prio_num\tunblocker_rank\tstatus_rank\tid\tpath\ttitle\tstatus\tready\torder
 list_tasks() {
   local completed
   completed="$(completed_ids)"
@@ -94,18 +104,24 @@ list_tasks() {
     title=$(rg -oN '^title:\s*(.*)' -r '$1' "$f" || true)
     readyflag=$( [ "$(is_ready "$f" "$completed")" -eq 1 ] && echo ready || echo blocked )
     ord=$(task_order "$f")
+    unblocker=$(is_unblocker "$f")
     case "$pr" in P0) pn=0;; P1) pn=1;; P2) pn=2;; *) pn=9;; esac
     case "$status" in in_progress) sn=0;; todo) sn=1;; completed) sn=2;; *) sn=3;; esac
-    printf "%d\t%d\t%s\t%s\t%s\t%s\t%s\t%s\n" "$sn" "$pn" "${id:-NA}" "$f" "${title:-}" "$status" "$readyflag" "$ord"
-  done | sort -k1,1n -k2,2n -k8,8n -k3,3
+    printf "%d\t%d\t%d\t%s\t%s\t%s\t%s\t%s\t%s\n" "$pn" "$unblocker" "$sn" "${id:-NA}" "$f" "${title:-}" "$status" "$readyflag" "$ord"
+  done | sort -k1,1n -k2,2n -k3,3n -k9,9n -k4,4
 }
 
 pick_top_todo() {
-  list_tasks | awk -F"\t" '$6=="todo" && $7=="ready" {print $4; exit}'
+  list_tasks | awk -F"\t" '$7=="todo" && $8=="ready" {print $5; exit}'
 }
 
 pick_top_in_progress() {
-  list_tasks | awk -F"\t" '$6=="in_progress" {print $4; exit}'
+  list_tasks | awk -F"\t" '$7=="in_progress" {print $5; exit}'
+}
+
+pick_top_auto() {
+  # Pick highest priority task regardless of status (respects sort order: priority > unblocker > status)
+  list_tasks | awk -F"\t" '($7=="in_progress" || ($7=="todo" && $8=="ready")) {print $5; exit}'
 }
 
 pick_top_by_status() {
@@ -120,7 +136,7 @@ pick_top_by_status() {
       ;;
     completed)
       # Typically archived to docs/completed-tasks and excluded from list; keep for completeness
-      list_tasks | awk -F"\t" '$6=="completed" {print $4; exit}'
+      list_tasks | awk -F"\t" '$7=="completed" {print $5; exit}'
       ;;
     *)
       echo ""  # invalid handled by caller
@@ -155,7 +171,7 @@ main() {
   local cmd="${1:-}"; shift || true
   case "$cmd" in
     --list)
-      list_tasks | awk -F"\t" '{printf "%s\t%s\t%s\t%s\n", $3, $6, $4, $5}'
+      list_tasks | awk -F"\t" '{printf "%s\t%s\t%s\t%s\n", $4, $7, $5, $6}'
       ;;
     --pick)
       local requested="${1:-auto}"
@@ -163,13 +179,7 @@ main() {
       local file=""
       case "$requested" in
         auto)
-          file=$(pick_top_in_progress)
-          if [ -n "$file" ]; then
-            status="in_progress"
-          else
-            file=$(pick_top_todo)
-            status="todo"
-          fi
+          file=$(pick_top_auto)
           ;;
         todo|in_progress|completed)
           file=$(pick_top_by_status "$requested")

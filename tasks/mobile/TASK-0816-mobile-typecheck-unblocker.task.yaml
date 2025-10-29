@@ -79,13 +79,29 @@ plan:
   - id: 1
     title: Reproduce and catalogue TypeScript failures
     details: Run mobile typecheck to confirm current error set matches changelog output; note any additional failures.
-    commands:
-      - pnpm turbo run typecheck --filter=photoeditor-mobile
+    actor: agent
+    inputs: []
+    outputs: []
+    definition_of_done:
+      - Error list captured; matches changelog
+    estimate: S
     expected_files_touched: []
   - id: 2
     title: Patch components/hooks to satisfy strict optional typing
     details: Update state shapes, optional props, and overrides to align with exact optional semantics; remove unused variables.
-    commands: []
+    actor: agent
+    inputs: []
+    outputs:
+      - mobile/src/components/ErrorBoundary.tsx
+      - mobile/src/screens/CameraScreen.tsx
+      - mobile/src/screens/EditScreen.tsx
+      - mobile/src/services/NotificationService.ts
+      - mobile/src/features/upload/hooks/useUpload.ts
+      - mobile/src/lib/upload/retry.ts
+      - mobile/tsconfig.json
+    definition_of_done:
+      - Type errors addressed without introducing any
+    estimate: M
     expected_files_touched:
       - mobile/src/components/ErrorBoundary.tsx
       - mobile/src/screens/CameraScreen.tsx
@@ -97,9 +113,12 @@ plan:
   - id: 3
     title: Validate mobile static analysis gate
     details: Ensure both targeted scripts pass so pre-commit qa:static is green again.
-    commands:
-      - pnpm turbo run typecheck --filter=photoeditor-mobile
-      - pnpm turbo run qa:static --filter=photoeditor-mobile
+    actor: agent
+    inputs: []
+    outputs: []
+    definition_of_done:
+      - Typecheck and qa:static green for mobile
+    estimate: S
     expected_files_touched: []
 
 acceptance_criteria:
@@ -108,9 +127,6 @@ acceptance_criteria:
   - No new `eslint-disable` or `@ts-ignore` directives introduced.
 
 validation:
-  commands:
-    - pnpm turbo run typecheck --filter=photoeditor-mobile
-    - pnpm turbo run qa:static --filter=photoeditor-mobile
 
 risks:
   - Minimal functional risk; adjustments might surface latent null-handling gaps—add targeted tests if behavior changes.

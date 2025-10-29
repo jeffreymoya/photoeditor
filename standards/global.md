@@ -42,9 +42,9 @@
 
 # Example Quality Gate (drop into CI)
 
-* **Static**: eslint (strict), depcruise rules, ts-prune zero unused exports, knip zero unused deps (CI uploads reports to `docs/quality/static`).
+* **Static**: eslint (strict), depcruise rules, ts-prune zero unused exports, knip zero unused deps (CI uploads reports to `docs/quality/static`). Commands are defined in `standards/qa-commands-ssot.md`.
 * **Contracts**: zod/openapi diff == 0 (or approved), RTK Query client regenerated (orval only with ADR); artefacts stored in `docs/contracts`.
-* **Tests**: unit ≥ 80% lines, branch ≥ 70% for services/adapters, pact verifications with dashboard snapshots archived.
+* **Tests**: unit test coverage per `standards/testing-standards.md`, pact verifications with dashboard snapshots archived.
 * **Bundles**: RN bundle size budget; Lambda zipped size budget; cold-start P50 budget recorded per release.
 * **Obs**: trace propagation test (contract test validates correlation id in logs) including mobile instrumentation evidence.
 * **Docs**: generated dep graph + statecharts uploaded to KB; ADR linked; include depreciation plans where applicable.

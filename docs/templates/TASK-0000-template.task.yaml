@@ -10,9 +10,11 @@ title: "REPLACE: action-oriented title"
 status: todo                     # todo | in_progress | blocked | completed
 blocked_reason: null             # REQUIRED when status=blocked; explain the external dependency
 priority: P1                     # P0 | P1 | P2
-area: backend                    # backend | frontend | mobile | shared | infra | docs | ops | other
+area: backend                    # backend | mobile | shared | infra | docs | ops | other
+unblocker: false                 # true if this task unblocks other work (prioritized by pick-task.sh)
 order: null                      # Optional: execution order for orchestration
 blocked_by: []                   # Optional: dependent task IDs
+agent_completion_state: {}       # Optional: managed by task-runner; tracks completed agents for resumption (do not edit manually)
 
 description: >-
   REPLACE: Provide concise context (2–5 sentences). Include business value, constraints,
@@ -29,7 +31,7 @@ scope:
 
 context:
   affected_packages: [backend]    # Adjust packages to drive test automation; leave [] if none
-  standards_tier: backend         # backend | frontend | mobile | shared | infra | docs | ops
+  standards_tier: backend         # backend | mobile | shared | infra | docs | ops
   related_docs:
     - standards/global.md
     - standards/AGENTS.md
@@ -60,48 +62,47 @@ constraints:
   prohibited:
     - No secrets or credentials in source control.
 
+# Plan steps: declare who executes, what goes in/out, and what proves completion.
+# Required keys per step: actor (agent|human), inputs, outputs, definition_of_done, estimate (S|M|L)
 plan:
   - id: 1
-    title: Understand baseline
-    details: REPLACE: audit current implementation, note risks, confirm interfaces.
-    commands:
-      - REPLACE: helpful read-only command (e.g., rg -n "symbol" path)
+    title: Understand baseline and standards
+    details: REPLACE: audit current implementation, review cited standards, capture any gaps that require a standards change request.
+    actor: agent                 # agent | human — who executes this step
+    inputs: []                   # REPLACE: files/docs to read or preconditions
+    outputs: []                  # REPLACE: tangible artifacts from this step
+    definition_of_done: []       # REPLACE: step-specific outcomes that prove completion
+    estimate: S                  # S | M | L — rough effort/timebox
     expected_files_touched: []
   - id: 2
     title: Implement change
     details: REPLACE: describe the core implementation approach.
-    commands: []
+    actor: agent
+    inputs: []
+    outputs: []
+    definition_of_done: []
+    estimate: M
     expected_files_touched:
       - REPLACE: primary file(s)
   - id: 3
     title: Validate and document
-    details: REPLACE: cover automated checks and documentation updates.
-    commands:
-      - pnpm turbo run qa:static --filter=@photoeditor/backend
+    details: REPLACE: describe evidence collection and documentation handoff; automated test suites run via agents.
+    actor: agent
+    inputs: []
+    outputs: []
+    definition_of_done: []
+    estimate: S
     expected_files_touched:
       - REPLACE: docs or evidence paths
 
 acceptance_criteria:
   must:
-    - REPLACE: objective behaviour that can be validated in code/tests
-    - REPLACE: additional check (logs, metrics, UX outcome)
+    - REPLACE: objective behaviour tied to the standards cited (include data, UX, or API expectations)
+    - REPLACE: measurable signal proving completion (e.g., log entry, metric threshold, UI output)
   quality_gates:
-    - Tests meet referenced coverage thresholds per standards/testing-standards.md.
+    - Affected standards references remain satisfied; note any deviations and link the follow-up standards change request.
     - No lint/type errors in affected packages.
 
-validation:
-  static_checks:
-    - pnpm turbo run qa:static --filter=@photoeditor/backend
-  unit_tests:
-    backend:
-      - pnpm turbo run test --filter=@photoeditor/backend -- --coverage --coverageThreshold='{"global":{"lines":80,"branches":70}}'
-    # shared:
-    #   - pnpm turbo run test --filter=@photoeditor/shared
-    # mobile:
-    #   - pnpm turbo run test --filter=photoeditor-mobile
-  contract_tests: []              # Add commands if shared contracts change
-  manual_checks:
-    - REPLACE: brief manual verification, or remove if not needed
 
 artifacts:
   - path: REPLACE: docs/evidence/<artifact>.json

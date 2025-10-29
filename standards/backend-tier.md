@@ -20,7 +20,7 @@
 * No controller invokes AWS SDK directly (depcruise rule).
 * 100% DTOs validated; contract tests for every controller.
 * dependency-cruiser upload verifies handler → service → adapter layering and rejects cycles.
-* **Owner**: Backend Edge Lead. **Evidence**: depcruise report + contract test summary uploaded with `pnpm turbo run qa:static --parallel`.
+* **Owner**: Backend Edge Lead. **Evidence**: depcruise report + contract test summary uploaded (see commands in `standards/qa-commands-ssot.md`).
 
 ## Lambda Application Layer
 
@@ -40,7 +40,7 @@
 
 **Fitness gates**
 
-* Cold-start P50 ≤ published budget; size budgets (< 5–10 MB zipped per fn).
+* Performance and size budgets per `standards/cross-cutting.md`.
 * Idempotency enabled on mutating handlers.
 * **Owner**: Platform & Quality Lead. **Evidence**: powertools metrics export + bundle size report archived in `docs/ops/backend` per release.
 
@@ -105,9 +105,9 @@
 
 **Fitness gates**
 
-* Unit ≥ 80% line coverage; branch ≥ 70% for services/providers.
+* Coverage thresholds per `standards/testing-standards.md`.
 * Pact broker check in CI; breaking changes hard-fail.
-* Function complexity budgets: handlers fail above CC 10 or 75 LOC, services/adapters fail above CC 15 or 200 LOC, and module cyclomatic complexity fails above 50.
+* Complexity and hard‑fail budgets per `standards/cross-cutting.md`.
 * **Owner**: Quality Guild. **Evidence**: attach coverage summary and pact verification log to the evidence bundle.
 
 ## Change Management

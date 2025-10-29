@@ -13,6 +13,7 @@
     "build:lambdas": "node_modules/.bin/turbo run build:lambdas --filter=@photoeditor/backend",
     "typecheck": "node_modules/.bin/turbo run typecheck",
     "lint": "node_modules/.bin/turbo run lint",
+    "lint:fix": "node_modules/.bin/turbo run lint:fix",
     "test": "node_modules/.bin/turbo run test",
     "test:contract": "node_modules/.bin/turbo run test:contract",
     "contracts:check": "node_modules/.bin/turbo run contracts:check --filter=@photoeditor/shared",

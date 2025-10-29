@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository. The PhotoEditor project is maintained by a solo developer, so every automation and guideline in this document is designed to provide the rigor that would otherwise come from peer review.
 
+> IMPORTANT
+> - Governance & Grounding: Always read and honor `standards/standards-governance-ssot.md` before interpreting or changing any standard.
+> - Task Decomposition: When a task feels complex or is marked blocked due to complexity, follow `standards/task-breakdown-canon.md` to split work and encode dependencies.
+
 ## Repository Overview
 
 PhotoEditor is a TypeScript monorepo with AWS Lambda backend, React Native mobile app, shared contracts, and Terraform infrastructure. Users upload photos for AI-powered analysis/editing with results delivered via polling or push notifications. Because there is no broader team, assume institutional knowledge lives in the repository history, tasks, and ADRs you curate.
@@ -14,7 +18,11 @@ Structure:
 
 ## Source of Truth & Standards
 
-**CRITICAL:** All implementation and refactoring must align with:
+**CRITICAL:** All implementation and refactoring must align with (read first):
+
+0. **Governance & Breakdown (MUST READ)**
+   - `standards/standards-governance-ssot.md` — authoritative grounding and standards CR workflow
+   - `standards/task-breakdown-canon.md` — definitive algorithm for task breakdown and deferrals
 
 1. **`standards/`** — Architectural Standards (ISO/IEC 25010 maintainability)
    - `standards/AGENTS.md` — Overview and tier map
@@ -67,7 +75,7 @@ Each task (per `tasks/README.md`) includes:
 - `scope.in` / `scope.out` — what is/isn't in scope
 - `plan` — ordered implementation steps
 - `acceptance_criteria` — testable checks anchored to `standards/` tier files
-- `validation.commands` — automated verification
+- `validation` — pipeline-driven checks; add `manual_checks` only if human steps are required
 - `deliverables` — expected files/changes
 
 Tasks reference specific `standards/` tier files and `standards/testing-standards.md` for grounding. Completed tasks move to `docs/completed-tasks/`.

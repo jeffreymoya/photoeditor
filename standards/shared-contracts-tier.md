@@ -19,3 +19,11 @@
 * Downstream clients regenerated in CI and committed (or published) with checksum artefact stored under `docs/contracts/clients`.
 * Contract compatibility matrix (old client ↔ new server and vice-versa) must pass before merge.
 * **Owner**: Contract Steward. **Evidence**: diff report + regeneration log attached to evidence bundle.
+
+## Contract Test Prerequisites (Commands)
+
+- Commands are authoritative in `standards/qa-commands-ssot.md`.
+- Typical sequence for contracts (agents/humans should reference the SSOT):
+  - Build and generate: shared package build + `contracts:generate`
+  - Check: `contracts:check` (shared)
+  - Do not restate thresholds here; see `standards/testing-standards.md` for coverage and `standards/cross-cutting.md` for hard‑fail controls.

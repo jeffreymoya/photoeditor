@@ -1,5 +1,5 @@
 {
-  "plugins": ["jest"],
+  "plugins": ["jest", "photoeditor-internal"],
   "overrides": [
     {
       "files": ["**/*.{test,spec}.{ts,tsx,js}"],
@@ -7,7 +7,9 @@
       "rules": {
         "jest/no-focused-tests": "error",
         "jest/no-disabled-tests": "warn",
-        "jest/valid-expect": "error"
+        "jest/valid-expect": "error",
+        "photoeditor-internal/no-polling-mock-queues": "error",
+        "photoeditor-internal/no-unbound-fixture-builders": "error"
       }
     },
     {

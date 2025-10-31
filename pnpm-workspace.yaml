@@ -2,3 +2,4 @@ packages:
   - 'backend'
   - 'mobile'
   - 'shared'
+  - 'tooling/eslint-plugin-photoeditor-internal'

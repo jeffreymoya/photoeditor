@@ -1,0 +1,14 @@
+{
+  "name": "eslint-plugin-photoeditor-internal",
+  "version": "0.1.0",
+  "main": "index.js",
+  "license": "MIT",
+  "private": true,
+  "type": "commonjs",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@eslint-community/eslint-utils": "^4.4.0"
+  }
+}

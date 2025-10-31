@@ -34,7 +34,7 @@ import {
   buildDeviceTokenResponse,
   schemaSafeResponse,
 } from '../../__tests__/stubs';
-import { advanceTimersUntilSettled, createPollingScenario } from '../../__tests__/testUtils';
+import { advanceTimersUntilSettled, createPollingScenario, type FetchStageDefinition } from '../../__tests__/testUtils';
 import { UploadServiceAdapter } from '../adapter';
 
 // Mock AsyncStorage
@@ -46,6 +46,102 @@ global.fetch = jest.fn();
 describe('UploadServiceAdapter - Basic Operations', () => {
   let adapter: UploadServiceAdapter;
   const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>;
+
+  const statusMatcher = (input: RequestInfo | URL) => typeof input === 'string' && input.includes('/status/');
+
+  const buildProcessImageStages = ({
+    jobId,
+    imageUri,
+    blob,
+    scenarioName,
+    extraStages = [],
+  }: {
+    jobId: string;
+    imageUri: string;
+    blob: Blob;
+    scenarioName: string;
+    extraStages?: FetchStageDefinition[];
+  }): FetchStageDefinition[] => {
+    const uploadUrl = `https://s3.amazonaws.com/bucket/${jobId}/test.jpg`;
+
+    const presignStage: FetchStageDefinition = {
+      name: `${scenarioName}:presign`,
+      matcher: (input) => typeof input === 'string' && input.includes('/presign'),
+      handler: () => schemaSafeResponse({
+        schema: PresignUploadResponseSchema,
+        build: buildPresignUploadResponse,
+        overrides: {
+          jobId,
+          s3Key: `uploads/${jobId}/test.jpg`,
+          presignedUrl: uploadUrl,
+        },
+      }),
+      maxCalls: 1,
+    };
+
+    const fetchImageStage: FetchStageDefinition = {
+      name: `${scenarioName}:image-fetch`,
+      matcher: (input) => input === imageUri,
+      handler: () => createMockResponse({ data: blob }),
+      maxCalls: 1,
+    };
+
+    const uploadStage: FetchStageDefinition = {
+      name: `${scenarioName}:s3-upload`,
+      matcher: (input, init) => input === uploadUrl && (init?.method ?? 'GET').toUpperCase() === 'PUT',
+      handler: () => createMockResponse({ status: 200 }),
+      maxCalls: 1,
+    };
+
+    return [presignStage, fetchImageStage, uploadStage, ...extraStages];
+  };
+
+  const buildBatchStages = ({
+    scenarioName,
+    batchResponse,
+    images,
+    blob,
+    extraStages = [],
+  }: {
+    scenarioName: string;
+    batchResponse: ReturnType<typeof buildBatchUploadResponse>;
+    images: { uri: string; fileName?: string; fileSize?: number }[];
+    blob: Blob;
+    extraStages?: FetchStageDefinition[];
+  }): FetchStageDefinition[] => {
+    const stages: FetchStageDefinition[] = [
+      {
+        name: `${scenarioName}:batch-presign`,
+        matcher: (input) => typeof input === 'string' && input.includes('/presign'),
+        handler: () => schemaSafeResponse({
+          schema: BatchUploadResponseSchema,
+          build: buildBatchUploadResponse,
+          overrides: batchResponse,
+        }),
+        maxCalls: 1,
+      },
+    ];
+
+    images.forEach((image, index) => {
+      const upload = batchResponse.uploads[index];
+
+      stages.push({
+        name: `${scenarioName}:image-fetch-${index}`,
+        matcher: (input) => input === image.uri,
+        handler: () => createMockResponse({ data: blob }),
+        maxCalls: 1,
+      });
+
+      stages.push({
+        name: `${scenarioName}:s3-upload-${index}`,
+        matcher: (input, init) => input === upload.presignedUrl && (init?.method ?? 'GET').toUpperCase() === 'PUT',
+        handler: () => createMockResponse({ status: 200 }),
+        maxCalls: 1,
+      });
+    });
+
+    return [...stages, ...extraStages];
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -458,23 +554,9 @@ describe('UploadServiceAdapter - Basic Operations', () => {
       const mockJobId = 'f47ac10b-58cc-4372-a567-0e02b2c3d479';
       const mockBlob = new Blob(['fake image data']);
 
-      mockFetch
-        .mockResolvedValueOnce(
-          schemaSafeResponse({
-            schema: PresignUploadResponseSchema,
-            build: buildPresignUploadResponse,
-            overrides: {
-              jobId: mockJobId,
-              s3Key: `uploads/${mockJobId}/test.jpg`,
-            },
-          })
-        )
-        .mockResolvedValueOnce(createMockResponse({ data: mockBlob }))
-        .mockResolvedValueOnce(createMockResponse({ status: 200 }));
-
       createPollingScenario({
         fetchMock: mockFetch,
-        matcher: (input) => typeof input === 'string' && input.includes('/status/'),
+        matcher: statusMatcher,
         schema: JobSchema,
         build: buildJob,
         timeline: [
@@ -488,6 +570,12 @@ describe('UploadServiceAdapter - Basic Operations', () => {
         ],
         repeatLast: true,
         scenarioName: 'processImage success',
+        stages: buildProcessImageStages({
+          jobId: mockJobId,
+          imageUri,
+          blob: mockBlob,
+          scenarioName: 'processImage success',
+        }),
       });
 
       const progressCalls: number[] = [];
@@ -512,23 +600,9 @@ describe('UploadServiceAdapter - Basic Operations', () => {
       const mockJobId = 'f47ac10b-58cc-4372-a567-0e02b2c3d479';
       const mockBlob = new Blob(['fake image data']);
 
-      mockFetch
-        .mockResolvedValueOnce(
-          schemaSafeResponse({
-            schema: PresignUploadResponseSchema,
-            build: buildPresignUploadResponse,
-            overrides: {
-              jobId: mockJobId,
-              s3Key: `uploads/${mockJobId}/test.jpg`,
-            },
-          })
-        )
-        .mockResolvedValueOnce(createMockResponse({ data: mockBlob }))
-        .mockResolvedValueOnce(createMockResponse({ status: 200 }));
-
       createPollingScenario({
         fetchMock: mockFetch,
-        matcher: (input) => typeof input === 'string' && input.includes('/status/'),
+        matcher: statusMatcher,
         schema: JobSchema,
         build: buildJob,
         timeline: [
@@ -541,6 +615,12 @@ describe('UploadServiceAdapter - Basic Operations', () => {
         ],
         repeatLast: true,
         scenarioName: 'processImage failure',
+        stages: buildProcessImageStages({
+          jobId: mockJobId,
+          imageUri,
+          blob: mockBlob,
+          scenarioName: 'processImage failure',
+        }),
       });
 
       let failure: Error | undefined;
@@ -561,28 +641,20 @@ describe('UploadServiceAdapter - Basic Operations', () => {
       const mockJobId = 'f47ac10b-58cc-4372-a567-0e02b2c3d479';
       const mockBlob = new Blob(['fake image data']);
 
-      mockFetch
-        .mockResolvedValueOnce(
-          schemaSafeResponse({
-            schema: PresignUploadResponseSchema,
-            build: buildPresignUploadResponse,
-            overrides: {
-              jobId: mockJobId,
-              s3Key: `uploads/${mockJobId}/test.jpg`,
-            },
-          })
-        )
-        .mockResolvedValueOnce(createMockResponse({ data: mockBlob }))
-        .mockResolvedValueOnce(createMockResponse({ status: 200 }));
-
       createPollingScenario({
         fetchMock: mockFetch,
-        matcher: (input) => typeof input === 'string' && input.includes('/status/'),
+        matcher: statusMatcher,
         schema: JobSchema,
         build: buildJob,
         timeline: [{ jobId: mockJobId, status: 'PROCESSING' }],
         repeatLast: true,
         scenarioName: 'processImage timeout',
+        stages: buildProcessImageStages({
+          jobId: mockJobId,
+          imageUri,
+          blob: mockBlob,
+          scenarioName: 'processImage timeout',
+        }),
       });
 
       let timeoutError: Error | undefined;
@@ -603,20 +675,6 @@ describe('UploadServiceAdapter - Basic Operations', () => {
       const mockJobId = 'f47ac10b-58cc-4372-a567-0e02b2c3d479';
       const mockBlob = new Blob(['fake image data']);
 
-      mockFetch
-        .mockResolvedValueOnce(
-          schemaSafeResponse({
-            schema: PresignUploadResponseSchema,
-            build: buildPresignUploadResponse,
-            overrides: {
-              jobId: mockJobId,
-              s3Key: `uploads/${mockJobId}/test.jpg`,
-            },
-          })
-        )
-        .mockResolvedValueOnce(createMockResponse({ data: mockBlob }))
-        .mockResolvedValueOnce(createMockResponse({ status: 200 }));
-
       const pollingStates = [
         ...Array.from({ length: 10 }, () => ({ jobId: mockJobId, status: 'PROCESSING' as const })),
         {
@@ -628,12 +686,18 @@ describe('UploadServiceAdapter - Basic Operations', () => {
 
       createPollingScenario({
         fetchMock: mockFetch,
-        matcher: (input) => typeof input === 'string' && input.includes('/status/'),
+        matcher: statusMatcher,
         schema: JobSchema,
         build: buildJob,
         timeline: pollingStates,
         repeatLast: true,
         scenarioName: 'processImage progress callback',
+        stages: buildProcessImageStages({
+          jobId: mockJobId,
+          imageUri,
+          blob: mockBlob,
+          scenarioName: 'processImage progress callback',
+        }),
       });
 
       const progressCalls: number[] = [];
@@ -659,25 +723,9 @@ describe('UploadServiceAdapter - Basic Operations', () => {
       const mockJobId = 'f47ac10b-58cc-4372-a567-0e02b2c3d479';
       const mockBlob = new Blob(['fake image data']);
 
-      mockFetch
-        .mockResolvedValueOnce(
-          schemaSafeResponse({
-            schema: PresignUploadResponseSchema,
-            build: buildPresignUploadResponse,
-            overrides: {
-              jobId: mockJobId,
-              s3Key: `uploads/${mockJobId}/test.jpg`,
-            },
-          })
-        )
-        .mockResolvedValueOnce(createMockResponse({ data: mockBlob }))
-        .mockResolvedValueOnce(createMockResponse({ status: 200 }));
-
-      mockFetch.mockRejectedValueOnce(new Error('Network timeout'));
-
       createPollingScenario({
         fetchMock: mockFetch,
-        matcher: (input) => typeof input === 'string' && input.includes('/status/'),
+        matcher: statusMatcher,
         schema: JobSchema,
         build: buildJob,
         timeline: [
@@ -689,6 +737,20 @@ describe('UploadServiceAdapter - Basic Operations', () => {
         ],
         repeatLast: true,
         scenarioName: 'processImage transient error recovery',
+        stages: buildProcessImageStages({
+          jobId: mockJobId,
+          imageUri,
+          blob: mockBlob,
+          scenarioName: 'processImage transient error recovery',
+          extraStages: [
+            {
+              name: 'processImage transient error recovery:network-timeout',
+              matcher: statusMatcher,
+              handler: () => Promise.reject(new Error('Network timeout')),
+              maxCalls: 1,
+            },
+          ],
+        }),
       });
 
       const processPromise = adapter.processImage(
@@ -736,19 +798,7 @@ describe('UploadServiceAdapter - Basic Operations', () => {
         })),
       });
 
-      mockFetch.mockResolvedValueOnce(
-        schemaSafeResponse({
-          schema: BatchUploadResponseSchema,
-          build: buildBatchUploadResponse,
-          value: batchPresignResponse,
-        })
-      );
-
       const mockBlob = new Blob(['fake image data']);
-      childJobIds.forEach(() => {
-        mockFetch.mockResolvedValueOnce(createMockResponse({ data: mockBlob }));
-        mockFetch.mockResolvedValueOnce(createMockResponse({ status: 200 }));
-      });
 
       const batchStates = [
         buildBatchJob({ batchJobId: mockBatchJobId, childJobIds, totalCount: 3, completedCount: 0 }),
@@ -771,6 +821,16 @@ describe('UploadServiceAdapter - Basic Operations', () => {
         timeline: batchStates,
         repeatLast: true,
         scenarioName: 'processBatchImages progress tracking',
+        stages: buildBatchStages({
+          scenarioName: 'processBatchImages progress tracking',
+          batchResponse: batchPresignResponse,
+          images: [
+            { uri: 'file:///path/to/image1.jpg', fileName: 'file1.jpg', fileSize: 1024 },
+            { uri: 'file:///path/to/image2.jpg', fileName: 'file2.jpg', fileSize: 2048 },
+            { uri: 'file:///path/to/image3.jpg', fileName: 'file3.jpg', fileSize: 3072 },
+          ],
+          blob: mockBlob,
+        }),
       });
 
       const progressCalls: { progress: number; batchJobId?: string }[] = [];
@@ -817,19 +877,7 @@ describe('UploadServiceAdapter - Basic Operations', () => {
         })),
       });
 
-      mockFetch.mockResolvedValueOnce(
-        schemaSafeResponse({
-          schema: BatchUploadResponseSchema,
-          build: buildBatchUploadResponse,
-          value: batchPresignResponse,
-        })
-      );
-
       const mockBlob = new Blob(['fake image data']);
-      childJobIds.forEach(() => {
-        mockFetch.mockResolvedValueOnce(createMockResponse({ data: mockBlob }));
-        mockFetch.mockResolvedValueOnce(createMockResponse({ status: 200 }));
-      });
 
       createPollingScenario({
         fetchMock: mockFetch,
@@ -847,6 +895,15 @@ describe('UploadServiceAdapter - Basic Operations', () => {
         ],
         repeatLast: true,
         scenarioName: 'processBatchImages happy path',
+        stages: buildBatchStages({
+          scenarioName: 'processBatchImages happy path',
+          batchResponse: batchPresignResponse,
+          images: [
+            { uri: 'file:///path/to/image1.jpg', fileName: 'file1.jpg', fileSize: 1024 },
+            { uri: 'file:///path/to/image2.jpg', fileName: 'file2.jpg', fileSize: 2048 },
+          ],
+          blob: mockBlob,
+        }),
       });
 
       const onProgress = jest.fn();
@@ -884,19 +941,7 @@ describe('UploadServiceAdapter - Basic Operations', () => {
         })),
       });
 
-      mockFetch.mockResolvedValueOnce(
-        schemaSafeResponse({
-          schema: BatchUploadResponseSchema,
-          build: buildBatchUploadResponse,
-          value: batchPresignResponse,
-        })
-      );
-
       const mockBlob = new Blob(['fake image data']);
-      childJobIds.forEach(() => {
-        mockFetch.mockResolvedValueOnce(createMockResponse({ data: mockBlob }));
-        mockFetch.mockResolvedValueOnce(createMockResponse({ status: 200 }));
-      });
 
       createPollingScenario({
         fetchMock: mockFetch,
@@ -915,6 +960,15 @@ describe('UploadServiceAdapter - Basic Operations', () => {
         ],
         repeatLast: true,
         scenarioName: 'processBatchImages failure',
+        stages: buildBatchStages({
+          scenarioName: 'processBatchImages failure',
+          batchResponse: batchPresignResponse,
+          images: [
+            { uri: 'file:///path/to/image1.jpg', fileName: 'file1.jpg', fileSize: 1024 },
+            { uri: 'file:///path/to/image2.jpg', fileName: 'file2.jpg', fileSize: 2048 },
+          ],
+          blob: mockBlob,
+        }),
       });
 
       let failure: Error | undefined;
@@ -954,19 +1008,7 @@ describe('UploadServiceAdapter - Basic Operations', () => {
         })),
       });
 
-      mockFetch.mockResolvedValueOnce(
-        schemaSafeResponse({
-          schema: BatchUploadResponseSchema,
-          build: buildBatchUploadResponse,
-          value: batchPresignResponse,
-        })
-      );
-
       const mockBlob = new Blob(['fake image data']);
-      childJobIds.forEach(() => {
-        mockFetch.mockResolvedValueOnce(createMockResponse({ data: mockBlob }));
-        mockFetch.mockResolvedValueOnce(createMockResponse({ status: 200 }));
-      });
 
       createPollingScenario({
         fetchMock: mockFetch,
@@ -984,6 +1026,15 @@ describe('UploadServiceAdapter - Basic Operations', () => {
         ],
         repeatLast: true,
         scenarioName: 'processBatchImages timeout',
+        stages: buildBatchStages({
+          scenarioName: 'processBatchImages timeout',
+          batchResponse: batchPresignResponse,
+          images: [
+            { uri: 'file:///path/to/image1.jpg', fileName: 'file1.jpg', fileSize: 1024 },
+            { uri: 'file:///path/to/image2.jpg', fileName: 'file2.jpg', fileSize: 2048 },
+          ],
+          blob: mockBlob,
+        }),
       });
 
       let timeoutError: Error | undefined;
@@ -1022,20 +1073,7 @@ describe('UploadServiceAdapter - Basic Operations', () => {
         ],
       });
 
-      mockFetch.mockResolvedValueOnce(
-        schemaSafeResponse({
-          schema: BatchUploadResponseSchema,
-          build: buildBatchUploadResponse,
-          value: batchPresignResponse,
-        })
-      );
-
       const mockBlob = new Blob(['fake image data']);
-      mockFetch.mockResolvedValueOnce(createMockResponse({ data: mockBlob }));
-      mockFetch.mockResolvedValueOnce(createMockResponse({ status: 200 }));
-
-      mockFetch.mockRejectedValueOnce(new Error('Network timeout'));
-
       createPollingScenario({
         fetchMock: mockFetch,
         matcher: (input) => typeof input === 'string' && input.includes('/batch-status/'),
@@ -1052,6 +1090,22 @@ describe('UploadServiceAdapter - Basic Operations', () => {
         ],
         repeatLast: true,
         scenarioName: 'processBatchImages transient error recovery',
+        stages: buildBatchStages({
+          scenarioName: 'processBatchImages transient error recovery',
+          batchResponse: batchPresignResponse,
+          images: [
+            { uri: 'file:///path/to/image1.jpg', fileName: 'file1.jpg', fileSize: 1024 },
+          ],
+          blob: mockBlob,
+          extraStages: [
+            {
+              name: 'processBatchImages transient error recovery:network-timeout',
+              matcher: (input) => typeof input === 'string' && input.includes('/batch-status/'),
+              handler: () => Promise.reject(new Error('Network timeout')),
+              maxCalls: 1,
+            },
+          ],
+        }),
       });
 
       const processPromise = adapter.processBatchImages(

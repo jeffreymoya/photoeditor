@@ -36,11 +36,103 @@ import {
   createMockResponse,
   schemaSafeResponse,
 } from './stubs';
-import { advanceTimersUntilSettled, createPollingScenario } from './testUtils';
+import { advanceTimersUntilSettled, createPollingScenario, type FetchStageDefinition } from './testUtils';
 
 // Mock global fetch
 global.fetch = jest.fn();
 const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>;
+
+const statusMatcher = (input: RequestInfo | URL) => typeof input === 'string' && input.includes('/status/');
+
+const buildProcessImageStages = ({
+  jobId,
+  imageUri,
+  presignedUrl,
+  scenarioName,
+  extraStages = [],
+}: {
+  jobId: string;
+  imageUri: string;
+  presignedUrl: string;
+  scenarioName: string;
+  extraStages?: FetchStageDefinition[];
+}): FetchStageDefinition[] => {
+  const presignStage: FetchStageDefinition = {
+    name: `${scenarioName}:presign`,
+    matcher: (input) => typeof input === 'string' && input.includes('/presign'),
+    handler: () => schemaSafeResponse({
+      schema: PresignUploadResponseSchema,
+      build: buildPresignUploadResponse,
+      overrides: {
+        jobId,
+        s3Key: `uploads/${jobId}/test.jpg`,
+        presignedUrl,
+      },
+    }),
+    maxCalls: 1,
+  };
+
+  const fetchImageStage: FetchStageDefinition = {
+    name: `${scenarioName}:image-fetch`,
+    matcher: (input) => input === imageUri,
+    handler: () => createMockResponse({ data: {} }),
+    maxCalls: 1,
+  };
+
+  const uploadStage: FetchStageDefinition = {
+    name: `${scenarioName}:s3-upload`,
+    matcher: (input, init) => input === presignedUrl && (init?.method ?? 'GET').toUpperCase() === 'PUT',
+    handler: () => createMockResponse({ status: 200 }),
+    maxCalls: 1,
+  };
+
+  return [presignStage, fetchImageStage, uploadStage, ...extraStages];
+};
+
+const buildBatchStages = ({
+  scenarioName,
+  batchResponse,
+  images,
+  extraStages = [],
+}: {
+  scenarioName: string;
+  batchResponse: ReturnType<typeof buildBatchUploadResponse>;
+  images: { uri: string }[];
+  extraStages?: FetchStageDefinition[];
+}): FetchStageDefinition[] => {
+  const stages: FetchStageDefinition[] = [
+    {
+      name: `${scenarioName}:batch-presign`,
+      matcher: (input) => typeof input === 'string' && input.includes('/presign'),
+      handler: () => schemaSafeResponse({
+        schema: BatchUploadResponseSchema,
+        build: buildBatchUploadResponse,
+        overrides: batchResponse,
+      }),
+      maxCalls: 1,
+    },
+  ];
+
+  images.forEach((image, index) => {
+    const upload = batchResponse.uploads[index];
+
+    stages.push({
+      name: `${scenarioName}:image-fetch-${index}`,
+      matcher: (input) => input === image.uri,
+      handler: () => createMockResponse({ data: {} }),
+      maxCalls: 1,
+    });
+
+    stages.push({
+      name: `${scenarioName}:s3-upload-${index}`,
+      matcher: (input, init) => input === upload.presignedUrl && (init?.method ?? 'GET').toUpperCase() === 'PUT',
+      handler: () => createMockResponse({ status: 200 }),
+      maxCalls: 1,
+    });
+  });
+
+  return [...stages, ...extraStages];
+};
 
 /**
  * Justification for max-lines-per-function override:
@@ -369,25 +461,11 @@ describe('ApiService - Shared Schema Integration', () => {
 
     it('should resolve when job completes successfully', async () => {
       const mockJobId = '123e4567-e89b-12d3-a456-426614174000';
-
-      mockFetch
-        .mockResolvedValueOnce(
-          schemaSafeResponse({
-            schema: PresignUploadResponseSchema,
-            build: buildPresignUploadResponse,
-            overrides: {
-              jobId: mockJobId,
-              s3Key: `uploads/${mockJobId}/test.jpg`,
-              presignedUrl: `https://s3.example.com/${mockJobId}`,
-            },
-          })
-        )
-        .mockResolvedValueOnce(createMockResponse({ data: {} }))
-        .mockResolvedValueOnce(createMockResponse({ status: 200 }));
+      const presignedUrl = `https://s3.example.com/${mockJobId}`;
 
       createPollingScenario({
         fetchMock: mockFetch,
-        matcher: (input) => typeof input === 'string' && input.includes('/status/'),
+        matcher: statusMatcher,
         schema: JobSchema,
         build: buildJob,
         timeline: [
@@ -401,6 +479,12 @@ describe('ApiService - Shared Schema Integration', () => {
         ],
         repeatLast: true,
         scenarioName: 'apiService processImage success',
+        stages: buildProcessImageStages({
+          jobId: mockJobId,
+          imageUri,
+          presignedUrl,
+          scenarioName: 'apiService processImage success',
+        }),
       });
 
       const onProgress = jest.fn();
@@ -423,25 +507,11 @@ describe('ApiService - Shared Schema Integration', () => {
 
     it('should reject when job fails', async () => {
       const mockJobId = '123e4567-e89b-12d3-a456-426614174000';
-
-      mockFetch
-        .mockResolvedValueOnce(
-          schemaSafeResponse({
-            schema: PresignUploadResponseSchema,
-            build: buildPresignUploadResponse,
-            overrides: {
-              jobId: mockJobId,
-              s3Key: `uploads/${mockJobId}/test.jpg`,
-              presignedUrl: `https://s3.example.com/${mockJobId}`,
-            },
-          })
-        )
-        .mockResolvedValueOnce(createMockResponse({ data: {} }))
-        .mockResolvedValueOnce(createMockResponse({ status: 200 }));
+      const presignedUrl = `https://s3.example.com/${mockJobId}`;
 
       createPollingScenario({
         fetchMock: mockFetch,
-        matcher: (input) => typeof input === 'string' && input.includes('/status/'),
+        matcher: statusMatcher,
         schema: JobSchema,
         build: buildJob,
         timeline: [
@@ -454,6 +524,12 @@ describe('ApiService - Shared Schema Integration', () => {
         ],
         repeatLast: true,
         scenarioName: 'apiService processImage failure',
+        stages: buildProcessImageStages({
+          jobId: mockJobId,
+          imageUri,
+          presignedUrl,
+          scenarioName: 'apiService processImage failure',
+        }),
       });
 
       let failure: Error | undefined;
@@ -472,30 +548,22 @@ describe('ApiService - Shared Schema Integration', () => {
 
     it('should timeout after max polling attempts', async () => {
       const mockJobId = '123e4567-e89b-12d3-a456-426614174000';
-
-      mockFetch
-        .mockResolvedValueOnce(
-          schemaSafeResponse({
-            schema: PresignUploadResponseSchema,
-            build: buildPresignUploadResponse,
-            overrides: {
-              jobId: mockJobId,
-              s3Key: `uploads/${mockJobId}/test.jpg`,
-              presignedUrl: `https://s3.example.com/${mockJobId}`,
-            },
-          })
-        )
-        .mockResolvedValueOnce(createMockResponse({ data: {} }))
-        .mockResolvedValueOnce(createMockResponse({ status: 200 }));
+      const presignedUrl = `https://s3.example.com/${mockJobId}`;
 
       createPollingScenario({
         fetchMock: mockFetch,
-        matcher: (input) => typeof input === 'string' && input.includes('/status/'),
+        matcher: statusMatcher,
         schema: JobSchema,
         build: buildJob,
         timeline: [{ jobId: mockJobId, status: 'PROCESSING' }],
         repeatLast: true,
         scenarioName: 'apiService processImage timeout',
+        stages: buildProcessImageStages({
+          jobId: mockJobId,
+          imageUri,
+          presignedUrl,
+          scenarioName: 'apiService processImage timeout',
+        }),
       });
 
       let timeoutError: Error | undefined;
@@ -514,27 +582,11 @@ describe('ApiService - Shared Schema Integration', () => {
 
     it('should continue polling after temporary network errors', async () => {
       const mockJobId = '123e4567-e89b-12d3-a456-426614174000';
-
-      mockFetch
-        .mockResolvedValueOnce(
-          schemaSafeResponse({
-            schema: PresignUploadResponseSchema,
-            build: buildPresignUploadResponse,
-            overrides: {
-              jobId: mockJobId,
-              s3Key: `uploads/${mockJobId}/test.jpg`,
-              presignedUrl: `https://s3.example.com/${mockJobId}`,
-            },
-          })
-        )
-        .mockResolvedValueOnce(createMockResponse({ data: {} }))
-        .mockResolvedValueOnce(createMockResponse({ status: 200 }));
-
-      mockFetch.mockRejectedValueOnce(new Error('Network timeout'));
+      const presignedUrl = `https://s3.example.com/${mockJobId}`;
 
       createPollingScenario({
         fetchMock: mockFetch,
-        matcher: (input) => typeof input === 'string' && input.includes('/status/'),
+        matcher: statusMatcher,
         schema: JobSchema,
         build: buildJob,
         timeline: [
@@ -546,6 +598,20 @@ describe('ApiService - Shared Schema Integration', () => {
         ],
         repeatLast: true,
         scenarioName: 'apiService processImage transient error recovery',
+        stages: buildProcessImageStages({
+          jobId: mockJobId,
+          imageUri,
+          presignedUrl,
+          scenarioName: 'apiService processImage transient error recovery',
+          extraStages: [
+            {
+              name: 'apiService processImage transient error recovery:network-timeout',
+              matcher: statusMatcher,
+              handler: () => Promise.reject(new Error('Network timeout')),
+              maxCalls: 1,
+            },
+          ],
+        }),
       });
 
       const result = await advanceTimersUntilSettled(
@@ -584,19 +650,6 @@ describe('ApiService - Shared Schema Integration', () => {
         })),
       });
 
-      mockFetch.mockResolvedValueOnce(
-        schemaSafeResponse({
-          schema: BatchUploadResponseSchema,
-          build: buildBatchUploadResponse,
-          value: batchPresignResponse,
-        })
-      );
-
-      childJobIds.forEach(() => {
-        mockFetch.mockResolvedValueOnce(createMockResponse({ data: {} }));
-        mockFetch.mockResolvedValueOnce(createMockResponse({ status: 200 }));
-      });
-
       createPollingScenario({
         fetchMock: mockFetch,
         matcher: (input) => typeof input === 'string' && input.includes('/batch-status/'),
@@ -614,6 +667,14 @@ describe('ApiService - Shared Schema Integration', () => {
         ],
         repeatLast: true,
         scenarioName: 'apiService processBatchImages success',
+        stages: buildBatchStages({
+          scenarioName: 'apiService processBatchImages success',
+          batchResponse: batchPresignResponse,
+          images: [
+            { uri: 'file:///path/to/image1.jpg' },
+            { uri: 'file:///path/to/image2.jpg' },
+          ],
+        }),
       });
 
       const onProgress = jest.fn();
@@ -654,19 +715,6 @@ describe('ApiService - Shared Schema Integration', () => {
         })),
       });
 
-      mockFetch.mockResolvedValueOnce(
-        schemaSafeResponse({
-          schema: BatchUploadResponseSchema,
-          build: buildBatchUploadResponse,
-          value: batchPresignResponse,
-        })
-      );
-
-      childJobIds.forEach(() => {
-        mockFetch.mockResolvedValueOnce(createMockResponse({ data: {} }));
-        mockFetch.mockResolvedValueOnce(createMockResponse({ status: 200 }));
-      });
-
       createPollingScenario({
         fetchMock: mockFetch,
         matcher: (input) => typeof input === 'string' && input.includes('/batch-status/'),
@@ -684,6 +732,14 @@ describe('ApiService - Shared Schema Integration', () => {
         ],
         repeatLast: true,
         scenarioName: 'apiService processBatchImages failure',
+        stages: buildBatchStages({
+          scenarioName: 'apiService processBatchImages failure',
+          batchResponse: batchPresignResponse,
+          images: [
+            { uri: 'file:///path/to/image1.jpg' },
+            { uri: 'file:///path/to/image2.jpg' },
+          ],
+        }),
       });
 
       let failure: Error | undefined;
@@ -723,19 +779,6 @@ describe('ApiService - Shared Schema Integration', () => {
         })),
       });
 
-      mockFetch.mockResolvedValueOnce(
-        schemaSafeResponse({
-          schema: BatchUploadResponseSchema,
-          build: buildBatchUploadResponse,
-          value: batchPresignResponse,
-        })
-      );
-
-      childJobIds.forEach(() => {
-        mockFetch.mockResolvedValueOnce(createMockResponse({ data: {} }));
-        mockFetch.mockResolvedValueOnce(createMockResponse({ status: 200 }));
-      });
-
       createPollingScenario({
         fetchMock: mockFetch,
         matcher: (input) => typeof input === 'string' && input.includes('/batch-status/'),
@@ -752,6 +795,14 @@ describe('ApiService - Shared Schema Integration', () => {
         ],
         repeatLast: true,
         scenarioName: 'apiService processBatchImages timeout',
+        stages: buildBatchStages({
+          scenarioName: 'apiService processBatchImages timeout',
+          batchResponse: batchPresignResponse,
+          images: [
+            { uri: 'file:///path/to/image1.jpg' },
+            { uri: 'file:///path/to/image2.jpg' },
+          ],
+        }),
       });
 
       let timeoutError: Error | undefined;

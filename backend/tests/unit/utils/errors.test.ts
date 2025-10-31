@@ -308,6 +308,7 @@ describe('ErrorHandler', () => {
         'x-request-id': 'req-123'
       });
       expect(response.body).toBeDefined();
+      if (typeof response.body !== 'string') throw new Error('Expected string body');
 
       const body = JSON.parse(response.body);
       expect(body.code).toBe('VAL_001');
@@ -332,6 +333,7 @@ describe('ErrorHandler', () => {
 
       // Type guard
       if (typeof response === 'string') throw new Error('Expected object response');
+      if (typeof response.body !== 'string') throw new Error('Expected string body');
 
       const body = JSON.parse(response.body);
       expect(body.fieldErrors).toEqual({ email: ['Invalid format'] });
@@ -343,6 +345,7 @@ describe('ErrorHandler', () => {
 
       // Type guard
       if (typeof response === 'string') throw new Error('Expected object response');
+      if (typeof response.body !== 'string') throw new Error('Expected string body');
 
       const body = JSON.parse(response.body);
       expect(body.provider).toBe('Gemini');
@@ -360,6 +363,7 @@ describe('ErrorHandler', () => {
 
       // Type guard
       if (typeof response === 'string') throw new Error('Expected object response');
+      if (typeof response.body !== 'string') throw new Error('Expected string body');
 
       const body = JSON.parse(response.body);
       expect(body.context).toEqual({ userId: '123' });
@@ -380,6 +384,7 @@ describe('ErrorHandler', () => {
 
       // Type guard
       if (typeof response === 'string') throw new Error('Expected object response');
+      if (typeof response.body !== 'string') throw new Error('Expected string body');
 
       expect(response.statusCode).toBe(400);
       expect(response.headers).toEqual({

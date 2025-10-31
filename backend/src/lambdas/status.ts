@@ -5,8 +5,8 @@ import { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from 'aws-lambda';
 
 import { serviceInjection, ServiceContext } from '@backend/core';
 
-import { ErrorHandler } from '../utils/errors';
 import { JobNotFoundError } from '../repositories/job.repository';
+import { ErrorHandler } from '../utils/errors';
 
 async function handleJobStatus(
   jobId: string | undefined,
@@ -22,27 +22,22 @@ async function handleJobStatus(
   }
   logger.info('Fetching job status', { requestId, jobId });
 
-  try {
-    const jobResult = await jobService.getJobResult(jobId);
-    if (jobResult.isErr()) {
-      const { error } = jobResult;
-      if (error instanceof JobNotFoundError) {
-        logger.warn('Job not found', { requestId, jobId });
-        return ErrorHandler.createSimpleErrorResponse(ErrorType.NOT_FOUND, 'JOB_NOT_FOUND', `Job with ID ${jobId} not found`, requestId, traceparent);
-      }
-
-      throw error;
+  const jobResult = await jobService.getJobResult(jobId);
+  if (jobResult.isErr()) {
+    const { error } = jobResult;
+    if (error instanceof JobNotFoundError) {
+      logger.warn('Job not found', { requestId, jobId });
+      return ErrorHandler.createSimpleErrorResponse(ErrorType.NOT_FOUND, 'JOB_NOT_FOUND', `Job with ID ${jobId} not found`, requestId, traceparent);
     }
 
-    const job = jobResult.value;
-    metrics.addMetric('JobStatusFetched', MetricUnits.Count, 1);
-    const headers: Record<string, string> = { 'Content-Type': 'application/json', 'x-request-id': requestId };
-    if (traceparent) headers['traceparent'] = traceparent;
-    return { statusCode: 200, headers, body: JSON.stringify({ jobId: job.jobId, status: job.status, createdAt: job.createdAt, updatedAt: job.updatedAt, tempS3Key: job.tempS3Key, finalS3Key: job.finalS3Key, error: job.error }) };
-  } catch (error) {
-    // Re-throw to be handled by the main error handler
     throw error;
   }
+
+  const job = jobResult.value;
+  metrics.addMetric('JobStatusFetched', MetricUnits.Count, 1);
+  const headers: Record<string, string> = { 'Content-Type': 'application/json', 'x-request-id': requestId };
+  if (traceparent) headers['traceparent'] = traceparent;
+  return { statusCode: 200, headers, body: JSON.stringify({ jobId: job.jobId, status: job.status, createdAt: job.createdAt, updatedAt: job.updatedAt, tempS3Key: job.tempS3Key, finalS3Key: job.finalS3Key, error: job.error }) };
 }
 
 async function handleBatchStatus(

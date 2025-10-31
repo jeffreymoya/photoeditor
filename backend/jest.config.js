@@ -9,6 +9,7 @@ module.exports = {
   collectCoverageFrom: [
     'src/**/*.{ts,js}',
     '!src/**/*.d.ts',
+    '!src/**/index.ts',
   ],
   collectCoverage: true,
   coverageDirectory: 'coverage',
@@ -53,7 +54,8 @@ module.exports = {
   // Transform configuration
   transform: {
     '^.+\\.ts$': ['ts-jest', {
-      tsconfig: '<rootDir>/tsconfig.jest.json'
+      tsconfig: '<rootDir>/tsconfig.jest.json',
+      isolatedModules: true
     }],
     '^.+\\.js$': 'babel-jest'
   },

@@ -64,6 +64,11 @@ This proposal introduces a three-layer test infrastructure to eliminate flakines
    - Validate FetchScenario with real migrations before building PollingOrchestrator
    - Patterns are examples, not rigid templates—adapt as needed
 
+5. **⚠️ Mixed Queue Anti-Pattern**
+   - Never combine `mockResolvedValueOnce` chains with `createPollingScenario`
+   - Register _all_ network interactions through `stages` so Jest's queue stays deterministic
+   - Enforced via `standards/testing-standards.md` (Oct 31, 2025 update)
+
 **Goal**: Invest time upfront to build bulletproof infrastructure, then write tests confidently without fighting edge cases.
 
 ---
@@ -95,6 +100,8 @@ This proposal introduces a three-layer test infrastructure to eliminate flakines
 
 The proposal solves **real, high-severity problems** (mock lifecycle conflicts) but introduces **unnecessary complexity** in Layer 2 and **underestimates adoption risks** for a solo developer. **Recommended path**: Adopt Layer 1 with modifications, skip/defer Layer 2, simplify Layer 3.
 
+**Implementation Update (2025-10-31 @ 19:20 UTC)**: Layer 1 has been delivered by extending `createPollingScenario` with a stage registry. Polling suites now register every fetch interaction via `stages`, eliminating dependence on `mockResolvedValueOnce` queues while preserving the familiar helper API.
+
 ---
 
 ### Problems Assessment
@@ -110,6 +117,8 @@ The proposal solves **real, high-severity problems** (mock lifecycle conflicts) 
 
 #### Layer 1: FetchScenario (Mock Lifecycle Manager)
 **Effectiveness: 8/10** | **Complexity: 6/10** | **Recommendation: ✅ ADOPT WITH MODIFICATIONS**
+
+**Status (2025-10-31)**: Shipped via `createPollingScenario` stage registry. All polling tests in `mobile/src/services/**/__tests__` register presign/upload/timeline stages explicitly; Jest queue conflicts eliminated in adapter + ApiService suites.
 
 **Strengths:**
 - ✅ Solves real FIFO stage evaluation problem
@@ -668,158 +677,84 @@ class PollingOrchestrator<TState extends ZodTypeAny> {
 
 ## 5. Implementation Details
 
-### 5.1 Layer 1: FetchScenario Implementation
+### 5.1 Layer 1: Stage-Oriented Polling Scenario (Implemented)
 
 ```typescript
-/**
- * mobile/src/services/__tests__/support/fetch-scenario.ts
- *
- * Staged fetch mock manager that solves lifecycle conflicts.
- *
- * Per standards/testing-standards.md:
- * - Mock external dependencies using locally defined stubs
- * - Keep assertions focused on observable behavior
- */
+// mobile/src/services/__tests__/testUtils.ts
 
-export interface FetchStage {
+export interface FetchStageDefinition {
   name: string;
   matcher: (input: RequestInfo | URL, init?: RequestInit) => boolean;
-  handler: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
-  callCount: number;
+  handler: (ctx: { input: RequestInfo | URL; init?: RequestInit; callIndex: number }) => Promise<Response> | Response;
   maxCalls?: number;
 }
 
-export class FetchScenario {
-  private stages: FetchStage[] = [];
+export function createPollingScenario<TSchema extends ZodTypeAny>({
+  fetchMock,
+  matcher,
+  schema,
+  build,
+  timeline,
+  fallback,
+  repeatLast = false,
+  scenarioName = 'polling',
+  responseInit,
+  stages = [],
+}: PollingScenarioOptions<TSchema>): PollingScenarioHandle {
+  const stageStates = [...stages].map(stage => ({ ...stage, callCount: 0 }));
 
-  /**
-   * Register a stage that handles specific requests.
-   * Stages are evaluated in FIFO order.
-   *
-   * IMPORTANT: If using a Response object with maxCalls > 1, use a function
-   * to return fresh Response instances. Response bodies can only be consumed once.
-   *
-   * @example
-   * // ✅ Correct: Function returns new Response each time
-   * scenario.stage({
-   *   name: 'presign-request',
-   *   matcher: (input) => String(input).includes('/presign'),
-   *   response: () => schemaSafeResponse({...}),
-   *   maxCalls: 3,
-   * });
-   *
-   * // ❌ Wrong: Same Response reused (body consumed on first read)
-   * scenario.stage({
-   *   name: 'presign-request',
-   *   matcher: (input) => String(input).includes('/presign'),
-   *   response: schemaSafeResponse({...}),
-   *   maxCalls: 3, // Calls 2-3 will fail
-   * });
-   */
-  stage(options: {
-    name: string;
-    matcher: (input: RequestInfo | URL, init?: RequestInit) => boolean;
-    response: Response | ((input: RequestInfo | URL, init?: RequestInit) => Response);
-    maxCalls?: number;
-  }): this {
-    const handler = typeof options.response === 'function'
-      ? async (input, init) => options.response(input, init)
-      : async () => options.response;
+  stageStates.push({
+    name: `${scenarioName}:polling`,
+    matcher,
+    handler: ({ callIndex }) => buildPollingResponse(callIndex),
+    maxCalls: undefined,
+    callCount: 0,
+  });
 
-    this.stages.push({
-      name: options.name,
-      matcher: options.matcher,
-      handler,
-      callCount: 0,
-      maxCalls: options.maxCalls,
-    });
+  const previousImplementation = fetchMock.getMockImplementation();
 
-    return this; // Fluent interface
-  }
+  fetchMock.mockImplementation(async (input, init) => {
+    for (const stage of stageStates) {
+      if (!stage.matcher(input, init)) continue;
+      if (stage.maxCalls !== undefined && stage.callCount >= stage.maxCalls) continue;
 
-  /**
-   * Apply this scenario to a jest mock.
-   * Replaces any existing mock implementation.
-   */
-  apply(mockFetch: jest.MockedFunction<typeof fetch>): void {
-    mockFetch.mockImplementation(async (input, init) => {
-      // Evaluate stages in registration order
-      for (const stage of this.stages) {
-        if (stage.matcher(input, init)) {
-          // Check if stage is exhausted
-          if (stage.maxCalls !== undefined && stage.callCount >= stage.maxCalls) {
-            continue; // Try next stage
-          }
+      const callIndex = stage.callCount;
+      stage.callCount += 1;
+      return stage.handler({ input, init, callIndex });
+    }
 
-          stage.callCount++;
-          return stage.handler(input, init);
-        }
+    if (previousImplementation) {
+      return previousImplementation(input as RequestInfo, init);
+    }
+
+    throw new Error(`createPollingScenario(${scenarioName}) received unexpected fetch call to ${String(input)}`);
+  });
+
+  return {
+    callCount: () => stageStates.find(stage => stage.name === `${scenarioName}:polling`)?.callCount ?? 0,
+    getStageCallCounts: () => Object.fromEntries(stageStates.map(stage => [stage.name, stage.callCount])),
+    restore: () => {
+      if (previousImplementation) {
+        fetchMock.mockImplementation(previousImplementation as typeof fetch);
+        return;
       }
 
-      // No stage matched - provide diagnostic error
-      const url = String(input);
-      const method = (init?.method || 'GET').toUpperCase();
-      const stageSummary = this.stages
-        .map(s => `  - ${s.name}: ${s.callCount}/${s.maxCalls ?? '∞'} calls`)
-        .join('\n');
+      fetchMock.mockImplementation(() => {
+        throw new Error(`createPollingScenario(${scenarioName}) restore called but no original implementation was available.`);
+      });
+    },
+  };
+}
 
-      throw new Error(
-        `FetchScenario: No stage matched ${method} ${url}\n` +
-        `Registered stages:\n${stageSummary}\n\n` +
-        `Hint: Add a stage with matcher that handles this URL.`
-      );
-    });
-  }
-
-  /**
-   * Get call counts for all stages (useful for assertions).
-   */
-  getCallCounts(): Record<string, number> {
-    return Object.fromEntries(
-      this.stages.map(s => [s.name, s.callCount])
-    );
-  }
-
-  /**
-   * Assert that a stage was called the expected number of times.
-   * Throws if assertion fails.
-   */
-  assertStageCalled(stageName: string, expectedCalls: number): void {
-    const stage = this.stages.find(s => s.name === stageName);
-    if (!stage) {
-      const availableStages = this.stages.map(s => s.name).join(', ');
-      throw new Error(
-        `FetchScenario: Stage "${stageName}" not found. Available stages: ${availableStages}`
-      );
-    }
-
-    if (stage.callCount !== expectedCalls) {
-      throw new Error(
-        `FetchScenario: Expected stage "${stageName}" to be called ${expectedCalls} times, ` +
-        `but it was called ${stage.callCount} times.`
-      );
-    }
-  }
-
-  /**
-   * Reset all call counts (useful for beforeEach hooks).
-   */
-  reset(): void {
-    for (const stage of this.stages) {
-      stage.callCount = 0;
-    }
-  }
-
-  /**
-   * Get diagnostic summary (useful for debugging).
-   */
-  getSummary(): string {
-    return this.stages
-      .map(s => `${s.name}: ${s.callCount}/${s.maxCalls ?? '∞'} calls`)
-      .join(', ');
-  }
+function buildPollingResponse(callIndex: number): Response {
+  // Uses timeline, repeatLast, and schemaSafeResponse(...) to build a fresh Response per poll.
 }
 ```
+
+**Key points:**
+- `stages` is now the canonical extension point—tests register presign, blob fetch, S3 upload, transient error, and timeline handlers without touching Jest's per-call queue.
+- Each handler **must** be an arrow/function returning a fresh `Response`; standards update flags direct method references as anti-patterns.
+- Diagnostics expose `getStageCallCounts()` so suites can assert stage utilisation without peeking into Jest internals.
 
 ### 5.2 Layer 2: FixtureBuilder Implementation
 
@@ -2753,26 +2688,21 @@ it('should poll until job completes', async () => {
 | 0.1 | 2025-10-31 | Development Team | Initial draft |
 | 0.2 | 2025-10-31 | Development Team | Critical fixes: unbound methods, Response body consumption, deep merge support, realistic timeline (2 weeks Phase 1), solo-dev metrics, pattern flexibility |
 | 0.3 | 2025-10-31 | Development Team | **CRITICAL ANALYSIS INTEGRATED**: Comparative evaluation vs. current implementation. Key findings: (1) Mock lifecycle conflicts confirmed critical severity, (2) Layer 2 (FixtureBuilder) deemed duplicate effort - recommend skip, (3) Timeline reduced 6→4 weeks, (4) ESLint enforcement moved to Week 1 (non-negotiable), (5) Pattern library simplified 12→5 examples. Overall effectiveness: 6.2/10. Recommended: Option C (Modified Full) with ~700 LOC savings. |
+| 0.4 | 2025-10-31 | Development Team | Implemented stage-based `createPollingScenario` (`stages` registry + diagnostics), migrated mobile polling suites, and codified anti-pattern ban in testing standards. |
 
 ---
 
 **Next Steps (REVISED)**:
-1. 🔴 **DECISION REQUIRED**: Review [Critical Analysis Results](#critical-analysis-results) (lines 88-336) and select implementation path:
-   - **Option A** (Incremental, 2 weeks, low risk) ⭐ RECOMMENDED IF CONSTRAINED
-   - **Option B** (Layer 1 Only, 3 weeks, medium risk)
-   - **Option C** (Modified Full, 4 weeks, manageable risk) ⭐ RECOMMENDED FOR MAX VALUE
+1. ✅ **Layer 1 Landing Complete**: Stage registry live in `createPollingScenario`; adapter + ApiService suites migrated. Continue migrating remaining polling specs (backend lambdas) when they surface.
 
-2. **If Option C selected**:
-   - ✅ Week 1: Implement `FetchScenario` + ESLint rule (MUST COMPLETE TOGETHER - BLOCKING)
-   - ✅ Week 1: Validate with 3 pilot test migrations (GATE: do not proceed to Week 2 until pass)
-   - ✅ Week 2: Enhance existing builders in `stubs.ts` (skip `FixtureBuilder` class - saves 500 LOC)
-   - ✅ Week 3: Implement `PollingOrchestrator` with 5 patterns only (defer batch patterns - saves 200 LOC)
-   - ✅ Week 4: Migrate high-priority tests + validate metrics (<1% flakiness, <30min authoring)
+2. ✅ **Guardrail Enforcement**:
+   - ESLint guard (`photoeditor-internal/no-polling-mock-queues`) blocks `mockResolvedValueOnce`/`mockRejectedValueOnce` inside tests that call `createPollingScenario`
+   - `photoeditor-internal/no-unbound-fixture-builders` flags `Fixtures.*.build` references, prompting arrow-wrapped usage
 
-3. **Non-Negotiable Requirements**:
-   - ESLint rule MUST be implemented in Week 1 (not deferred to Phase 4)
-   - If ESLint rule not feasible in Week 1 → Escalate to Option A (Incremental) instead
-   - Type constraint: `type BuilderFn<T> = (o?: Partial<T>) => T` (forces arrow syntax)
-   - Feature flag for gradual rollout: `USE_LEGACY_POLLING_HELPERS`
+3. 🟡 **Layer 3 Decision (Optional)**:
+   - Re-evaluate `PollingOrchestrator` once three additional suites adopt the stage pattern and report authoring time >30 minutes
+   - If still needed, scope orchestrator to timeline sugar only (no additional lifecycle management)
 
-4. **Timeline Expectation**: 4 weeks (vs. 6 weeks original), ~700 LOC saved, 80% of proposal benefits
+4. 🟢 **Monitoring & Metrics**:
+   - Track flakiness for updated suites for two weeks; target <1%
+   - Capture before/after authoring time notes in `tasks/TASK-XXXX` for transparency

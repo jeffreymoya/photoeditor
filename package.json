@@ -5,7 +5,8 @@
   "workspaces": [
     "shared",
     "backend",
-    "mobile"
+    "mobile",
+    "tooling/eslint-plugin-photoeditor-internal"
   ],
   "scripts": {
     "postinstall": "node scripts/ensure-pnpm-corepack.mjs",
@@ -46,6 +47,7 @@
     "eslint-plugin-sonarjs": "^3.0.5",
     "eslint-plugin-unicorn": "^51.0.1",
     "eslint-plugin-unused-imports": "^4.3.0",
+    "eslint-plugin-photoeditor-internal": "workspace:*",
     "eslint-import-resolver-typescript": "^4.4.4",
     "husky": "^9.1.7",
     "jscpd": "^4.0.5",

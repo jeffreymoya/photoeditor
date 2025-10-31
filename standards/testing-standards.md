@@ -16,7 +16,8 @@ These standards define the required safety nets for PhotoEditor after removing i
 - Keep assertions focused on observable behaviour (inputs → outputs) rather than implementation details.
 - Reset mocks between test cases using `beforeEach`/`afterEach` to avoid state leakage.
 - When stubbing fetch or HTTP adapters in mobile services, build responses through the shared factories in `mobile/src/services/__tests__/stubs.ts` and wrap them with `schemaSafeResponse` so Zod-boundaries never see schema-incomplete payloads.
-- Cockatiel-driven polling specs must compose their fetch mocks with `createPollingScenario` and drive timers with `advanceTimersUntilSettled`; always capture the subject promise via `.catch` to assert the final rejection and avoid unhandled warning noise.
+- Cockatiel-driven polling specs must compose their fetch mocks with `createPollingScenario`, registering every network interaction through `stages` (presign, blob fetch, S3 upload, transient errors, polling timeline). Provide stage handlers as arrow functions (or bound functions) that return a fresh `Response` for each invocation so response bodies are never re-used. **Do not** mix `mockResolvedValueOnce` chains with the helper—failing to do so will be flagged by ESLint. Drive timers with `advanceTimersUntilSettled`; always capture the subject promise via `.catch` to assert the final rejection and avoid unhandled warning noise.
+- When handing fixture builders into polling helpers (or any API expecting a builder), wrap them in an arrow to preserve context and match the ESLint guard: `builder: (overrides) => Fixtures.Job.build(overrides)`. The `photoeditor-internal/no-unbound-builder` rule enforces this across the repo.
 
 ## React Component Testing
 
@@ -65,5 +66,7 @@ For mobile changes:
 - No network calls to real AWS services during tests.
 - Do not rely on global mutable state between tests.
 - Avoid sleep-based polling; prefer deterministic mocks.
+- No `mockResolvedValueOnce` / `mockRejectedValueOnce` chains in the same test that calls `createPollingScenario`; stage the response instead so the helper owns the lifecycle.
+- Do not pass unbound fixture builder methods (e.g. `Fixtures.Job.build`) directly into helpers; use an arrow wrapper so `this` context is preserved and diagnostics stay accurate.
 
 These standards may evolve as new quality gates are introduced. Update this document and cite the relevant section in PRs when establishing new requirements.

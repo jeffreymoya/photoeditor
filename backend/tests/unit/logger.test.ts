@@ -83,11 +83,12 @@ describe('AppLogger', () => {
 
   describe('formatContext - Field Filtering', () => {
     it('should filter out undefined values from context', () => {
-      logger.info('Test message', {
+      const context: any = {
         userId: 'user-123',
         jobId: undefined,
         requestId: 'req-456'
-      });
+      };
+      logger.info('Test message', context);
 
       const callArgs = mockInfo.mock.calls[0][1];
       expect(callArgs).toHaveProperty('userId');

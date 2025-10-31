@@ -41,24 +41,29 @@ async function handleBatchUpload(
     sharedPrompt: validatedRequest.sharedPrompt
   });
 
-  const response = await presignService.generateBatchPresignedUpload(userId, validatedRequest);
+  try {
+    const response = await presignService.generateBatchPresignedUpload(userId, validatedRequest);
 
-  metrics.addMetric('BatchPresignedUrlsGenerated', MetricUnits.Count, 1);
-  metrics.addMetric('FilesInBatch', MetricUnits.Count, validatedRequest.files.length);
+    metrics.addMetric('BatchPresignedUrlsGenerated', MetricUnits.Count, 1);
+    metrics.addMetric('FilesInBatch', MetricUnits.Count, validatedRequest.files.length);
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    'x-request-id': requestId
-  };
-  if (traceparent) {
-    headers['traceparent'] = traceparent;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'x-request-id': requestId
+    };
+    if (traceparent) {
+      headers['traceparent'] = traceparent;
+    }
+
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify(response)
+    };
+  } catch (error) {
+    // Re-throw to be handled by main error handler
+    throw error;
   }
-
-  return {
-    statusCode: 200,
-    headers,
-    body: JSON.stringify(response)
-  };
 }
 
 async function handleSingleUpload(
@@ -90,23 +95,28 @@ async function handleSingleUpload(
 
   logger.info('Generating presigned URL', { requestId, userId, fileName: validatedRequest.fileName });
 
-  const response = await presignService.generatePresignedUpload(userId, validatedRequest);
+  try {
+    const response = await presignService.generatePresignedUpload(userId, validatedRequest);
 
-  metrics.addMetric('PresignedUrlGenerated', MetricUnits.Count, 1);
+    metrics.addMetric('PresignedUrlGenerated', MetricUnits.Count, 1);
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    'x-request-id': requestId
-  };
-  if (traceparent) {
-    headers['traceparent'] = traceparent;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'x-request-id': requestId
+    };
+    if (traceparent) {
+      headers['traceparent'] = traceparent;
+    }
+
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify(response)
+    };
+  } catch (error) {
+    // Re-throw to be handled by main error handler
+    throw error;
   }
-
-  return {
-    statusCode: 200,
-    headers,
-    body: JSON.stringify(response)
-  };
 }
 
 const baseHandler = async (

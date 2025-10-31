@@ -17,6 +17,7 @@ import { DynamoDBClient, PutItemCommand, UpdateItemCommand } from '@aws-sdk/clie
 import {
   DeviceTokenRegistrationSchema
 } from '@photoeditor/shared';
+import { parseResponseBody } from '../support/test-helpers';
 
 // Mock PowerTools
 const mockLogger = {
@@ -124,6 +125,7 @@ describe('Device Token Handler Contract Tests', () => {
   });
 
   describe('POST /v1/device-tokens - Register Device Token', () => {
+    it('should register device token and return success', async () => {
       const requestBody = {
         expoPushToken: 'ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]',
         platform: 'ios',
@@ -141,8 +143,8 @@ describe('Device Token Handler Contract Tests', () => {
       expect(result.body).toBeDefined();
 
       // Parse and validate response against schema
-      const responseBody = JSON.parse(result.body as string);
-      
+      const responseBody = parseResponseBody(result.body);
+
       // The handler returns { success: true, deviceToken: ... }
       // So we need to check the actual response structure
       expect(responseBody.success).toBe(true);
@@ -160,7 +162,7 @@ describe('Device Token Handler Contract Tests', () => {
       const result = await handler(event, {} as any) as APIGatewayResponse;
 
       expect(result.statusCode).toBe(400);
-      const responseBody = JSON.parse(result.body as string);
+      const responseBody = parseResponseBody(result.body);
       expect(responseBody.error).toBeDefined();
     });
 
@@ -175,18 +177,18 @@ describe('Device Token Handler Contract Tests', () => {
       const result = await handler(event, {} as any) as APIGatewayResponse;
 
       expect(result.statusCode).toBe(400);
-      const responseBody = JSON.parse(result.body as string);
+      const responseBody = parseResponseBody(result.body);
       expect(responseBody.error).toBeDefined();
     });
 
     it('should return 400 for missing request body', async () => {
       const event = createPostEvent(null);
-      event.body = undefined;
+      delete event.body;
 
       const result = await handler(event, {} as any) as APIGatewayResponse;
 
       expect(result.statusCode).toBe(400);
-      const responseBody = JSON.parse(result.body as string);
+      const responseBody = parseResponseBody(result.body);
       expect(responseBody.error).toBe('Request body required');
     });
 
@@ -204,12 +206,13 @@ describe('Device Token Handler Contract Tests', () => {
       const result = await handler(event, {} as any) as APIGatewayResponse;
 
       expect(result.statusCode).toBe(200);
-      const responseBody = JSON.parse(result.body as string);
+      const responseBody = parseResponseBody(result.body);
       expect(responseBody.success).toBe(true);
     });
   });
 
   describe('DELETE /v1/device-tokens - Deactivate Device Token', () => {
+    it('should deactivate device token and return success', async () => {
       const deviceId = 'test-device-123';
       const event = createDeleteEvent(deviceId);
       const result = await handler(event, {} as any) as APIGatewayResponse;
@@ -218,7 +221,7 @@ describe('Device Token Handler Contract Tests', () => {
       expect(result.body).toBeDefined();
 
       // Parse and validate response
-      const responseBody = JSON.parse(result.body as string);
+      const responseBody = parseResponseBody(result.body);
       expect(responseBody.success).toBe(true);
       expect(responseBody.message).toBe('Device token deactivated successfully');
     });
@@ -230,7 +233,7 @@ describe('Device Token Handler Contract Tests', () => {
       const result = await handler(event, {} as any) as APIGatewayResponse;
 
       expect(result.statusCode).toBe(400);
-      const responseBody = JSON.parse(result.body as string);
+      const responseBody = parseResponseBody(result.body);
       expect(responseBody.error).toBe('deviceId query parameter required');
     });
   });
@@ -244,7 +247,7 @@ describe('Device Token Handler Contract Tests', () => {
       const result = await handler(event, {} as any) as APIGatewayResponse;
 
       expect(result.statusCode).toBe(405);
-      const responseBody = JSON.parse(result.body as string);
+      const responseBody = parseResponseBody(result.body);
       expect(responseBody.error).toBe('Method not allowed');
     });
   });

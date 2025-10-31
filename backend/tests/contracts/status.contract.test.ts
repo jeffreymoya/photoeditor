@@ -12,25 +12,26 @@
  */
 
 import { APIGatewayProxyEventV2 } from 'aws-lambda';
-import { mockClient } from 'aws-sdk-client-mock';
-import { DynamoDBClient, GetItemCommand } from '@aws-sdk/client-dynamodb';
 import {
   JobResponseSchema,
   BatchJobStatusResponseSchema,
-  ApiErrorSchema
+  ErrorType
 } from '@photoeditor/shared';
 
-// Mock PowerTools
-const mockLogger = {
-  info: jest.fn(),
-  warn: jest.fn(),
-  error: jest.fn()
-};
-jest.mock('@aws-lambda-powertools/logger', () => ({
-  Logger: jest.fn(() => mockLogger)
+import {
+  mockServiceInjection,
+  setMockServiceOverrides,
+  resetMockServiceOverrides,
+  createIsolatedJobServiceMock,
+} from '../support/mock-service-container';
+import { ok, err } from 'neverthrow';
+import { JobNotFoundError } from '../../src/repositories/job.repository';
+import { parseResponseBody } from '../support/test-helpers';
+
+jest.mock('@backend/core', () => ({
+  ...jest.requireActual('@backend/core'),
+  serviceInjection: mockServiceInjection,
 }));
-jest.mock('@aws-lambda-powertools/metrics');
-jest.mock('@aws-lambda-powertools/tracer');
 
 // Set required env vars before importing handler
 process.env.AWS_REGION = 'us-east-1';
@@ -39,31 +40,27 @@ process.env.NODE_ENV = 'test';
 process.env.JOBS_TABLE_NAME = 'test-jobs-table';
 process.env.BATCH_TABLE_NAME = 'test-batch-table';
 
-const dynamoMock = mockClient(DynamoDBClient);
-const mockDynamoInstance = new DynamoDBClient({});
-
-jest.mock('@backend/core', () => ({
-  createDynamoDBClient: jest.fn().mockReturnValue(mockDynamoInstance),
-  ConfigService: jest.fn().mockImplementation(() => ({})),
-  serviceInjection: jest.fn().mockReturnValue({
-    before: jest.fn(),
-    after: jest.fn()
-  })
-}), { virtual: true });
-
 // Import handler after mocks are set up
 import { handler } from '../../src/lambdas/status';
 
 // Type guard for API Gateway response
 type APIGatewayResponse = Exclude<Awaited<ReturnType<typeof handler>>, string>;
 
+const jobServiceMock = createIsolatedJobServiceMock();
+
 describe('Status Handler Contract Tests', () => {
   beforeEach(() => {
-    dynamoMock.reset();
-    mockLogger.error.mockClear();
-    mockLogger.info.mockClear();
-    mockLogger.warn.mockClear();
+    resetMockServiceOverrides();
     jest.useRealTimers();
+    jobServiceMock.getJob.mockReset();
+    jobServiceMock.getBatchJob.mockReset();
+    jobServiceMock.getJobResult.mockReset();
+    jobServiceMock.getBatchJobResult.mockReset();
+    setMockServiceOverrides({ jobService: jobServiceMock });
+  });
+
+  afterEach(() => {
+    resetMockServiceOverrides();
   });
 
   const createJobEvent = (jobId: string): APIGatewayProxyEventV2 => ({
@@ -72,7 +69,7 @@ describe('Status Handler Contract Tests', () => {
     rawPath: `/v1/jobs/${jobId}`,
     rawQueryString: '',
     headers: {},
-    pathParameters: { id: jobId },
+    pathParameters: { id: jobId, jobId },
     requestContext: {
       accountId: '123456789012',
       apiId: 'test-api',
@@ -143,20 +140,16 @@ describe('Status Handler Contract Tests', () => {
       const jobId = '123e4567-e89b-12d3-a456-426614174000';
       const now = new Date().toISOString();
 
-      // Mock DynamoDB response
-      dynamoMock.on(GetItemCommand).resolves({
-        Item: {
-          PK: { S: `JOB#${jobId}` },
-          SK: { S: `JOB#${jobId}` },
-          jobId: { S: jobId },
-          userId: { S: 'test-user-123' },
-          status: { S: 'COMPLETED' },
-          createdAt: { S: now },
-          updatedAt: { S: now },
-          tempS3Key: { S: 'temp/test.jpg' },
-          finalS3Key: { S: 'final/test.jpg' }
-        }
-      });
+      jobServiceMock.getJobResult.mockResolvedValue(ok({
+        jobId,
+        userId: 'test-user-123',
+        status: 'COMPLETED',
+        createdAt: now,
+        updatedAt: now,
+        tempS3Key: 'temp/test.jpg',
+        finalS3Key: 'final/test.jpg',
+        error: undefined,
+      } as any));
 
       const event = createJobEvent(jobId);
       const result = await handler(event, {} as any) as APIGatewayResponse;
@@ -165,7 +158,7 @@ describe('Status Handler Contract Tests', () => {
       expect(result.body).toBeDefined();
 
       // Parse and validate response against schema
-      const responseBody = JSON.parse(result.body as string);
+      const responseBody = parseResponseBody(result.body);
       const responseValidation = JobResponseSchema.safeParse(responseBody);
 
       if (!responseValidation.success) {
@@ -185,23 +178,17 @@ describe('Status Handler Contract Tests', () => {
     it('should return ApiError response for non-existent job', async () => {
       const jobId = '123e4567-e89b-12d3-a456-426614174000';
 
-      // Mock DynamoDB returning no item
-      dynamoMock.on(GetItemCommand).resolves({});
+      jobServiceMock.getJobResult.mockResolvedValue(err(new JobNotFoundError(jobId)));
 
       const event = createJobEvent(jobId);
       const result = await handler(event, {} as any) as APIGatewayResponse;
 
       expect(result.statusCode).toBe(404);
-      const responseBody = JSON.parse(result.body as string);
-
-      // Validate error response matches ApiErrorSchema
-      const errorValidation = ApiErrorSchema.safeParse(responseBody);
-      expect(errorValidation.success).toBe(true);
-
-      if (errorValidation.success) {
-        expect(errorValidation.data.error.code).toBe('JOB_NOT_FOUND');
-        expect(errorValidation.data.requestId).toBeDefined();
-      }
+      const responseBody = parseResponseBody(result.body);
+      expect(responseBody.code).toBe('JOB_NOT_FOUND');
+      expect(responseBody.type).toBe(ErrorType.NOT_FOUND);
+      expect(responseBody.instance).toBe('test-request-id');
+      expect(responseBody.detail).toContain(jobId);
     });
 
     it('should return ApiError response for missing jobId parameter', async () => {
@@ -211,14 +198,10 @@ describe('Status Handler Contract Tests', () => {
       const result = await handler(event, {} as any) as APIGatewayResponse;
 
       expect(result.statusCode).toBe(400);
-      const responseBody = JSON.parse(result.body as string);
-
-      const errorValidation = ApiErrorSchema.safeParse(responseBody);
-      expect(errorValidation.success).toBe(true);
-
-      if (errorValidation.success) {
-        expect(errorValidation.data.error.code).toBe('MISSING_JOB_ID');
-      }
+      const responseBody = parseResponseBody(result.body);
+      expect(responseBody.code).toBe('MISSING_JOB_ID');
+      expect(responseBody.type).toBe(ErrorType.VALIDATION);
+      expect(responseBody.instance).toBe('test-request-id');
     });
   });
 
@@ -229,22 +212,18 @@ describe('Status Handler Contract Tests', () => {
       const childJobId2 = '123e4567-e89b-12d3-a456-426614174003';
       const now = new Date().toISOString();
 
-      // Mock DynamoDB response for batch job
-      dynamoMock.on(GetItemCommand).resolves({
-        Item: {
-          PK: { S: `BATCH#${batchJobId}` },
-          SK: { S: `BATCH#${batchJobId}` },
-          batchJobId: { S: batchJobId },
-          userId: { S: 'test-user-123' },
-          status: { S: 'PROCESSING' },
-          createdAt: { S: now },
-          updatedAt: { S: now },
-          sharedPrompt: { S: 'enhance all photos' },
-          completedCount: { N: '1' },
-          totalCount: { N: '2' },
-          childJobIds: { L: [{ S: childJobId1 }, { S: childJobId2 }] }
-        }
-      });
+      jobServiceMock.getBatchJobResult.mockResolvedValue(ok({
+        batchJobId,
+        userId: 'test-user-123',
+        status: 'PROCESSING',
+        createdAt: now,
+        updatedAt: now,
+        sharedPrompt: 'enhance all photos',
+        completedCount: 1,
+        totalCount: 2,
+        childJobIds: [childJobId1, childJobId2],
+        error: undefined,
+      } as any));
 
       const event = createBatchEvent(batchJobId);
       const result = await handler(event, {} as any) as APIGatewayResponse;
@@ -253,7 +232,7 @@ describe('Status Handler Contract Tests', () => {
       expect(result.body).toBeDefined();
 
       // Parse and validate response against schema
-      const responseBody = JSON.parse(result.body as string);
+      const responseBody = parseResponseBody(result.body);
       const responseValidation = BatchJobStatusResponseSchema.safeParse(responseBody);
 
       if (!responseValidation.success) {
@@ -278,21 +257,17 @@ describe('Status Handler Contract Tests', () => {
     it('should return ApiError response for non-existent batch job', async () => {
       const batchJobId = '123e4567-e89b-12d3-a456-426614174001';
 
-      // Mock DynamoDB returning no item
-      dynamoMock.on(GetItemCommand).resolves({});
+      jobServiceMock.getBatchJobResult.mockResolvedValue(err(new JobNotFoundError(batchJobId)));
 
       const event = createBatchEvent(batchJobId);
       const result = await handler(event, {} as any) as APIGatewayResponse;
 
       expect(result.statusCode).toBe(404);
-      const responseBody = JSON.parse(result.body as string);
-
-      const errorValidation = ApiErrorSchema.safeParse(responseBody);
-      expect(errorValidation.success).toBe(true);
-
-      if (errorValidation.success) {
-        expect(errorValidation.data.error.code).toBe('BATCH_JOB_NOT_FOUND');
-      }
+      const responseBody = parseResponseBody(result.body);
+      expect(responseBody.code).toBe('BATCH_JOB_NOT_FOUND');
+      expect(responseBody.type).toBe(ErrorType.NOT_FOUND);
+      expect(responseBody.instance).toBe('test-request-id');
+      expect(responseBody.detail).toContain(batchJobId);
     });
 
     it('should return ApiError response for missing batchJobId parameter', async () => {
@@ -302,14 +277,10 @@ describe('Status Handler Contract Tests', () => {
       const result = await handler(event, {} as any) as APIGatewayResponse;
 
       expect(result.statusCode).toBe(400);
-      const responseBody = JSON.parse(result.body as string);
-
-      const errorValidation = ApiErrorSchema.safeParse(responseBody);
-      expect(errorValidation.success).toBe(true);
-
-      if (errorValidation.success) {
-        expect(errorValidation.data.error.code).toBe('MISSING_BATCH_JOB_ID');
-      }
+      const responseBody = parseResponseBody(result.body);
+      expect(responseBody.code).toBe('MISSING_BATCH_JOB_ID');
+      expect(responseBody.type).toBe(ErrorType.VALIDATION);
+      expect(responseBody.instance).toBe('test-request-id');
     });
   });
 
@@ -318,17 +289,16 @@ describe('Status Handler Contract Tests', () => {
       const jobId = '123e4567-e89b-12d3-a456-426614174000';
       const now = new Date().toISOString();
 
-      dynamoMock.on(GetItemCommand).resolves({
-        Item: {
-          PK: { S: `JOB#${jobId}` },
-          SK: { S: `JOB#${jobId}` },
-          jobId: { S: jobId },
-          userId: { S: 'test-user-123' },
-          status: { S: 'COMPLETED' },
-          createdAt: { S: now },
-          updatedAt: { S: now }
-        }
-      });
+      jobServiceMock.getJob.mockResolvedValue({
+        jobId,
+        userId: 'test-user-123',
+        status: 'COMPLETED',
+        createdAt: now,
+        updatedAt: now,
+        tempS3Key: 'temp/test.jpg',
+        finalS3Key: 'final/test.jpg',
+        error: undefined,
+      } as any);
 
       const event = createJobEvent(jobId);
       const result = await handler(event, {} as any) as APIGatewayResponse;
@@ -341,17 +311,16 @@ describe('Status Handler Contract Tests', () => {
       const jobId = '123e4567-e89b-12d3-a456-426614174000';
       const now = new Date().toISOString();
 
-      dynamoMock.on(GetItemCommand).resolves({
-        Item: {
-          PK: { S: `JOB#${jobId}` },
-          SK: { S: `JOB#${jobId}` },
-          jobId: { S: jobId },
-          userId: { S: 'test-user-123' },
-          status: { S: 'COMPLETED' },
-          createdAt: { S: now },
-          updatedAt: { S: now }
-        }
-      });
+      jobServiceMock.getJob.mockResolvedValue({
+        jobId,
+        userId: 'test-user-123',
+        status: 'COMPLETED',
+        createdAt: now,
+        updatedAt: now,
+        tempS3Key: 'temp/test.jpg',
+        finalS3Key: 'final/test.jpg',
+        error: undefined,
+      } as any);
 
       const event = createJobEvent(jobId);
       const result = await handler(event, {} as any) as APIGatewayResponse;

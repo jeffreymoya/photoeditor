@@ -35,7 +35,7 @@ describe('AWS Client Factory (runtime)', () => {
     it('falls back to the default region', async () => {
       const client = createS3Client();
       await expect(resolveRegion(client.config.region)).resolves.toBe('us-east-1');
-      expect(client.config.forcePathStyle).toBeUndefined();
+      expect(client.config.forcePathStyle).toBe(false);
     });
 
     it('accepts region and configuration overrides', async () => {

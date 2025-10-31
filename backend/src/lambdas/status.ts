@@ -6,6 +6,7 @@ import { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from 'aws-lambda';
 import { serviceInjection, ServiceContext } from '@backend/core';
 
 import { ErrorHandler } from '../utils/errors';
+import { JobNotFoundError } from '../repositories/job.repository';
 
 async function handleJobStatus(
   jobId: string | undefined,
@@ -20,15 +21,28 @@ async function handleJobStatus(
     return ErrorHandler.createSimpleErrorResponse(ErrorType.VALIDATION, 'MISSING_JOB_ID', 'Job ID is required', requestId, traceparent);
   }
   logger.info('Fetching job status', { requestId, jobId });
-  const job = await jobService.getJob(jobId);
-  if (!job) {
-    logger.warn('Job not found', { requestId, jobId });
-    return ErrorHandler.createSimpleErrorResponse(ErrorType.NOT_FOUND, 'JOB_NOT_FOUND', `Job with ID ${jobId} not found`, requestId, traceparent);
+
+  try {
+    const jobResult = await jobService.getJobResult(jobId);
+    if (jobResult.isErr()) {
+      const { error } = jobResult;
+      if (error instanceof JobNotFoundError) {
+        logger.warn('Job not found', { requestId, jobId });
+        return ErrorHandler.createSimpleErrorResponse(ErrorType.NOT_FOUND, 'JOB_NOT_FOUND', `Job with ID ${jobId} not found`, requestId, traceparent);
+      }
+
+      throw error;
+    }
+
+    const job = jobResult.value;
+    metrics.addMetric('JobStatusFetched', MetricUnits.Count, 1);
+    const headers: Record<string, string> = { 'Content-Type': 'application/json', 'x-request-id': requestId };
+    if (traceparent) headers['traceparent'] = traceparent;
+    return { statusCode: 200, headers, body: JSON.stringify({ jobId: job.jobId, status: job.status, createdAt: job.createdAt, updatedAt: job.updatedAt, tempS3Key: job.tempS3Key, finalS3Key: job.finalS3Key, error: job.error }) };
+  } catch (error) {
+    // Re-throw to be handled by the main error handler
+    throw error;
   }
-  metrics.addMetric('JobStatusFetched', MetricUnits.Count, 1);
-  const headers: Record<string, string> = { 'Content-Type': 'application/json', 'x-request-id': requestId };
-  if (traceparent) headers['traceparent'] = traceparent;
-  return { statusCode: 200, headers, body: JSON.stringify({ jobId: job.jobId, status: job.status, createdAt: job.createdAt, updatedAt: job.updatedAt, tempS3Key: job.tempS3Key, finalS3Key: job.finalS3Key, error: job.error }) };
 }
 
 async function handleBatchStatus(
@@ -53,17 +67,24 @@ async function handleBatchStatus(
 
   logger.info('Fetching batch job status', { requestId, batchJobId });
 
-  const batchJob = await jobService.getBatchJob(batchJobId);
-  if (!batchJob) {
-    logger.warn('Batch job not found', { requestId, batchJobId });
-    return ErrorHandler.createSimpleErrorResponse(
-      ErrorType.NOT_FOUND,
-      'BATCH_JOB_NOT_FOUND',
-      `Batch job with ID ${batchJobId} not found`,
-      requestId,
-      traceparent
-    );
+  const batchJobResult = await jobService.getBatchJobResult(batchJobId);
+  if (batchJobResult.isErr()) {
+    const { error } = batchJobResult;
+    if (error instanceof JobNotFoundError) {
+      logger.warn('Batch job not found', { requestId, batchJobId });
+      return ErrorHandler.createSimpleErrorResponse(
+        ErrorType.NOT_FOUND,
+        'BATCH_JOB_NOT_FOUND',
+        `Batch job with ID ${batchJobId} not found`,
+        requestId,
+        traceparent
+      );
+    }
+
+    throw error;
   }
+
+  const batchJob = batchJobResult.value;
 
   metrics.addMetric('BatchJobStatusFetched', MetricUnits.Count, 1);
 

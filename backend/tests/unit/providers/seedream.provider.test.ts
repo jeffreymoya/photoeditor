@@ -12,6 +12,8 @@ import {
   PROVIDER_CONFIG
 } from '@photoeditor/shared';
 
+import { advanceTimersUntilSettled } from '../../support/time';
+
 // Mock global fetch
 global.fetch = jest.fn();
 
@@ -52,13 +54,18 @@ describe('SeedreamProvider', () => {
 
   beforeEach(() => {
     mockFetch = global.fetch as jest.MockedFunction<typeof fetch>;
-    mockFetch.mockClear();
+    mockFetch.mockReset();
     provider = new SeedreamProvider(baseConfig);
   });
 
   afterEach(() => {
     jest.clearAllMocks();
+    mockFetch.mockReset();
   });
+
+  const executeEditImage = (request: SeedreamEditingRequest) => (
+    advanceTimersUntilSettled(provider.editImage(request))
+  );
 
   describe('Constructor and Configuration', () => {
     it('should initialize with provided config', () => {
@@ -98,13 +105,13 @@ describe('SeedreamProvider', () => {
         credits_used: 1
       };
 
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockImplementation(async () => ({
         ok: true,
         status: 200,
         json: async () => mockResponseData
-      } as unknown as Response);
+      } as unknown as Response));
 
-      const response = await provider.editImage(validRequest);
+      const response = await executeEditImage(validRequest);
 
       expect(response.success).toBe(true);
       expect(response.data).toMatchObject({
@@ -132,13 +139,13 @@ describe('SeedreamProvider', () => {
         edited_image_url: 'https://cdn.seedream.test/edited/def456.jpg'
       };
 
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockImplementation(async () => ({
         ok: true,
         status: 200,
         json: async () => mockResponseData
-      } as unknown as Response);
+      } as unknown as Response));
 
-      const response = await provider.editImage(requestWithoutInstructions);
+      const response = await executeEditImage(requestWithoutInstructions);
 
       expect(response.success).toBe(true);
 
@@ -153,13 +160,13 @@ describe('SeedreamProvider', () => {
         edited_image_url: 'https://cdn.seedream.test/edited/ghi789.jpg'
       };
 
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockImplementation(async () => ({
         ok: true,
         status: 200,
         json: async () => mockResponseData
-      } as unknown as Response);
+      } as unknown as Response));
 
-      await provider.editImage(validRequest);
+      await executeEditImage(validRequest);
 
       const fetchCall = mockFetch.mock.calls[0];
       const headers = fetchCall[1]?.headers as Record<string, string>;
@@ -174,13 +181,13 @@ describe('SeedreamProvider', () => {
         edited_image_url: 'https://cdn.seedream.test/edited/jkl012.jpg'
       };
 
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockImplementation(async () => ({
         ok: true,
         status: 200,
         json: async () => mockResponseData
-      } as unknown as Response);
+      } as unknown as Response));
 
-      await provider.editImage(validRequest);
+      await executeEditImage(validRequest);
 
       const fetchCall = mockFetch.mock.calls[0];
       const requestBody = JSON.parse(fetchCall[1]?.body as string);
@@ -202,14 +209,14 @@ describe('SeedreamProvider', () => {
     };
 
     it('should handle API error responses', async () => {
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockImplementation(async () => ({
         ok: false,
         status: 400,
         statusText: 'Bad Request',
         text: async () => 'Invalid image URL'
-      } as unknown as Response);
+      } as unknown as Response));
 
-      const response = await provider.editImage(validRequest);
+      const response = await executeEditImage(validRequest);
 
       expect(response.success).toBe(false);
       expect(response.error).toContain('Seedream API error');
@@ -219,25 +226,25 @@ describe('SeedreamProvider', () => {
     });
 
     it('should handle missing edited image URL in response', async () => {
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockImplementation(async () => ({
         ok: true,
         status: 200,
         json: async () => ({
           processing_time: 1.5
           // Missing edited_image_url
         })
-      } as Response);
+      } as unknown as Response));
 
-      const response = await provider.editImage(validRequest);
+      const response = await executeEditImage(validRequest);
 
       expect(response.success).toBe(false);
       expect(response.error).toContain('No edited image URL returned from Seedream');
     });
 
     it('should handle network errors', async () => {
-      mockFetch.mockRejectedValueOnce(new Error('Network connection failed'));
+      mockFetch.mockRejectedValue(new Error('Network connection failed'));
 
-      const response = await provider.editImage(validRequest);
+      const response = await executeEditImage(validRequest);
 
       expect(response.success).toBe(false);
       expect(response.error).toContain('Network connection failed');
@@ -249,7 +256,7 @@ describe('SeedreamProvider', () => {
         enabled: false
       });
 
-      const response = await disabledProvider.editImage(validRequest);
+      const response = await advanceTimersUntilSettled(disabledProvider.editImage(validRequest));
 
       expect(response.success).toBe(false);
       expect(response.error).toContain('disabled');
@@ -257,28 +264,28 @@ describe('SeedreamProvider', () => {
     });
 
     it('should handle 500 server errors', async () => {
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockImplementation(async () => ({
         ok: false,
         status: 500,
         statusText: 'Internal Server Error',
         text: async () => 'Server error occurred'
-      } as Response);
+      } as unknown as Response));
 
-      const response = await provider.editImage(validRequest);
+      const response = await executeEditImage(validRequest);
 
       expect(response.success).toBe(false);
       expect(response.error).toContain('500');
     });
 
     it('should handle 401 unauthorized errors', async () => {
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockImplementation(async () => ({
         ok: false,
         status: 401,
         statusText: 'Unauthorized',
         text: async () => 'Invalid API key'
-      } as Response);
+      } as unknown as Response));
 
-      const response = await provider.editImage(validRequest);
+      const response = await executeEditImage(validRequest);
 
       expect(response.success).toBe(false);
       expect(response.error).toContain('401');
@@ -286,15 +293,15 @@ describe('SeedreamProvider', () => {
     });
 
     it('should handle JSON parsing errors', async () => {
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockImplementation(async () => ({
         ok: true,
         status: 200,
         json: async () => {
           throw new Error('Invalid JSON');
         }
-      } as unknown as Response);
+      } as unknown as Response));
 
-      const response = await provider.editImage(validRequest);
+      const response = await executeEditImage(validRequest);
 
       expect(response.success).toBe(false);
       expect(response.error).toBeDefined();
@@ -357,8 +364,6 @@ describe('SeedreamProvider', () => {
 
   describe('Retry Behavior (via BaseProvider)', () => {
     it('should retry on transient failures and eventually succeed', async () => {
-      jest.useRealTimers();
-
       const validRequest: SeedreamEditingRequest = {
         imageUrl: 'https://example.com/test.jpg',
         analysis: 'Test'
@@ -386,7 +391,7 @@ describe('SeedreamProvider', () => {
         } as unknown as Response;
       });
 
-      const response = await provider.editImage(validRequest);
+      const response = await executeEditImage(validRequest);
 
       expect(response.success).toBe(true);
       expect(callCount).toBeGreaterThan(1);
@@ -401,15 +406,15 @@ describe('SeedreamProvider', () => {
         analysis: 'Test'
       };
 
-      mockFetch.mockResolvedValueOnce({
+      mockFetch.mockImplementation(async () => ({
         ok: true,
         status: 200,
         json: async () => ({
           edited_image_url: 'https://cdn.seedream.test/edited/meta-test.jpg'
         })
-      } as Response);
+      } as unknown as Response));
 
-      const response = await provider.editImage(validRequest);
+      const response = await executeEditImage(validRequest);
 
       expect(response.success).toBe(true);
       expect(response.metadata).toBeDefined();

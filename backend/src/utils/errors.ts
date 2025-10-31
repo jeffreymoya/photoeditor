@@ -240,6 +240,7 @@ export class ErrorHandler {
 
   /**
    * Create a standardized error response for simple errors (missing body, invalid params, etc.)
+   * Returns RFC 7807 Problem Details format
    */
   static createSimpleErrorResponse(
     type: ErrorType,
@@ -257,14 +258,7 @@ export class ErrorHandler {
       requestId
     });
 
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'x-request-id': requestId
-    };
-
-    if (traceparent) {
-      headers['traceparent'] = traceparent;
-    }
+    const headers = this.buildResponseHeaders(requestId, traceparent);
 
     return {
       statusCode,

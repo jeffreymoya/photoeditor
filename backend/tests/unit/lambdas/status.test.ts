@@ -25,14 +25,14 @@ describe('status lambda', () => {
     dynamoMock.reset();
   });
 
-  const createEvent = (jobId?: string): APIGatewayProxyEventV2 => ({
-    version: '2.0',
-    routeKey: 'GET /status/{jobId}',
-    rawPath: `/status/${jobId || 'test-job-id'}`,
-    rawQueryString: '',
-    headers: {},
-    pathParameters: jobId ? { jobId } : undefined,
-    requestContext: {
+  const createEvent = (jobId?: string): APIGatewayProxyEventV2 => {
+    const event: APIGatewayProxyEventV2 = {
+      version: '2.0',
+      routeKey: 'GET /status/{jobId}',
+      rawPath: `/status/${jobId || 'test-job-id'}`,
+      rawQueryString: '',
+      headers: {},
+      requestContext: {
       accountId: '123456789012',
       apiId: 'test-api',
       domainName: 'test.execute-api.us-east-1.amazonaws.com',
@@ -51,12 +51,19 @@ describe('status lambda', () => {
       timeEpoch: 1704067200000
     } as any,
     isBase64Encoded: false
-  });
+  };
+
+  if (jobId) {
+    event.pathParameters = { jobId };
+  }
+
+  return event;
+};
 
   describe('parameter validation', () => {
     it('should return 400 when jobId is missing', async () => {
       const event = createEvent();
-      event.pathParameters = undefined;
+      delete event.pathParameters;
 
       const result = await handler(event, {} as any);
 

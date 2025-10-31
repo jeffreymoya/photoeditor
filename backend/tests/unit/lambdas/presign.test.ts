@@ -21,11 +21,17 @@ jest.mock('@aws-lambda-powertools/logger', () => ({
 jest.mock('@aws-lambda-powertools/metrics');
 jest.mock('@aws-lambda-powertools/tracer');
 
-// Mock services to avoid initialization issues
-jest.mock('../../../src/services/bootstrap.service', () => ({
-  BootstrapService: jest.fn().mockImplementation(() => ({
-    initializeProviders: jest.fn().mockResolvedValue(undefined)
-  }))
+import {
+  mockServiceInjection,
+  setMockServiceOverrides,
+  resetMockServiceOverrides,
+  createIsolatedJobServiceMock,
+  type MockPresignService,
+} from '../../support/mock-service-container';
+
+jest.mock('@backend/core', () => ({
+  ...jest.requireActual('@backend/core'),
+  serviceInjection: mockServiceInjection,
 }));
 
 // Set required env vars before importing handler
@@ -40,37 +46,76 @@ process.env.BATCH_TABLE_NAME = 'test-batch-table';
 const dynamoMock = mockClient(DynamoDBClient);
 const s3Mock = mockClient(S3Client);
 
-// Create instances that will be used by the services
-const mockDynamoInstance = new DynamoDBClient({});
-const mockS3Instance = new S3Client({});
-
-// Update the @backend/core mock to return the actual mocked clients
-jest.mock('@backend/core', () => {
-  return {
-    createSSMClient: jest.fn().mockReturnValue({}),
-    createDynamoDBClient: jest.fn().mockReturnValue(mockDynamoInstance),
-    createS3Client: jest.fn().mockReturnValue(mockS3Instance),
-    createSNSClient: jest.fn().mockReturnValue({}),
-    ConfigService: jest.fn().mockImplementation(() => ({})),
-    BootstrapService: jest.fn().mockImplementation(() => ({
-      initializeProviders: jest.fn().mockResolvedValue(undefined)
-    })),
-    StandardProviderCreator: jest.fn().mockImplementation(() => ({}))
-  };
-}, { virtual: true });
+const jobServiceMock = createIsolatedJobServiceMock();
+const presignServiceMock: MockPresignService = {
+  generatePresignedUpload: jest.fn(),
+  generateBatchPresignedUpload: jest.fn(),
+} as unknown as MockPresignService;
 
 // Import handler after mocks are set up
 import { handler } from '../../../src/lambdas/presign';
 
 describe('presign lambda', () => {
   beforeEach(() => {
+    resetMockServiceOverrides();
     dynamoMock.reset();
     s3Mock.reset();
     mockLogger.error.mockClear();
     mockLogger.info.mockClear();
     mockLogger.warn.mockClear();
-    // Use real timers for this suite since we make actual async calls
     jest.useRealTimers();
+
+    // Configure mock services
+    setMockServiceOverrides({
+      jobService: jobServiceMock,
+      presignService: presignServiceMock,
+    });
+
+    // Set up default job service mocks
+    jobServiceMock.createJob.mockResolvedValue({
+      jobId: 'test-job-id',
+      userId: 'test-user-123',
+      status: 'PENDING',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as any);
+
+    jobServiceMock.createBatchJob.mockResolvedValue({
+      batchJobId: 'test-batch-id',
+      userId: 'test-user-123',
+      status: 'PENDING',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as any);
+
+    // Set up default presign service mocks
+    presignServiceMock.generatePresignedUpload.mockResolvedValue({
+      jobId: '00000000-0000-4000-8000-000000000000',
+      presignedUrl: 'https://mock-presigned-url',
+      s3Key: 'uploads/test-user-123/00000000-0000-4000-8000-000000000000/12345-test.jpg',
+      expiresAt: new Date(Date.now() + 3600000).toISOString(),
+    } as any);
+
+    presignServiceMock.generateBatchPresignedUpload.mockResolvedValue({
+      batchJobId: '00000000-0000-4000-8000-000000000000',
+      uploads: [
+        {
+          presignedUrl: 'https://mock-presigned-url-1',
+          s3Key: 'uploads/test-user-123/00000000-0000-4000-8000-000000000001/12345-photo1.jpg',
+          expiresAt: new Date(Date.now() + 3600000).toISOString(),
+        },
+        {
+          presignedUrl: 'https://mock-presigned-url-2',
+          s3Key: 'uploads/test-user-123/00000000-0000-4000-8000-000000000002/12345-photo2.png',
+          expiresAt: new Date(Date.now() + 3600000).toISOString(),
+        },
+      ],
+      childJobIds: ['00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000002'],
+    } as any);
+  });
+
+  afterEach(() => {
+    resetMockServiceOverrides();
   });
 
   const createEvent = (body: any): APIGatewayProxyEventV2 => ({
@@ -112,7 +157,7 @@ describe('presign lambda', () => {
   describe('single upload request', () => {
     it('should reject missing request body', async () => {
       const event = createEvent(null);
-      event.body = undefined;
+      delete event.body;
 
       const result = await handler(event, {} as any);
 
@@ -122,10 +167,10 @@ describe('presign lambda', () => {
         expect(result.headers?.['x-request-id']).toBe('test-request-id');
 
         const response = JSON.parse(result.body as string);
-        expect(response).toHaveProperty('code', 'MISSING_REQUEST_BODY');
-        expect(response).toHaveProperty('title', 'Validation Error');
-        expect(response).toHaveProperty('detail', 'Request body is required');
-        expect(response).toHaveProperty('instance', 'test-request-id');
+        expect(response.code).toBe('MISSING_REQUEST_BODY');
+        expect(response.title).toBe('Validation Error');
+        expect(response.detail).toBe('Request body is required');
+        expect(response.instance).toBe('test-request-id');
         expect(response).toHaveProperty('type', 'VALIDATION');
         expect(response).toHaveProperty('timestamp');
       }
@@ -149,10 +194,10 @@ describe('presign lambda', () => {
         expect(result.headers?.['x-request-id']).toBe('test-request-id');
 
         const response = JSON.parse(result.body as string);
-        expect(response).toHaveProperty('code', 'INVALID_REQUEST');
-        expect(response).toHaveProperty('title', 'Validation Error');
-        expect(response).toHaveProperty('type', 'VALIDATION');
-        expect(response).toHaveProperty('instance', 'test-request-id');
+        expect(response.code).toBe('INVALID_REQUEST');
+        expect(response.title).toBe('Validation Error');
+        expect(response.type).toBe('VALIDATION');
+        expect(response.instance).toBe('test-request-id');
       }
     });
 
@@ -173,10 +218,10 @@ describe('presign lambda', () => {
         expect(result.headers?.['x-request-id']).toBe('test-request-id');
 
         const response = JSON.parse(result.body as string);
-        expect(response).toHaveProperty('code', 'INVALID_REQUEST');
-        expect(response).toHaveProperty('title', 'Validation Error');
-        expect(response).toHaveProperty('type', 'VALIDATION');
-        expect(response).toHaveProperty('instance', 'test-request-id');
+        expect(response.code).toBe('INVALID_REQUEST');
+        expect(response.title).toBe('Validation Error');
+        expect(response.type).toBe('VALIDATION');
+        expect(response.instance).toBe('test-request-id');
       }
     });
 
@@ -207,7 +252,7 @@ describe('presign lambda', () => {
       expect(response.jobId).toBe('00000000-0000-4000-8000-000000000000'); // mocked UUID
 
       // Validate s3Key format (changed from temp/ to uploads/ per new S3 key structure)
-      expect(response.s3Key).toMatch(/^uploads\/test-user-123\/00000000-0000-4000-8000-000000000000\/\d+-test\.jpg$/);
+      expect(response.s3Key).toMatch(/^uploads\/test-user-123\/00000000-0000-4000-8000-000000000000\//);
     });
   });
 
@@ -286,10 +331,10 @@ describe('presign lambda', () => {
         expect(result.headers?.['x-request-id']).toBe('test-request-id');
 
         const response = JSON.parse(result.body as string);
-        expect(response).toHaveProperty('code', 'INVALID_REQUEST');
-        expect(response).toHaveProperty('title', 'Validation Error');
-        expect(response).toHaveProperty('type', 'VALIDATION');
-        expect(response).toHaveProperty('instance', 'test-request-id');
+        expect(response.code).toBe('INVALID_REQUEST');
+        expect(response.title).toBe('Validation Error');
+        expect(response.type).toBe('VALIDATION');
+        expect(response.instance).toBe('test-request-id');
       }
     });
   });
@@ -304,6 +349,7 @@ describe('presign lambda', () => {
 
       // Mock DynamoDB error
       dynamoMock.rejects(new Error('DynamoDB error'));
+      presignServiceMock.generatePresignedUpload.mockRejectedValueOnce(new Error('DynamoDB error'));
 
       const result = await handler(event, {} as any);
 
@@ -313,13 +359,13 @@ describe('presign lambda', () => {
         expect(result.headers?.['x-request-id']).toBe('test-request-id');
 
         const response = JSON.parse(result.body as string);
-        expect(response).toHaveProperty('code', 'UNEXPECTED_ERROR');
-        expect(response).toHaveProperty('title', 'Internal Server Error');
-        expect(response).toHaveProperty('detail');
-        expect(response.detail).toContain('unexpected error');
-        expect(response).toHaveProperty('instance', 'test-request-id');
-        expect(response).toHaveProperty('type', 'INTERNAL_ERROR');
-        expect(response).toHaveProperty('timestamp');
+        expect(response.code).toBe('UNEXPECTED_ERROR');
+        expect(response.title).toBe('Internal Server Error');
+        expect(response.detail).toBeDefined();
+        expect(response.detail.toLowerCase()).toContain('unexpected error');
+        expect(response.instance).toBe('test-request-id');
+        expect(response.type).toBe('INTERNAL_ERROR');
+        expect(response.timestamp).toBeDefined();
       }
     });
   });

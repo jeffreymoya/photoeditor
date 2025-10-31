@@ -20,7 +20,7 @@ import {
   PresignUploadResponseSchema,
   BatchUploadRequestSchema,
   BatchUploadResponseSchema,
-  ApiErrorSchema
+  ApiErrorResponseSchema
 } from '@photoeditor/shared';
 
 // Mock presigner to avoid real credential usage in unit tests
@@ -139,9 +139,14 @@ describe('Presign Handler Contract Tests', () => {
           presignedUrl: 'https://mock-presigned-url.s3.amazonaws.com/test-key-1',
           s3Key: 'temp/00000000-0000-4000-8000-000000000001',
           expiresAt: new Date(Date.now() + 3600000).toISOString()
+        },
+        {
+          presignedUrl: 'https://mock-presigned-url.s3.amazonaws.com/test-key-2',
+          s3Key: 'temp/00000000-0000-4000-8000-000000000002',
+          expiresAt: new Date(Date.now() + 3600000).toISOString()
         }
       ],
-      childJobIds: ['00000000-0000-4000-8000-000000000001']
+      childJobIds: ['00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000002']
     });
   });
 
@@ -243,14 +248,15 @@ describe('Presign Handler Contract Tests', () => {
       expect(result.statusCode).toBe(400);
       const responseBody = JSON.parse(result.body as string);
 
-      // Validate error response matches ApiErrorSchema
-      const errorValidation = ApiErrorSchema.safeParse(responseBody);
+      // Validate error response matches ApiErrorResponseSchema (RFC 7807)
+      const errorValidation = ApiErrorResponseSchema.safeParse(responseBody);
       expect(errorValidation.success).toBe(true);
 
       if (errorValidation.success) {
-        expect(errorValidation.data.error.code).toBeDefined();
-        expect(errorValidation.data.error.message).toBeDefined();
-        expect(errorValidation.data.requestId).toBeDefined();
+        expect(errorValidation.data.code).toBeDefined();
+        expect(errorValidation.data.title).toBeDefined();
+        expect(errorValidation.data.detail).toBeDefined();
+        expect(errorValidation.data.instance).toBeDefined();
         expect(errorValidation.data.timestamp).toBeDefined();
       }
     });
@@ -267,7 +273,7 @@ describe('Presign Handler Contract Tests', () => {
 
       expect(result.statusCode).toBe(400);
       const responseBody = JSON.parse(result.body as string);
-      const errorValidation = ApiErrorSchema.safeParse(responseBody);
+      const errorValidation = ApiErrorResponseSchema.safeParse(responseBody);
       expect(errorValidation.success).toBe(true);
     });
 
@@ -283,7 +289,7 @@ describe('Presign Handler Contract Tests', () => {
 
       expect(result.statusCode).toBe(400);
       const responseBody = JSON.parse(result.body as string);
-      const errorValidation = ApiErrorSchema.safeParse(responseBody);
+      const errorValidation = ApiErrorResponseSchema.safeParse(responseBody);
       expect(errorValidation.success).toBe(true);
     });
   });
@@ -358,7 +364,7 @@ describe('Presign Handler Contract Tests', () => {
 
       expect(result.statusCode).toBe(400);
       const responseBody = JSON.parse(result.body as string);
-      const errorValidation = ApiErrorSchema.safeParse(responseBody);
+      const errorValidation = ApiErrorResponseSchema.safeParse(responseBody);
       expect(errorValidation.success).toBe(true);
     });
 
@@ -379,7 +385,7 @@ describe('Presign Handler Contract Tests', () => {
 
       expect(result.statusCode).toBe(400);
       const responseBody = JSON.parse(result.body as string);
-      const errorValidation = ApiErrorSchema.safeParse(responseBody);
+      const errorValidation = ApiErrorResponseSchema.safeParse(responseBody);
       expect(errorValidation.success).toBe(true);
     });
 
@@ -400,7 +406,7 @@ describe('Presign Handler Contract Tests', () => {
 
       expect(result.statusCode).toBe(400);
       const responseBody = JSON.parse(result.body as string);
-      const errorValidation = ApiErrorSchema.safeParse(responseBody);
+      const errorValidation = ApiErrorResponseSchema.safeParse(responseBody);
       expect(errorValidation.success).toBe(true);
     });
   });

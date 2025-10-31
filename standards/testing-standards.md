@@ -12,6 +12,7 @@ These standards define the required safety nets for PhotoEditor after removing i
 
 - Name new specs `*.test.ts` / `*.test.tsx` and colocate them with the subject under test.
 - Prefer pure unit tests with deterministic inputs/outputs. Mock external dependencies using `aws-sdk-client-mock`, `nock`, or locally defined stubs.
+- For backend Lambda handlers, use the shared service-container harness in `backend/tests/support/mock-service-container.ts` (`mockServiceInjection`, `setMockServiceOverrides`, `resetMockServiceOverrides`). This keeps Middy middleware behaviour consistent, makes overrides analyzable, and satisfies ISO/IEC 25010 maintainability traits (modularity via a single injection point, reusability of mock collaborators, and testability through a stable container surface). Do not hand-roll `jest.mock('@backend/core', …)` blocks that leave `context.container` undefined; update existing specs to use the helper the moment you touch them.
 - Keep assertions focused on observable behaviour (inputs → outputs) rather than implementation details.
 - Reset mocks between test cases using `beforeEach`/`afterEach` to avoid state leakage.
 - When stubbing fetch or HTTP adapters in mobile services, build responses through the shared factories in `mobile/src/services/__tests__/stubs.ts` and wrap them with `schemaSafeResponse` so Zod-boundaries never see schema-incomplete payloads.

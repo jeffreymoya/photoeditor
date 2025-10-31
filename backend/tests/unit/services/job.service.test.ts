@@ -1,8 +1,11 @@
 import { mockClient } from 'aws-sdk-client-mock';
 import { DynamoDBClient, PutItemCommand, GetItemCommand, UpdateItemCommand, QueryCommand } from '@aws-sdk/client-dynamodb';
 import { marshall } from '@aws-sdk/util-dynamodb';
+import { ok, err } from 'neverthrow';
+import { BatchJob, Job, JobStatus, JobStatusType } from '@photoeditor/shared';
 import { JobService } from '../../../src/services/job.service';
-import { JobStatus } from '@photoeditor/shared';
+import { JobNotFoundError, JobAlreadyExistsError, RepositoryError } from '../../../src/repositories/job.repository';
+import { InvalidStateTransitionError, JobValidationError } from '../../../src/domain/job.domain';
 
 const dynamoMock = mockClient(DynamoDBClient);
 
@@ -313,6 +316,547 @@ describe('JobService', () => {
         const jobs = await jobService.getJobsByBatchId('batch-123');
 
         expect(jobs).toEqual([]);
+      });
+    });
+  });
+
+  describe('result-based operations', () => {
+    let jobServiceWithStubRepo: JobService;
+    let repositoryStub: {
+      create: jest.Mock;
+      findById: jest.Mock;
+      updateStatus: jest.Mock;
+      createBatch: jest.Mock;
+      findBatchById: jest.Mock;
+      updateBatchStatus: jest.Mock;
+      findByBatchId: jest.Mock;
+    };
+
+    const baseJob: Job = {
+      jobId: 'job-123',
+      userId: 'user-123',
+      status: JobStatus.QUEUED,
+      createdAt: '2025-10-29T00:00:00.000Z',
+      updatedAt: '2025-10-29T00:00:00.000Z',
+      locale: 'en',
+      settings: {},
+      prompt: 'Prompt',
+      expires_at: Math.floor(Date.now() / 1000) + 1000
+    };
+
+    beforeEach(() => {
+      jobServiceWithStubRepo = new JobService('stub-table', 'us-east-1', 'stub-batch');
+      repositoryStub = {
+        create: jest.fn(),
+        findById: jest.fn(),
+        updateStatus: jest.fn(),
+        createBatch: jest.fn(),
+        findBatchById: jest.fn(),
+        updateBatchStatus: jest.fn(),
+        findByBatchId: jest.fn()
+      };
+
+      // @ts-expect-error accessing private member for test seam
+      jobServiceWithStubRepo.repository = repositoryStub;
+    });
+
+    it('createJobResult returns validation error without hitting repository', async () => {
+      const result = await jobServiceWithStubRepo.createJobResult({
+        userId: '',
+        locale: 'en'
+      });
+
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error).toBeInstanceOf(JobValidationError);
+      }
+      expect(repositoryStub.create).not.toHaveBeenCalled();
+    });
+
+    it('createJobResult surfaces repository errors', async () => {
+      repositoryStub.create.mockImplementation(async (job: Job) =>
+        err(new JobAlreadyExistsError(job.jobId))
+      );
+
+      const result = await jobServiceWithStubRepo.createJobResult({
+        userId: 'user-123',
+        locale: 'en',
+        prompt: 'duplicate job test'
+      });
+
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error).toBeInstanceOf(JobAlreadyExistsError);
+      }
+    });
+
+    it('createJobResult returns created job on success', async () => {
+      repositoryStub.create.mockImplementation(async (job: Job) => ok(job));
+
+      const result = await jobServiceWithStubRepo.createJobResult({
+        userId: 'user-123',
+        locale: 'en',
+        prompt: 'generate art'
+      });
+
+      expect(repositoryStub.create).toHaveBeenCalled();
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value.userId).toBe('user-123');
+        expect(result.value.status).toBe(JobStatus.QUEUED);
+      }
+    });
+
+    it('markJobProcessingResult returns repository error when job missing', async () => {
+      repositoryStub.findById.mockResolvedValue(err(new JobNotFoundError('missing-job')));
+
+      const result = await jobServiceWithStubRepo.markJobProcessingResult('missing-job', 'temp/key');
+
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error).toBeInstanceOf(JobNotFoundError);
+      }
+      expect(repositoryStub.updateStatus).not.toHaveBeenCalled();
+    });
+
+    it('markJobProcessingResult rejects invalid state transitions', async () => {
+      repositoryStub.findById.mockResolvedValue(
+        ok({
+          ...baseJob,
+          status: JobStatus.COMPLETED
+        })
+      );
+
+      const result = await jobServiceWithStubRepo.markJobProcessingResult('job-123', 'temp/key');
+
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error).toBeInstanceOf(InvalidStateTransitionError);
+      }
+      expect(repositoryStub.updateStatus).not.toHaveBeenCalled();
+    });
+
+    it('markJobProcessingResult updates job when transition valid', async () => {
+      repositoryStub.findById.mockResolvedValue(ok(baseJob));
+      repositoryStub.updateStatus.mockImplementation(
+        async (_jobId: string, status: JobStatusType, updates: Partial<Job>) =>
+          ok({
+            ...baseJob,
+            status,
+            tempS3Key: updates.tempS3Key,
+            updatedAt: updates.updatedAt as string
+          })
+      );
+
+      const result = await jobServiceWithStubRepo.markJobProcessingResult('job-123', 'temp/key.jpg');
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value.status).toBe(JobStatus.PROCESSING);
+        expect(result.value.tempS3Key).toBe('temp/key.jpg');
+      }
+      expect(repositoryStub.updateStatus).toHaveBeenCalledWith(
+        'job-123',
+        JobStatus.PROCESSING,
+        expect.objectContaining({ tempS3Key: 'temp/key.jpg' })
+      );
+    });
+
+    it('updateJobStatusResult returns updated job with metadata', async () => {
+      repositoryStub.updateStatus.mockImplementation(
+        async (_jobId: string, status: JobStatusType, updates: Partial<Job>) =>
+          ok({
+            ...baseJob,
+            status,
+            finalS3Key: updates.finalS3Key,
+            error: updates.error,
+            updatedAt: updates.updatedAt as string
+          })
+      );
+
+      const result = await jobServiceWithStubRepo.updateJobStatusResult('job-123', JobStatus.PROCESSING, {
+        finalS3Key: 'final/key.jpg',
+        error: undefined
+      });
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value.status).toBe(JobStatus.PROCESSING);
+        expect(result.value.finalS3Key).toBe('final/key.jpg');
+      }
+    });
+
+    it('markJobFailedResult propagates repository failures', async () => {
+      repositoryStub.findById.mockResolvedValue(ok({ ...baseJob, status: JobStatus.PROCESSING }));
+      repositoryStub.updateStatus.mockResolvedValue(err(new RepositoryError('boom')));
+
+      const result = await jobServiceWithStubRepo.markJobFailedResult('job-123', 'runtime error');
+
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error).toBeInstanceOf(RepositoryError);
+      }
+    });
+
+    it('markJobFailedResult applies failure transition', async () => {
+      repositoryStub.findById.mockResolvedValue(ok({ ...baseJob, status: JobStatus.PROCESSING }));
+      repositoryStub.updateStatus.mockImplementation(
+        async (_jobId: string, status: JobStatusType, updates: Partial<Job>) =>
+          ok({
+            ...baseJob,
+            status,
+            error: updates.error,
+            updatedAt: updates.updatedAt as string
+          })
+      );
+
+      const result = await jobServiceWithStubRepo.markJobFailedResult('job-123', 'boom');
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value.status).toBe(JobStatus.FAILED);
+        expect(result.value.error).toBe('boom');
+      }
+    });
+
+    it('markJobEditingResult enforces valid transition', async () => {
+      repositoryStub.findById.mockResolvedValue(ok({ ...baseJob, status: JobStatus.QUEUED }));
+
+      const result = await jobServiceWithStubRepo.markJobEditingResult('job-123');
+
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error).toBeInstanceOf(InvalidStateTransitionError);
+      }
+    });
+
+    it('markJobEditingResult updates job when processing', async () => {
+      repositoryStub.findById.mockResolvedValue(ok({ ...baseJob, status: JobStatus.PROCESSING }));
+      repositoryStub.updateStatus.mockImplementation(
+        async (_jobId: string, status: JobStatusType, updates: Partial<Job>) =>
+          ok({
+            ...baseJob,
+            status,
+            updatedAt: updates.updatedAt as string
+          })
+      );
+
+      const result = await jobServiceWithStubRepo.markJobEditingResult('job-123');
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value.status).toBe(JobStatus.EDITING);
+      }
+    });
+
+    it('markJobCompletedResult requires job to be in editing', async () => {
+      repositoryStub.findById.mockResolvedValue(ok({ ...baseJob, status: JobStatus.QUEUED }));
+
+      const result = await jobServiceWithStubRepo.markJobCompletedResult('job-123', 'final/key');
+
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error).toBeInstanceOf(InvalidStateTransitionError);
+      }
+      expect(repositoryStub.updateStatus).not.toHaveBeenCalled();
+    });
+
+    it('markJobCompletedResult updates job with final key when valid', async () => {
+      repositoryStub.findById.mockResolvedValue(ok({ ...baseJob, status: JobStatus.EDITING }));
+      repositoryStub.updateStatus.mockImplementation(
+        async (_jobId: string, status: JobStatusType, updates: Partial<Job>) =>
+          ok({
+            ...baseJob,
+            status,
+            finalS3Key: updates.finalS3Key,
+            updatedAt: updates.updatedAt as string
+          })
+      );
+
+      const result = await jobServiceWithStubRepo.markJobCompletedResult('job-123', 'final/key');
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value.status).toBe(JobStatus.COMPLETED);
+        expect(result.value.finalS3Key).toBe('final/key');
+      }
+    });
+
+    it('incrementBatchJobProgressResult returns domain validation error when increment exceeds total', async () => {
+      const batchJob = {
+        batchJobId: 'batch-1',
+        userId: 'user-123',
+        status: JobStatus.QUEUED,
+        createdAt: '2025-10-29T00:00:00.000Z',
+        updatedAt: '2025-10-29T00:00:00.000Z',
+        sharedPrompt: 'Prompt',
+        individualPrompts: [],
+        childJobIds: [],
+        completedCount: 3,
+        totalCount: 3,
+        locale: 'en',
+        settings: {},
+        expires_at: Math.floor(Date.now() / 1000) + 1000
+      };
+
+      repositoryStub.findBatchById.mockResolvedValue(ok(batchJob));
+
+      const result = await jobServiceWithStubRepo.incrementBatchJobProgressResult('batch-1');
+
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error).toBeInstanceOf(JobValidationError);
+      }
+      expect(repositoryStub.updateBatchStatus).not.toHaveBeenCalled();
+    });
+
+    it('incrementBatchJobProgressResult updates batch job when within bounds', async () => {
+      const batchJob = {
+        batchJobId: 'batch-1',
+        userId: 'user-123',
+        status: JobStatus.QUEUED,
+        createdAt: '2025-10-29T00:00:00.000Z',
+        updatedAt: '2025-10-29T00:00:00.000Z',
+        sharedPrompt: 'Prompt',
+        individualPrompts: [],
+        childJobIds: [],
+        completedCount: 1,
+        totalCount: 3,
+        locale: 'en',
+        settings: {},
+        expires_at: Math.floor(Date.now() / 1000) + 1000
+      };
+
+      repositoryStub.findBatchById.mockResolvedValue(ok(batchJob));
+      repositoryStub.updateBatchStatus.mockImplementation(
+        async (_batchJobId: string, status: JobStatusType, updates: Partial<typeof batchJob>) =>
+          ok({
+            ...batchJob,
+            status,
+            completedCount: updates.completedCount ?? batchJob.completedCount,
+            updatedAt: updates.updatedAt as string
+          })
+      );
+
+      const result = await jobServiceWithStubRepo.incrementBatchJobProgressResult('batch-1');
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value.completedCount).toBe(2);
+      }
+      expect(repositoryStub.updateBatchStatus).toHaveBeenCalledWith(
+        'batch-1',
+        JobStatus.QUEUED,
+        expect.objectContaining({ completedCount: 2 })
+      );
+    });
+
+    it('createBatchJobResult surfaces validation errors', async () => {
+      const result = await jobServiceWithStubRepo.createBatchJobResult({
+        userId: '',
+        sharedPrompt: 'shared prompt',
+        fileCount: 2,
+        locale: 'en',
+        settings: {}
+      });
+
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error).toBeInstanceOf(JobValidationError);
+      }
+      expect(repositoryStub.createBatch).not.toHaveBeenCalled();
+    });
+
+    it('createBatchJobResult returns batch job on success', async () => {
+      repositoryStub.createBatch.mockImplementation(async batchJob => ok(batchJob));
+
+      const result = await jobServiceWithStubRepo.createBatchJobResult({
+        userId: 'user-123',
+        sharedPrompt: 'make art',
+        fileCount: 2,
+        locale: 'en',
+        settings: {},
+        individualPrompts: ['one', 'two']
+      });
+
+      expect(repositoryStub.createBatch).toHaveBeenCalled();
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value.userId).toBe('user-123');
+        expect(result.value.totalCount).toBe(2);
+      }
+    });
+
+    it('getJobResult propagates repository response', async () => {
+      repositoryStub.findById.mockResolvedValue(ok({ ...baseJob, jobId: 'job-abc' }));
+
+      const okResult = await jobServiceWithStubRepo.getJobResult('job-abc');
+      expect(okResult.isOk()).toBe(true);
+      if (okResult.isOk()) {
+        expect(okResult.value.jobId).toBe('job-abc');
+      }
+
+      repositoryStub.findById.mockResolvedValue(err(new JobNotFoundError('missing')));
+      const errResult = await jobServiceWithStubRepo.getJobResult('missing');
+      expect(errResult.isErr()).toBe(true);
+      if (errResult.isErr()) {
+        expect(errResult.error).toBeInstanceOf(JobNotFoundError);
+      }
+    });
+
+    it('getBatchJobResult returns failures and successes', async () => {
+      repositoryStub.findBatchById.mockResolvedValue(ok({
+        batchJobId: 'batch-1',
+        userId: 'user-123',
+        status: JobStatus.QUEUED,
+        createdAt: '2025-10-29T00:00:00.000Z',
+        updatedAt: '2025-10-29T00:00:00.000Z',
+        sharedPrompt: 'shared',
+        individualPrompts: [],
+        childJobIds: [],
+        completedCount: 0,
+        totalCount: 2,
+        locale: 'en',
+        settings: {},
+        expires_at: Math.floor(Date.now() / 1000) + 1000
+      }));
+
+      const success = await jobServiceWithStubRepo.getBatchJobResult('batch-1');
+      expect(success.isOk()).toBe(true);
+
+      repositoryStub.findBatchById.mockResolvedValue(err(new JobNotFoundError('missing-batch')));
+      const failure = await jobServiceWithStubRepo.getBatchJobResult('missing-batch');
+      expect(failure.isErr()).toBe(true);
+    });
+
+    it('updateBatchJobStatusResult updates metadata', async () => {
+      repositoryStub.updateBatchStatus.mockImplementation(
+        async (_batchJobId: string, status: JobStatusType, updates: Partial<BatchJob>) =>
+          ok({
+            batchJobId: 'batch-1',
+            userId: 'user-123',
+            status,
+            createdAt: '2025-10-29T00:00:00.000Z',
+            updatedAt: updates.updatedAt as string,
+            sharedPrompt: 'shared',
+            individualPrompts: [],
+            childJobIds: updates.childJobIds ?? [],
+            completedCount: updates.completedCount ?? 0,
+            totalCount: 2,
+            locale: 'en',
+            settings: {},
+            expires_at: Math.floor(Date.now() / 1000) + 1000
+          })
+      );
+
+      const result = await jobServiceWithStubRepo.updateBatchJobStatusResult('batch-1', JobStatus.PROCESSING, {
+        childJobIds: ['job-1', 'job-2']
+      });
+
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value.childJobIds).toEqual(['job-1', 'job-2']);
+      }
+    });
+
+    it('getJobsByBatchIdResult returns repository data', async () => {
+      repositoryStub.findByBatchId.mockResolvedValue(ok([baseJob]));
+
+      const result = await jobServiceWithStubRepo.getJobsByBatchIdResult('batch-1');
+      expect(result.isOk()).toBe(true);
+      if (result.isOk()) {
+        expect(result.value).toHaveLength(1);
+      }
+    });
+
+    describe('legacy adapters', () => {
+      it('createJob throws when underlying result fails', async () => {
+        await expect(
+          jobServiceWithStubRepo.createJob({ userId: '', locale: 'en' })
+        ).rejects.toBeInstanceOf(JobValidationError);
+        expect(repositoryStub.create).not.toHaveBeenCalled();
+      });
+
+      it('updateJobStatus throws on repository error', async () => {
+        repositoryStub.updateStatus.mockResolvedValue(err(new JobNotFoundError('job-123')));
+
+        await expect(
+          jobServiceWithStubRepo.updateJobStatus('job-123', JobStatus.QUEUED)
+        ).rejects.toBeInstanceOf(JobNotFoundError);
+      });
+
+      it('markJobFailed throws when result is error', async () => {
+        repositoryStub.findById.mockResolvedValue(err(new JobNotFoundError('job-123')));
+
+        await expect(
+          jobServiceWithStubRepo.markJobFailed('job-123', 'boom')
+        ).rejects.toBeInstanceOf(JobNotFoundError);
+      });
+
+      it('markJobProcessing throws when transition invalid', async () => {
+        repositoryStub.findById.mockResolvedValue(
+          ok({
+            ...baseJob,
+            status: JobStatus.COMPLETED
+          })
+        );
+
+        await expect(
+          jobServiceWithStubRepo.markJobProcessing('job-123', 'temp/key')
+        ).rejects.toBeInstanceOf(InvalidStateTransitionError);
+      });
+
+      it('markJobEditing throws when transition invalid', async () => {
+        repositoryStub.findById.mockResolvedValue(ok({ ...baseJob, status: JobStatus.QUEUED }));
+
+        await expect(jobServiceWithStubRepo.markJobEditing('job-123')).rejects.toBeInstanceOf(
+          InvalidStateTransitionError
+        );
+      });
+
+      it('markJobCompleted throws when transition invalid', async () => {
+        repositoryStub.findById.mockResolvedValue(ok({ ...baseJob, status: JobStatus.PROCESSING }));
+
+        await expect(
+          jobServiceWithStubRepo.markJobCompleted('job-123', 'final/key')
+        ).rejects.toBeInstanceOf(InvalidStateTransitionError);
+      });
+
+      it('createBatchJob throws on validation error', async () => {
+        await expect(
+          jobServiceWithStubRepo.createBatchJob({
+            userId: '',
+            sharedPrompt: 'shared',
+            fileCount: 2,
+            locale: 'en',
+            settings: {}
+          })
+        ).rejects.toBeInstanceOf(JobValidationError);
+        expect(repositoryStub.createBatch).not.toHaveBeenCalled();
+      });
+
+      it('updateBatchJobStatus throws on repository error', async () => {
+        repositoryStub.updateBatchStatus.mockResolvedValue(err(new JobNotFoundError('batch-1')));
+
+        await expect(
+          jobServiceWithStubRepo.updateBatchJobStatus('batch-1', JobStatus.PROCESSING)
+        ).rejects.toBeInstanceOf(JobNotFoundError);
+      });
+
+      it('incrementBatchJobProgress throws when result is error', async () => {
+        repositoryStub.findBatchById.mockResolvedValue(err(new JobNotFoundError('batch-1')));
+
+        await expect(
+          jobServiceWithStubRepo.incrementBatchJobProgress('batch-1')
+        ).rejects.toBeInstanceOf(JobNotFoundError);
+      });
+
+      it('getJobsByBatchId throws when repository err', async () => {
+        repositoryStub.findByBatchId.mockResolvedValue(err(new RepositoryError('dynamo failed')));
+
+        await expect(
+          jobServiceWithStubRepo.getJobsByBatchId('batch-1')
+        ).rejects.toBeInstanceOf(RepositoryError);
       });
     });
   });

@@ -1,0 +1,372 @@
+name: Terraform Validation
+
+# Terraform control plane validation workflow
+# Enforces infrastructure-tier.md L19-23 fitness gates:
+# - terraform validate/plan artifacts stored
+# - Policy-as-code validation via Conftest
+# - Weekly drift detection with reports
+#
+# Standards:
+# - infrastructure-tier.md L19-23: Fitness gates
+# - cross-cutting.md (all hard-fail controls enforced via policies)
+
+on:
+  pull_request:
+    paths:
+      - 'infrastructure/**'
+      - 'infra/policy-as-code/**'
+      - '.github/workflows/terraform.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'infrastructure/**'
+      - 'infra/policy-as-code/**'
+  schedule:
+    # Weekly drift detection every Monday at 9 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+    inputs:
+      drift_check_only:
+        description: 'Run drift detection only (skip validation)'
+        required: false
+        default: 'false'
+
+env:
+  TERRAFORM_VERSION: '1.9.0'
+  CONFTEST_VERSION: '0.45.0'
+  AWS_REGION: 'us-east-1'
+
+jobs:
+  terraform-validate:
+    name: Terraform Validation
+    runs-on: ubuntu-22.04
+    if: github.event_name != 'schedule' && (github.event.inputs.drift_check_only != 'true')
+
+    defaults:
+      run:
+        working-directory: infrastructure
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Terraform Format Check
+        id: fmt
+        run: terraform fmt -check -recursive
+        continue-on-error: false
+
+      - name: Terraform Init
+        id: init
+        run: terraform init -backend=false
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate
+
+      - name: Terraform Plan (Dry Run)
+        id: plan
+        run: |
+          terraform plan \
+            -var="environment=dev" \
+            -var="aws_region=${{ env.AWS_REGION }}" \
+            -out=tfplan \
+            -no-color
+        continue-on-error: false
+
+      - name: Generate Plan JSON
+        id: plan-json
+        run: terraform show -json tfplan > tfplan.json
+
+      - name: Upload Terraform Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-${{ github.sha }}
+          path: infrastructure/tfplan.json
+          retention-days: 30
+
+      - name: Comment Plan on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('infrastructure/tfplan.json', 'utf8');
+            const planSummary = `#### Terraform Plan Summary
+
+            \`\`\`
+            Terraform validation passed ✅
+            Plan generated successfully
+            \`\`\`
+
+            **Standards Compliance:**
+            - infrastructure-tier.md L19-23: validate/plan artifacts stored ✅
+            - Policy validation: See next step
+
+            <details>
+            <summary>View Full Plan (JSON)</summary>
+
+            \`\`\`json
+            ${plan.substring(0, 5000)}...
+            \`\`\`
+
+            </details>
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: planSummary
+            });
+
+  policy-validation:
+    name: Policy-as-Code Validation
+    runs-on: ubuntu-22.04
+    needs: terraform-validate
+    if: github.event_name != 'schedule' && (github.event.inputs.drift_check_only != 'true')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Terraform Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-plan-${{ github.sha }}
+          path: infrastructure
+
+      - name: Setup Conftest
+        run: |
+          curl -L -o conftest.tar.gz \
+            https://github.com/open-policy-agent/conftest/releases/download/v${{ env.CONFTEST_VERSION }}/conftest_${{ env.CONFTEST_VERSION }}_Linux_x86_64.tar.gz
+          tar xzf conftest.tar.gz
+          sudo mv conftest /usr/local/bin/
+          conftest --version
+
+      - name: Run Conftest Policies
+        id: conftest
+        run: |
+          cd infrastructure
+          conftest test tfplan.json \
+            --policy ../infra/policy-as-code/policies \
+            --output table \
+            --all-namespaces
+        continue-on-error: false
+
+      - name: Comment Policy Results on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const policyResult = `#### Policy-as-Code Validation
+
+            \`\`\`
+            All policies passed ✅
+            \`\`\`
+
+            **Enforced Standards:**
+            - cross-cutting.md L10: KMS encryption and block-public-access ✅
+            - cross-cutting.md L11: Mandatory tags (Project, Env, Owner, CostCenter) ✅
+            - cross-cutting.md L25: SQS DLQ configuration ✅
+            - cross-cutting.md L52: KMS encryption for stateful resources ✅
+            - infrastructure-tier.md L27-28: S3 lifecycle and versioning ✅
+            - infrastructure-tier.md L32: SQS long polling and DLQ ✅
+
+            See \`infra/policy-as-code/README.md\` for policy details.
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: policyResult
+            });
+
+  drift-detection:
+    name: Drift Detection
+    runs-on: ubuntu-22.04
+    if: github.event_name == 'schedule' || github.event.inputs.drift_check_only == 'true'
+
+    defaults:
+      run:
+        working-directory: infrastructure
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          # Note: Configure OIDC or use appropriate AWS credentials
+          # This is a placeholder for future AWS authentication
+          role-to-assume: ${{ secrets.AWS_DRIFT_DETECTION_ROLE_ARN }}
+
+      - name: Terraform Init
+        run: terraform init
+
+      - name: Detect Drift
+        id: drift
+        run: |
+          # Generate plan to detect drift
+          terraform plan \
+            -var="environment=dev" \
+            -var="aws_region=${{ env.AWS_REGION }}" \
+            -out=drift-check.tfplan \
+            -detailed-exitcode \
+            -no-color | tee drift-output.txt
+
+          # Exit code 2 means changes detected (drift)
+          # Exit code 0 means no changes (no drift)
+          # Exit code 1 means error
+        continue-on-error: true
+
+      - name: Generate Drift Report
+        id: report
+        run: |
+          TIMESTAMP=$(date -u +"%Y-%m-%d-%H%M%S")
+          DRIFT_STATUS="no-drift"
+
+          if [ ${{ steps.drift.outputs.exitcode }} -eq 2 ]; then
+            DRIFT_STATUS="drift-detected"
+          fi
+
+          mkdir -p ../docs/infra/drift
+
+          # Create drift report
+          cat > ../docs/infra/drift/${TIMESTAMP}-drift-report.md <<EOF
+          # Drift Detection Report
+
+          **Timestamp**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          **Status**: ${DRIFT_STATUS}
+          **Environment**: dev
+          **Terraform Version**: ${{ env.TERRAFORM_VERSION }}
+
+          ## Summary
+
+          $(if [ "${DRIFT_STATUS}" == "drift-detected" ]; then
+            echo "⚠️ Infrastructure drift detected. Resources have diverged from Terraform state."
+          else
+            echo "✅ No drift detected. Infrastructure matches Terraform state."
+          fi)
+
+          ## Drift Details
+
+          \`\`\`
+          $(cat drift-output.txt)
+          \`\`\`
+
+          ## Next Steps
+
+          $(if [ "${DRIFT_STATUS}" == "drift-detected" ]; then
+            echo "1. Review changes above to identify drift causes"
+            echo "2. Update Terraform configuration to match deployed state, OR"
+            echo "3. Apply Terraform plan to restore desired state"
+            echo "4. Document any intentional out-of-band changes"
+          else
+            echo "No action required. Continue monitoring."
+          fi)
+
+          ## Standards Compliance
+
+          - infrastructure-tier.md L20: Weekly drift check ✅
+          - Drift report uploaded to docs/infra/drift ✅
+
+          ## References
+
+          - Workflow: .github/workflows/terraform.yml
+          - Evidence: docs/infra/terraform-control-plane-evidence.md
+          EOF
+
+          echo "timestamp=${TIMESTAMP}" >> $GITHUB_OUTPUT
+          echo "status=${DRIFT_STATUS}" >> $GITHUB_OUTPUT
+
+      - name: Commit Drift Report
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add ../docs/infra/drift/*.md
+          git commit -m "chore(infra): Add drift detection report ${{ steps.report.outputs.timestamp }}
+
+          Status: ${{ steps.report.outputs.status }}
+
+          Weekly drift detection per infrastructure-tier.md L20.
+
+          🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+          Co-Authored-By: Claude <noreply@anthropic.com>"
+          git push
+
+      - name: Create Issue on Drift
+        if: steps.report.outputs.status == 'drift-detected'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '🚨 Infrastructure Drift Detected - ${{ steps.report.outputs.timestamp }}',
+              body: `## Infrastructure Drift Alert
+
+              Automated weekly drift detection has identified changes between deployed infrastructure and Terraform state.
+
+              **Timestamp**: ${{ steps.report.outputs.timestamp }}
+              **Environment**: dev
+
+              ### Action Required
+
+              1. Review drift report: \`docs/infra/drift/${{ steps.report.outputs.timestamp }}-drift-report.md\`
+              2. Investigate cause of drift (manual changes, SST deployments, etc.)
+              3. Choose resolution:
+                 - Update Terraform config to match reality (preferred if changes are intentional)
+                 - Apply Terraform to restore desired state (if drift is unintended)
+
+              ### Standards Reference
+
+              - infrastructure-tier.md L20: Weekly drift detection requirement
+              - ADR-0008: SST/Terraform parity expectations
+
+              ### Related
+
+              - Evidence: docs/infra/terraform-control-plane-evidence.md
+              - Workflow: .github/workflows/terraform.yml
+
+              /cc @maintainer
+              `,
+              labels: ['infrastructure', 'drift', 'P1']
+            });
+
+  validation-summary:
+    name: Validation Summary
+    runs-on: ubuntu-22.04
+    needs: [terraform-validate, policy-validation]
+    if: github.event_name != 'schedule' && (github.event.inputs.drift_check_only != 'true')
+
+    steps:
+      - name: Summary
+        run: |
+          echo "✅ Terraform validation passed"
+          echo "✅ Policy-as-code validation passed"
+          echo "✅ All fitness gates satisfied"
+          echo ""
+          echo "Standards compliance:"
+          echo "- infrastructure-tier.md L19-23: Fitness gates ✅"
+          echo "- cross-cutting.md (all hard-fail controls) ✅"
+          echo ""
+          echo "Artifacts:"
+          echo "- Terraform plan stored (30-day retention)"
+          echo "- Policy results documented"

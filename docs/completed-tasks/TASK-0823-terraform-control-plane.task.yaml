@@ -1,7 +1,7 @@
 schema_version: "1.0"
 id: TASK-0823
 title: "Reinstate Terraform control plane and fitness evidence"
-status: todo
+status: completed
 blocked_reason: null
 priority: P0
 area: infra

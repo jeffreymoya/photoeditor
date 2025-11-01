@@ -1,7 +1,7 @@
 /**
  * Notification Service Port Interface
  *
- * Defines the contract for notification operations per standards/frontend-tier.md:
+ * Defines the contract for notification operations per the Frontend Tier standard:
  * - 100% of external calls behind interface in services port files
  * - Enables testability via stub implementations
  * - Isolates platform APIs (Expo Notifications) from feature and component layers
@@ -10,7 +10,7 @@
 /**
  * Notification Service Port - Contract for all notification operations
  *
- * Per standards/frontend-tier.md Services & Integration Layer:
+ * Per the Frontend Tier standard Services & Integration Layer:
  * - Ports & Adapters (Hexagonal) for API/Notifications/Platform
  * - Expo Notifications with a thin adapter
  * - 100% of external calls behind interface in services port files

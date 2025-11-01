@@ -1,7 +1,7 @@
 /**
  * Tests for uploadApi RTK Query slice
- * Per standards/testing-standards.md: Unit tests with ≥80% lines, ≥70% branches
- * Per standards/frontend-tier.md: Test coverage for RTK Query endpoints
+ * Per the Testing Standards: Unit tests with ≥80% lines, ≥70% branches
+ * Per the Frontend Tier standard: Test coverage for RTK Query endpoints
  */
 
 import { configureStore } from '@reduxjs/toolkit';

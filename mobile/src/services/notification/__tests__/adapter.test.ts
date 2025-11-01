@@ -1,7 +1,7 @@
 /**
  * Notification Service Adapter Tests - Batch 1: Initialization and Permissions
  *
- * Per standards/testing-standards.md:
+ * Per the Testing Standards:
  * - Services/Adapters: ≥80% line coverage, ≥70% branch coverage
  * - Mock external dependencies using locally defined stubs
  * - Reset mocks between test cases to avoid state leakage
@@ -12,7 +12,7 @@
  * - scheduleLocalNotification (success, error)
  * - Mock Expo Notifications module and fetch API
  *
- * Per standards/frontend-tier.md Services & Integration Layer:
+ * Per the Frontend Tier standard Services & Integration Layer:
  * - Adapters implement ports for platform API encapsulation
  * - Expo Notifications with a thin adapter
  */

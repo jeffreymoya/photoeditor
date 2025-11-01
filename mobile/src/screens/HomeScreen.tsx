@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useHealthCheckQuery } from '@/features/upload/public';
 import { colors, spacing, typography, shadows, borderRadius } from '@/lib/ui-tokens';
 import { useAppSelector } from '@/store';
-// RTK Query health check per standards/frontend-tier.md: RTK Query mandated for network calls
+// RTK Query health check per the Frontend Tier standard: RTK Query mandated for network calls
 
 type RootStackParamList = {
   Tabs: undefined;
@@ -45,7 +45,7 @@ export const HomeScreen = ({ navigation }: HomeScreenProps) => {
   const recentJobs = jobs.slice(0, 5);
 
   // Example: Health check using RTK Query (TASK-0819)
-  // Per standards/frontend-tier.md: RTK Query mandated for network calls
+  // Per the Frontend Tier standard: RTK Query mandated for network calls
   const { data: _healthData } = useHealthCheckQuery(undefined, {
     pollingInterval: 60000, // Poll every 60s
     skip: false,

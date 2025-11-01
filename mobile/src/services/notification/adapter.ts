@@ -1,12 +1,12 @@
 /**
  * Notification Service Adapter
  *
- * Concrete implementation of INotificationService per standards/frontend-tier.md:
+ * Concrete implementation of INotificationService per the Frontend Tier standard:
  * - Implements port interface for notification operations
  * - Encapsulates platform APIs (Expo Notifications, AsyncStorage, Device)
  * - Thin adapter over Expo Notifications with retry for backend registration
  *
- * Per standards/typescript.md:
+ * Per the TypeScript Standards:
  * - Named exports (no defaults in domain code)
  * - Strong typing (no any)
  */

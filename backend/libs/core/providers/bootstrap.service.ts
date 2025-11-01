@@ -6,7 +6,7 @@
  *
  * This service ensures:
  * - Consistent provider initialization across BFF and workers
- * - Single source of truth for provider selection (STANDARDS.md line 90)
+ * - Single source of truth for provider selection
  * - Support for stub providers in testing environments
  *
  * @module core/providers

@@ -1,7 +1,7 @@
 /**
  * Upload feature public API
- * Exports only the public interface per standards/frontend-tier.md
- * Per standards/typescript.md: Named exports only, minimal public surface
+ * Exports only the public interface per the Frontend Tier standard
+ * Per the TypeScript Standards: Named exports only, minimal public surface
  */
 
 // Re-export legacy hooks (for backward compatibility during migration)

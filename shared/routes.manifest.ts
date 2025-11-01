@@ -4,7 +4,7 @@
  * This file defines all external API routes for the PhotoEditor application.
  * It serves as the authoritative source for OpenAPI path generation.
  *
- * Per ADR-0003 and standards/shared-contracts-tier.md:
+ * Per ADR-0003 and the Shared Contracts Tier standard:
  * - Routes reference Zod schemas from shared/schemas for request/response
  * - Contract generator uses this manifest to populate OpenAPI `paths`
  * - RTK Query client generation derives from the generated OpenAPI spec

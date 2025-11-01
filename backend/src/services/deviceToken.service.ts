@@ -20,7 +20,7 @@ export class DeviceTokenService {
 
   constructor(tableName: string, region: string, client?: DynamoDBClient) {
     this.tableName = tableName;
-    // Use provided client or create one via factory (STANDARDS.md line 32)
+    // Use provided client or create one via factory
     this.client = client || createDynamoDBClient(region);
   }
 

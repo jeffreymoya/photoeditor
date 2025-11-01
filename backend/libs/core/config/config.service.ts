@@ -5,8 +5,8 @@
  * Supports environment-specific parameter paths and secure parameter decryption.
  *
  * This service ensures:
- * - Single source of truth for configuration (STANDARDS.md line 90)
- * - No hardcoded secrets (STANDARDS.md line 41)
+ * - Single source of truth for configuration
+ * - No hardcoded secrets
  * - Environment-specific configuration isolation
  *
  * @module core/config

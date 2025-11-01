@@ -1,7 +1,7 @@
 /**
  * React hook for XState upload machine
- * Per standards/frontend-tier.md: XState for job lifecycle with testable transitions
- * Per standards/typescript.md: Named exports, typed returns
+ * Per the Frontend Tier standard: XState for job lifecycle with testable transitions
+ * Per the TypeScript Standards: Named exports, typed returns
  */
 
 import { useMachine } from '@xstate/react';

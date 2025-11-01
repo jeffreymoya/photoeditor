@@ -1,7 +1,7 @@
 /**
  * RTK Query API slice for upload operations
- * Per standards/frontend-tier.md: RTK Query mandated for network calls
- * Per standards/typescript.md: Zod-at-boundaries, named exports, neverthrow Results
+ * Per the Frontend Tier standard: RTK Query mandated for network calls
+ * Per the TypeScript Standards: Zod-at-boundaries, named exports, neverthrow Results
  */
 
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
@@ -17,7 +17,7 @@ import type {
 
 /**
  * Generate W3C traceparent header for request tracing
- * Per standards/cross-cutting.md: traceparent propagation
+ * Per the Cross-Cutting standard: traceparent propagation
  */
 function generateTraceId(): string {
   const traceId = Array.from({ length: 32 }, () =>
@@ -42,7 +42,7 @@ function generateCorrelationId(): string {
 
 /**
  * Upload API slice - handles presign, upload orchestration, and job status polling
- * Per standards/frontend-tier.md State & Logic Layer:
+ * Per the Frontend Tier standard State & Logic Layer:
  * - RTK Query for network calls
  * - Optimistic updates with sync queue
  * - Deterministic query keys for offline support
@@ -52,7 +52,7 @@ export const uploadApi = createApi({
   baseQuery: fetchBaseQuery({
     baseUrl: process.env.EXPO_PUBLIC_API_BASE_URL || 'https://api.photoeditor.dev',
     prepareHeaders: (headers) => {
-      // Add tracing headers per standards/cross-cutting.md
+      // Add tracing headers per the Cross-Cutting standard
       headers.set('traceparent', generateTraceId());
       headers.set('x-correlation-id', generateCorrelationId());
       headers.set('Content-Type', 'application/json');
@@ -119,8 +119,8 @@ export const uploadApi = createApi({
 });
 
 /**
- * Export hooks for components per standards/frontend-tier.md:
- * - Named exports only (standards/typescript.md)
+ * Export hooks for components per the Frontend Tier standard:
+ * - Named exports only (TypeScript Standards)
  * - Feature modules export /public surface
  */
 export const {
@@ -135,7 +135,7 @@ export const {
 
 /**
  * Error type for S3 upload failures
- * Per standards/typescript.md: Typed errors for analyzability
+ * Per the TypeScript Standards: Typed errors for analyzability
  */
 export interface S3UploadError {
   code: 'FETCH_FAILED' | 'UPLOAD_FAILED';
@@ -146,7 +146,7 @@ export interface S3UploadError {
 
 /**
  * Helper to upload image to S3 presigned URL
- * Per standards/typescript.md: No exceptions for control flow, return typed results
+ * Per the TypeScript Standards: No exceptions for control flow, return typed results
  *
  * @param presignedUrl - S3 presigned URL from requestPresignUrl
  * @param imageUri - Local image URI to upload

@@ -1,6 +1,6 @@
 /**
  * Upload button component with progress indicator
- * Uses ui-tokens for styling per STANDARDS.md line 161
+ * Uses ui-tokens for styling
  */
 
 import React from 'react';

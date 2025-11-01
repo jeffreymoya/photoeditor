@@ -1,7 +1,7 @@
 /**
  * Fake timer orchestration helpers for Cockatiel-powered backend specs.
  *
- * Aligns backend tests with standards/testing-standards.md by centralising
+ * Aligns backend tests with the Testing Standards by centralising
  * the logic that advances Jest timers until resilience policies settle their
  * retry/timeout sequences. Avoids bespoke `while` loops in each suite.
  */

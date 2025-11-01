@@ -1,6 +1,6 @@
 /**
  * UI design tokens
- * Single source of truth for colors, spacing, typography per STANDARDS.md line 161
+ * Single source of truth for colors, spacing, typography
  */
 
 export const colors = {

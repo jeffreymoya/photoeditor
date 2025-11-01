@@ -7,9 +7,9 @@ Shared schemas, types, and constants for the PhotoEditor application.
 This package provides framework-agnostic contract definitions using Zod, serving as the single source of truth (SSOT) for API contracts shared between backend and mobile clients.
 
 **Key principles:**
-- Framework-agnostic (no React, AWS SDK, or Express imports per STANDARDS.md line 64)
+- Framework-agnostic (no React, AWS SDK, or Express imports)
 - Contract-first API design (ADR-0003, ADR-0005)
-- Semantic versioning with changesets governance (standards/shared-contracts-tier.md line 6)
+- Semantic versioning with changesets governance
 
 ## Installation
 
@@ -242,8 +242,8 @@ Generates `api-extractor-report.md.api.md` reviewed in PRs.
 - **Versioning Policy:** `docs/compatibility/versioning.md`
 - **ADR-0003:** Contract-First API
 - **ADR-0005:** npm Workspaces Monorepo
-- **STANDARDS.md:** Lines 63-66 (framework-agnostic rules)
-- **standards/shared-contracts-tier.md:** Tier-specific architecture
+- **Global Standards:** Framework-agnostic rules
+- **Shared Contracts Tier standard:** Tier-specific architecture
 
 ## Support
 

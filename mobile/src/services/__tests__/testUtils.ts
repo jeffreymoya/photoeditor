@@ -3,7 +3,7 @@
  *
  * Centralises fake-timer orchestration so polling tests avoid copy/paste
  * `advanceTimersByTimeAsync` loops and stay compliant with
- * standards/testing-standards.md (no sleep-based polling).
+ * the Testing Standards (no sleep-based polling).
  */
 
 import { z, type ZodTypeAny } from 'zod';
@@ -248,7 +248,11 @@ export function createPollingScenario<TSchema extends ZodTypeAny>(
       const callIndex = stage.callCount;
       stage.callCount += 1;
 
-      return stage.handler({ input, init, callIndex });
+      return stage.handler({
+        input,
+        ...(init !== undefined && { init }),
+        callIndex,
+      });
     }
 
     if (previousImplementation) {

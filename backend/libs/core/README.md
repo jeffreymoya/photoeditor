@@ -112,8 +112,8 @@ const count = await dlq.getApproximateMessageCount();
 
 ## Invariants
 
-1. **No Direct SDK Construction** - All AWS clients must be created via factory functions (STANDARDS.md line 32)
-2. **No Mutable Singletons** - Stateless factories; dependencies injected via constructors (STANDARDS.md line 59)
+1. **No Direct SDK Construction** - All AWS clients must be created via factory functions
+2. **No Mutable Singletons** - Stateless factories; dependencies injected via constructors
 3. **Framework Agnostic** - Core library has no Nest-specific dependencies; supports pure Lambda execution
 4. **Configuration from SSM** - All provider configuration loaded from Parameter Store, no hardcoded secrets
 
@@ -177,11 +177,11 @@ pnpm turbo run test:contract --filter=@photoeditor/backend
 
 ## Compliance
 
-- **STANDARDS.md line 32**: No handler AWS SDK imports (enforced by dependency-cruiser)
-- **STANDARDS.md line 59**: No mutable singleton state (providers injected via constructor)
-- **STANDARDS.md line 90**: Single source of truth for configuration (SSM Parameter Store)
-- **STANDARDS.md line 102**: Idempotent worker execution (conditional writes)
-- **STANDARDS.md line 121**: DLQ retry support (replay utilities)
+- **No handler AWS SDK imports** - Enforced by dependency-cruiser
+- **No mutable singleton state** - Providers injected via constructor
+- **Single source of truth for configuration** - SSM Parameter Store
+- **Idempotent worker execution** - Conditional writes
+- **DLQ retry support** - Replay utilities
 
 ## Module Metrics
 

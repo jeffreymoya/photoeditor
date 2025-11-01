@@ -2,7 +2,7 @@ import { HttpStatus } from '@nestjs/common';
 
 /**
  * Domain error types that map to HTTP status codes and DynamoDB job statuses
- * Implements error taxonomy per STANDARDS.md line 71
+ * Implements error taxonomy
  */
 export enum DomainErrorType {
   VALIDATION_ERROR = 'VALIDATION_ERROR',

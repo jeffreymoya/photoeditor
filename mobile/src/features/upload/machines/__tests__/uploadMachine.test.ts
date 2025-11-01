@@ -1,7 +1,7 @@
 /**
  * Tests for XState upload machine
- * Per standards/testing-standards.md: Test for each transition
- * Per standards/frontend-tier.md: Every critical slice has test for each transition
+ * Per the Testing Standards: Test for each transition
+ * Per the Frontend Tier standard: Every critical slice has test for each transition
  */
 /* eslint-disable max-lines-per-function */
 

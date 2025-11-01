@@ -6,9 +6,9 @@
  * client stays aligned with backend contracts (SSOT from @photoeditor/shared).
  *
  * References:
- * - standards/shared-contracts-tier.md: Contract-first API design
- * - standards/frontend-tier.md: Services layer validation requirements
- * - standards/testing-standards.md: Mobile services testing guidelines
+ * - Shared Contracts Tier standard: Contract-first API design
+ * - Frontend Tier standard: Services layer validation requirements
+ * - Testing Standards: Mobile services testing guidelines
  */
 
 // eslint-disable-next-line unicorn/prefer-node-protocol
@@ -137,11 +137,11 @@ const buildBatchStages = ({
 /**
  * Justification for max-lines-per-function override:
  * This test suite validates comprehensive contract integration across multiple
- * API endpoints (presign, batch, job status, device tokens) per standards/shared-contracts-tier.md.
+ * API endpoints (presign, batch, job status, device tokens) per the Shared Contracts Tier standard.
  * Each endpoint requires request/response schema validation, error cases, and contract drift
  * prevention checks. Splitting into separate files would fragment contract validation logic
  * and reduce clarity. The 305-line suite provides complete coverage of mobile-backend contract
- * alignment (TASK-0606 acceptance criteria, standards/testing-standards.md lines 203-219).
+ * alignment (TASK-0606 acceptance criteria).
  */
 // eslint-disable-next-line max-lines-per-function
 describe('ApiService - Shared Schema Integration', () => {

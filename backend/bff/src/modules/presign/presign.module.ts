@@ -7,7 +7,7 @@ import { S3Config } from '@photoeditor/shared';
 
 /**
  * Presign module provides presigned URL generation functionality
- * Wires controllers, services, and adapters via DI per STANDARDS.md line 25
+ * Wires controllers, services, and adapters via DI
  */
 @Module({
   controllers: [PresignController],

@@ -2,7 +2,7 @@
  * Contract Tests for Presign Handler
  *
  * Validates that presign handler responses match shared schema contracts
- * per standards/testing-standards.md and standards/shared-contracts-tier.md.
+ * per the Testing Standards and the Shared Contracts Tier standard.
  *
  * Tests:
  * - Single upload request/response validation

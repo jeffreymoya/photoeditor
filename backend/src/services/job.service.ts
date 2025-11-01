@@ -33,7 +33,7 @@ export type JobServiceError =
 /**
  * JobService - Application service orchestrating domain and repository
  *
- * Refactored per standards/backend-tier.md:
+ * Refactored per the Backend Tier standard:
  * - Domain logic delegated to pure functions in job.domain.ts
  * - I/O delegated to JobRepository
  * - Uses neverthrow Result types for error handling

@@ -5,9 +5,9 @@
  * replay, and monitoring.
  *
  * This service ensures:
- * - Visibility into failed message processing (STANDARDS.md line 121)
+ * - Visibility into failed message processing
  * - Support for manual message replay after fixing issues
- * - Structured logging for DLQ events (STANDARDS.md line 71)
+ * - Structured logging for DLQ events
  *
  * @module core/idempotency
  */

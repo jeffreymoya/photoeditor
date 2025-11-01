@@ -11,10 +11,10 @@ import { DomainError, mapErrorToHttpStatus } from '../common/errors';
 
 /**
  * Global logging interceptor that enriches responses with structured logs
- * Implements observability requirements per STANDARDS.md line 71:
+ * Implements observability requirements:
  * - correlationId, traceId, requestId, jobId, userId, function, env, version
  *
- * W3C traceparent propagation per STANDARDS.md line 39
+ * W3C traceparent propagation
  */
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {

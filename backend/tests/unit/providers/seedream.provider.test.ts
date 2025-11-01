@@ -2,7 +2,7 @@
  * Unit tests for SeedreamProvider
  *
  * Tests image editing functionality including success, retry, failure, and health check paths.
- * Validates alignment with standards/backend-tier.md provider adapter requirements.
+ * Validates alignment with the Backend Tier standard provider adapter requirements.
  */
 
 import { SeedreamProvider } from '../../../src/providers/seedream.provider';

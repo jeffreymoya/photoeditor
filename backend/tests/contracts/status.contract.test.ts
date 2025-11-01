@@ -2,7 +2,7 @@
  * Contract Tests for Status Handler
  *
  * Validates that status handler responses match shared schema contracts
- * per standards/testing-standards.md and standards/shared-contracts-tier.md.
+ * per the Testing Standards and the Shared Contracts Tier standard.
  *
  * Tests:
  * - Single job status request/response validation

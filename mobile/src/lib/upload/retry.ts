@@ -1,6 +1,6 @@
 /**
  * Retry utilities with exponential backoff
- * Implements STANDARDS.md line 151 retry/backoff requirements
+ * Implements retry/backoff requirements
  */
 
 /**
@@ -127,7 +127,7 @@ function defaultIsRetryable(error: Error): boolean {
 /**
  * Executes a function with retry logic and exponential backoff
  *
- * Implements STANDARDS.md line 151:
+ * Implements:
  * - Exponential backoff with configurable parameters
  * - Jitter to prevent thundering herd
  * - Configurable retry predicates

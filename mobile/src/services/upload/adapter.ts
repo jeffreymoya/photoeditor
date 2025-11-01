@@ -1,17 +1,17 @@
 /**
  * Upload Service Adapter
  *
- * Concrete implementation of IUploadService per standards/frontend-tier.md:
+ * Concrete implementation of IUploadService per the Frontend Tier standard:
  * - Implements port interface for upload operations
  * - Encapsulates platform APIs (fetch, AsyncStorage)
  * - Uses cockatiel for retry/circuit breaker policies
  *
- * Per standards/typescript.md:
+ * Per the TypeScript Standards:
  * - Named exports (no defaults in domain code)
  * - Strong typing (no any)
  * - Zod at boundaries (validates API responses)
  *
- * Per standards/frontend-tier.md Services & Integration Layer:
+ * Per the Frontend Tier standard Services & Integration Layer:
  * - Retry + Circuit Breaker: cockatiel policy combinators
  * - Adapters implement ports with cockatiel retry/circuit breaker policies
  */
@@ -37,7 +37,7 @@ import type { IUploadService, PresignUploadResponse, BatchUploadResponse, Job, B
  * Encapsulates HTTP client (fetch) and storage (AsyncStorage) behind port interface.
  * Feature layer depends only on IUploadService, not this concrete adapter.
  *
- * Resilience policies per standards/frontend-tier.md:
+ * Resilience policies per the Frontend Tier standard:
  * - Exponential backoff retry (3 attempts, 100ms-1600ms delays)
  * - Circuit breaker (opens after 5 consecutive failures, 30s recovery)
  * - Combined policy applied to all network operations
@@ -121,7 +121,7 @@ export class UploadServiceAdapter implements IUploadService {
    * Make HTTP request with resilience policies
    *
    * Applies cockatiel retry and circuit breaker policies to all API calls.
-   * Per standards/frontend-tier.md: Retry + Circuit Breaker with cockatiel policy combinators
+   * Per the Frontend Tier standard: Retry + Circuit Breaker with cockatiel policy combinators
    */
   private async makeRequest(
     endpoint: string,

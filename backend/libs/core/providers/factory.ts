@@ -5,10 +5,10 @@
  * Supports dynamic provider selection and stub providers for testing.
  *
  * This factory ensures:
- * - Single source of truth for provider configuration (STANDARDS.md line 90)
+ * - Single source of truth for provider configuration
  * - Consistent provider initialization across BFF and workers
  * - Testability through stub provider injection
- * - No mutable singleton state (STANDARDS.md line 59)
+ * - No mutable singleton state
  *
  * @module core/providers
  */
@@ -65,7 +65,7 @@ export interface ProviderFactoryConfig {
  * Provider factory for creating analysis and editing providers
  *
  * This is a stateless factory - providers are passed to the constructor,
- * eliminating mutable singleton state (STANDARDS.md line 59)
+ * eliminating mutable singleton state
  */
 export class ProviderFactory {
   private analysisProvider: AnalysisProvider;

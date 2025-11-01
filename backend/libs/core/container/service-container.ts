@@ -5,9 +5,9 @@
  * Ensures handlers consume services via injection rather than direct instantiation.
  *
  * This container ensures:
- * - No in-handler `new Service()` calls (standards/backend-tier.md, line 68)
- * - Controller → UseCase(Service) → Port layering (standards/backend-tier.md, line 13)
- * - Powertools integration for observability (standards/backend-tier.md, line 28)
+ * - No in-handler `new Service()` calls
+ * - Controller → UseCase(Service) → Port layering
+ * - Powertools integration for observability
  *
  * @module core/container
  */

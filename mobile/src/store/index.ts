@@ -11,7 +11,7 @@ export const store = configureStore({
     image: imageSlice.reducer,
     job: jobSlice.reducer,
     settings: settingsSlice.reducer,
-    // RTK Query API slice per standards/frontend-tier.md
+    // RTK Query API slice per the Frontend Tier standard
     [uploadApi.reducerPath]: uploadApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>

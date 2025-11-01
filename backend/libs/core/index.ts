@@ -11,10 +11,10 @@
  * - Idempotency and DLQ utilities
  *
  * Ensures compliance with:
- * - No direct SDK client construction (STANDARDS.md line 32)
- * - Single source of truth for configuration (STANDARDS.md line 90)
- * - Idempotent worker execution (STANDARDS.md line 102)
- * - No mutable singleton state (STANDARDS.md line 59)
+ * - No direct SDK client construction
+ * - Single source of truth for configuration
+ * - Idempotent worker execution
+ * - No mutable singleton state
  *
  * @module core
  */

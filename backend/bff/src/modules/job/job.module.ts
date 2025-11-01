@@ -7,7 +7,7 @@ import { S3Config } from '@photoeditor/shared';
 
 /**
  * Job module provides job status and download functionality
- * Wires controllers, services, and adapters via DI per STANDARDS.md line 25
+ * Wires controllers, services, and adapters via DI
  */
 @Module({
   controllers: [JobController],

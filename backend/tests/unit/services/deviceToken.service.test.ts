@@ -2,7 +2,7 @@
  * Unit tests for DeviceTokenService
  *
  * Tests device token CRUD operations including registration, updates, retrieval, and deletion.
- * Validates alignment with standards/backend-tier.md service layer requirements.
+ * Validates alignment with the Backend Tier standard service layer requirements.
  */
 
 import { mockClient } from 'aws-sdk-client-mock';

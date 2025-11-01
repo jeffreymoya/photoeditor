@@ -1,7 +1,7 @@
 /**
  * Upload Service Port Interface
  *
- * Defines the contract for upload operations per standards/frontend-tier.md:
+ * Defines the contract for upload operations per the Frontend Tier standard:
  * - 100% of external calls behind interface in services port files
  * - Enables testability via stub implementations
  * - Isolates platform APIs from feature and component layers
@@ -44,7 +44,7 @@ export type DeviceTokenResponse = z.infer<typeof DeviceTokenResponseSchema>;
 /**
  * Upload Service Port - Contract for all upload operations
  *
- * Per standards/frontend-tier.md Services & Integration Layer:
+ * Per the Frontend Tier standard Services & Integration Layer:
  * - Ports & Adapters (Hexagonal) for API/Notifications/Platform
  * - 100% of external calls behind interface in services port files
  * - Adapters implement ports with cockatiel retry/circuit breaker policies

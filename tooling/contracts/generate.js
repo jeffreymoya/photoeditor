@@ -11,8 +11,8 @@
  * 3. Store generated artifacts in docs/contracts/clients/ with checksums
  *
  * Requirements:
- * - Zod schema remains SSOT (standards/shared-contracts-tier.md line 5)
- * - Generated artifacts committed for CI drift detection (line 19)
+ * - Zod schema remains SSOT
+ * - Generated artifacts committed for CI drift detection
  * - Idempotent and deterministic for CI reproducibility
  *
  * Exit codes:
@@ -50,7 +50,7 @@ function calculateChecksum(content) {
  *
  * Note: We use zodToJsonSchema rather than @asteasolutions/zod-to-openapi's registry
  * because our schemas don't use the .openapi() extension. This keeps the shared package
- * clean and framework-agnostic per standards/shared-contracts-tier.md line 5.
+ * clean and framework-agnostic.
  */
 async function generateOpenAPI() {
   console.log('Generating OpenAPI specification from Zod schemas...');

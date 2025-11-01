@@ -2,7 +2,7 @@
  * Unit tests for GeminiProvider
  *
  * Tests image analysis functionality including success, retry, failure, and health check paths.
- * Validates alignment with standards/backend-tier.md provider adapter requirements.
+ * Validates alignment with the Backend Tier standard provider adapter requirements.
  */
 
 import { GeminiProvider } from '../../../src/providers/gemini.provider';

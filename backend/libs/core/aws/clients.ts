@@ -3,7 +3,7 @@
  *
  * Central factory for creating AWS SDK clients with consistent regional configuration.
  * This adapter layer ensures:
- * - No direct AWS SDK client construction in services/handlers (STANDARDS.md line 32, hard fail)
+ * - No direct AWS SDK client construction in services/handlers
  * - Consistent regional configuration across all AWS services
  * - Testability through dependency injection
  *

@@ -30,7 +30,7 @@ export class RepositoryError extends Error {
 /**
  * JobRepository - Pure I/O adapter for job persistence
  *
- * Implements repository pattern per standards/backend-tier.md
+ * Implements repository pattern per the Backend Tier standard
  * Returns neverthrow Result types for error handling
  * No business logic - only CRUD operations
  */

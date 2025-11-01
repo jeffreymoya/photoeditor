@@ -32,7 +32,7 @@ export class JobValidationError extends Error {
 /**
  * Pure domain functions for job lifecycle management
  * No I/O, no AWS SDK - only business logic
- * Per standards/backend-tier.md: domain services ≤200 LOC, complexity ≤15
+ * Per the Backend Tier standard: domain services ≤200 LOC, complexity ≤15
  */
 
 /**

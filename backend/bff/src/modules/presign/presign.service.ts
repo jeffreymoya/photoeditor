@@ -12,7 +12,7 @@ import { S3Service } from '../../../../src/services/s3.service';
 /**
  * NestJS service wrapper for presign operations
  * Delegates to core PresignService while maintaining DI compatibility
- * Stays ≤75 LOC per STANDARDS.md line 36
+ * Stays ≤75 LOC
  */
 @Injectable()
 export class PresignService {

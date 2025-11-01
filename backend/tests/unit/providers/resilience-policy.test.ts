@@ -2,8 +2,8 @@
  * Unit tests for Resilience Policy Builder
  *
  * Tests cockatiel-based retry, timeout, circuit breaker, and bulkhead policies
- * for provider adapters. Validates alignment with standards/backend-tier.md
- * and standards/cross-cutting.md resilience requirements.
+ * for provider adapters. Validates alignment with the Backend Tier standard
+ * and the Cross-Cutting standard resilience requirements.
  */
 
 import {

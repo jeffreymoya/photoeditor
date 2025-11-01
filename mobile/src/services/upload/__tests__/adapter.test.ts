@@ -1,7 +1,7 @@
 /**
  * Upload Service Adapter Tests - Batch 1: Basic Operations
  *
- * Per standards/testing-standards.md:
+ * Per the Testing Standards:
  * - Services/Adapters: ≥80% line coverage, ≥70% branch coverage
  * - Mock external dependencies using locally defined stubs
  * - Reset mocks between test cases to avoid state leakage
@@ -11,7 +11,7 @@
  * - Simple error tests (network failure, HTTP 4xx)
  * - Mock fetch with mockResolvedValue (NO "Once") to handle retry policies (3 attempts)
  *
- * Per standards/frontend-tier.md Services & Integration Layer:
+ * Per the Frontend Tier standard Services & Integration Layer:
  * - Adapters implement ports with cockatiel retry/circuit breaker policies
  * - Retry policy: 3 attempts with exponential backoff
  */
@@ -534,7 +534,7 @@ describe('UploadServiceAdapter - Basic Operations', () => {
     /**
      * Polling tests with fake timers
      *
-     * Per standards/testing-standards.md:
+     * Per the Testing Standards:
      * - Use fake timers for deterministic time control (no sleep-based polling)
      * - Validate success, failure, timeout, and retry flows
      */

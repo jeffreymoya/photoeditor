@@ -1,12 +1,12 @@
 /**
  * Service Context for Dependency Injection
  *
- * Per standards/frontend-tier.md Services & Integration Layer:
+ * Per the Frontend Tier standard Services & Integration Layer:
  * - Feature layer depends only on port interfaces, not concrete adapters
  * - React Context provides service injection to avoid prop drilling
  * - Enables testability: tests can inject stub implementations
  *
- * Per standards/typescript.md:
+ * Per the TypeScript Standards:
  * - Named exports (no defaults in domain code)
  * - Strong typing (no any)
  */

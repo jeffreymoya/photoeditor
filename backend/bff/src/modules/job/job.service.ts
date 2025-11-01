@@ -17,7 +17,7 @@ export interface DownloadResponse {
 /**
  * NestJS service wrapper for job operations
  * Delegates to core JobService while maintaining DI compatibility
- * Stays ≤200 LOC per STANDARDS.md line 37
+ * Stays ≤200 LOC
  */
 @Injectable()
 export class JobService {

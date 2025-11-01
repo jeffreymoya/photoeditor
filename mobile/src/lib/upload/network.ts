@@ -1,6 +1,6 @@
 /**
  * Network connectivity utilities for upload resilience
- * Implements NetInfo-based pause/resume per STANDARDS.md line 154
+ * Implements NetInfo-based pause/resume
  */
 
 import NetInfo, { NetInfoState, NetInfoStateType } from '@react-native-community/netinfo';

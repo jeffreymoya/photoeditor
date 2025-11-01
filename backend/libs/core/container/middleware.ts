@@ -7,7 +7,7 @@
  * This middleware ensures:
  * - Single initialization of services during cold start
  * - Service reuse across warm invocations
- * - No in-handler service instantiation (standards/backend-tier.md, line 68)
+ * - No in-handler service instantiation
  *
  * @module core/container/middleware
  */

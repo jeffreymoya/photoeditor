@@ -5,7 +5,7 @@
  * Prevents duplicate processing of messages with automatic cleanup of expired keys.
  *
  * This service ensures:
- * - Idempotent worker execution (STANDARDS.md line 102)
+ * - Idempotent worker execution
  * - Conditional writes to prevent race conditions
  * - Automatic cleanup of expired idempotency keys (24h TTL)
  *

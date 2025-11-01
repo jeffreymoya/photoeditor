@@ -259,7 +259,7 @@ export default function ApiStack(props: ApiStackProps) {
   httpApi.route("GET /batch-status/{batchJobId}", statusFunction.arn);
   httpApi.route("GET /download/{jobId}", downloadFunction.arn);
 
-  // Device Token Routes (standards/infrastructure-tier.md line 79: throttling configured at API Gateway level)
+  // Device Token Routes (throttling configured at API Gateway level)
   httpApi.route("POST /v1/device-tokens", deviceTokenFunction.arn);
   httpApi.route("DELETE /v1/device-tokens", deviceTokenFunction.arn);
 

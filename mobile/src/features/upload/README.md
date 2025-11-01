@@ -8,8 +8,8 @@ Provides a complete upload workflow for mobile image uploads with the following 
 
 - **Image preprocessing**: Resizes images to ≤4096px and converts HEIC to JPEG for compatibility
 - **Presigned URL workflow**: Requests presigned URLs from backend and uploads directly to S3
-- **Retry with exponential backoff**: Automatically retries failed requests with configurable backoff (STANDARDS.md line 151)
-- **Network-aware pause/resume**: Uses NetInfo to pause uploads on unsuitable networks and auto-resume when conditions improve (STANDARDS.md line 154)
+- **Retry with exponential backoff**: Automatically retries failed requests with configurable backoff
+- **Network-aware pause/resume**: Uses NetInfo to pause uploads on unsuitable networks and auto-resume when conditions improve
 - **Progress tracking**: Provides real-time upload progress and status updates
 - **Error handling**: Graceful error handling with retry predicates for transient failures
 
@@ -22,7 +22,7 @@ upload/
 ├── components/
 │   └── UploadButton.tsx     # Upload button with progress UI
 ├── public/
-│   └── index.ts             # Public API exports (STANDARDS.md line 26)
+│   └── index.ts             # Public API exports
 └── __tests__/               # Unit and component tests
 ```
 
@@ -185,12 +185,12 @@ test('pauses upload when network lost', async () => {
 
 ## Testing Standards Compliance
 
-Per `standards/testing-standards.md`:
+Per the Testing Standards:
 
 - **Lines coverage**: ≥70% for hooks and utilities
 - **Branch coverage**: ≥60% for hooks and utilities
-- **Mutation testing**: ≥50% for upload hooks (STANDARDS.md line 100)
-- **TSDoc coverage**: ≥70% for exported APIs (STANDARDS.md line 83)
+- **Mutation testing**: ≥50% for upload hooks
+- **TSDoc coverage**: ≥70% for exported APIs
 
 ## Related ADRs
 
@@ -206,6 +206,6 @@ Per `standards/testing-standards.md`:
 
 ## Complexity Metrics
 
-- Module complexity: Target ≤50 sum CC (STANDARDS.md line 38)
-- Component LOC: ≤200 per component (STANDARDS.md line 87)
-- Hook complexity: ≤15 CC (STANDARDS.md line 87)
+- Module complexity: Target ≤50 sum CC
+- Component LOC: ≤200 per component
+- Hook complexity: ≤15 CC

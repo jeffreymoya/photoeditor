@@ -1,7 +1,7 @@
 /**
  * XState upload state machine
- * Per standards/frontend-tier.md: XState for Media and Job Lifecycle state machines
- * Per standards/typescript.md: Discriminated unions, named exports, typed errors
+ * Per the Frontend Tier standard: XState for Media and Job Lifecycle state machines
+ * Per the TypeScript Standards: Discriminated unions, named exports, typed errors
  *
  * Models the upload lifecycle: idle → preprocessing → uploading → processing → completed/failed
  * Supports pause/resume on network changes, retry with backoff
@@ -28,7 +28,7 @@ export interface UploadContext {
 
 /**
  * Upload events - all possible state machine events
- * Per standards/typescript.md: Discriminated unions with 'type' tag
+ * Per the TypeScript Standards: Discriminated unions with 'type' tag
  */
 export type UploadEvent =
   | { type: 'START_UPLOAD'; imageUri: string; fileName: string; fileSize: number; mimeType: string }
@@ -51,7 +51,7 @@ export type UploadEvent =
  * States: idle → preprocessing → requesting_presign → uploading → processing → completed | failed
  * Also supports: paused (can transition from uploading)
  *
- * Per standards/frontend-tier.md State & Logic Layer:
+ * Per the Frontend Tier standard State & Logic Layer:
  * - Statechart contracts: export .scxml or Mermaid
  * - Reducer cyclomatic complexity ≤10
  * - Every critical slice has XState chart + test for each transition
@@ -255,7 +255,7 @@ export const uploadMachine = createMachine<UploadContext, UploadEvent>(
 
 /**
  * Type-safe state value helpers
- * Per standards/typescript.md: Discriminated unions + assertNever
+ * Per the TypeScript Standards: Discriminated unions + assertNever
  */
 export type UploadStateValue =
   | 'idle'

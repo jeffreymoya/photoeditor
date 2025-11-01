@@ -24,7 +24,7 @@ export class NotificationService {
 
   constructor(topicArn: string, region: string, client?: SNSClient) {
     this.topicArn = topicArn;
-    // Use provided client or create one via factory (STANDARDS.md line 32)
+    // Use provided client or create one via factory
     this.snsClient = client || createSNSClient(region);
   }
 

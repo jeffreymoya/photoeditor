@@ -1,7 +1,7 @@
 /**
  * Test Infrastructure - Mock Response Factory and Stub Services
  *
- * Per standards/testing-standards.md:
+ * Per the Testing Standards:
  * - Mock external dependencies using locally defined stubs
  * - Keep assertions focused on observable behavior
  *

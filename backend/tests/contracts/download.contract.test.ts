@@ -2,7 +2,7 @@
  * Contract Tests for Download Handler
  *
  * Validates that download handler responses match shared schema contracts
- * per standards/testing-standards.md and standards/shared-contracts-tier.md.
+ * per the Testing Standards and the Shared Contracts Tier standard.
  *
  * Tests:
  * - Download URL generation for completed jobs

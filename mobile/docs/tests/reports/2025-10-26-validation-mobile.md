@@ -223,9 +223,9 @@ services/notification: 71.91% lines, 59.09% branches
 
 ## Standards References
 
-- `standards/testing-standards.md` - Coverage expectations (80% lines, 70% branches)
-- `standards/frontend-tier.md` - Services & Adapters pattern, retry/circuit breaker
-- `standards/typescript.md` - Strong typing for mocks
+- Testing Standards - Coverage expectations (80% lines, 70% branches)
+- Frontend Tier standard - Services & Adapters pattern, retry/circuit breaker
+- TypeScript Standards - Strong typing for mocks
 
 ---
 

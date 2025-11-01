@@ -2,13 +2,13 @@
  * Resilience Policy Builder for Provider Adapters
  *
  * Composes cockatiel retry, timeout, circuit breaker, and bulkhead policies
- * for outbound provider calls. Aligns with standards/backend-tier.md and
- * standards/cross-cutting.md resilience requirements.
+ * for outbound provider calls. Aligns with the Backend Tier standard and
+ * the Cross-Cutting standard resilience requirements.
  *
- * Per standards/backend-tier.md: Provider adapters must use cockatiel-based
+ * Per the Backend Tier standard: Provider adapters must use cockatiel-based
  * resilience policies rather than custom retry loops.
  *
- * Per standards/cross-cutting.md: Circuit breaker metrics must be exposed
+ * Per the Cross-Cutting standard: Circuit breaker metrics must be exposed
  * for Powertools logging.
  */
 

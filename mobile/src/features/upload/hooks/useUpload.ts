@@ -1,6 +1,6 @@
 /**
  * Upload hook with resilience features
- * Implements STANDARDS.md line 151, 154 requirements:
+ * Implements:
  * - Retry with exponential backoff
  * - NetInfo-based pause/resume
  * - Offline persistence via react-query

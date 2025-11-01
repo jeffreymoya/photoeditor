@@ -10,8 +10,8 @@ import { DomainError, DomainErrorType } from '../../common/errors';
 
 /**
  * Presign controller handles presigned URL generation
- * Stays ≤75 LOC and complexity ≤10 per STANDARDS.md line 36
- * Thin glue layer - only calls one service method per endpoint per STANDARDS.md line 54
+ * Stays ≤75 LOC and complexity ≤10
+ * Thin glue layer - only calls one service method per endpoint
  */
 @Controller('presign')
 export class PresignController {

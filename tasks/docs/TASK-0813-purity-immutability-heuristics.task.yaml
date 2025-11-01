@@ -1,9 +1,7 @@
 schema_version: "1.0"
 id: TASK-0813
 title: "Document purity & immutability heuristics"
-status: blocked
-blocked_reason: "Manual patch application required - task-picker generated comprehensive documentation patches in .agent-output/ but orchestrator cannot apply complex multi-file documentation updates automatically. Requires manual review and integration of patches into standards files."
-blocked_by: []
+status: todo
 priority: P1
 area: docs
 

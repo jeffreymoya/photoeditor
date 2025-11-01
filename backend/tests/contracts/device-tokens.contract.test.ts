@@ -2,7 +2,7 @@
  * Contract Tests for Device Token Handler
  *
  * Validates that device token handler responses match shared schema contracts
- * per standards/testing-standards.md and standards/shared-contracts-tier.md.
+ * per the Testing Standards and the Shared Contracts Tier standard.
  *
  * Tests:
  * - Device token registration (POST)

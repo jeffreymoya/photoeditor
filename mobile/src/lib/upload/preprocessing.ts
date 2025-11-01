@@ -1,13 +1,13 @@
 /**
  * Image preprocessing utilities for upload preparation
- * Handles resizing, format conversion, and optimization per STANDARDS.md line 151
+ * Handles resizing, format conversion, and optimization
  */
 
 import * as FileSystem from 'expo-file-system';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 
 /**
- * Maximum dimension for uploaded images (STANDARDS.md line 151)
+ * Maximum dimension for uploaded images
  */
 const MAX_DIMENSION = 4096;
 
@@ -63,7 +63,7 @@ export interface PreprocessedImage {
 /**
  * Converts HEIC images to JPEG and resizes to meet upload constraints
  *
- * Implements STANDARDS.md line 151:
+ * Implements:
  * - Caps images at ≤4096px (largest dimension)
  * - HEIC→JPEG fallback for compatibility
  * - Maintains aspect ratio during resize

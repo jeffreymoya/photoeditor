@@ -8,7 +8,7 @@ import { DomainErrorFilter } from './common/errors';
 /**
  * Root application module for NestJS BFF
  * Wires feature modules and global providers (interceptors, filters)
- * Implements layering per STANDARDS.md line 24
+ * Implements layering
  */
 @Module({
   imports: [

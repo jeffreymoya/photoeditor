@@ -2,7 +2,7 @@
  * Unit tests for BaseProvider with Cockatiel Resilience Policies
  *
  * Tests provider retry, timeout, and circuit breaker behavior through
- * cockatiel policies. Validates alignment with standards/backend-tier.md.
+ * cockatiel policies. Validates alignment with the Backend Tier standard.
  */
 
 import { BaseProvider } from '../../../src/providers/base.provider';

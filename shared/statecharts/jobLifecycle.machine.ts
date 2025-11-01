@@ -4,7 +4,7 @@ import { JobStatusType, JobStatus } from '../schemas/job.schema';
  * Job Lifecycle State Machine
  *
  * Defines valid state transitions for photo editing jobs following
- * standards/backend-tier.md domain service requirements.
+ * the Backend Tier standard domain service requirements.
  *
  * States:
  * - QUEUED: Initial state after job creation

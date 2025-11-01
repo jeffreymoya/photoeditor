@@ -47,7 +47,7 @@ export class S3Service {
 
   constructor(config: S3Config, client?: S3Client) {
     this.config = config;
-    // Use provided client or create one via factory (STANDARDS.md line 26)
+    // Use provided client or create one via factory
     this.client = client || createS3Client(config.region);
     this.keyStrategy = new S3KeyStrategyImpl();
   }

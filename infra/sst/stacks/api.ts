@@ -37,8 +37,11 @@ export default function ApiStack(props: ApiStackProps) {
   const { tempBucket, finalBucket, jobsTable, batchTable, deviceTokensTable, processingQueue, notificationTopic, kmsKey } = props;
 
   // Lambda environment variables (shared)
+  // Per infrastructure-tier.md: SST outputs exported for app and recorded in environment registry
+  // All required vars per backend/libs/core/container/service-container.ts
   const lambdaEnv = {
     NODE_ENV: $app.stage === "production" ? "production" : "development",
+    AWS_REGION: aws.getRegionOutput().name,
     STAGE: $app.stage,
     PROJECT_NAME: "PhotoEditor",
     TEMP_BUCKET_NAME: tempBucket.name,

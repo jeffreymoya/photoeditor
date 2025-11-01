@@ -17,7 +17,9 @@
 schema_version: "1.0"
 id: TASK-0817
 title: "Close mobile frontend-tier compliance gaps"
-status: todo
+status: blocked
+blocked_reason: "Broken down into subtasks for manageable implementation per standards/task-breakdown-canon.md"
+blocked_by: [TASK-0818, TASK-0819, TASK-0820, TASK-0821, TASK-0822, TASK-0823]
 priority: P1
 area: mobile
 
@@ -88,29 +90,38 @@ constraints:
 plan:
   - id: 1
     title: Finalize remediation design
-    details: Map required structural changes for layering, tokens, RTK Query adoption, statecharts, and service ports; capture deltas vs standards.
+    details: >-
+      Map required structural, state, and evidence changes against standards/frontend-tier.md#feature-guardrails,
+      standards/frontend-tier.md#ui-components-layer, standards/frontend-tier.md#state--logic-layer, and
+      standards/frontend-tier.md#services--integration-layer; document gaps and remediation notes in docs/ui/2025-frontend-tier-gap-analysis.md.
     actor: agent
     inputs:
       - standards/frontend-tier.md
+      - standards/testing-standards.md
       - mobile/src
     outputs:
       - docs/ui/2025-frontend-tier-gap-analysis.md
     definition_of_done:
-      - Gap analysis drafted and aligned with standards
+      - docs/ui/2025-frontend-tier-gap-analysis.md lists each gap with direct citations to standards/frontend-tier.md#feature-guardrails, #ui-components-layer, #state--logic-layer, #services--integration-layer, and links to standards/testing-standards.md#required-commands-before-pr where evidence is required.
     estimate: M
     expected_files_touched:
       - docs/ui/2025-frontend-tier-gap-analysis.md
   - id: 2
     title: Implement feature/UI layering updates
-    details: Move upload orchestration into feature module with `/public` surface, refactor screens to consume features, and replace inline styles with shared tokens/lucide icons.
+    details: >-
+      Refactor screens to depend on feature `/public` exports and shared tokens per standards/frontend-tier.md#feature-guardrails
+      and standards/frontend-tier.md#ui-components-layer, capturing decisions in docs/ui/2025-frontend-tier-gap-analysis.md.
     actor: agent
-    inputs: []
+    inputs:
+      - mobile/src/screens/HomeScreen.tsx
+      - mobile/src/features/upload
+      - standards/frontend-tier.md
     outputs:
       - mobile/src/screens/HomeScreen.tsx
       - mobile/src/features/upload/**/*
       - mobile/src/components/**/*
     definition_of_done:
-      - Layers respected; lint passes locally
+      - Dependency-cruiser report (attached to docs/ui/2025-frontend-tier-gap-analysis.md) shows screens only import feature `/public` APIs, and shared token usage replaces ad-hoc styles in updated files with citations to standards/frontend-tier.md#feature-guardrails and #ui-components-layer.
     estimate: L
     expected_files_touched:
       - mobile/src/screens/HomeScreen.tsx
@@ -118,16 +129,22 @@ plan:
       - mobile/src/components/**/*
   - id: 3
     title: Reinforce state/services architecture
-    details: Introduce RTK Query slices, XState charts + exports, and service ports with adapters; wire retry policies and Chromatic/Storybook tooling + evidence outputs.
+    details: >-
+      Add RTK Query slices, XState charts, and service ports/adapters aligning with standards/frontend-tier.md#state--logic-layer and
+      standards/frontend-tier.md#services--integration-layer; ensure retry policies reflect cockatiel guidance and ports track evidence paths.
     actor: agent
-    inputs: []
+    inputs:
+      - mobile/src/store
+      - mobile/src/services
+      - standards/frontend-tier.md
+      - standards/typescript.md
     outputs:
       - mobile/src/store/**/*
       - mobile/src/services/**/*
       - mobile/storybook/**/*
       - docs/ui/contracts/**/*
     definition_of_done:
-      - Typecheck green; Storybook smoke test passes
+      - Updated slices export `.scxml` or Mermaid artefacts stored under docs/ui/state-metrics with references to standards/frontend-tier.md#state--logic-layer, and service ports + adapters satisfy the 100% port fitness gate documented in docs/ui/contracts with citations to standards/frontend-tier.md#services--integration-layer and standards/typescript.md#3-analyzability.
     estimate: L
     expected_files_touched:
       - mobile/src/store/**/*
@@ -136,14 +153,19 @@ plan:
       - docs/ui/contracts/**/*
   - id: 4
     title: Backfill tests and evidence
-    details: Add component/hook tests, story coverage reports, Chromatic snapshots, and update documentation including fitness artefact links.
+    details: >-
+      Expand component/hook tests and capture Storybook coverage plus Chromatic snapshots per standards/frontend-tier.md#ui-components-layer
+      and standards/testing-standards.md#evidence-expectations; update docs/ui/storybook with links to reports.
     actor: agent
-    inputs: []
+    inputs:
+      - mobile/src/__tests__
+      - mobile/storybook
+      - standards/testing-standards.md
     outputs:
       - mobile/src/__tests__/**/*
       - docs/ui/storybook/**/*
     definition_of_done:
-      - Unit tests and Chromatic run completed
+      - Coverage summary and Chromatic status appended to docs/ui/storybook/readme (or equivalent) citing standards/frontend-tier.md#ui-components-layer and standards/testing-standards.md#evidence-expectations, and unit tests reference stub ports with evidence noted in docs/ui/2025-frontend-tier-gap-analysis.md.
     estimate: M
     expected_files_touched:
       - mobile/src/__tests__/**/*

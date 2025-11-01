@@ -66,55 +66,62 @@ constraints:
 plan:
   - id: 1
     title: Define registry schema and data sources
-    details: Review standards/infrastructure-tier and control-plane evidence to determine required fields (stage, stack,
-      outputs, last-validated timestamp) and agree on storage format.
+    details: >-
+      Derive required fields (stage, stack, outputs, timestamps) from standards/infrastructure-tier.md#infrastructure-tier and
+      governance expectations in standards/cross-cutting.md#governance--knowledge; document schema decisions in docs/infra/environment-registry.md.
     actor: agent
     inputs:
       - standards/infrastructure-tier.md
+      - standards/cross-cutting.md
       - docs/infra/terraform-control-plane-evidence.md
-    outputs: []
+    outputs:
+      - docs/infra/environment-registry.md
     definition_of_done:
-      - Registry schema documented with field list mapped to standards clauses.
+      - docs/infra/environment-registry.md lists schema fields with citations to standards/infrastructure-tier.md#infrastructure-tier and standards/cross-cutting.md#governance--knowledge.
     estimate: S
-    expected_files_touched: []
+    expected_files_touched:
+      - docs/infra/environment-registry.md
   - id: 2
     title: Implement data collection script or workflow
-    details: Author script under scripts/infra/ or workflow that extracts outputs from SST and Terraform commands and
-      writes structured JSON/YAML matching the schema.
+    details: >-
+      Author scripts/infra/export-environment-registry.ts to gather SST/Terraform outputs and emit the schema, ensuring strict typing per standards/typescript.md#language--api-surface-rules.
     actor: agent
     inputs:
       - scripts
       - infra/sst
       - infrastructure
+      - docs/infra/environment-registry.md
+      - standards/typescript.md
     outputs:
       - scripts/infra/export-environment-registry.ts
+      - docs/infra/environment-registry.md
     definition_of_done:
-      - Script runs locally to produce registry artifact without manual edits.
-      - TypeScript lint/typecheck passes with strict settings.
+      - Script produces JSON matching the schema without manual edits, includes inline references to standards/infrastructure-tier.md#infrastructure-tier, and passes strict type checks recorded in docs/infra/environment-registry.md.
     estimate: M
     expected_files_touched:
       - scripts/infra/export-environment-registry.ts
+      - docs/infra/environment-registry.md
   - id: 3
     title: Publish registry artifact and documentation
-    details: Commit generated registry under docs/infra, document refresh cadence, and link artifact references within the
-      Terraform control-plane evidence doc.
+    details: >-
+      Commit generated registry under docs/infra and describe refresh cadence plus audit usage referencing standards/cross-cutting.md#governance--knowledge and standards/testing-standards.md#evidence-expectations.
     actor: agent
     inputs:
       - scripts/infra/export-environment-registry.ts
+      - standards/testing-standards.md
     outputs:
       - docs/infra/environment-registry.json
       - docs/infra/environment-registry.md
     definition_of_done:
-      - Registry JSON committed with entries for dev/stage/prod including resource identifiers.
-      - Documentation includes refresh instructions and audit usage guidance.
+      - docs/infra/environment-registry.json includes dev/stage/prod entries with timestamps, and docs/infra/environment-registry.md documents regeneration steps citing standards/testing-standards.md#evidence-expectations.
     estimate: S
     expected_files_touched:
       - docs/infra/environment-registry.json
       - docs/infra/environment-registry.md
   - id: 4
     title: Wire registry into validation workflow
-    details: Update relevant validation docs or scripts so test agents reference the registry when confirming environment
-      metadata, ensuring automation knows where to find the artifact.
+    details: >-
+      Update validation docs and agent playbooks to reference the registry so audits enforce standards/infrastructure-tier.md#infrastructure-tier without relaxing guardrails.
     actor: agent
     inputs:
       - docs/infra/environment-registry.md
@@ -127,8 +134,7 @@ plan:
       - .claude/agents/test-validation-mobile.md
       - .claude/agents/test-validation-shared.md
     definition_of_done:
-      - Validation docs link to registry artifact.
-      - Test agents mention registry as required evidence without weakening guardrails.
+      - Each validation doc references docs/infra/environment-registry.json and cites standards/infrastructure-tier.md#infrastructure-tier plus standards/cross-cutting.md#governance--knowledge; guardrail statements remain intact.
     estimate: S
     expected_files_touched:
       - docs/infra/terraform-control-plane-evidence.md

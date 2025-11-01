@@ -30,6 +30,8 @@ Use the comments in the template as your checklist. At minimum, complete:
 - `environment`, `constraints`
 - `plan` (ordered steps)
   - Each step must declare: `actor` (agent|human), `inputs`, `outputs`, `definition_of_done`, and an `estimate` (S|M|L). Do not include shell `commands` in plan steps; validation runs elsewhere and AC is the source of truth.
+  - Cite the exact standards clause governing the step (file path + heading slug, e.g., `standards/backend-tier.md#service-layer-boundaries`) inside `details` or `definition_of_done` so the reviewer can trace intent directly to the rule.
+  - Write `definition_of_done` statements as observable outcomes ("Document notes in docs/evidence/standards-review.md citing standards/backend-tier.md#service-layer-boundaries") rather than vague actions.
 - `acceptance_criteria` (objective checks tied to observable signals)
 - `validation` (manual checks or bespoke tooling outside the automated agent flow)
 - `deliverables` and `risks`

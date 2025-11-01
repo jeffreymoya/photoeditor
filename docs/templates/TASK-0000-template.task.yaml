@@ -64,33 +64,43 @@ constraints:
 
 # Plan steps: declare who executes, what goes in/out, and what proves completion.
 # Required keys per step: actor (agent|human), inputs, outputs, definition_of_done, estimate (S|M|L)
+# Cite the exact standards clause (file + heading slug) that governs the work inside each step.
 plan:
   - id: 1
     title: Understand baseline and standards
-    details: REPLACE: audit current implementation, review cited standards, capture any gaps that require a standards change request.
+    details: >-
+      REPLACE: audit current implementation, review cited standards, capture any gaps that require a standards change request.
+      Reference the specific rule you are validating (e.g., standards/backend-tier.md#service-layer-boundaries).
     actor: agent                 # agent | human — who executes this step
-    inputs: []                   # REPLACE: files/docs to read or preconditions
-    outputs: []                  # REPLACE: tangible artifacts from this step
-    definition_of_done: []       # REPLACE: step-specific outcomes that prove completion
+    inputs:                      # REPLACE: files/docs to read or preconditions
+      - REPLACE: existing spec or code path under review
+    outputs:                     # REPLACE: tangible artifacts from this step
+      - REPLACE: docs/evidence/standards-review.md (notes citing governing clause)
+    definition_of_done:
+      - REPLACE: Standards alignment notes reference standards/<tier>-tier.md#<heading> and standards/typescript.md#<heading> with findings/outcome.
     estimate: S                  # S | M | L — rough effort/timebox
     expected_files_touched: []
   - id: 2
     title: Implement change
-    details: REPLACE: describe the core implementation approach.
+    details: >-
+      REPLACE: describe the core implementation approach and call out which standards clause guides the design (e.g., standards/typescript.md#neverthrow-result-pattern).
     actor: agent
     inputs: []
     outputs: []
-    definition_of_done: []
+    definition_of_done:
+      - REPLACE: Implementation satisfies standards/<tier>-tier.md#<heading>; mention evidence path proving compliance.
     estimate: M
     expected_files_touched:
       - REPLACE: primary file(s)
   - id: 3
     title: Validate and document
-    details: REPLACE: describe evidence collection and documentation handoff; automated test suites run via agents.
+    details: >-
+      REPLACE: describe evidence collection and documentation handoff; automated test suites run via agents. Cite the QA requirement you are satisfying (e.g., standards/testing-standards.md#backend-coverage-minimums).
     actor: agent
     inputs: []
     outputs: []
-    definition_of_done: []
+    definition_of_done:
+      - REPLACE: Validation artifacts stored and cross-referenced with standards/testing-standards.md#<heading> thresholds.
     estimate: S
     expected_files_touched:
       - REPLACE: docs or evidence paths

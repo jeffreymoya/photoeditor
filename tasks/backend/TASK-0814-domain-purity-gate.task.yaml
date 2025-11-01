@@ -64,51 +64,69 @@ constraints:
 
 plan:
   - id: 1
-    title: Audit domain modules and confirm heuristics
-    details: Inspect backend/src for domain exports and catalogue purity expectations.
+    title: Catalogue domain purity heuristics
+    details: >-
+      Inspect backend/src/domain exports against standards/backend-tier.md#domain-service-layer purity
+      rules and standards/typescript.md#3-analyzability guidance on `Result`/`ResultAsync` usage;
+      record enforced heuristics in docs/evidence/domain-purity.md for reviewer traceability.
     actor: agent
     inputs:
       - backend/src/domain
-    outputs: []
+      - standards/backend-tier.md
+      - standards/typescript.md
+    outputs:
+      - docs/evidence/domain-purity.md
     definition_of_done:
-      - Heuristics list and target modules enumerated
+      - docs/evidence/domain-purity.md lists target modules and purity checks with citations to standards/backend-tier.md#domain-service-layer and standards/typescript.md#3-analyzability.
     estimate: S
-    expected_files_touched: []
+    expected_files_touched:
+      - docs/evidence/domain-purity.md
   - id: 2
     title: Implement AST-based purity checker
-    details: Write scripts/ci/check-domain-purity.mjs using TypeScript compiler API and emit evidence JSON.
+    details: >-
+      Build scripts/ci/check-domain-purity.mjs to fail when domain exports violate standards/backend-tier.md#domain-service-layer
+      purity boundaries or standards/typescript.md#language--api-surface-rules ban on exception control flow; ensure the tool emits
+      machine-readable findings per docs/evidence/domain-purity.md.
     actor: agent
-    inputs: []
+    inputs:
+      - docs/evidence/domain-purity.md
     outputs:
       - scripts/ci/check-domain-purity.mjs
     definition_of_done:
-      - Script parses files and detects violations
+      - scripts/ci/check-domain-purity.mjs flags non-Result returns and forbidden imports per standards/backend-tier.md#domain-service-layer, with unit fixtures documented in docs/evidence/domain-purity.md.
     estimate: M
     expected_files_touched:
       - scripts/ci/check-domain-purity.mjs
   - id: 3
     title: Wire checker into QA and evidence bundle
-    details: Update backend qa:static script and evidence bundle workflow to execute the checker.
+    details: >-
+      Integrate the checker into backend/package.json and scripts/evidence-bundle so `qa:static` enforces standards/testing-standards.md#required-commands-before-pr
+      and evidence capture satisfies standards/testing-standards.md#evidence-expectations.
     actor: agent
-    inputs: []
+    inputs:
+      - scripts/ci/check-domain-purity.mjs
+      - docs/evidence/domain-purity.md
     outputs:
       - backend/package.json
       - scripts/evidence-bundle
     definition_of_done:
-      - QA script invokes checker and captures artifact
+      - backend/package.json invokes the checker inside `qa:static`, and scripts/evidence-bundle copies docs/evidence/domain-purity.json, aligning with standards/testing-standards.md#required-commands-before-pr and standards/testing-standards.md#evidence-expectations.
     estimate: S
     expected_files_touched:
       - backend/package.json
       - scripts/evidence-bundle
   - id: 4
     title: Validate failure/success scenarios
-    details: Run checker against clean tree and with intentional violation to confirm exit codes and artifact.
+    details: >-
+      Exercise the checker on clean and intentionally broken samples, capturing artefacts required by standards/testing-standards.md#evidence-expectations
+      and cross-cutting hard-fail controls in standards/cross-cutting.md#hard-fail-controls.
     actor: agent
-    inputs: []
+    inputs:
+      - scripts/ci/check-domain-purity.mjs
     outputs:
       - docs/evidence/domain-purity.json
     definition_of_done:
-      - Evidence JSON written; failure path verified
+      - docs/evidence/domain-purity.json records both passing and failing runs with references to standards/testing-standards.md#evidence-expectations, and the checker exit code proves compliance with standards/cross-cutting.md#hard-fail-controls.
     estimate: S
     expected_files_touched:
       - docs/evidence/domain-purity.json

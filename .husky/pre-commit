@@ -1,6 +1,45 @@
 #!/bin/sh
 set -e
 
+echo "🔍 Checking for standards violations..."
+echo ""
+
+# Block @ts-ignore additions (except in docs/exceptions/, .husky/, and tasks/)
+if git diff --cached --diff-filter=AM -- ':!docs/exceptions/' ':!.husky/' ':!tasks/' | grep -E '^\+.*@ts-ignore'; then
+  echo "❌ ERROR: @ts-ignore addition detected (standards/typescript.md violation)"
+  echo "   If exception needed, document in docs/exceptions/ with expiry date"
+  exit 1
+fi
+
+# Block it.skip additions (test weakening)
+if git diff --cached --diff-filter=AM -- ':!.husky/' | grep -E '^\+.*it\.skip|^\+.*describe\.skip'; then
+  echo "❌ ERROR: it.skip/describe.skip detected (standards/testing-standards.md violation)"
+  echo "   Fix tests properly rather than skipping them"
+  exit 1
+fi
+
+# Block coverage threshold reductions
+COVERAGE_FILES=$(git diff --cached --diff-filter=M --name-only | grep -E 'jest\.config\.(js|ts)$' || true)
+if [ -n "$COVERAGE_FILES" ]; then
+  for file in $COVERAGE_FILES; do
+    if git diff --cached "$file" | grep -E '^\-.*coverageThreshold'; then
+      echo "❌ ERROR: Coverage threshold reduction in $file"
+      echo "   Maintain or increase coverage per standards/testing-standards.md"
+      exit 1
+    fi
+  done
+fi
+
+# Warn on config changes (don't block, but make visible)
+if git diff --cached --name-only | grep -E '(eslintrc|tsconfig)\.json$'; then
+  echo "⚠️  WARNING: Linter/TypeScript config change detected"
+  echo "   Ensure this has Standards CR approval per standards/standards-governance-ssot.md"
+  echo ""
+fi
+
+echo "✅ Standards guards passed"
+echo ""
+
 echo "Running pre-commit QA checks..."
 echo ""
 echo "Note: Skipping expensive checks (tests, builds) for faster commits."

@@ -1,0 +1,188 @@
+# Lean template for LLM-executable tasks (token-optimized for solo developer)
+# Copy to: tasks/<area>/TASK-<id>-<short-slug>.task.yaml
+# See tasks/README.md for authoring guide
+
+schema_version: "1.0"
+id: TASK-0823
+title: "Backfill test coverage and consolidate frontend-tier evidence"
+status: todo
+priority: P1
+area: mobile
+unblocker: false
+order: 6
+blocked_by: [TASK-0819, TASK-0820, TASK-0821, TASK-0822]
+
+description: >-
+  Expand component/hook test coverage to meet standards/testing-standards.md thresholds,
+  consolidate all frontend-tier fitness evidence (Storybook coverage, Chromatic status,
+  port coverage, state metrics), and verify full standards/frontend-tier.md compliance.
+
+outcome: >-
+  Test coverage meets thresholds per standards/testing-standards.md, all fitness evidence
+  archived in docs/ui/* with checksums, and qa:static + mobile unit suites pass without
+  regressions.
+
+scope:
+  in:
+    - mobile/src/__tests__/**/*
+    - docs/ui/storybook/**/*
+    - docs/ui/contracts/**/*
+    - docs/ui/state-metrics/**/*
+    - docs/ui/2025-frontend-tier-gap-analysis.md
+  out:
+    - Implementation changes (completed in prior subtasks)
+    - Backend/shared contract changes
+    - Infrastructure automation
+
+context:
+  affected_packages: [mobile]
+  standards_tier: mobile
+  issues: []
+  related_docs:
+    - standards/frontend-tier.md
+    - standards/testing-standards.md
+    - docs/ui/2025-frontend-tier-gap-analysis.md
+  repo_paths:
+    - mobile/src/__tests__
+    - docs/ui
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "18.x"
+  tools:
+    - name: pnpm
+      version: "8.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Focus on coverage gaps identified in prior tasks
+    - Use stub ports for service tests
+    - Follow testing-standards.md patterns
+  prohibited:
+    - No implementation changes (tests only)
+    - No flaky tests
+
+plan:
+  - id: 1
+    title: Identify coverage gaps
+    details: >-
+      Run coverage reports for mobile package and identify files/functions below thresholds
+      per standards/testing-standards.md. Document gaps in work summary.
+    actor: agent
+    inputs:
+      - mobile/src/**/*
+      - standards/testing-standards.md
+    outputs:
+      - .agent-output/coverage-gaps-TASK-0823.md
+    definition_of_done:
+      - Coverage report run with --coverage flag
+      - Gaps documented with specific file:line references
+      - Thresholds per standards/testing-standards.md cited
+    estimate: S
+    expected_files_touched:
+      - .agent-output/coverage-gaps-TASK-0823.md
+  - id: 2
+    title: Backfill component and hook tests
+    details: >-
+      Write missing component tests for screens/features and hook tests for custom hooks
+      per standards/testing-standards.md. Use stub ports for service dependencies.
+    actor: agent
+    inputs:
+      - mobile/src/screens/**/*
+      - mobile/src/features/**/*
+      - mobile/src/components/**/*
+      - .agent-output/coverage-gaps-TASK-0823.md
+    outputs:
+      - mobile/src/__tests__/screens/*.test.tsx
+      - mobile/src/__tests__/components/*.test.tsx
+      - mobile/src/features/__tests__/*.test.tsx
+    definition_of_done:
+      - Tests written for components/hooks below coverage threshold
+      - Service dependencies use stub ports (from services/__tests__/stubs.ts)
+      - Tests verify behavior and layering boundaries
+      - Coverage thresholds met per standards/testing-standards.md
+    estimate: L
+    expected_files_touched:
+      - mobile/src/__tests__/**/*
+      - mobile/src/features/__tests__/**/*
+  - id: 3
+    title: Consolidate fitness evidence
+    details: >-
+      Collect all fitness evidence from prior tasks (Storybook coverage, Chromatic status,
+      port coverage, state metrics) and consolidate in docs/ui/ with checksums and links
+      per standards/frontend-tier.md evidence expectations.
+    actor: agent
+    inputs:
+      - docs/ui/storybook/coverage-summary.json
+      - docs/ui/contracts/port-coverage.json
+      - docs/ui/state-metrics/reducer-complexity.json
+      - docs/ui/state-metrics/statechart-checksums.json
+      - standards/frontend-tier.md
+    outputs:
+      - docs/ui/fitness-evidence-bundle.md
+    definition_of_done:
+      - Evidence bundle consolidates all fitness artifacts
+      - Checksums recorded for statecharts and contracts
+      - Links to Storybook/Chromatic/port reports
+      - Citations to standards/frontend-tier.md fitness gates
+    estimate: S
+    expected_files_touched:
+      - docs/ui/fitness-evidence-bundle.md
+  - id: 4
+    title: Update gap analysis with completion status
+    details: >-
+      Update docs/ui/2025-frontend-tier-gap-analysis.md with remediation completion status,
+      link to fitness evidence bundle, and document any remaining gaps or follow-up tasks.
+    actor: agent
+    inputs:
+      - docs/ui/2025-frontend-tier-gap-analysis.md
+      - docs/ui/fitness-evidence-bundle.md
+    outputs:
+      - docs/ui/2025-frontend-tier-gap-analysis.md (updated)
+    definition_of_done:
+      - Gap analysis updated with completion status per gap
+      - Link to fitness evidence bundle
+      - Remaining gaps documented with follow-up task IDs (if any)
+      - Confirms standards/frontend-tier.md compliance achieved
+    estimate: S
+    expected_files_touched:
+      - docs/ui/2025-frontend-tier-gap-analysis.md
+
+acceptance_criteria:
+  - Test coverage meets standards/testing-standards.md thresholds for mobile
+  - All fitness evidence consolidated in docs/ui/ with checksums
+  - docs/ui/fitness-evidence-bundle.md links to all required artifacts
+  - docs/ui/2025-frontend-tier-gap-analysis.md updated with completion status
+  - pnpm turbo run test --filter=photoeditor-mobile -- --coverage passes
+  - pnpm turbo run qa:static --parallel passes
+  - No test regressions introduced
+  testability:
+    - "Coverage thresholds per standards/testing-standards.md"
+    - "Service tests use stub ports"
+
+validation:
+  static_checks:
+    - pnpm turbo run qa:static --parallel
+    - pnpm turbo run lint --filter=photoeditor-mobile
+    - pnpm turbo run typecheck --filter=photoeditor-mobile
+  unit_tests:
+    mobile:
+      - pnpm turbo run test --filter=photoeditor-mobile -- --coverage
+  contract_tests: []
+  manual_checks:
+    - Review fitness evidence bundle for completeness
+
+deliverables:
+  - mobile/src/__tests__/**/*
+  - docs/ui/fitness-evidence-bundle.md
+  - docs/ui/2025-frontend-tier-gap-analysis.md (updated)
+
+risks:
+  - description: Achieving coverage thresholds may require refactoring untestable code
+    mitigation: Document refactoring needs as follow-up tasks; focus on critical paths first

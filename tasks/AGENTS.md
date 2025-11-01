@@ -16,7 +16,7 @@ Scope: applies to everything under `tasks/`.
 
 For step‑by‑step authoring guidance, see `tasks/README.md`.
 
-Plan steps must specify `actor` (agent|human), `inputs`, `outputs`, `definition_of_done`, and an `estimate` (S|M|L). Do not include shell `commands` in plan steps; acceptance criteria and the validation pipeline govern checks.
+Plan steps must specify `actor` (agent|human), `inputs`, `outputs`, `definition_of_done`, and an `estimate` (S|M|L). Do not include shell `commands` in plan steps; acceptance criteria and the validation pipeline govern checks. Anchor each step to the governing rule by citing the exact standards file and heading slug inside the step (e.g., `standards/backend-tier.md#service-layer-boundaries`) so downstream agents understand which clause is being enforced.
 
 ## How to Work With the Template
 - Review the template comments to understand required sections, then rely on `tasks/README.md` for the authoritative checklist and breakdown heuristics.

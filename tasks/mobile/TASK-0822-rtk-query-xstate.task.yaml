@@ -1,0 +1,238 @@
+# Lean template for LLM-executable tasks (token-optimized for solo developer)
+# Copy to: tasks/<area>/TASK-<id>-<short-slug>.task.yaml
+# See tasks/README.md for authoring guide
+
+schema_version: "1.0"
+id: TASK-0822
+title: "Implement RTK Query and XState for job/upload state"
+status: todo
+priority: P1
+area: mobile
+unblocker: false
+order: 5
+blocked_by: [TASK-0818, TASK-0820]
+
+description: >-
+  Add RTK Query slices for API calls and XState state machines for job lifecycle per
+  standards/frontend-tier.md#state--logic-layer. Export .scxml or Mermaid diagrams, ensure
+  pure selectors, and generate fitness evidence (complexity reports, statechart checksums).
+
+outcome: >-
+  RTK Query manages all network state, XState charts control job/upload lifecycle, pure selectors
+  verified, statechart artifacts stored in docs/ui/state-metrics, and reducer complexity ≤10.
+
+scope:
+  in:
+    - mobile/src/store/uploadApi.ts
+    - mobile/src/store/slices/jobSlice.ts
+    - mobile/src/features/upload/machines/uploadMachine.ts
+    - mobile/src/features/upload/hooks/useUploadMachine.ts
+    - docs/ui/state-metrics/**/*
+  out:
+    - UI components (TASK-0819)
+    - Services implementation (TASK-0820)
+    - Backend contracts
+    - Infrastructure
+
+context:
+  affected_packages: [mobile]
+  standards_tier: mobile
+  issues: []
+  related_docs:
+    - standards/frontend-tier.md
+    - standards/typescript.md
+    - standards/testing-standards.md
+    - docs/ui/2025-frontend-tier-gap-analysis.md
+  repo_paths:
+    - mobile/src/store
+    - mobile/src/features/upload/machines
+    - docs/ui/state-metrics
+  dependencies:
+    - "@reduxjs/toolkit"
+    - "xstate"
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "18.x"
+  tools:
+    - name: pnpm
+      version: "8.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - RTK Query for all network calls (mandated)
+    - XState for job/upload lifecycle
+    - Pure selectors (no I/O)
+    - Reducer complexity ≤10
+  prohibited:
+    - No direct fetch() in features/components
+    - No imperative state mutations outside reducers
+    - No side effects in selectors
+
+plan:
+  - id: 1
+    title: Create RTK Query API slices
+    details: >-
+      Define RTK Query API slices for job operations (presign, status, download) per
+      standards/frontend-tier.md#state--logic-layer. Use port interfaces for API calls.
+      Ensure idempotency keys for upload operations.
+    actor: agent
+    inputs:
+      - mobile/src/services/*/port.ts
+      - shared/schemas/**/* (for request/response types)
+      - standards/frontend-tier.md
+    outputs:
+      - mobile/src/store/uploadApi.ts
+      - mobile/src/store/jobApi.ts (if needed)
+    definition_of_done:
+      - RTK Query slices created for job/upload operations
+      - API calls use port interfaces (no direct fetch)
+      - Idempotency keys implemented for uploads
+      - Aligns with standards/frontend-tier.md#state--logic-layer
+      - Citations to standards/typescript.md#neverthrow-result-pattern
+    estimate: M
+    expected_files_touched:
+      - mobile/src/store/uploadApi.ts
+      - mobile/src/store/jobApi.ts
+  - id: 2
+    title: Implement XState job lifecycle machine
+    details: >-
+      Create or update XState state machine for job/upload lifecycle with pure guards/conditions
+      per standards/frontend-tier.md#state--logic-layer. Export .scxml or Mermaid diagram to
+      docs/ui/state-metrics.
+    actor: agent
+    inputs:
+      - mobile/src/features/upload/machines/uploadMachine.ts (existing)
+      - standards/frontend-tier.md
+      - standards/typescript.md
+    outputs:
+      - mobile/src/features/upload/machines/uploadMachine.ts (updated)
+      - docs/ui/state-metrics/upload-statechart.scxml
+      - docs/ui/state-metrics/upload-statechart.mmd
+    definition_of_done:
+      - XState machine models job lifecycle (idle → uploading → processing → complete/error)
+      - Guards and conditions are pure predicates (no side effects)
+      - Context updates via assign() with pure updaters
+      - .scxml or Mermaid diagram exported to docs/ui/state-metrics
+      - Statechart checksum recorded per standards/frontend-tier.md fitness gate
+    estimate: M
+    expected_files_touched:
+      - mobile/src/features/upload/machines/uploadMachine.ts
+      - docs/ui/state-metrics/upload-statechart.scxml
+  - id: 3
+    title: Create pure selectors with reselect
+    details: >-
+      Implement Redux selectors using reselect for job/upload state per standards/frontend-tier.md#state--logic-layer.
+      Ensure 100% purity (no I/O imports) and add tests verifying selector purity.
+    actor: agent
+    inputs:
+      - mobile/src/store/slices/jobSlice.ts
+      - mobile/src/store/uploadApi.ts
+    outputs:
+      - mobile/src/store/selectors/jobSelectors.ts
+      - mobile/src/store/selectors/__tests__/jobSelectors.test.ts
+    definition_of_done:
+      - Selectors created with reselect memoization
+      - Input selectors pure: (state) => state.jobs
+      - Result selectors pure transformations only
+      - Zero I/O imports in selector files (verified via code review)
+      - Tests verify selector purity (state fixtures → output assertions)
+      - Citations to standards/frontend-tier.md#purity--immutability
+    estimate: S
+    expected_files_touched:
+      - mobile/src/store/selectors/jobSelectors.ts
+      - mobile/src/store/selectors/__tests__/jobSelectors.test.ts
+  - id: 4
+    title: Generate fitness evidence and complexity reports
+    details: >-
+      Run ESLint complexity checks on reducers, generate statechart checksum list, verify
+      selector purity, and archive evidence per standards/frontend-tier.md#state--logic-layer
+      fitness gates.
+    actor: agent
+    inputs:
+      - mobile/src/store/**/*
+      - mobile/src/features/upload/machines/**/*
+      - docs/ui/state-metrics/upload-statechart.scxml
+    outputs:
+      - docs/ui/state-metrics/reducer-complexity.json
+      - docs/ui/state-metrics/statechart-checksums.json
+      - docs/ui/state-metrics/selector-purity-audit.md
+    definition_of_done:
+      - Reducer complexity report shows ≤10 cyclomatic complexity
+      - Statechart checksum list includes upload machine
+      - Selector purity audit confirms zero I/O imports
+      - Evidence files reference standards/frontend-tier.md#state--logic-layer
+    estimate: S
+    expected_files_touched:
+      - docs/ui/state-metrics/reducer-complexity.json
+      - docs/ui/state-metrics/statechart-checksums.json
+      - docs/ui/state-metrics/selector-purity-audit.md
+  - id: 5
+    title: Create state machine and selector tests
+    details: >-
+      Write tests for XState machine transitions and Redux selectors per standards/testing-standards.md.
+      Test state transitions with input events, verify pure guards, and test selectors with fixtures.
+    actor: agent
+    inputs:
+      - mobile/src/features/upload/machines/uploadMachine.ts
+      - mobile/src/store/selectors/jobSelectors.ts
+    outputs:
+      - mobile/src/features/upload/machines/__tests__/uploadMachine.test.ts
+      - mobile/src/store/selectors/__tests__/jobSelectors.test.ts
+    definition_of_done:
+      - XState tests send events and assert state/context transitions
+      - Guards tested as pure predicates (no mocks)
+      - Selector tests use state fixtures (no mocks on selectors)
+      - Coverage meets standards/testing-standards.md thresholds
+    estimate: M
+    expected_files_touched:
+      - mobile/src/features/upload/machines/__tests__/uploadMachine.test.ts
+      - mobile/src/store/selectors/__tests__/jobSelectors.test.ts
+
+acceptance_criteria:
+  - RTK Query slices manage all network state (no direct fetch in features)
+  - XState charts control job/upload lifecycle with .scxml/Mermaid exports
+  - Selectors are 100% pure (zero I/O imports verified)
+  - Reducer cyclomatic complexity ≤10 (ESLint enforced)
+  - Statechart checksums stored in docs/ui/state-metrics
+  - State machine tests verify transitions and pure guards
+  - Selector tests use fixtures (no mocks)
+  - pnpm turbo run test --filter=photoeditor-mobile passes
+  modularity:
+    - "RTK Query for network; XState for job lifecycle; pure selectors"
+  testability:
+    - "State machine tests verify transitions"
+    - "Selector tests use fixtures"
+    - "Coverage per standards/testing-standards.md"
+
+validation:
+  static_checks:
+    - pnpm turbo run qa:static --parallel
+    - pnpm turbo run lint --filter=photoeditor-mobile
+    - pnpm turbo run typecheck --filter=photoeditor-mobile
+  unit_tests:
+    mobile:
+      - pnpm turbo run test --filter=photoeditor-mobile -- --coverage --testPathPattern=store
+      - pnpm turbo run test --filter=photoeditor-mobile -- --coverage --testPathPattern=machines
+  contract_tests: []
+  manual_checks:
+    - Review selector purity audit (zero I/O imports)
+    - Verify statechart diagram accuracy
+
+deliverables:
+  - mobile/src/store/uploadApi.ts
+  - mobile/src/features/upload/machines/uploadMachine.ts
+  - mobile/src/store/selectors/jobSelectors.ts
+  - docs/ui/state-metrics/upload-statechart.scxml
+  - docs/ui/state-metrics/reducer-complexity.json
+  - mobile/src/store/__tests__/**/*
+  - mobile/src/features/upload/machines/__tests__/**/*
+
+risks:
+  - description: RTK Query/XState adoption may introduce regressions in upload flow UX
+    mitigation: Maintain parity tests via mobile Test Harness, add regression unit tests, verify with manual walkthrough

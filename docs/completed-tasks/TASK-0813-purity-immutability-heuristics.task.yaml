@@ -1,7 +1,7 @@
 schema_version: "1.0"
 id: TASK-0813
 title: "Document purity & immutability heuristics"
-status: todo
+status: completed
 priority: P1
 area: docs
 
@@ -62,29 +62,38 @@ constraints:
 plan:
   - id: 1
     title: Audit current standards language
-    details: Review the referenced standards to catalog existing purity and immutability guidance.
+    details: >-
+      Review the referenced standards to catalogue existing purity and immutability guidance, mapping each clause to affected tiers per
+      standards/typescript.md#3-analyzability, standards/backend-tier.md#domain-service-layer, standards/frontend-tier.md#state--logic-layer, and standards/cross-cutting.md#maintainability--change-impact.
     actor: agent
     inputs:
       - standards/typescript.md
       - standards/backend-tier.md
       - standards/frontend-tier.md
       - standards/cross-cutting.md
-    outputs: []
+    outputs:
+      - docs/evidence/purity-immutability-gap-notes.md
     definition_of_done:
-      - Gap list drafted in task notes
+      - docs/evidence/purity-immutability-gap-notes.md lists current guidance with citations to standards/typescript.md#3-analyzability, standards/backend-tier.md#domain-service-layer, standards/frontend-tier.md#state--logic-layer, and standards/cross-cutting.md#maintainability--change-impact, highlighting gaps.
     estimate: S
-    expected_files_touched: []
+    expected_files_touched:
+      - docs/evidence/purity-immutability-gap-notes.md
   - id: 2
     title: Draft heuristics per tier
-    details: Add concrete guidance mapping purity/immutability expectations to the technologies used in backend and mobile tiers.
+    details: >-
+      Add concrete guidance tying purity/immutability expectations to stack usage (neverthrow, OneTable, RTK Query) inside relevant standards sections, aligning with standards/standards-governance-ssot.md#standards-grounding--change-requests-ssot for documentation changes.
     actor: agent
-    inputs: []
+    inputs:
+      - docs/evidence/purity-immutability-gap-notes.md
+      - standards/typescript.md
+      - standards/backend-tier.md
+      - standards/frontend-tier.md
     outputs:
       - standards/typescript.md
       - standards/backend-tier.md
       - standards/frontend-tier.md
     definition_of_done:
-      - Drafted sections compile and read clearly
+      - Updated sections explicitly state heuristics with inline references back to docs/evidence/purity-immutability-gap-notes.md and cite standards/standards-governance-ssot.md#standards-grounding--change-requests-ssot where exceptions apply.
     estimate: M
     expected_files_touched:
       - standards/typescript.md
@@ -92,34 +101,47 @@ plan:
       - standards/frontend-tier.md
   - id: 3
     title: Define evidence expectations
-    details: Update cross-cutting standards with reviewer heuristics and artefact expectations for purity and immutability.
+    details: >-
+      Update standards/cross-cutting.md with reviewer artefact expectations for purity/immutability, grounding language in standards/testing-standards.md#evidence-expectations.
     actor: agent
-    inputs: []
+    inputs:
+      - docs/evidence/purity-immutability-gap-notes.md
+      - standards/testing-standards.md
     outputs:
       - standards/cross-cutting.md
+      - docs/evidence/purity-immutability-gap-notes.md
     definition_of_done:
-      - Evidence expectations listed and cross-linked
+      - standards/cross-cutting.md gains an evidence subsection referencing standards/testing-standards.md#evidence-expectations, with docs/evidence/purity-immutability-gap-notes.md updated to link the new clause.
     estimate: S
     expected_files_touched:
       - standards/cross-cutting.md
+      - docs/evidence/purity-immutability-gap-notes.md
   - id: 4
     title: Self-review and align references
-    details: Ensure terminology matches existing standards and cross-link sections where helpful.
+    details: >-
+      Cross-read updated standards to ensure terminology consistency and backlinks align with standards/standards-governance-ssot.md#standards-grounding--change-requests-ssot.
     actor: agent
-    inputs: []
+    inputs:
+      - standards/typescript.md
+      - standards/backend-tier.md
+      - standards/frontend-tier.md
+      - standards/cross-cutting.md
+      - docs/evidence/purity-immutability-gap-notes.md
     outputs:
       - standards/typescript.md
       - standards/backend-tier.md
       - standards/frontend-tier.md
       - standards/cross-cutting.md
+      - docs/evidence/purity-immutability-gap-notes.md
     definition_of_done:
-      - Consistent terminology and links across files
+      - Updated files include cross-links referencing each other and standards/standards-governance-ssot.md#standards-grounding--change-requests-ssot, and docs/evidence/purity-immutability-gap-notes.md records review results.
     estimate: S
     expected_files_touched:
       - standards/typescript.md
       - standards/backend-tier.md
       - standards/frontend-tier.md
       - standards/cross-cutting.md
+      - docs/evidence/purity-immutability-gap-notes.md
 
 acceptance_criteria:
   - TypeScript standards define what constitutes a pure function and immutable structure with examples tied to neverthrow, Zod mappers, and DTO usage.

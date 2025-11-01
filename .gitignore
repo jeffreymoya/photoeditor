@@ -64,3 +64,5 @@ backend/tmp/
 .turbo/
 .turbo-prune-test/
 backend/.stryker-tmp/
+shared/tmp/
+mobile/tmp/

@@ -83,108 +83,143 @@ constraints:
 plan:
   - id: 1
     title: Install cockatiel dependency
-    details: Add cockatiel for retry and circuit breaker policies.
+    details: >-
+      Add cockatiel to mobile dependencies to satisfy the retry + circuit breaker requirement in
+      standards/frontend-tier.md#services--integration-layer.
     actor: agent
-    inputs: []
+    inputs:
+      - mobile/package.json
+      - standards/frontend-tier.md
     outputs:
       - mobile/package.json
+      - pnpm-lock.yaml
     definition_of_done:
-      - Dependency installed and lockfile updated
+      - mobile/package.json and pnpm-lock.yaml list cockatiel ≥3.1.0 under dependencies, referencing standards/frontend-tier.md#services--integration-layer in task notes.
     estimate: S
     expected_files_touched:
       - mobile/package.json
+      - pnpm-lock.yaml
   - id: 2
     title: Define upload service port interface
-    details: Create IUploadService port with requestPresignedUrl, uploadImage, getJobStatus, processImage methods.
+    details: >-
+      Introduce mobile/src/services/upload/port.ts so all upload API calls flow through a port per
+      standards/frontend-tier.md#services--integration-layer fitness gate.
     actor: agent
-    inputs: []
+    inputs:
+      - mobile/src/services/ApiService.ts
+      - standards/frontend-tier.md
+      - standards/typescript.md
     outputs:
       - mobile/src/services/upload/port.ts
     definition_of_done:
-      - Port interface compiles and is exported
+      - mobile/src/services/upload/port.ts exports a named port type covering requestPresignedUrl, uploadImage, getJobStatus, and processImage with TSDoc referencing standards/frontend-tier.md#services--integration-layer and standards/typescript.md#language--api-surface-rules.
     estimate: S
     expected_files_touched:
       - mobile/src/services/upload/port.ts
   - id: 3
     title: Refactor ApiService into upload adapter
-    details: Move ApiService implementation to mobile/src/services/upload/adapter.ts implementing IUploadService.
+    details: >-
+      Move ApiService logic into mobile/src/services/upload/adapter.ts that implements the new port while
+      preserving dependency inversion mandated by standards/frontend-tier.md#services--integration-layer.
     actor: agent
-    inputs: []
+    inputs:
+      - mobile/src/services/upload/port.ts
+      - mobile/src/services/ApiService.ts
+      - standards/frontend-tier.md
     outputs:
       - mobile/src/services/upload/adapter.ts
       - mobile/src/services/ApiService.ts
     definition_of_done:
-      - Adapter implements port; ApiService deprecated or removed
+      - mobile/src/services/upload/adapter.ts implements the port and re-exports via index, and the legacy ApiService entry point is removed or delegates with deprecation note citing standards/frontend-tier.md#services--integration-layer.
     estimate: M
     expected_files_touched:
       - mobile/src/services/upload/adapter.ts
-      - mobile/src/services/ApiService.ts (deprecated or removed)
+      - mobile/src/services/ApiService.ts
   - id: 4
     title: Add cockatiel retry policies to upload adapter
-    details: Wrap fetch calls with cockatiel retry and circuit breaker policies.
+    details: >-
+      Apply cockatiel policy combinators so each outbound request follows standards/frontend-tier.md#services--integration-layer retry + circuit breaker guidance.
     actor: agent
-    inputs: []
+    inputs:
+      - mobile/src/services/upload/adapter.ts
+      - standards/frontend-tier.md
     outputs:
       - mobile/src/services/upload/adapter.ts
     definition_of_done:
-      - Policies applied and compile cleanly
+      - Adapter methods wrap network calls in cockatiel policies and annotate decisions referencing standards/frontend-tier.md#services--integration-layer; unit coverage added to tests listed in docs/evidence/mobile-services-ports.md.
     estimate: S
     expected_files_touched:
       - mobile/src/services/upload/adapter.ts
   - id: 5
     title: Define notification service port interface
-    details: Create INotificationService port with registerToken, scheduleNotification methods.
+    details: >-
+      Create mobile/src/services/notification/port.ts mirroring standards/frontend-tier.md#services--integration-layer requirement that notification integrations expose ports.
     actor: agent
-    inputs: []
+    inputs:
+      - mobile/src/services/NotificationService.ts
+      - standards/frontend-tier.md
     outputs:
       - mobile/src/services/notification/port.ts
     definition_of_done:
-      - Port interface compiles and is exported
+      - Port file exports a named interface with registerToken and scheduleNotification signatures and TSDoc citing standards/frontend-tier.md#services--integration-layer.
     estimate: S
     expected_files_touched:
       - mobile/src/services/notification/port.ts
   - id: 6
     title: Refactor NotificationService into adapter
-    details: Move NotificationService to mobile/src/services/notification/adapter.ts implementing INotificationService.
+    details: >-
+      Move NotificationService implementation behind the new port so feature layers never import Expo APIs directly, aligning with standards/frontend-tier.md#services--integration-layer and standards/typescript.md#4-modifiability.
     actor: agent
-    inputs: []
+    inputs:
+      - mobile/src/services/notification/port.ts
+      - mobile/src/services/NotificationService.ts
+      - standards/frontend-tier.md
     outputs:
       - mobile/src/services/notification/adapter.ts
       - mobile/src/services/NotificationService.ts
     definition_of_done:
-      - Adapter implements port; NotificationService deprecated or removed
+      - Adapter implements the port, legacy NotificationService entry point removed or delegates with docstring referencing standards/frontend-tier.md#services--integration-layer, and type-checking confirms only ports leak to consumers (not Expo APIs).
     estimate: M
     expected_files_touched:
       - mobile/src/services/notification/adapter.ts
-      - mobile/src/services/NotificationService.ts (deprecated or removed)
+      - mobile/src/services/NotificationService.ts
   - id: 7
     title: Update feature hooks to depend on ports
-    details: Update useUpload and other hooks to inject IUploadService via dependency injection or context.
+    details: >-
+      Rework feature hooks/contexts so upload flows inject the ports instead of concrete adapters, maintaining the separation noted in standards/frontend-tier.md#state--logic-layer and standards/frontend-tier.md#services--integration-layer.
     actor: agent
-    inputs: []
+    inputs:
+      - mobile/src/features/upload/hooks/useUpload.ts
+      - mobile/src/services/upload/port.ts
+      - standards/frontend-tier.md
     outputs:
       - mobile/src/features/upload/hooks/useUpload.ts
       - mobile/src/features/upload/context/ServiceContext.tsx
     definition_of_done:
-      - Feature layer depends only on ports
+      - Hooks consume injected port interfaces only, dependency graph check recorded in docs/evidence/mobile-services-ports.md with citation to standards/frontend-tier.md#state--logic-layer.
     estimate: M
     expected_files_touched:
       - mobile/src/features/upload/hooks/useUpload.ts
       - mobile/src/features/upload/context/ServiceContext.tsx
   - id: 8
     title: Update tests to use stub implementations
-    details: Create stub port implementations for testing; update existing tests.
+    details: >-
+      Replace concrete service usage in tests with stub ports and document coverage per standards/testing-standards.md#test-authoring-guidelines.
     actor: agent
-    inputs: []
+    inputs:
+      - mobile/src/services/upload/port.ts
+      - standards/testing-standards.md
     outputs:
       - mobile/src/services/upload/__tests__/adapter.test.ts
       - mobile/src/services/__tests__/stubs.ts
+      - docs/evidence/mobile-services-ports.md
     definition_of_done:
-      - Tests pass using stubs; no real network calls
+      - Unit tests reference stub implementations only, coverage summary appended to docs/evidence/mobile-services-ports.md citing standards/testing-standards.md#coverage-expectations.
     estimate: M
     expected_files_touched:
       - mobile/src/services/upload/__tests__/adapter.test.ts
       - mobile/src/services/__tests__/stubs.ts
+      - docs/evidence/mobile-services-ports.md
 
 acceptance_criteria:
   - IUploadService port defines contract for all upload operations

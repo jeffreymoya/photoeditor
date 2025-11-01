@@ -97,97 +97,131 @@ constraints:
 plan:
   - id: 1
     title: Install Storybook for React Native
-    details: Add @storybook/react-native and required addons to mobile package.
+    details: >-
+      Add @storybook/react-native and required addons so the UI layer complies with standards/frontend-tier.md#ui-components-layer
+      expectations for Storybook + Chromatic coverage.
     actor: agent
-    inputs: []
+    inputs:
+      - mobile/package.json
+      - standards/frontend-tier.md
     outputs:
       - mobile/package.json
+      - pnpm-lock.yaml
     definition_of_done:
-      - Dependencies added and lockfile updated
+      - mobile/package.json and pnpm-lock.yaml list @storybook/react-native, @storybook/addon-a11y, @storybook/addon-interactions, and chromatic versions meeting standards/frontend-tier.md#ui-components-layer guidance.
     estimate: S
     expected_files_touched:
       - mobile/package.json
+      - pnpm-lock.yaml
   - id: 2
     title: Configure Storybook for React Native
-    details: Create .storybook/main.js and storybook/index.js entry point.
+    details: >-
+      Create Storybook config files (`mobile/.storybook` and `mobile/storybook`) aligning with addon requirements in standards/frontend-tier.md#ui-components-layer
+      and document start commands in docs/ui/storybook/README.md.
     actor: agent
-    inputs: []
+    inputs:
+      - standards/frontend-tier.md
     outputs:
       - mobile/.storybook/main.js
       - mobile/storybook/index.js
       - mobile/storybook/storybook.requires.js
+      - docs/ui/storybook/README.md
     definition_of_done:
-      - Storybook starts locally without errors
+      - Config files enable Storybook with addon-a11y and addon-interactions, and docs/ui/storybook/README.md notes configuration choices referencing standards/frontend-tier.md#ui-components-layer.
     estimate: M
     expected_files_touched:
       - mobile/.storybook/main.js
       - mobile/storybook/index.js
       - mobile/storybook/storybook.requires.js
+      - docs/ui/storybook/README.md
   - id: 3
     title: Write stories for existing components
-    details: Create .stories.tsx files for ErrorBoundary and UploadButton components.
+    details: >-
+      Add stories for ErrorBoundary and UploadButton so coverage targets outlined in standards/frontend-tier.md#ui-components-layer are reachable.
     actor: agent
-    inputs: []
+    inputs:
+      - mobile/src/components
+      - mobile/src/features/upload/components
+      - standards/frontend-tier.md
     outputs:
       - mobile/src/components/ErrorBoundary.stories.tsx
       - mobile/src/features/upload/components/UploadButton.stories.tsx
     definition_of_done:
-      - Stories render in Storybook
+      - Stories render without runtime errors and include metadata tagging per standards/frontend-tier.md#ui-components-layer; story list documented in docs/ui/storybook/README.md.
     estimate: S
     expected_files_touched:
       - mobile/src/components/ErrorBoundary.stories.tsx
       - mobile/src/features/upload/components/UploadButton.stories.tsx
   - id: 4
     title: Configure Chromatic integration
-    details: Add chromatic script to package.json and create CI workflow for visual regression.
+    details: >-
+      Add Chromatic npm script and CI workflow enforcing the no-change gate defined in standards/frontend-tier.md#ui-components-layer and evidence capture per standards/testing-standards.md#evidence-expectations.
     actor: agent
-    inputs: []
+    inputs:
+      - mobile/package.json
+      - standards/frontend-tier.md
+      - standards/testing-standards.md
     outputs:
       - mobile/package.json
       - .github/workflows/chromatic.yml
+      - docs/ui/storybook/README.md
     definition_of_done:
-      - Chromatic CI workflow committed
+      - Chromatic workflow references project token via secrets, includes axe checks, and docs/ui/storybook/README.md records workflow steps with citations to standards/frontend-tier.md#ui-components-layer and standards/testing-standards.md#evidence-expectations.
     estimate: S
     expected_files_touched:
       - mobile/package.json
       - .github/workflows/chromatic.yml
+      - docs/ui/storybook/README.md
   - id: 5
     title: Generate story coverage report
-    details: Run Storybook coverage analysis and save report to docs/ui/storybook.
+    details: >-
+      Produce Storybook coverage output and archive under docs/ui/storybook to meet the evidence requirement in standards/frontend-tier.md#ui-components-layer.
     actor: agent
-    inputs: []
+    inputs:
+      - mobile/storybook/index.js
+      - standards/frontend-tier.md
     outputs:
       - docs/ui/storybook/coverage-report.json
       - docs/ui/storybook/README.md
     definition_of_done:
-      - Coverage report saved to docs/ui/storybook
+      - docs/ui/storybook/coverage-report.json captures component coverage metrics and README cites standards/frontend-tier.md#ui-components-layer with instructions for regenerating the report.
     estimate: S
     expected_files_touched:
       - docs/ui/storybook/coverage-report.json
       - docs/ui/storybook/README.md
   - id: 6
     title: Backfill component tests
-    details: Write unit tests for components to meet coverage thresholds per `standards/testing-standards.md`.
+    details: >-
+      Write unit tests for ErrorBoundary and UploadButton to uphold coverage floors set in standards/testing-standards.md#coverage-expectations and front-end evidence in standards/frontend-tier.md#feature-guardrails.
     actor: agent
-    inputs: []
+    inputs:
+      - mobile/src/components/ErrorBoundary.tsx
+      - mobile/src/features/upload/components/UploadButton.tsx
+      - standards/testing-standards.md
     outputs:
       - mobile/src/components/__tests__/ErrorBoundary.test.tsx
       - mobile/src/features/upload/components/__tests__/UploadButton.test.tsx
+      - docs/ui/storybook/README.md
     definition_of_done:
-      - Tests passing locally with coverage
+      - Tests stub external services, coverage summary appended to docs/ui/storybook/README.md with citations to standards/testing-standards.md#coverage-expectations and standards/frontend-tier.md#feature-guardrails.
     estimate: M
     expected_files_touched:
       - mobile/src/components/__tests__/ErrorBoundary.test.tsx
       - mobile/src/features/upload/components/__tests__/UploadButton.test.tsx
+      - docs/ui/storybook/README.md
   - id: 7
     title: Document Storybook usage
-    details: Create docs/ui/storybook/README.md with instructions for running Storybook and Chromatic.
+    details: >-
+      Finalize docs/ui/storybook/README.md with local + CI workflows, evidence locations, and references to standards/frontend-tier.md#ui-components-layer and standards/testing-standards.md#evidence-expectations.
     actor: agent
-    inputs: []
+    inputs:
+      - docs/ui/storybook/README.md
+      - standards/frontend-tier.md
+      - standards/testing-standards.md
     outputs:
       - docs/ui/storybook/README.md
     definition_of_done:
-      - README includes local + CI instructions
+      - README outlines local dev steps, Chromatic workflow, evidence regeneration, and cites standards/frontend-tier.md#ui-components-layer plus standards/testing-standards.md#evidence-expectations.
     estimate: S
     expected_files_touched:
       - docs/ui/storybook/README.md

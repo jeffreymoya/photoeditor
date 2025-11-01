@@ -38,7 +38,7 @@ import type { IUploadService, PresignUploadResponse, BatchUploadResponse, Job, B
  * Feature layer depends only on IUploadService, not this concrete adapter.
  *
  * Resilience policies per the Frontend Tier standard:
- * - Exponential backoff retry (3 attempts, 100ms-1600ms delays)
+ * - Exponential backoff retry (3 attempts, 128ms initial delay, up to 30s max)
  * - Circuit breaker (opens after 5 consecutive failures, 30s recovery)
  * - Combined policy applied to all network operations
  */

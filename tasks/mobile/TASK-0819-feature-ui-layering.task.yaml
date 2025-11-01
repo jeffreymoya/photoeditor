@@ -5,7 +5,8 @@
 schema_version: "1.0"
 id: TASK-0819
 title: "Refactor screens and features to enforce layering boundaries"
-status: todo
+status: blocked
+blocked_reason: "Dependency TASK-0818 is blocked and must complete first"
 priority: P1
 area: mobile
 unblocker: false

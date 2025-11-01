@@ -13,6 +13,7 @@
 
 import { DeviceTokenRegistrationSchema, DeviceTokenResponseSchema } from '@photoeditor/shared';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { retry, circuitBreaker, wrap, ConsecutiveBreaker, ExponentialBackoff, handleAll } from 'cockatiel';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
@@ -35,10 +36,46 @@ Notifications.setNotificationHandler({
  *
  * Encapsulates Expo Notifications, AsyncStorage, and Device APIs behind port interface.
  * Feature layer depends only on INotificationService, not this concrete adapter.
+ *
+ * Resilience policies per the Frontend Tier standard:
+ * - Exponential backoff retry (3 attempts, 128ms initial delay, up to 30s max)
+ * - Circuit breaker (opens after 5 consecutive failures, 30s recovery)
+ * - Applied to backend registration calls only (local Expo APIs are synchronous)
  */
 export class NotificationServiceAdapter implements INotificationService {
   private expoPushToken: string | undefined = undefined;
   private baseUrl: string;
+
+  /**
+   * Retry policy: exponential backoff
+   * - Max attempts: 3
+   * - Initial delay: 128ms (cockatiel default)
+   * - Max delay: 30s (cockatiel default)
+   * - Backoff exponent: 2x
+   */
+  private readonly retryPolicy = retry(handleAll, {
+    maxAttempts: 3,
+    backoff: new ExponentialBackoff(),
+  });
+
+  /**
+   * Circuit breaker policy: consecutive failure threshold
+   * - Opens after: 5 consecutive failures
+   * - Recovery time: 30 seconds (half-open state)
+   * - Prevents cascading failures for backend registration
+   */
+  private readonly circuitBreakerPolicy = circuitBreaker(handleAll, {
+    breaker: new ConsecutiveBreaker(5),
+    halfOpenAfter: 30_000, // 30 seconds
+  });
+
+  /**
+   * Combined resilience policy
+   * - Retry with exponential backoff
+   * - Circuit breaker protection
+   * - Applied to backend registration/deactivation calls
+   */
+  private readonly resiliencePolicy = wrap(this.retryPolicy, this.circuitBreakerPolicy);
 
   constructor() {
     // Use the same base URL logic as UploadServiceAdapter
@@ -197,6 +234,11 @@ export class NotificationServiceAdapter implements INotificationService {
     await Notifications.cancelAllScheduledNotificationsAsync();
   }
 
+  /**
+   * Register device token with backend using resilience policies
+   *
+   * Applies cockatiel retry and circuit breaker policies per Frontend Tier standard.
+   */
   private async registerWithBackend(): Promise<void> {
     if (!this.expoPushToken) {
       logger.warn('No push token available for backend registration');
@@ -204,36 +246,37 @@ export class NotificationServiceAdapter implements INotificationService {
     }
 
     try {
-      const deviceId = await this.getDeviceId();
-      const platform = Platform.OS === 'ios' ? 'ios' : 'android';
+      await this.resiliencePolicy.execute(async () => {
+        const deviceId = await this.getDeviceId();
+        const platform = Platform.OS === 'ios' ? 'ios' : 'android';
 
-      const requestBody = DeviceTokenRegistrationSchema.parse({
-        expoPushToken: this.expoPushToken,
-        platform,
-        deviceId,
+        const requestBody = DeviceTokenRegistrationSchema.parse({
+          expoPushToken: this.expoPushToken,
+          platform,
+          deviceId,
+        });
+
+        const response = await fetch(`${this.baseUrl}/device-token`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to register device token: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        const result = DeviceTokenResponseSchema.parse(data);
+
+        if (result.success) {
+          logger.info('Successfully registered device token with backend');
+        } else {
+          logger.warn('Failed to register device token with backend:', result.message);
+        }
       });
-
-      const response = await fetch(`${this.baseUrl}/device-token`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!response.ok) {
-        logger.warn('Failed to register device token with backend:', response.statusText);
-        return;
-      }
-
-      const data = await response.json();
-      const result = DeviceTokenResponseSchema.parse(data);
-
-      if (result.success) {
-        logger.info('Successfully registered device token with backend');
-      } else {
-        logger.warn('Failed to register device token with backend:', result.message);
-      }
     } catch (error) {
       logger.error('Error registering device token with backend:', error);
     }
@@ -258,33 +301,39 @@ export class NotificationServiceAdapter implements INotificationService {
     return deviceId;
   }
 
+  /**
+   * Unregister device token from backend using resilience policies
+   *
+   * Applies cockatiel retry and circuit breaker policies per Frontend Tier standard.
+   */
   async unregisterFromBackend(): Promise<void> {
     try {
-      const deviceId = await this.getDeviceId();
+      await this.resiliencePolicy.execute(async () => {
+        const deviceId = await this.getDeviceId();
 
-      const response = await fetch(
-        `${this.baseUrl}/device-token?deviceId=${encodeURIComponent(deviceId)}`,
-        {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+        const response = await fetch(
+          `${this.baseUrl}/device-token?deviceId=${encodeURIComponent(deviceId)}`,
+          {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`Failed to unregister device token: ${response.statusText}`);
         }
-      );
 
-      if (!response.ok) {
-        logger.warn('Failed to unregister device token from backend:', response.statusText);
-        return;
-      }
+        const data = await response.json();
+        const result = DeviceTokenResponseSchema.parse(data);
 
-      const data = await response.json();
-      const result = DeviceTokenResponseSchema.parse(data);
-
-      if (result.success) {
-        logger.info('Successfully unregistered device token from backend');
-      } else {
-        logger.warn('Failed to unregister device token from backend:', result.message);
-      }
+        if (result.success) {
+          logger.info('Successfully unregistered device token from backend');
+        } else {
+          logger.warn('Failed to unregister device token from backend:', result.message);
+        }
+      });
     } catch (error) {
       logger.error('Error unregistering device token from backend:', error);
     }

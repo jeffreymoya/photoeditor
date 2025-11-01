@@ -5,7 +5,7 @@
 schema_version: "1.0"
 id: TASK-0822
 title: "Implement RTK Query and XState for job/upload state"
-status: todo
+status: completed
 priority: P1
 area: mobile
 unblocker: false

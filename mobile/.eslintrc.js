@@ -123,10 +123,11 @@ module.exports = {
             from: 'services',
             allow: ['lib', 'utils'],
           },
-          // Store can import from lib, utils, services
+          // Store can import from lib, utils, services, and internal store modules
+          // Note: selectors need to import from slices and index (RootState)
           {
             from: 'store',
-            allow: ['lib', 'utils', 'services'],
+            allow: ['lib', 'utils', 'services', 'store'],
           },
           // Utils are leaf nodes
           {

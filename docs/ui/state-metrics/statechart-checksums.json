@@ -1,0 +1,35 @@
+{
+  "description": "Statechart checksums for upload state machine",
+  "purpose": "Per the Frontend Tier standard State & Logic Layer: Statechart contracts exported for auditability",
+  "generated": "2025-11-01",
+  "machines": [
+    {
+      "id": "uploadMachine",
+      "file": "mobile/src/features/upload/machines/uploadMachine.ts",
+      "scxmlFile": "docs/ui/state-metrics/upload-statechart.scxml",
+      "mermaidFile": "docs/ui/state-metrics/upload-statechart.mmd",
+      "states": 8,
+      "transitions": 19,
+      "guards": 2,
+      "stateList": [
+        "idle",
+        "preprocessing",
+        "requesting_presign",
+        "uploading",
+        "paused",
+        "processing",
+        "completed",
+        "failed"
+      ],
+      "guardList": [
+        "maxRetriesExceeded",
+        "canRetry"
+      ],
+      "purity": "All guards are pure predicates (context-only, no side effects)"
+    }
+  ],
+  "standards": [
+    "standards/frontend-tier.md#state--logic-layer",
+    "standards/typescript.md#analyzability"
+  ]
+}

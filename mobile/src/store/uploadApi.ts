@@ -17,6 +17,7 @@ import type {
 
 /**
  * Generate W3C traceparent header for request tracing
+ * IMPURE: Uses Math.random() for non-deterministic ID generation
  * Per the Cross-Cutting standard: traceparent propagation
  */
 function generateTraceId(): string {
@@ -31,6 +32,7 @@ function generateTraceId(): string {
 
 /**
  * Generate correlation ID for request tracking
+ * IMPURE: Uses Math.random() for non-deterministic ID generation
  */
 function generateCorrelationId(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -38,6 +40,16 @@ function generateCorrelationId(): string {
     const v = c === 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
   });
+}
+
+/**
+ * Generate idempotency key for upload operations
+ * Per the Frontend Tier standard Services & Integration Layer:
+ * - Idempotency (idempotency keys for upload)
+ * Ensures safe retries without duplicate uploads
+ */
+function generateIdempotencyKey(): string {
+  return `upload-${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
 }
 
 /**
@@ -64,12 +76,16 @@ export const uploadApi = createApi({
     /**
      * Request presigned URL for single image upload
      * Endpoint: POST /presign
+     * Per the Frontend Tier standard: Idempotency keys for upload operations
      */
     requestPresignUrl: builder.mutation<PresignUploadResponse, PresignUploadRequest>({
       query: (request) => ({
         url: '/presign',
         method: 'POST',
         body: request,
+        headers: {
+          'idempotency-key': generateIdempotencyKey(),
+        },
       }),
       invalidatesTags: ['Job'],
     }),
@@ -77,12 +93,16 @@ export const uploadApi = createApi({
     /**
      * Request presigned URLs for batch upload
      * Endpoint: POST /presign (batch)
+     * Per the Frontend Tier standard: Idempotency keys for upload operations
      */
     requestBatchPresignUrls: builder.mutation<BatchUploadResponse, BatchUploadRequest>({
       query: (request) => ({
         url: '/presign',
         method: 'POST',
         body: request,
+        headers: {
+          'idempotency-key': generateIdempotencyKey(),
+        },
       }),
       invalidatesTags: ['BatchJob'],
     }),

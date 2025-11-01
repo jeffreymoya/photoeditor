@@ -1,0 +1,92 @@
+%% Upload State Machine Diagram
+%% Generated from mobile/src/features/upload/machines/uploadMachine.ts
+%% Per the Frontend Tier standard State & Logic Layer:
+%% - Statechart contracts: export .scxml or Mermaid from XState
+%%
+%% States: idle → preprocessing → requesting_presign → uploading → processing → completed | failed
+%% Also supports: paused (from uploading)
+
+stateDiagram-v2
+    [*] --> idle
+
+    idle --> preprocessing: START_UPLOAD
+    note right of idle
+        Initial state
+        Waiting for upload request
+    end note
+
+    preprocessing --> requesting_presign: always
+    preprocessing --> idle: CANCEL
+
+    note right of preprocessing
+        Preprocessing completes immediately
+        and transitions to requesting presign
+    end note
+
+    requesting_presign --> uploading: PRESIGN_SUCCESS
+    requesting_presign --> failed: PRESIGN_FAILURE
+    requesting_presign --> idle: CANCEL
+
+    note right of requesting_presign
+        Requesting presigned URL from backend
+        Sets jobId, presignedUrl, s3Key on success
+    end note
+
+    uploading --> processing: UPLOAD_SUCCESS
+    uploading --> paused: PAUSE
+    uploading --> idle: CANCEL
+    uploading --> uploading: UPLOAD_PROGRESS
+    uploading --> failed: UPLOAD_FAILURE [maxRetriesExceeded]
+    uploading --> uploading: UPLOAD_FAILURE [canRetry]
+
+    note right of uploading
+        Uploading to S3 presigned URL
+        Supports retry with backoff
+        Can pause on network changes
+    end note
+
+    paused --> uploading: RESUME
+    paused --> idle: CANCEL
+
+    note right of paused
+        Upload paused by user or network
+        Can resume or cancel
+    end note
+
+    processing --> completed: JOB_COMPLETED
+    processing --> failed: JOB_FAILED
+    processing --> idle: CANCEL
+    processing --> processing: JOB_PROCESSING
+
+    note right of processing
+        Backend job processing
+        Polling for completion
+    end note
+
+    completed --> idle: RESET
+    completed --> [*]
+
+    note right of completed
+        Upload and processing complete
+        Final state
+    end note
+
+    failed --> preprocessing: RETRY [canRetry]
+    failed --> failed: RETRY [!canRetry]
+    failed --> idle: RESET
+
+    note right of failed
+        Upload or processing failed
+        Can retry if under maxRetries
+    end note
+
+%% Guards (pure predicates)
+%% - maxRetriesExceeded: (context) => context.retryCount >= context.maxRetries
+%% - canRetry: (context) => context.retryCount < context.maxRetries
+
+%% Context
+%% - imageUri, fileName, fileSize, mimeType: upload metadata
+%% - jobId, s3Key, presignedUrl: backend response data
+%% - progress: upload progress (0-100)
+%% - error: error message if failed
+%% - retryCount, maxRetries: retry tracking

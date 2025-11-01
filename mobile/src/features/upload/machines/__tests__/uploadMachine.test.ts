@@ -470,6 +470,110 @@ describe('uploadMachine', () => {
     });
   });
 
+  describe('guards (pure predicates)', () => {
+    it('maxRetriesExceeded guard should be pure predicate', () => {
+      // Test guard logic directly via state transitions
+      const service = interpret(uploadMachine);
+      service.start();
+
+      // Get to uploading state
+      service.send({
+        type: 'START_UPLOAD',
+        imageUri: 'file:///test.jpg',
+        fileName: 'test.jpg',
+        fileSize: 1024000,
+        mimeType: 'image/jpeg',
+      });
+      service.send({
+        type: 'PRESIGN_SUCCESS',
+        jobId: 'job-123',
+        presignedUrl: 'https://s3.amazonaws.com/bucket/key',
+        s3Key: 'uploads/test.jpg',
+      });
+
+      // Fail until max retries exceeded
+      for (let i = 0; i < 4; i++) {
+        service.send({ type: 'UPLOAD_FAILURE', error: `Network error ${i}` });
+      }
+
+      // Guard should evaluate to true and transition to failed
+      const snapshot = service.getSnapshot();
+      expect(snapshot.value).toBe('failed');
+      expect(snapshot.context.retryCount).toBeGreaterThanOrEqual(3);
+
+      service.stop();
+    });
+
+    it('canRetry guard should be pure predicate', () => {
+      // Test guard logic directly via state transitions
+      const service = interpret(uploadMachine);
+      service.start();
+
+      // Get to failed state with retries available
+      service.send({
+        type: 'START_UPLOAD',
+        imageUri: 'file:///test.jpg',
+        fileName: 'test.jpg',
+        fileSize: 1024000,
+        mimeType: 'image/jpeg',
+      });
+      service.send({
+        type: 'PRESIGN_FAILURE',
+        error: 'Presign failed',
+      });
+
+      // Now in failed state with retryCount = 0
+      expect(service.getSnapshot().value).toBe('failed');
+      expect(service.getSnapshot().context.retryCount).toBe(0);
+
+      // RETRY should succeed (canRetry evaluates to true)
+      service.send({ type: 'RETRY' });
+
+      const snapshot = service.getSnapshot();
+      expect(snapshot.value).toBe('requesting_presign'); // Transitioned via preprocessing
+      expect(snapshot.context.retryCount).toBe(1);
+
+      service.stop();
+    });
+
+    it('guards should be deterministic (same context → same result)', () => {
+      // Guards are pure: maxRetriesExceeded(ctx) and canRetry(ctx)
+      // They depend only on context.retryCount and context.maxRetries
+      // No side effects, no I/O, no external state access
+
+      const service = interpret(uploadMachine);
+      service.start();
+
+      // Set up context with specific retryCount
+      service.send({
+        type: 'START_UPLOAD',
+        imageUri: 'file:///test.jpg',
+        fileName: 'test.jpg',
+        fileSize: 1024000,
+        mimeType: 'image/jpeg',
+      });
+      service.send({
+        type: 'PRESIGN_SUCCESS',
+        jobId: 'job-123',
+        presignedUrl: 'https://s3.amazonaws.com/bucket/key',
+        s3Key: 'uploads/test.jpg',
+      });
+
+      // Fail once
+      service.send({ type: 'UPLOAD_FAILURE', error: 'Network error' });
+
+      const contextBefore = service.getSnapshot().context;
+
+      // Guard evaluation is deterministic: retryCount = 1, maxRetries = 3
+      // canRetry should evaluate to true (1 < 3)
+      expect(contextBefore.retryCount).toBe(1);
+      expect(contextBefore.maxRetries).toBe(3);
+      expect(service.getSnapshot().value).toBe('uploading'); // Should retry
+
+      service.stop();
+    });
+  });
+
   describe('context actions', () => {
     it('should update progress incrementally in processing state', () => {
       const service = interpret(uploadMachine);

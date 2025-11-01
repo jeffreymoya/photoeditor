@@ -1,0 +1,59 @@
+{
+  "generatedAt": "2025-11-01T00:00:00.000Z",
+  "standard": "standards/frontend-tier.md#ui-components-layer",
+  "coverageTarget": "85% of atoms/molecules",
+  "components": {
+    "total": 2,
+    "withStories": 2,
+    "coveragePercentage": 100
+  },
+  "stories": [
+    {
+      "component": "ErrorBoundary",
+      "path": "mobile/src/components/ErrorBoundary.tsx",
+      "storyFile": "mobile/src/components/ErrorBoundary.stories.tsx",
+      "storiesCount": 3,
+      "stories": [
+        "Default",
+        "WithError",
+        "WithMultipleChildren"
+      ],
+      "category": "molecule",
+      "hasA11yTests": true
+    },
+    {
+      "component": "UploadButton",
+      "path": "mobile/src/features/upload/components/UploadButton.tsx",
+      "storyFile": "mobile/src/features/upload/components/UploadButton.stories.tsx",
+      "storiesCount": 10,
+      "stories": [
+        "Idle",
+        "Preprocessing",
+        "RequestingPresign",
+        "Uploading",
+        "UploadingAlmost",
+        "Paused",
+        "Success",
+        "Error",
+        "Disabled",
+        "CustomText"
+      ],
+      "category": "molecule",
+      "hasA11yTests": true
+    }
+  ],
+  "summary": {
+    "totalStories": 13,
+    "componentsWithStories": 2,
+    "componentsWithoutStories": 0,
+    "a11yEnabled": true,
+    "chromaticEnabled": true
+  },
+  "notes": [
+    "Initial Storybook setup for mobile component library",
+    "Covers ErrorBoundary and UploadButton components",
+    "All stories include accessibility metadata for axe testing",
+    "Chromatic integration configured for visual regression testing",
+    "To regenerate: Run 'pnpm run storybook:generate' in mobile package"
+  ]
+}

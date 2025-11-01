@@ -5,7 +5,7 @@
 schema_version: "1.0"
 id: TASK-0821
 title: "Setup Storybook and Chromatic for mobile component library"
-status: todo
+status: completed
 blocked_reason: null
 blocked_by: [TASK-0818, TASK-0819, TASK-0820]
 priority: P1

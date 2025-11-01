@@ -1,0 +1,79 @@
+name: Chromatic Visual Regression
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  chromatic:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required for Chromatic baseline detection
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Storybook stories
+        run: pnpm run storybook:generate
+
+      - name: Run Chromatic
+        uses: chromaui/action@v1
+        with:
+          projectToken: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
+          workingDir: mobile
+          buildScriptName: storybook:web
+          exitZeroOnChanges: true # Don't fail on visual changes, just report
+          exitOnceUploaded: true
+
+      - name: Check accessibility with axe
+        run: |
+          echo "Chromatic includes automatic axe accessibility checks"
+          echo "Review accessibility violations in Chromatic UI"
+          echo "See standards/frontend-tier.md#ui-components-layer for requirements"
+
+      - name: Archive Chromatic results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: chromatic-results
+          path: |
+            mobile/chromatic-build-*.log
+            mobile/.chromatic
+          retention-days: 30

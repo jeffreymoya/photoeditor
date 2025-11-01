@@ -51,6 +51,49 @@
 * **Command–Query split** (mutations vs selectors).
 * **Event sourcing (lightweight)**: append domain events into a dev log to reproduce flows.
 
+**Purity & Immutability in State Management**
+
+Mobile state logic should maximize purity and enforce immutability to enable time-travel debugging and predictable updates:
+
+*Redux Toolkit (immer-powered reducers):*
+- Write "mutating" syntax inside reducer cases; immer's proxy makes it safe and immutable
+- Example: `state.jobs[id].status = 'completed'` — appears to mutate but creates new state under the hood
+- **Never** manually mutate state outside reducers; always use dispatch with actions
+- Selectors must be pure: same state input → same derived output, no side effects
+
+*Redux selectors (reselect):*
+- Input selectors are pure functions extracting slices: `(state) => state.jobs`
+- Result selectors use memoized transforms; all callbacks must be pure
+- Example: `createSelector([selectJobs], (jobs) => jobs.filter(j => j.status === 'active'))` — pure transformation
+- Test selectors with state fixtures; no mocks, just input → output assertions
+
+*RTK Query cache updates:*
+- Use `api.util.updateQueryData` to patch cache; operates on immer draft so "mutations" are safe
+- Optimistic updates: clone/spread the data before dispatching; never mutate query results in-place
+- Example: `dispatch(api.util.updateQueryData('getJob', jobId, (draft) => { draft.status = 'updated'; }));`
+- Invalidate tags to trigger refetch rather than manually syncing derived state
+
+*XState state machines:*
+- **Guards and conditions** are pure predicates: `(context, event) => boolean` with no side effects
+- **Context updates** via `assign()` with pure updaters that return new context slices
+- Example: `assign({ count: (ctx) => ctx.count + 1 })` — returns new value, doesn't mutate
+- **Actions** may invoke side effects (send, raise) but must not mutate context directly
+- Test state transitions with input events and assert resulting context/state; no mocks for pure guards
+
+*Measuring purity in mobile state:*
+- Reducers: automatically pure via immer (trust the framework)
+- Selectors: 100% pure; if a selector calls `Date.now()` or `fetch()`, refactor to accept input
+- XState guards/conditions: 100% pure predicates
+- Custom hooks: separate pure computation from effects; pure logic should be extractable and testable without React
+
+*Testing approach:*
+- Reducers: dispatch actions, assert new state; no mocks
+- Selectors: call with mock state, assert output; no mocks on selectors themselves
+- XState: send events to machine, assert state transitions and context; guards tested as pure predicates
+- Hooks with effects: test pure logic separately, then integration test the hook with minimal mocking
+
+See `standards/typescript.md#analyzability` and `standards/typescript.md#immutability--readonly` for foundational patterns and `docs/evidence/purity-immutability-gap-notes.md` for analysis.
+
 **Strategies**
 
 * **Statechart contracts**: export `.scxml` or Mermaid from XState to your KB.
@@ -60,7 +103,8 @@
 
 * Reducer cyclomatic complexity ≤ 10 (tracked via ESLint rule) with weekly report stored in `docs/ui/state-metrics`.
 * Every critical slice has an XState chart + test for each transition; charts generated from `shared/statecharts` package.
-* **Owner**: State Management Maintainer. **Evidence**: lint complexity report + statechart checksum list in evidence bundle.
+* Selectors are 100% pure (verified via code review: no I/O imports in selector files).
+* **Owner**: State Management Maintainer. **Evidence**: lint complexity report + statechart checksum list + selector purity audit in evidence bundle.
 
 ## Services & Integration Layer
 
@@ -76,11 +120,38 @@
 * **Idempotency** (idempotency keys for upload).
 * **Retry + Circuit Breaker**: **cockatiel** (policy combinators).
 
+**Purity & Immutability in Services**
+
+Services and adapters should isolate platform I/O and enable pure domain logic in hooks/reducers:
+
+*Port interfaces (pure contracts):*
+- Define service contracts as pure TypeScript interfaces with clear input → output signatures
+- Example: `interface JobService { getJob(id: string): Promise<Job>; }` — pure interface, impure implementation
+- Keep port definitions free of platform details (no Expo types, no AWS SDK types)
+
+*Adapter implementations (impure, isolated):*
+- Adapters implement ports and contain all platform-specific I/O (fetch, Expo APIs, file system)
+- Mark adapter files clearly: `/services/*/adapters/` or naming like `expo-notifications.adapter.ts`
+- Never import adapters directly into components/hooks; inject via context or RTK Query
+
+*Immutability in service responses:*
+- API responses and cache data are immutable; clone before local manipulation
+- Use `Object.freeze()` in dev builds to catch accidental mutations
+- RTK Query enforces this via immer drafts for cache updates
+
+*Testing services:*
+- Pure port interfaces: no tests needed (just types)
+- Adapter implementations: mock platform APIs (Expo, fetch) with stubs/fixtures
+- Integration: test that adapters satisfy port contracts with representative I/O scenarios
+
+See `standards/typescript.md#analyzability` for purity criteria and `standards/backend-tier.md#provider-integration-layer` for parallel backend patterns.
+
 **Fitness gates**
 
 * 100% of external calls behind an interface in `/services/*/port.ts`.
 * Contract drift check: generated client hash must match CI's server hash; CI step exports hash comparison artefact stored in `docs/ui/contracts`.
-* **Owner**: Services Maintainer. **Evidence**: interface audit + client hash log attached to evidence bundle.
+* Port interfaces contain zero platform-specific imports (verified via dependency-cruiser rule or code review).
+* **Owner**: Services Maintainer. **Evidence**: interface audit + client hash log + port purity check attached to evidence bundle.
 
 ## Platform & Delivery Layer
 

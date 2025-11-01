@@ -41,6 +41,40 @@
 * Use TSDoc on exported APIs; documentation coverage thresholds are defined in `standards/cross-cutting.md`.
 * Keep logs typed: structure log/event shapes, include correlation/trace ids; never log secrets.
 
+**Pure Functions & Purity Heuristics**
+
+A function is **pure** when it satisfies all three criteria:
+1. **Deterministic:** Same inputs always yield same outputs
+2. **No side effects:** Does not mutate arguments, global/external state, or perform I/O (logging, network, file system, Date.now, Math.random)
+3. **Referentially transparent:** Can be replaced with its return value without changing program behavior
+
+**Pure in PhotoEditor context:**
+- Zod schema transforms (`.transform()`, `.refine()` with pure predicates)
+- DTO mappers and entity transformers (input object → new output object via spread/Object.assign)
+- `Result.map()` / `.mapErr()` / `.andThen()` chains where all callbacks are pure
+- Validation predicates and business rule functions
+- Redux selectors (reselect) and derived state computations
+- XState guards, conditions, and pure context updaters
+
+**Impure (must isolate to adapters/ports/effect handlers):**
+- OneTable CRUD operations (`.get()`, `.create()`, `.update()`, `.delete()`)
+- AWS SDK calls, HTTP fetch, file system access
+- Logger calls (`logger.info()`, `console.log()`)
+- Non-deterministic sources: `Date.now()`, `Math.random()`, `crypto.randomUUID()`
+- Mutations of function parameters or external variables
+
+**Measuring purity:**
+- Aim for ≥70% of domain code (services, reducers, selectors, mappers, validators) to be pure functions that can be tested with input/output assertions only (no mocks, no timers, no spies on external calls).
+- Document impure boundaries explicitly: label ports, adapters, and effect handler modules.
+- Reviewers should verify that domain logic files import zero I/O libraries (AWS SDK, fetch, fs, logger) and defer side effects to injected dependencies.
+
+**Testing pure functions:**
+- Unit tests should assert `f(input) === expectedOutput` without mocking.
+- Impure functions under test require mocks/stubs for their I/O dependencies (via ports).
+- If a test needs `jest.fn()`, `nock`, or `aws-sdk-client-mock`, the subject is impure.
+
+See `docs/evidence/purity-immutability-gap-notes.md` for detailed analysis and `standards/backend-tier.md`, `standards/frontend-tier.md` for tier-specific patterns.
+
 ### 4) Modifiability
 
 * Minimize coupling: depend on ports, not concrete providers; drive features behind edge‑level flags with expiry ≤ 90 days.
@@ -71,6 +105,38 @@
 **Immutability & Readonly**
 
 * Use `as const`, `readonly` fields, and `ReadonlyArray<T>` for inputs and DTOs. Avoid mutating parameters—return new values.
+
+**Immutability Patterns by Context:**
+
+*General rules:*
+- Function parameters and DTO properties are `readonly` by default.
+- Return new objects via spread (`{ ...obj, field: newValue }`), `Object.assign({}, ...)`, or builder functions.
+- Never mutate arguments in-place; treat all inputs as immutable.
+
+*Redux Toolkit (immer-powered reducers):*
+- Write "mutating" syntax inside reducer cases; immer makes it immutable under the hood.
+- Example: `state.jobs[id].status = 'completed'` is safe inside `createSlice` reducers.
+- Outside reducers (selectors, utilities): use spread or `structuredClone` to avoid accidental mutation.
+
+*RTK Query cache updates:*
+- Use `api.util.updateQueryData` with immer draft for cache patches.
+- Optimistic updates must clone/spread; never mutate query results directly.
+
+*XState context updates:*
+- Use `assign()` with pure updater functions that return new context slices.
+- Guards and conditions are pure predicates; they read context but do not mutate.
+- Actions triggering side effects (send, raise) are allowed, but context manipulation stays immutable.
+
+*OneTable entities:*
+- Fetch results are immutable snapshots; create new entity objects for updates.
+- Mapper functions transforming DB format ↔ domain types use spread, not mutation.
+- Domain logic on entities applies functional updates: `updateEntity = (e) => ({ ...e, field: newValue })`.
+
+*neverthrow Result chains:*
+- `.map()` and `.mapErr()` callbacks must return new values, not mutate captured variables.
+- Chaining preserves immutability if all callbacks avoid side effects.
+
+See `docs/evidence/purity-immutability-gap-notes.md` for rationale and `standards/backend-tier.md#domain-service-layer`, `standards/frontend-tier.md#state--logic-layer` for applied patterns.
 
 **Unused Variables & Parameters**
 

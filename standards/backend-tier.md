@@ -57,11 +57,47 @@
 * **State machine** (XState) definitions reside in `shared/statecharts`; both app and domain import the generated artefact to avoid drift.
 * **Policy/Strategy** objects for provider selection rules.
 
+**Purity & Immutability in Services**
+
+Services should maximize pure domain logic and isolate I/O to injected ports/adapters:
+
+*Pure service methods:*
+- Validation logic, business rules, state transitions, DTO transformations
+- Example: `validateJobInput(input: JobInput): Result<ValidJob, ValidationError>` — pure function with no I/O
+- Use neverthrow `.map()` / `.andThen()` chains with pure callbacks to compose domain logic
+- Policy/Strategy selection functions should be pure predicates: `selectProvider(job: Job): ProviderType`
+
+*Impure service methods (orchestration):*
+- Methods calling OneTable CRUD, invoking adapters, logging, or triggering external events
+- Example: `async processJob(jobId: string): ResultAsync<Job, ProcessingError>` — orchestrates I/O via ports
+- Keep orchestration minimal: validate → fetch → transform (pure) → save → notify
+- Inject all I/O dependencies (OneTable client, adapters, logger) via constructor or method parameters
+
+*Measuring the ≥70% pure threshold:*
+- Count lines in domain service files (services/, use-cases/) excluding imports/types
+- Pure code: validation functions, transformers, Result chains with pure callbacks, policy logic
+- Impure code: OneTable calls, adapter invocations, logger statements, Date.now()
+- Ratio = pure lines / total domain lines; aim for ≥0.70
+- Document impure boundaries: mark orchestration methods with `// Orchestrates I/O` comments
+
+*OneTable immutability patterns:*
+- Treat fetched entities as immutable snapshots; never mutate in-place
+- Updates: create new entity object via spread, then `.update()` with new object
+- Example: `const updated = { ...job, status: 'completed' }; await table.update(updated);`
+- Domain transformers operate on plain objects, not OneTable models directly
+
+*Testing approach:*
+- Pure domain logic: test with input/output assertions, no mocks
+- Orchestration methods: mock ports/adapters with `jest.fn()` or test doubles
+- If ≥70% of domain tests need zero mocks, the purity target is met
+
+See `standards/typescript.md#analyzability` for core purity definitions and `docs/evidence/purity-immutability-gap-notes.md` for analysis.
+
 **Fitness gates**
 
-* Pure units (no I/O) ≥ 70% of domain code.
+* Pure units (no I/O) ≥ 70% of domain code (measured as pure LOC / total domain LOC).
 * State transition coverage: tests assert allowed + forbidden transitions using generated statechart fixtures.
-* **Owner**: Domain Maintainer. **Evidence**: coverage trend + statechart checksum logged in evidence bundle.
+* **Owner**: Domain Maintainer. **Evidence**: coverage trend + statechart checksum + purity ratio logged in evidence bundle.
 
 ## Provider Integration Layer
 

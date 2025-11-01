@@ -25,6 +25,42 @@
 * DLQ configuration and redrive drills must remain green in CI; failures block release.
 * Module flake-rate above 1% for more than 7 days blocks merges until remediated.
 
+**Purity & Immutability Evidence Requirements**
+
+When assessing domain logic changes or reviewing architectural refactors, reviewers should request and validate the following artefacts to ensure purity and immutability standards are upheld (see `standards/testing-standards.md#evidence-expectations` for broader evidence framework):
+
+*For Backend (Domain Services):*
+- **Purity ratio calculation**: document pure LOC / total domain LOC for affected services; target ≥0.70
+- **Import audit**: verify domain service files import zero I/O libraries (no AWS SDK, no logger, no date/random utilities)
+- **Test coverage breakdown**: show what % of domain tests run without mocks (pure logic tests)
+- **Orchestration boundaries**: comment or doc string marking which methods orchestrate I/O vs pure logic
+- **OneTable entity handling**: code review confirms entities are treated as immutable snapshots with functional updates
+
+*For Frontend (State & Reducers):*
+- **Selector purity audit**: verify selector files import zero platform APIs (no Expo, no fetch, no Date.now)
+- **XState guard purity**: confirm guards/conditions are pure predicates with no side effects
+- **RTK Query cache updates**: show usage of `api.util.updateQueryData` with immer drafts (no direct mutation)
+- **Reducer complexity**: ESLint complexity report confirms ≤10 per reducer case
+- **Hook separation**: custom hooks separate pure computation (extractable, testable) from effects (useEffect, platform calls)
+
+*For Shared Contracts & DTOs:*
+- **Zod transform purity**: verify `.transform()` and `.refine()` callbacks are pure (no I/O, no side effects)
+- **Mapper functions**: confirm DTO ↔ domain mappers use spread/Object.assign, never mutate inputs
+- **Contract tests**: show round-trip serialization tests that don't mock or trigger I/O
+
+*General Evidence (All Tiers):*
+- **Test strategy summary**: document pure vs impure test split (e.g., "15/20 service tests are pure input/output, 5/20 mock ports")
+- **Dependency graph snippet**: highlight domain modules with zero outbound edges to I/O packages
+- **Code review checklist confirmation**:
+  - No `Date.now()`, `Math.random()`, `console.log()`, or `crypto.randomUUID()` in domain functions
+  - No mutation of function parameters (readonly types enforced)
+  - Redux reducers use immer correctly (no manual state mutation outside reducers)
+  - XState guards/conditions are pure predicates; actions don't mutate context directly
+
+Attach these artefacts to the evidence bundle per release or in PR descriptions when purity/immutability claims are central to the change.
+
+See `docs/evidence/purity-immutability-gap-notes.md` for analysis and `standards/typescript.md#analyzability`, `standards/backend-tier.md#domain-service-layer`, `standards/frontend-tier.md#state--logic-layer` for detailed operational guidance.
+
 ## Observability & Operations
 
 **Libraries**

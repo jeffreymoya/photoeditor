@@ -1,7 +1,7 @@
 schema_version: "1.0"
 id: TASK-0824
 title: "Tune DynamoDB capacity and storage lifecycle per stage"
-status: todo
+status: completed
 blocked_reason: null
 priority: P1
 area: infra
@@ -150,3 +150,4 @@ deliverables:
 risks:
   - description: Provisioned throughput misconfiguration could cause throttling or excess cost.
     mitigation: Model throughput with CloudWatch metrics, include alarms, and adjust after validation window.
+

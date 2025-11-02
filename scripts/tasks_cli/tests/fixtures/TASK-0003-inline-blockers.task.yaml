@@ -1,0 +1,12 @@
+id: TASK-0003
+title: Test inline blocked_by array
+status: todo
+priority: P1
+area: test
+unblocker: false
+order: null
+blocked_by: [TASK-0001, TASK-0002]
+depends_on: [TASK-0099]
+description: |
+  Test task with inline array for blocked_by.
+  This is the format all real tasks use, but Bash script cannot parse.

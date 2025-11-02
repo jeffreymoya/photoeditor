@@ -1,0 +1,125 @@
+schema_version: "1.0"
+id: TASK-0825
+title: "Backfill test coverage for Redux slices (imageSlice, settingsSlice)"
+status: todo
+priority: P1
+area: mobile
+unblocker: false
+order: 4
+blocked_by: []
+depends_on: []
+
+description: >-
+  Create comprehensive tests for Redux slices (imageSlice, settingsSlice) to achieve
+  coverage thresholds. Tests verify reducer logic, immer mutations, and action dispatching
+  per standards/testing-standards.md and standards/frontend-tier.md#state--logic-layer.
+
+outcome: >-
+  Test files created for imageSlice and settingsSlice with reducer tests. Coverage
+  thresholds met for state management layer.
+
+scope:
+  in:
+    - mobile/src/store/slices/__tests__/imageSlice.test.ts (new)
+    - mobile/src/store/slices/__tests__/settingsSlice.test.ts (new)
+  out:
+    - RTK Query tests (separate task)
+    - Hook tests (TASK-0831)
+    - Screen tests
+
+context:
+  affected_packages: [mobile]
+  standards_tier: mobile
+  related_docs:
+    - standards/frontend-tier.md
+    - standards/testing-standards.md
+  repo_paths:
+    - mobile/src/store/slices
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "18.x"
+  tools:
+    - name: pnpm
+      version: "8.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Dispatch actions, assert new state, no mocks
+    - Test immer mutations work correctly
+    - Focus on observable state changes
+  prohibited:
+    - No implementation detail mocking
+    - No global mutable state between tests
+
+plan:
+  - id: 1
+    title: Create imageSlice.test.ts
+    details: >-
+      Test the imageSlice reducer logic. Verify actions update state correctly using
+      immer, test all action creators, and ensure immutability per standards/frontend-tier.md.
+    actor: agent
+    inputs:
+      - mobile/src/store/slices/imageSlice.ts
+    outputs:
+      - mobile/src/store/slices/__tests__/imageSlice.test.ts
+    definition_of_done:
+      - All action creators tested
+      - State mutations verified (immer drafts)
+      - Initial state tested
+      - Coverage ≥70% lines, ≥60% branches
+    estimate: S
+    expected_files_touched:
+      - mobile/src/store/slices/__tests__/imageSlice.test.ts
+  - id: 2
+    title: Create settingsSlice.test.ts
+    details: >-
+      Test the settingsSlice reducer logic. Verify settings updates, persistence logic,
+      and state initialization per standards/frontend-tier.md#state--logic-layer.
+    actor: agent
+    inputs:
+      - mobile/src/store/slices/settingsSlice.ts
+    outputs:
+      - mobile/src/store/slices/__tests__/settingsSlice.test.ts
+    definition_of_done:
+      - All action creators tested
+      - Settings update logic verified
+      - Initial state tested
+      - Coverage ≥70% lines, ≥60% branches
+    estimate: S
+    expected_files_touched:
+      - mobile/src/store/slices/__tests__/settingsSlice.test.ts
+
+acceptance_criteria:
+  must:
+    - Test files created for imageSlice and settingsSlice
+    - Coverage ≥70% lines, ≥60% branches for slices
+    - All tests verify immer mutations per standards/frontend-tier.md
+    - pnpm turbo run test --filter=photoeditor-mobile passes
+  quality_gates:
+    - "Reducer tests dispatch actions and assert state"
+    - "No mocks on reducers themselves"
+
+validation:
+  static_checks:
+    - pnpm turbo run lint --filter=photoeditor-mobile
+    - pnpm turbo run typecheck --filter=photoeditor-mobile
+  unit_tests:
+    mobile:
+      - pnpm turbo run test --filter=photoeditor-mobile -- --coverage --testPathPattern=slices
+  contract_tests: []
+  manual_checks: []
+
+deliverables:
+  - mobile/src/store/slices/__tests__/imageSlice.test.ts
+  - mobile/src/store/slices/__tests__/settingsSlice.test.ts
+
+risks:
+  - description: Low risk - simple reducer tests
+    mitigation: Follow existing jobSlice.test.ts patterns

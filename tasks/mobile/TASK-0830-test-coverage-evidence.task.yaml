@@ -3,14 +3,16 @@
 # See tasks/README.md for authoring guide
 
 schema_version: "1.0"
-id: TASK-0823
+id: TASK-0830
 title: "Backfill test coverage and consolidate frontend-tier evidence"
-status: todo
+status: blocked
+blocked_reason: "Broken down into subtasks for manageable implementation (TASK-0831, TASK-0825, TASK-0832)"
 priority: P1
 area: mobile
 unblocker: false
 order: 6
-blocked_by: [TASK-0819, TASK-0820, TASK-0821, TASK-0822]
+blocked_by: [TASK-0831, TASK-0825, TASK-0832]
+depends_on: []
 
 description: >-
   Expand component/hook test coverage to meet standards/testing-standards.md thresholds,
@@ -79,14 +81,14 @@ plan:
       - mobile/src/**/*
       - standards/testing-standards.md
     outputs:
-      - .agent-output/coverage-gaps-TASK-0823.md
+      - .agent-output/coverage-gaps-TASK-0830.md
     definition_of_done:
       - Coverage report run with --coverage flag
       - Gaps documented with specific file:line references
       - Thresholds per standards/testing-standards.md cited
     estimate: S
     expected_files_touched:
-      - .agent-output/coverage-gaps-TASK-0823.md
+      - .agent-output/coverage-gaps-TASK-0830.md
   - id: 2
     title: Backfill component and hook tests
     details: >-
@@ -97,7 +99,7 @@ plan:
       - mobile/src/screens/**/*
       - mobile/src/features/**/*
       - mobile/src/components/**/*
-      - .agent-output/coverage-gaps-TASK-0823.md
+      - .agent-output/coverage-gaps-TASK-0830.md
     outputs:
       - mobile/src/__tests__/screens/*.test.tsx
       - mobile/src/__tests__/components/*.test.tsx
@@ -155,14 +157,15 @@ plan:
       - docs/ui/2025-frontend-tier-gap-analysis.md
 
 acceptance_criteria:
-  - Test coverage meets standards/testing-standards.md thresholds for mobile
-  - All fitness evidence consolidated in docs/ui/ with checksums
-  - docs/ui/fitness-evidence-bundle.md links to all required artifacts
-  - docs/ui/2025-frontend-tier-gap-analysis.md updated with completion status
-  - pnpm turbo run test --filter=photoeditor-mobile -- --coverage passes
-  - pnpm turbo run qa:static --parallel passes
-  - No test regressions introduced
-  testability:
+  must:
+    - Test coverage meets standards/testing-standards.md thresholds for mobile
+    - All fitness evidence consolidated in docs/ui/ with checksums
+    - docs/ui/fitness-evidence-bundle.md links to all required artifacts
+    - docs/ui/2025-frontend-tier-gap-analysis.md updated with completion status
+    - pnpm turbo run test --filter=photoeditor-mobile -- --coverage passes
+    - pnpm turbo run qa:static --parallel passes
+    - No test regressions introduced
+  quality_gates:
     - "Coverage thresholds per standards/testing-standards.md"
     - "Service tests use stub ports"
 

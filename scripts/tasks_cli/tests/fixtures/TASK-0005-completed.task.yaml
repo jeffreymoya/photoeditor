@@ -1,0 +1,11 @@
+id: TASK-0005
+title: Test completed task
+status: completed
+priority: P0
+area: test
+unblocker: false
+order: null
+blocked_by: []
+depends_on: []
+description: |
+  Completed task for testing archive resolution.

@@ -1,0 +1,12 @@
+id: TASK-0002
+title: Test regular task (P0)
+status: todo
+priority: P0
+area: test
+unblocker: false
+order: null
+blocked_by: []
+depends_on: []
+description: |
+  Test task with P0 priority but no unblocker flag.
+  Should be picked AFTER unblocker tasks.

@@ -1,0 +1,15 @@
+id: TASK-0004
+title: Test multi-line blocked_by array
+status: todo
+priority: P1
+area: test
+unblocker: false
+order: null
+blocked_by:
+  - TASK-0001
+  - TASK-0002
+depends_on:
+  - TASK-0099
+description: |
+  Test task with multi-line array for blocked_by.
+  Bash script can parse this format.

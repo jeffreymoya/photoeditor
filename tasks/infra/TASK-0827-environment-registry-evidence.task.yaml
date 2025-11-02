@@ -1,13 +1,12 @@
 schema_version: "1.0"
-id: TASK-0825
+id: TASK-0827
 title: "Stand up infrastructure environment registry"
 status: todo
 blocked_reason: null
 priority: P1
 area: infra
 order: null
-blocked_by:
-  - TASK-0823
+blocked_by: []
 
 description: >-
   Create an authoritative environment registry that captures SST and Terraform outputs per stage (dev, stage, prod), ties

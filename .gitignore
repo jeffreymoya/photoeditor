@@ -66,3 +66,13 @@ backend/tmp/
 backend/.stryker-tmp/
 shared/tmp/
 mobile/tmp/
+
+# Python bytecode and cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+tasks/.cache/
+scripts/tasks_cli/__pycache__/

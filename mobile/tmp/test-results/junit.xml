@@ -1,115 +1,49 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="jest tests" tests="228" failures="0" errors="0" time="9.152">
-  <testsuite name="Test Infrastructure" errors="0" failures="0" skipped="0" timestamp="2025-11-01T10:41:05" time="0.508" tests="6">
-    <testcase classname="Test Infrastructure createMockResponse should create a mock Response with default values" name="Test Infrastructure createMockResponse should create a mock Response with default values" time="0.008">
+<testsuites name="jest tests" tests="274" failures="12" errors="0" time="8.149">
+  <testsuite name="preprocessing utilities" errors="0" failures="0" skipped="0" timestamp="2025-11-01T12:01:29" time="0.874" tests="9">
+    <testcase classname="preprocessing utilities needsResize returns false for images within max dimension" name="preprocessing utilities needsResize returns false for images within max dimension" time="0.005">
     </testcase>
-    <testcase classname="Test Infrastructure createMockResponse should create a mock Response with custom values" name="Test Infrastructure createMockResponse should create a mock Response with custom values" time="0.001">
+    <testcase classname="preprocessing utilities needsResize returns true for images exceeding max dimension" name="preprocessing utilities needsResize returns true for images exceeding max dimension" time="0.001">
     </testcase>
-    <testcase classname="Test Infrastructure createMockResponse should support json() method" name="Test Infrastructure createMockResponse should support json() method" time="0.002">
+    <testcase classname="preprocessing utilities needsResize handles exact boundary case" name="preprocessing utilities needsResize handles exact boundary case" time="0">
     </testcase>
-    <testcase classname="Test Infrastructure createMockResponse should support text() method" name="Test Infrastructure createMockResponse should support text() method" time="0.001">
+    <testcase classname="preprocessing utilities needsResize uses default max dimension of 4096" name="preprocessing utilities needsResize uses default max dimension of 4096" time="0.001">
     </testcase>
-    <testcase classname="Test Infrastructure StubUploadService should provide working stub implementation" name="Test Infrastructure StubUploadService should provide working stub implementation" time="0.003">
+    <testcase classname="preprocessing utilities isHEIC detects HEIC from file extension" name="preprocessing utilities isHEIC detects HEIC from file extension" time="0.001">
     </testcase>
-    <testcase classname="Test Infrastructure StubNotificationService should provide working stub implementation" name="Test Infrastructure StubNotificationService should provide working stub implementation" time="0.001">
+    <testcase classname="preprocessing utilities isHEIC detects HEIF from file extension" name="preprocessing utilities isHEIC detects HEIF from file extension" time="0">
     </testcase>
-  </testsuite>
-  <testsuite name="uploadApi" errors="0" failures="0" skipped="0" timestamp="2025-11-01T10:41:05" time="0.564" tests="10">
-    <testcase classname="uploadApi uploadApi slice configuration should be configured with correct reducer path" name="uploadApi uploadApi slice configuration should be configured with correct reducer path" time="0.015">
+    <testcase classname="preprocessing utilities isHEIC detects HEIC from MIME type" name="preprocessing utilities isHEIC detects HEIC from MIME type" time="0.001">
     </testcase>
-    <testcase classname="uploadApi uploadApi slice configuration should have all required endpoints" name="uploadApi uploadApi slice configuration should have all required endpoints" time="0.004">
+    <testcase classname="preprocessing utilities isHEIC returns false for non-HEIC images" name="preprocessing utilities isHEIC returns false for non-HEIC images" time="0.001">
     </testcase>
-    <testcase classname="uploadApi uploadApi slice configuration should initialize reducer with empty state" name="uploadApi uploadApi slice configuration should initialize reducer with empty state" time="0.006">
-    </testcase>
-    <testcase classname="uploadApi uploadApi slice configuration should have middleware configured" name="uploadApi uploadApi slice configuration should have middleware configured" time="0.002">
-    </testcase>
-    <testcase classname="uploadApi uploadApi slice configuration should provide util methods for cache management" name="uploadApi uploadApi slice configuration should provide util methods for cache management" time="0.003">
-    </testcase>
-    <testcase classname="uploadApi endpoints requestPresignUrl should be a mutation" name="uploadApi endpoints requestPresignUrl should be a mutation" time="0.002">
-    </testcase>
-    <testcase classname="uploadApi endpoints requestBatchPresignUrls should be a mutation" name="uploadApi endpoints requestBatchPresignUrls should be a mutation" time="0.002">
-    </testcase>
-    <testcase classname="uploadApi endpoints getJobStatus should be a query" name="uploadApi endpoints getJobStatus should be a query" time="0.002">
-    </testcase>
-    <testcase classname="uploadApi endpoints getBatchJobStatus should be a query" name="uploadApi endpoints getBatchJobStatus should be a query" time="0.003">
-    </testcase>
-    <testcase classname="uploadApi endpoints healthCheck should be a query" name="uploadApi endpoints healthCheck should be a query" time="0.002">
+    <testcase classname="preprocessing utilities isHEIC handles missing MIME type" name="preprocessing utilities isHEIC handles missing MIME type" time="0">
     </testcase>
   </testsuite>
-  <testsuite name="uploadMachine" errors="0" failures="0" skipped="0" timestamp="2025-11-01T10:41:05" time="0.6" tests="24">
-    <testcase classname="uploadMachine initial state should start in idle state" name="uploadMachine initial state should start in idle state" time="0.013">
-    </testcase>
-    <testcase classname="uploadMachine state transitions should transition from idle to preprocessing on START_UPLOAD" name="uploadMachine state transitions should transition from idle to preprocessing on START_UPLOAD" time="0.004">
-    </testcase>
-    <testcase classname="uploadMachine state transitions should transition from preprocessing to requesting_presign automatically via `always` transition" name="uploadMachine state transitions should transition from preprocessing to requesting_presign automatically via `always` transition" time="0.002">
-    </testcase>
-    <testcase classname="uploadMachine state transitions should transition from requesting_presign to uploading on PRESIGN_SUCCESS" name="uploadMachine state transitions should transition from requesting_presign to uploading on PRESIGN_SUCCESS" time="0.003">
-    </testcase>
-    <testcase classname="uploadMachine state transitions should transition from requesting_presign to failed on PRESIGN_FAILURE" name="uploadMachine state transitions should transition from requesting_presign to failed on PRESIGN_FAILURE" time="0.002">
-    </testcase>
-    <testcase classname="uploadMachine state transitions should update progress in uploading state on UPLOAD_PROGRESS" name="uploadMachine state transitions should update progress in uploading state on UPLOAD_PROGRESS" time="0.002">
-    </testcase>
-    <testcase classname="uploadMachine state transitions should transition from uploading to processing on UPLOAD_SUCCESS" name="uploadMachine state transitions should transition from uploading to processing on UPLOAD_SUCCESS" time="0.002">
-    </testcase>
-    <testcase classname="uploadMachine state transitions should retry upload on UPLOAD_FAILURE when retries available" name="uploadMachine state transitions should retry upload on UPLOAD_FAILURE when retries available" time="0.002">
-    </testcase>
-    <testcase classname="uploadMachine state transitions should transition to failed on UPLOAD_FAILURE when max retries exceeded" name="uploadMachine state transitions should transition to failed on UPLOAD_FAILURE when max retries exceeded" time="0.002">
-    </testcase>
-    <testcase classname="uploadMachine state transitions should transition from uploading to paused on PAUSE" name="uploadMachine state transitions should transition from uploading to paused on PAUSE" time="0.002">
-    </testcase>
-    <testcase classname="uploadMachine state transitions should transition from paused to uploading on RESUME" name="uploadMachine state transitions should transition from paused to uploading on RESUME" time="0.001">
-    </testcase>
-    <testcase classname="uploadMachine state transitions should transition from processing to completed on JOB_COMPLETED" name="uploadMachine state transitions should transition from processing to completed on JOB_COMPLETED" time="0.002">
-    </testcase>
-    <testcase classname="uploadMachine state transitions should transition from processing to failed on JOB_FAILED" name="uploadMachine state transitions should transition from processing to failed on JOB_FAILED" time="0.002">
-    </testcase>
-    <testcase classname="uploadMachine state transitions should transition to idle on CANCEL from any state" name="uploadMachine state transitions should transition to idle on CANCEL from any state" time="0.002">
-    </testcase>
-    <testcase classname="uploadMachine state transitions should transition from failed to preprocessing on RETRY when retries available" name="uploadMachine state transitions should transition from failed to preprocessing on RETRY when retries available" time="0.002">
-    </testcase>
-    <testcase classname="uploadMachine state transitions should reach completed state on JOB_COMPLETED" name="uploadMachine state transitions should reach completed state on JOB_COMPLETED" time="0.003">
-    </testcase>
-    <testcase classname="uploadMachine helper functions isUploadInProgress should return true for active states" name="uploadMachine helper functions isUploadInProgress should return true for active states" time="0.001">
-    </testcase>
-    <testcase classname="uploadMachine helper functions isUploadPauseable should return true only for uploading state" name="uploadMachine helper functions isUploadPauseable should return true only for uploading state" time="0.001">
-    </testcase>
-    <testcase classname="uploadMachine helper functions isUploadTerminal should return true for terminal states" name="uploadMachine helper functions isUploadTerminal should return true for terminal states" time="0">
-    </testcase>
-    <testcase classname="uploadMachine guards (pure predicates) maxRetriesExceeded guard should be pure predicate" name="uploadMachine guards (pure predicates) maxRetriesExceeded guard should be pure predicate" time="0.005">
-    </testcase>
-    <testcase classname="uploadMachine guards (pure predicates) canRetry guard should be pure predicate" name="uploadMachine guards (pure predicates) canRetry guard should be pure predicate" time="0.002">
-    </testcase>
-    <testcase classname="uploadMachine guards (pure predicates) guards should be deterministic (same context → same result)" name="uploadMachine guards (pure predicates) guards should be deterministic (same context → same result)" time="0.004">
-    </testcase>
-    <testcase classname="uploadMachine context actions should update progress incrementally in processing state" name="uploadMachine context actions should update progress incrementally in processing state" time="0.002">
-    </testcase>
-    <testcase classname="uploadMachine context actions should preserve context data when paused" name="uploadMachine context actions should preserve context data when paused" time="0.001">
-    </testcase>
-  </testsuite>
-  <testsuite name="jobSelectors" errors="0" failures="0" skipped="0" timestamp="2025-11-01T10:41:05" time="0.6" tests="42">
-    <testcase classname="jobSelectors Input Selectors selectJobState should extract job slice" name="jobSelectors Input Selectors selectJobState should extract job slice" time="0.008">
+  <testsuite name="jobSelectors" errors="0" failures="0" skipped="0" timestamp="2025-11-01T12:01:30" time="0.153" tests="42">
+    <testcase classname="jobSelectors Input Selectors selectJobState should extract job slice" name="jobSelectors Input Selectors selectJobState should extract job slice" time="0.003">
     </testcase>
     <testcase classname="jobSelectors Input Selectors selectJobs should extract jobs array" name="jobSelectors Input Selectors selectJobs should extract jobs array" time="0.001">
     </testcase>
-    <testcase classname="jobSelectors Input Selectors selectBatchJobs should extract batch jobs array" name="jobSelectors Input Selectors selectBatchJobs should extract batch jobs array" time="0">
+    <testcase classname="jobSelectors Input Selectors selectBatchJobs should extract batch jobs array" name="jobSelectors Input Selectors selectBatchJobs should extract batch jobs array" time="0.001">
     </testcase>
-    <testcase classname="jobSelectors Input Selectors selectActiveJobId should extract active job ID" name="jobSelectors Input Selectors selectActiveJobId should extract active job ID" time="0.001">
+    <testcase classname="jobSelectors Input Selectors selectActiveJobId should extract active job ID" name="jobSelectors Input Selectors selectActiveJobId should extract active job ID" time="0">
     </testcase>
-    <testcase classname="jobSelectors Input Selectors selectActiveBatchJobId should extract active batch job ID" name="jobSelectors Input Selectors selectActiveBatchJobId should extract active batch job ID" time="0.001">
+    <testcase classname="jobSelectors Input Selectors selectActiveBatchJobId should extract active batch job ID" name="jobSelectors Input Selectors selectActiveBatchJobId should extract active batch job ID" time="0">
     </testcase>
-    <testcase classname="jobSelectors Input Selectors selectIsPolling should extract polling state" name="jobSelectors Input Selectors selectIsPolling should extract polling state" time="0">
+    <testcase classname="jobSelectors Input Selectors selectIsPolling should extract polling state" name="jobSelectors Input Selectors selectIsPolling should extract polling state" time="0.001">
     </testcase>
     <testcase classname="jobSelectors Memoized Selectors selectActiveJob should return active job when activeJobId is set" name="jobSelectors Memoized Selectors selectActiveJob should return active job when activeJobId is set" time="0.001">
     </testcase>
     <testcase classname="jobSelectors Memoized Selectors selectActiveJob should return undefined when activeJobId is null" name="jobSelectors Memoized Selectors selectActiveJob should return undefined when activeJobId is null" time="0.001">
     </testcase>
-    <testcase classname="jobSelectors Memoized Selectors selectActiveJob should return undefined when job not found" name="jobSelectors Memoized Selectors selectActiveJob should return undefined when job not found" time="0.001">
+    <testcase classname="jobSelectors Memoized Selectors selectActiveJob should return undefined when job not found" name="jobSelectors Memoized Selectors selectActiveJob should return undefined when job not found" time="0">
     </testcase>
-    <testcase classname="jobSelectors Memoized Selectors selectActiveBatchJob should return active batch job when activeBatchJobId is set" name="jobSelectors Memoized Selectors selectActiveBatchJob should return active batch job when activeBatchJobId is set" time="0">
+    <testcase classname="jobSelectors Memoized Selectors selectActiveBatchJob should return active batch job when activeBatchJobId is set" name="jobSelectors Memoized Selectors selectActiveBatchJob should return active batch job when activeBatchJobId is set" time="0.001">
     </testcase>
-    <testcase classname="jobSelectors Memoized Selectors selectActiveBatchJob should return undefined when activeBatchJobId is null" name="jobSelectors Memoized Selectors selectActiveBatchJob should return undefined when activeBatchJobId is null" time="0.001">
+    <testcase classname="jobSelectors Memoized Selectors selectActiveBatchJob should return undefined when activeBatchJobId is null" name="jobSelectors Memoized Selectors selectActiveBatchJob should return undefined when activeBatchJobId is null" time="0">
     </testcase>
-    <testcase classname="jobSelectors Memoized Selectors selectJobsByStatus should filter jobs by COMPLETED status" name="jobSelectors Memoized Selectors selectJobsByStatus should filter jobs by COMPLETED status" time="0">
+    <testcase classname="jobSelectors Memoized Selectors selectJobsByStatus should filter jobs by COMPLETED status" name="jobSelectors Memoized Selectors selectJobsByStatus should filter jobs by COMPLETED status" time="0.001">
     </testcase>
     <testcase classname="jobSelectors Memoized Selectors selectJobsByStatus should filter jobs by PROCESSING status" name="jobSelectors Memoized Selectors selectJobsByStatus should filter jobs by PROCESSING status" time="0.001">
     </testcase>
@@ -117,23 +51,23 @@
     </testcase>
     <testcase classname="jobSelectors Memoized Selectors selectCompletedJobs should return only completed jobs" name="jobSelectors Memoized Selectors selectCompletedJobs should return only completed jobs" time="0.001">
     </testcase>
-    <testcase classname="jobSelectors Memoized Selectors selectFailedJobs should return only failed jobs" name="jobSelectors Memoized Selectors selectFailedJobs should return only failed jobs" time="0">
+    <testcase classname="jobSelectors Memoized Selectors selectFailedJobs should return only failed jobs" name="jobSelectors Memoized Selectors selectFailedJobs should return only failed jobs" time="0.001">
     </testcase>
     <testcase classname="jobSelectors Memoized Selectors selectInProgressJobs should return jobs with QUEUED, PROCESSING, or EDITING status" name="jobSelectors Memoized Selectors selectInProgressJobs should return jobs with QUEUED, PROCESSING, or EDITING status" time="0.001">
     </testcase>
     <testcase classname="jobSelectors Memoized Selectors makeSelectJobById should return job with matching ID" name="jobSelectors Memoized Selectors makeSelectJobById should return job with matching ID" time="0.001">
     </testcase>
-    <testcase classname="jobSelectors Memoized Selectors makeSelectJobById should return undefined for non-existent ID" name="jobSelectors Memoized Selectors makeSelectJobById should return undefined for non-existent ID" time="0">
+    <testcase classname="jobSelectors Memoized Selectors makeSelectJobById should return undefined for non-existent ID" name="jobSelectors Memoized Selectors makeSelectJobById should return undefined for non-existent ID" time="0.001">
     </testcase>
-    <testcase classname="jobSelectors Memoized Selectors makeSelectBatchJobById should return batch job with matching ID" name="jobSelectors Memoized Selectors makeSelectBatchJobById should return batch job with matching ID" time="0.001">
+    <testcase classname="jobSelectors Memoized Selectors makeSelectBatchJobById should return batch job with matching ID" name="jobSelectors Memoized Selectors makeSelectBatchJobById should return batch job with matching ID" time="0">
     </testcase>
-    <testcase classname="jobSelectors Memoized Selectors makeSelectBatchJobById should return undefined for non-existent ID" name="jobSelectors Memoized Selectors makeSelectBatchJobById should return undefined for non-existent ID" time="0">
+    <testcase classname="jobSelectors Memoized Selectors makeSelectBatchJobById should return undefined for non-existent ID" name="jobSelectors Memoized Selectors makeSelectBatchJobById should return undefined for non-existent ID" time="0.001">
     </testcase>
-    <testcase classname="jobSelectors Memoized Selectors makeSelectJobsByBatchId should return jobs belonging to batch" name="jobSelectors Memoized Selectors makeSelectJobsByBatchId should return jobs belonging to batch" time="0.001">
+    <testcase classname="jobSelectors Memoized Selectors makeSelectJobsByBatchId should return jobs belonging to batch" name="jobSelectors Memoized Selectors makeSelectJobsByBatchId should return jobs belonging to batch" time="0">
     </testcase>
-    <testcase classname="jobSelectors Memoized Selectors makeSelectJobsByBatchId should return empty array for batch with no jobs" name="jobSelectors Memoized Selectors makeSelectJobsByBatchId should return empty array for batch with no jobs" time="0">
+    <testcase classname="jobSelectors Memoized Selectors makeSelectJobsByBatchId should return empty array for batch with no jobs" name="jobSelectors Memoized Selectors makeSelectJobsByBatchId should return empty array for batch with no jobs" time="0.001">
     </testcase>
-    <testcase classname="jobSelectors Memoized Selectors selectBatchJobProgress should calculate progress percentage" name="jobSelectors Memoized Selectors selectBatchJobProgress should calculate progress percentage" time="0.001">
+    <testcase classname="jobSelectors Memoized Selectors selectBatchJobProgress should calculate progress percentage" name="jobSelectors Memoized Selectors selectBatchJobProgress should calculate progress percentage" time="0">
     </testcase>
     <testcase classname="jobSelectors Memoized Selectors selectBatchJobProgress should return 100% for completed batch" name="jobSelectors Memoized Selectors selectBatchJobProgress should return 100% for completed batch" time="0">
     </testcase>
@@ -141,11 +75,11 @@
     </testcase>
     <testcase classname="jobSelectors Memoized Selectors selectHasJobInProgress should return true when jobs are in progress" name="jobSelectors Memoized Selectors selectHasJobInProgress should return true when jobs are in progress" time="0.001">
     </testcase>
-    <testcase classname="jobSelectors Memoized Selectors selectHasJobInProgress should return false when no jobs are in progress" name="jobSelectors Memoized Selectors selectHasJobInProgress should return false when no jobs are in progress" time="0">
+    <testcase classname="jobSelectors Memoized Selectors selectHasJobInProgress should return false when no jobs are in progress" name="jobSelectors Memoized Selectors selectHasJobInProgress should return false when no jobs are in progress" time="0.001">
     </testcase>
     <testcase classname="jobSelectors Memoized Selectors selectHasBatchJobInProgress should return true when batch jobs are in progress" name="jobSelectors Memoized Selectors selectHasBatchJobInProgress should return true when batch jobs are in progress" time="0.001">
     </testcase>
-    <testcase classname="jobSelectors Memoized Selectors selectHasBatchJobInProgress should return false when no batch jobs are in progress" name="jobSelectors Memoized Selectors selectHasBatchJobInProgress should return false when no batch jobs are in progress" time="0">
+    <testcase classname="jobSelectors Memoized Selectors selectHasBatchJobInProgress should return false when no batch jobs are in progress" name="jobSelectors Memoized Selectors selectHasBatchJobInProgress should return false when no batch jobs are in progress" time="0.001">
     </testcase>
     <testcase classname="jobSelectors Memoized Selectors selectJobStatusCounts should count jobs by status" name="jobSelectors Memoized Selectors selectJobStatusCounts should count jobs by status" time="0.001">
     </testcase>
@@ -161,155 +95,295 @@
     </testcase>
     <testcase classname="jobSelectors Memoized Selectors selectActiveWork should indicate no active work when both are null" name="jobSelectors Memoized Selectors selectActiveWork should indicate no active work when both are null" time="0">
     </testcase>
-    <testcase classname="jobSelectors Memoized Selectors selectActivityState should return overall activity state" name="jobSelectors Memoized Selectors selectActivityState should return overall activity state" time="0">
+    <testcase classname="jobSelectors Memoized Selectors selectActivityState should return overall activity state" name="jobSelectors Memoized Selectors selectActivityState should return overall activity state" time="0.001">
     </testcase>
     <testcase classname="jobSelectors Memoized Selectors selectActivityState should indicate inactive when nothing is in progress" name="jobSelectors Memoized Selectors selectActivityState should indicate inactive when nothing is in progress" time="0.001">
     </testcase>
-    <testcase classname="jobSelectors Purity Verification should produce same output for same input (referential transparency)" name="jobSelectors Purity Verification should produce same output for same input (referential transparency)" time="0">
+    <testcase classname="jobSelectors Purity Verification should produce same output for same input (referential transparency)" name="jobSelectors Purity Verification should produce same output for same input (referential transparency)" time="0.001">
     </testcase>
     <testcase classname="jobSelectors Purity Verification should not mutate input state" name="jobSelectors Purity Verification should not mutate input state" time="0.001">
     </testcase>
     <testcase classname="jobSelectors Purity Verification should memoize results (performance)" name="jobSelectors Purity Verification should memoize results (performance)" time="0">
     </testcase>
   </testsuite>
-  <testsuite name="preprocessing utilities" errors="0" failures="0" skipped="0" timestamp="2025-11-01T10:41:05" time="0.744" tests="9">
-    <testcase classname="preprocessing utilities needsResize returns false for images within max dimension" name="preprocessing utilities needsResize returns false for images within max dimension" time="0.005">
+  <testsuite name="uploadMachine" errors="0" failures="0" skipped="0" timestamp="2025-11-01T12:01:30" time="0.195" tests="24">
+    <testcase classname="uploadMachine initial state should start in idle state" name="uploadMachine initial state should start in idle state" time="0.007">
     </testcase>
-    <testcase classname="preprocessing utilities needsResize returns true for images exceeding max dimension" name="preprocessing utilities needsResize returns true for images exceeding max dimension" time="0">
+    <testcase classname="uploadMachine state transitions should transition from idle to preprocessing on START_UPLOAD" name="uploadMachine state transitions should transition from idle to preprocessing on START_UPLOAD" time="0.004">
     </testcase>
-    <testcase classname="preprocessing utilities needsResize handles exact boundary case" name="preprocessing utilities needsResize handles exact boundary case" time="0">
+    <testcase classname="uploadMachine state transitions should transition from preprocessing to requesting_presign automatically via `always` transition" name="uploadMachine state transitions should transition from preprocessing to requesting_presign automatically via `always` transition" time="0.002">
     </testcase>
-    <testcase classname="preprocessing utilities needsResize uses default max dimension of 4096" name="preprocessing utilities needsResize uses default max dimension of 4096" time="0.001">
+    <testcase classname="uploadMachine state transitions should transition from requesting_presign to uploading on PRESIGN_SUCCESS" name="uploadMachine state transitions should transition from requesting_presign to uploading on PRESIGN_SUCCESS" time="0.002">
     </testcase>
-    <testcase classname="preprocessing utilities isHEIC detects HEIC from file extension" name="preprocessing utilities isHEIC detects HEIC from file extension" time="0">
+    <testcase classname="uploadMachine state transitions should transition from requesting_presign to failed on PRESIGN_FAILURE" name="uploadMachine state transitions should transition from requesting_presign to failed on PRESIGN_FAILURE" time="0.002">
     </testcase>
-    <testcase classname="preprocessing utilities isHEIC detects HEIF from file extension" name="preprocessing utilities isHEIC detects HEIF from file extension" time="0.001">
+    <testcase classname="uploadMachine state transitions should update progress in uploading state on UPLOAD_PROGRESS" name="uploadMachine state transitions should update progress in uploading state on UPLOAD_PROGRESS" time="0.003">
     </testcase>
-    <testcase classname="preprocessing utilities isHEIC detects HEIC from MIME type" name="preprocessing utilities isHEIC detects HEIC from MIME type" time="0">
+    <testcase classname="uploadMachine state transitions should transition from uploading to processing on UPLOAD_SUCCESS" name="uploadMachine state transitions should transition from uploading to processing on UPLOAD_SUCCESS" time="0.002">
     </testcase>
-    <testcase classname="preprocessing utilities isHEIC returns false for non-HEIC images" name="preprocessing utilities isHEIC returns false for non-HEIC images" time="0.001">
+    <testcase classname="uploadMachine state transitions should retry upload on UPLOAD_FAILURE when retries available" name="uploadMachine state transitions should retry upload on UPLOAD_FAILURE when retries available" time="0.002">
     </testcase>
-    <testcase classname="preprocessing utilities isHEIC handles missing MIME type" name="preprocessing utilities isHEIC handles missing MIME type" time="0.001">
+    <testcase classname="uploadMachine state transitions should transition to failed on UPLOAD_FAILURE when max retries exceeded" name="uploadMachine state transitions should transition to failed on UPLOAD_FAILURE when max retries exceeded" time="0.002">
+    </testcase>
+    <testcase classname="uploadMachine state transitions should transition from uploading to paused on PAUSE" name="uploadMachine state transitions should transition from uploading to paused on PAUSE" time="0.001">
+    </testcase>
+    <testcase classname="uploadMachine state transitions should transition from paused to uploading on RESUME" name="uploadMachine state transitions should transition from paused to uploading on RESUME" time="0.001">
+    </testcase>
+    <testcase classname="uploadMachine state transitions should transition from processing to completed on JOB_COMPLETED" name="uploadMachine state transitions should transition from processing to completed on JOB_COMPLETED" time="0.002">
+    </testcase>
+    <testcase classname="uploadMachine state transitions should transition from processing to failed on JOB_FAILED" name="uploadMachine state transitions should transition from processing to failed on JOB_FAILED" time="0.002">
+    </testcase>
+    <testcase classname="uploadMachine state transitions should transition to idle on CANCEL from any state" name="uploadMachine state transitions should transition to idle on CANCEL from any state" time="0.001">
+    </testcase>
+    <testcase classname="uploadMachine state transitions should transition from failed to preprocessing on RETRY when retries available" name="uploadMachine state transitions should transition from failed to preprocessing on RETRY when retries available" time="0.003">
+    </testcase>
+    <testcase classname="uploadMachine state transitions should reach completed state on JOB_COMPLETED" name="uploadMachine state transitions should reach completed state on JOB_COMPLETED" time="0.001">
+    </testcase>
+    <testcase classname="uploadMachine helper functions isUploadInProgress should return true for active states" name="uploadMachine helper functions isUploadInProgress should return true for active states" time="0.001">
+    </testcase>
+    <testcase classname="uploadMachine helper functions isUploadPauseable should return true only for uploading state" name="uploadMachine helper functions isUploadPauseable should return true only for uploading state" time="0.001">
+    </testcase>
+    <testcase classname="uploadMachine helper functions isUploadTerminal should return true for terminal states" name="uploadMachine helper functions isUploadTerminal should return true for terminal states" time="0.001">
+    </testcase>
+    <testcase classname="uploadMachine guards (pure predicates) maxRetriesExceeded guard should be pure predicate" name="uploadMachine guards (pure predicates) maxRetriesExceeded guard should be pure predicate" time="0.002">
+    </testcase>
+    <testcase classname="uploadMachine guards (pure predicates) canRetry guard should be pure predicate" name="uploadMachine guards (pure predicates) canRetry guard should be pure predicate" time="0.004">
+    </testcase>
+    <testcase classname="uploadMachine guards (pure predicates) guards should be deterministic (same context → same result)" name="uploadMachine guards (pure predicates) guards should be deterministic (same context → same result)" time="0.002">
+    </testcase>
+    <testcase classname="uploadMachine context actions should update progress incrementally in processing state" name="uploadMachine context actions should update progress incrementally in processing state" time="0.001">
+    </testcase>
+    <testcase classname="uploadMachine context actions should preserve context data when paused" name="uploadMachine context actions should preserve context data when paused" time="0.002">
     </testcase>
   </testsuite>
-  <testsuite name="ApiService - Shared Schema Integration" errors="0" failures="0" skipped="0" timestamp="2025-11-01T10:41:05" time="0.983" tests="25">
-    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Request Presigned URL should validate request body using PresignUploadRequestSchema" name="ApiService - Shared Schema Integration Schema Validation - Request Presigned URL should validate request body using PresignUploadRequestSchema" time="0.061">
+  <testsuite name="uploadApi" errors="0" failures="0" skipped="0" timestamp="2025-11-01T12:01:31" time="0.2" tests="10">
+    <testcase classname="uploadApi uploadApi slice configuration should be configured with correct reducer path" name="uploadApi uploadApi slice configuration should be configured with correct reducer path" time="0.01">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Request Presigned URL should reject invalid request data that violates schema" name="ApiService - Shared Schema Integration Schema Validation - Request Presigned URL should reject invalid request data that violates schema" time="0.033">
+    <testcase classname="uploadApi uploadApi slice configuration should have all required endpoints" name="uploadApi uploadApi slice configuration should have all required endpoints" time="0.004">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Request Presigned URL should reject invalid response data that violates schema" name="ApiService - Shared Schema Integration Schema Validation - Request Presigned URL should reject invalid response data that violates schema" time="0.009">
+    <testcase classname="uploadApi uploadApi slice configuration should initialize reducer with empty state" name="uploadApi uploadApi slice configuration should initialize reducer with empty state" time="0.003">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Job Status should validate job status response using JobSchema" name="ApiService - Shared Schema Integration Schema Validation - Job Status should validate job status response using JobSchema" time="0.004">
+    <testcase classname="uploadApi uploadApi slice configuration should have middleware configured" name="uploadApi uploadApi slice configuration should have middleware configured" time="0.003">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Job Status should validate all possible job statuses" name="ApiService - Shared Schema Integration Schema Validation - Job Status should validate all possible job statuses" time="0.002">
+    <testcase classname="uploadApi uploadApi slice configuration should provide util methods for cache management" name="uploadApi uploadApi slice configuration should provide util methods for cache management" time="0.003">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Job Status should reject invalid job status" name="ApiService - Shared Schema Integration Schema Validation - Job Status should reject invalid job status" time="0.001">
+    <testcase classname="uploadApi endpoints requestPresignUrl should be a mutation" name="uploadApi endpoints requestPresignUrl should be a mutation" time="0.002">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Batch Upload should validate batch upload request using BatchUploadRequestSchema" name="ApiService - Shared Schema Integration Schema Validation - Batch Upload should validate batch upload request using BatchUploadRequestSchema" time="0.006">
+    <testcase classname="uploadApi endpoints requestBatchPresignUrls should be a mutation" name="uploadApi endpoints requestBatchPresignUrls should be a mutation" time="0.002">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Batch Upload should reject batch request with too many files" name="ApiService - Shared Schema Integration Schema Validation - Batch Upload should reject batch request with too many files" time="0.002">
+    <testcase classname="uploadApi endpoints getJobStatus should be a query" name="uploadApi endpoints getJobStatus should be a query" time="0.002">
+    </testcase>
+    <testcase classname="uploadApi endpoints getBatchJobStatus should be a query" name="uploadApi endpoints getBatchJobStatus should be a query" time="0.003">
+    </testcase>
+    <testcase classname="uploadApi endpoints healthCheck should be a query" name="uploadApi endpoints healthCheck should be a query" time="0.002">
+    </testcase>
+  </testsuite>
+  <testsuite name="ApiService - Shared Schema Integration" errors="0" failures="0" skipped="0" timestamp="2025-11-01T12:01:29" time="1.429" tests="25">
+    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Request Presigned URL should validate request body using PresignUploadRequestSchema" name="ApiService - Shared Schema Integration Schema Validation - Request Presigned URL should validate request body using PresignUploadRequestSchema" time="0.054">
+    </testcase>
+    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Request Presigned URL should reject invalid request data that violates schema" name="ApiService - Shared Schema Integration Schema Validation - Request Presigned URL should reject invalid request data that violates schema" time="0.037">
+    </testcase>
+    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Request Presigned URL should reject invalid response data that violates schema" name="ApiService - Shared Schema Integration Schema Validation - Request Presigned URL should reject invalid response data that violates schema" time="0.023">
+    </testcase>
+    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Job Status should validate job status response using JobSchema" name="ApiService - Shared Schema Integration Schema Validation - Job Status should validate job status response using JobSchema" time="0.002">
+    </testcase>
+    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Job Status should validate all possible job statuses" name="ApiService - Shared Schema Integration Schema Validation - Job Status should validate all possible job statuses" time="0.001">
+    </testcase>
+    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Job Status should reject invalid job status" name="ApiService - Shared Schema Integration Schema Validation - Job Status should reject invalid job status" time="0.002">
+    </testcase>
+    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Batch Upload should validate batch upload request using BatchUploadRequestSchema" name="ApiService - Shared Schema Integration Schema Validation - Batch Upload should validate batch upload request using BatchUploadRequestSchema" time="0.005">
+    </testcase>
+    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Batch Upload should reject batch request with too many files" name="ApiService - Shared Schema Integration Schema Validation - Batch Upload should reject batch request with too many files" time="0.001">
     </testcase>
     <testcase classname="ApiService - Shared Schema Integration Schema Validation - Batch Upload should reject batch request with empty files array" name="ApiService - Shared Schema Integration Schema Validation - Batch Upload should reject batch request with empty files array" time="0.001">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Batch Job Status should validate batch job status using BatchJobSchema" name="ApiService - Shared Schema Integration Schema Validation - Batch Job Status should validate batch job status using BatchJobSchema" time="0.003">
+    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Batch Job Status should validate batch job status using BatchJobSchema" name="ApiService - Shared Schema Integration Schema Validation - Batch Job Status should validate batch job status using BatchJobSchema" time="0.001">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Device Token Registration should validate device token request using DeviceTokenRegistrationSchema" name="ApiService - Shared Schema Integration Schema Validation - Device Token Registration should validate device token request using DeviceTokenRegistrationSchema" time="0.002">
+    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Device Token Registration should validate device token request using DeviceTokenRegistrationSchema" name="ApiService - Shared Schema Integration Schema Validation - Device Token Registration should validate device token request using DeviceTokenRegistrationSchema" time="0.001">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Device Token Registration should reject invalid platform values" name="ApiService - Shared Schema Integration Schema Validation - Device Token Registration should reject invalid platform values" time="0.002">
+    <testcase classname="ApiService - Shared Schema Integration Schema Validation - Device Token Registration should reject invalid platform values" name="ApiService - Shared Schema Integration Schema Validation - Device Token Registration should reject invalid platform values" time="0.001">
     </testcase>
     <testcase classname="ApiService - Shared Schema Integration Schema Validation - Device Token Registration should validate device token deactivation response" name="ApiService - Shared Schema Integration Schema Validation - Device Token Registration should validate device token deactivation response" time="0.001">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Polling Logic - processImage should resolve when job completes successfully" name="ApiService - Shared Schema Integration Polling Logic - processImage should resolve when job completes successfully" time="0.017">
+    <testcase classname="ApiService - Shared Schema Integration Polling Logic - processImage should resolve when job completes successfully" name="ApiService - Shared Schema Integration Polling Logic - processImage should resolve when job completes successfully" time="0.012">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Polling Logic - processImage should reject when job fails" name="ApiService - Shared Schema Integration Polling Logic - processImage should reject when job fails" time="0.074">
+    <testcase classname="ApiService - Shared Schema Integration Polling Logic - processImage should reject when job fails" name="ApiService - Shared Schema Integration Polling Logic - processImage should reject when job fails" time="0.115">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Polling Logic - processImage should timeout after max polling attempts" name="ApiService - Shared Schema Integration Polling Logic - processImage should timeout after max polling attempts" time="0.052">
+    <testcase classname="ApiService - Shared Schema Integration Polling Logic - processImage should timeout after max polling attempts" name="ApiService - Shared Schema Integration Polling Logic - processImage should timeout after max polling attempts" time="0.086">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Polling Logic - processImage should continue polling after temporary network errors" name="ApiService - Shared Schema Integration Polling Logic - processImage should continue polling after temporary network errors" time="0.002">
+    <testcase classname="ApiService - Shared Schema Integration Polling Logic - processImage should continue polling after temporary network errors" name="ApiService - Shared Schema Integration Polling Logic - processImage should continue polling after temporary network errors" time="0.004">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Polling Logic - processBatchImages should resolve when batch completes successfully" name="ApiService - Shared Schema Integration Polling Logic - processBatchImages should resolve when batch completes successfully" time="0.004">
+    <testcase classname="ApiService - Shared Schema Integration Polling Logic - processBatchImages should resolve when batch completes successfully" name="ApiService - Shared Schema Integration Polling Logic - processBatchImages should resolve when batch completes successfully" time="0.007">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Polling Logic - processBatchImages should reject when batch fails" name="ApiService - Shared Schema Integration Polling Logic - processBatchImages should reject when batch fails" time="0.102">
+    <testcase classname="ApiService - Shared Schema Integration Polling Logic - processBatchImages should reject when batch fails" name="ApiService - Shared Schema Integration Polling Logic - processBatchImages should reject when batch fails" time="0.235">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Polling Logic - processBatchImages should timeout after max polling attempts" name="ApiService - Shared Schema Integration Polling Logic - processBatchImages should timeout after max polling attempts" time="0.082">
+    <testcase classname="ApiService - Shared Schema Integration Polling Logic - processBatchImages should timeout after max polling attempts" name="ApiService - Shared Schema Integration Polling Logic - processBatchImages should timeout after max polling attempts" time="0.205">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Contract Drift Prevention should use shared schemas directly without local copies" name="ApiService - Shared Schema Integration Contract Drift Prevention should use shared schemas directly without local copies" time="0.001">
+    <testcase classname="ApiService - Shared Schema Integration Contract Drift Prevention should use shared schemas directly without local copies" name="ApiService - Shared Schema Integration Contract Drift Prevention should use shared schemas directly without local copies" time="0.002">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration Contract Drift Prevention should not re-export shared schemas from mobile modules" name="ApiService - Shared Schema Integration Contract Drift Prevention should not re-export shared schemas from mobile modules" time="0">
+    <testcase classname="ApiService - Shared Schema Integration Contract Drift Prevention should not re-export shared schemas from mobile modules" name="ApiService - Shared Schema Integration Contract Drift Prevention should not re-export shared schemas from mobile modules" time="0.001">
     </testcase>
     <testcase classname="ApiService - Shared Schema Integration API Error Handling should throw error on non-ok HTTP response" name="ApiService - Shared Schema Integration API Error Handling should throw error on non-ok HTTP response" time="0.001">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration API Error Handling should throw error on network failure" name="ApiService - Shared Schema Integration API Error Handling should throw error on network failure" time="0">
+    <testcase classname="ApiService - Shared Schema Integration API Error Handling should throw error on network failure" name="ApiService - Shared Schema Integration API Error Handling should throw error on network failure" time="0.001">
     </testcase>
-    <testcase classname="ApiService - Shared Schema Integration API Error Handling should throw error on schema validation failure" name="ApiService - Shared Schema Integration API Error Handling should throw error on schema validation failure" time="0.001">
+    <testcase classname="ApiService - Shared Schema Integration API Error Handling should throw error on schema validation failure" name="ApiService - Shared Schema Integration API Error Handling should throw error on schema validation failure" time="0.002">
     </testcase>
   </testsuite>
-  <testsuite name="UploadButton" errors="0" failures="0" skipped="0" timestamp="2025-11-01T10:41:05" time="1.191" tests="25">
-    <testcase classname="UploadButton idle state renders default text when idle" name="UploadButton idle state renders default text when idle" time="0.139">
+  <testsuite name="Test Infrastructure" errors="0" failures="0" skipped="0" timestamp="2025-11-01T12:01:31" time="0.112" tests="6">
+    <testcase classname="Test Infrastructure createMockResponse should create a mock Response with default values" name="Test Infrastructure createMockResponse should create a mock Response with default values" time="0.002">
     </testcase>
-    <testcase classname="UploadButton idle state renders custom text when provided" name="UploadButton idle state renders custom text when provided" time="0.004">
+    <testcase classname="Test Infrastructure createMockResponse should create a mock Response with custom values" name="Test Infrastructure createMockResponse should create a mock Response with custom values" time="0.002">
     </testcase>
-    <testcase classname="UploadButton idle state calls onPress when button is pressed in idle state" name="UploadButton idle state calls onPress when button is pressed in idle state" time="0.004">
+    <testcase classname="Test Infrastructure createMockResponse should support json() method" name="Test Infrastructure createMockResponse should support json() method" time="0.002">
     </testcase>
-    <testcase classname="UploadButton idle state does not call onPress when disabled" name="UploadButton idle state does not call onPress when disabled" time="0.003">
+    <testcase classname="Test Infrastructure createMockResponse should support text() method" name="Test Infrastructure createMockResponse should support text() method" time="0.001">
     </testcase>
-    <testcase classname="UploadButton preprocessing state displays preprocessing message" name="UploadButton preprocessing state displays preprocessing message" time="0.009">
+    <testcase classname="Test Infrastructure StubUploadService should provide working stub implementation" name="Test Infrastructure StubUploadService should provide working stub implementation" time="0.002">
     </testcase>
-    <testcase classname="UploadButton preprocessing state shows loading indicator during preprocessing" name="UploadButton preprocessing state shows loading indicator during preprocessing" time="0.002">
+    <testcase classname="Test Infrastructure StubNotificationService should provide working stub implementation" name="Test Infrastructure StubNotificationService should provide working stub implementation" time="0.001">
     </testcase>
-    <testcase classname="UploadButton preprocessing state disables button during preprocessing" name="UploadButton preprocessing state disables button during preprocessing" time="0.003">
+  </testsuite>
+  <testsuite name="jobSlice reducer" errors="0" failures="0" skipped="0" timestamp="2025-11-01T12:01:29" time="1.727" tests="28">
+    <testcase classname="jobSlice reducer addJob adds job to start of jobs array" name="jobSlice reducer addJob adds job to start of jobs array" time="0.007">
     </testcase>
-    <testcase classname="UploadButton requesting presign state displays preparing message" name="UploadButton requesting presign state displays preparing message" time="0.002">
+    <testcase classname="jobSlice reducer addJob sets activeJobId to new job id" name="jobSlice reducer addJob sets activeJobId to new job id" time="0.001">
     </testcase>
-    <testcase classname="UploadButton requesting presign state shows loading indicator during presign request" name="UploadButton requesting presign state shows loading indicator during presign request" time="0.002">
+    <testcase classname="jobSlice reducer addJob prepends new job when jobs already exist" name="jobSlice reducer addJob prepends new job when jobs already exist" time="0.001">
     </testcase>
-    <testcase classname="UploadButton uploading state displays progress percentage" name="UploadButton uploading state displays progress percentage" time="0.002">
+    <testcase classname="jobSlice reducer updateJob updates existing job by id" name="jobSlice reducer updateJob updates existing job by id" time="0.001">
     </testcase>
-    <testcase classname="UploadButton uploading state shows loading indicator during upload" name="UploadButton uploading state shows loading indicator during upload" time="0.002">
+    <testcase classname="jobSlice reducer updateJob does not modify state when job id not found" name="jobSlice reducer updateJob does not modify state when job id not found" time="0.001">
     </testcase>
-    <testcase classname="UploadButton uploading state disables button during upload" name="UploadButton uploading state disables button during upload" time="0.003">
+    <testcase classname="jobSlice reducer updateJob merges partial updates with existing job" name="jobSlice reducer updateJob merges partial updates with existing job" time="0.001">
     </testcase>
-    <testcase classname="UploadButton uploading state updates progress text dynamically" name="UploadButton uploading state updates progress text dynamically" time="0.004">
+    <testcase classname="jobSlice reducer removeJob removes job from jobs array" name="jobSlice reducer removeJob removes job from jobs array" time="0.001">
     </testcase>
-    <testcase classname="UploadButton paused state displays paused message" name="UploadButton paused state displays paused message" time="0.001">
+    <testcase classname="jobSlice reducer removeJob clears activeJobId when removing active job" name="jobSlice reducer removeJob clears activeJobId when removing active job" time="0.001">
     </testcase>
-    <testcase classname="UploadButton paused state allows button press when paused" name="UploadButton paused state allows button press when paused" time="0.002">
+    <testcase classname="jobSlice reducer removeJob does not clear activeJobId when removing different job" name="jobSlice reducer removeJob does not clear activeJobId when removing different job" time="0">
     </testcase>
-    <testcase classname="UploadButton success state displays success message" name="UploadButton success state displays success message" time="0.002">
+    <testcase classname="jobSlice reducer removeJob does nothing when job id not found" name="jobSlice reducer removeJob does nothing when job id not found" time="0">
+    </testcase>
+    <testcase classname="jobSlice reducer setActiveJob sets activeJobId to provided value" name="jobSlice reducer setActiveJob sets activeJobId to provided value" time="0.001">
+    </testcase>
+    <testcase classname="jobSlice reducer setActiveJob clears activeJobId when null is provided" name="jobSlice reducer setActiveJob clears activeJobId when null is provided" time="0">
+    </testcase>
+    <testcase classname="jobSlice reducer setPolling sets isPolling to true" name="jobSlice reducer setPolling sets isPolling to true" time="0.001">
+    </testcase>
+    <testcase classname="jobSlice reducer setPolling sets isPolling to false" name="jobSlice reducer setPolling sets isPolling to false" time="0">
+    </testcase>
+    <testcase classname="jobSlice reducer clearJobs clears all jobs" name="jobSlice reducer clearJobs clears all jobs" time="0">
+    </testcase>
+    <testcase classname="jobSlice reducer clearJobs does not affect batchJobs" name="jobSlice reducer clearJobs does not affect batchJobs" time="0.001">
+    </testcase>
+    <testcase classname="jobSlice reducer addBatchJob adds batch job to start of batchJobs array" name="jobSlice reducer addBatchJob adds batch job to start of batchJobs array" time="0.001">
+    </testcase>
+    <testcase classname="jobSlice reducer addBatchJob sets activeBatchJobId to new batch job id" name="jobSlice reducer addBatchJob sets activeBatchJobId to new batch job id" time="0.001">
+    </testcase>
+    <testcase classname="jobSlice reducer updateBatchJob updates existing batch job by id" name="jobSlice reducer updateBatchJob updates existing batch job by id" time="0.001">
+    </testcase>
+    <testcase classname="jobSlice reducer updateBatchJob does not modify state when batch job id not found" name="jobSlice reducer updateBatchJob does not modify state when batch job id not found" time="0">
+    </testcase>
+    <testcase classname="jobSlice reducer removeBatchJob removes batch job from batchJobs array" name="jobSlice reducer removeBatchJob removes batch job from batchJobs array" time="0">
+    </testcase>
+    <testcase classname="jobSlice reducer removeBatchJob clears activeBatchJobId when removing active batch job" name="jobSlice reducer removeBatchJob clears activeBatchJobId when removing active batch job" time="0.001">
+    </testcase>
+    <testcase classname="jobSlice reducer setActiveBatchJob sets activeBatchJobId to provided value" name="jobSlice reducer setActiveBatchJob sets activeBatchJobId to provided value" time="0.001">
+    </testcase>
+    <testcase classname="jobSlice reducer setActiveBatchJob clears activeBatchJobId when null is provided" name="jobSlice reducer setActiveBatchJob clears activeBatchJobId when null is provided" time="0">
+    </testcase>
+    <testcase classname="jobSlice reducer clearBatchJobs clears all batch jobs" name="jobSlice reducer clearBatchJobs clears all batch jobs" time="0">
+    </testcase>
+    <testcase classname="jobSlice reducer clearBatchJobs does not affect regular jobs" name="jobSlice reducer clearBatchJobs does not affect regular jobs" time="0">
+    </testcase>
+    <testcase classname="jobSlice reducer clearAllJobs clears all jobs and batch jobs" name="jobSlice reducer clearAllJobs clears all jobs and batch jobs" time="0.001">
+    </testcase>
+    <testcase classname="jobSlice reducer clearAllJobs resets to initial state" name="jobSlice reducer clearAllJobs resets to initial state" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="UploadButton" errors="0" failures="0" skipped="0" timestamp="2025-11-01T12:01:29" time="1.721" tests="25">
+    <testcase classname="UploadButton idle state renders default text when idle" name="UploadButton idle state renders default text when idle" time="0.279">
+    </testcase>
+    <testcase classname="UploadButton idle state renders custom text when provided" name="UploadButton idle state renders custom text when provided" time="0.009">
+    </testcase>
+    <testcase classname="UploadButton idle state calls onPress when button is pressed in idle state" name="UploadButton idle state calls onPress when button is pressed in idle state" time="0.008">
+    </testcase>
+    <testcase classname="UploadButton idle state does not call onPress when disabled" name="UploadButton idle state does not call onPress when disabled" time="0.026">
+    </testcase>
+    <testcase classname="UploadButton preprocessing state displays preprocessing message" name="UploadButton preprocessing state displays preprocessing message" time="0.02">
+    </testcase>
+    <testcase classname="UploadButton preprocessing state shows loading indicator during preprocessing" name="UploadButton preprocessing state shows loading indicator during preprocessing" time="0.007">
+    </testcase>
+    <testcase classname="UploadButton preprocessing state disables button during preprocessing" name="UploadButton preprocessing state disables button during preprocessing" time="0.007">
+    </testcase>
+    <testcase classname="UploadButton requesting presign state displays preparing message" name="UploadButton requesting presign state displays preparing message" time="0.004">
+    </testcase>
+    <testcase classname="UploadButton requesting presign state shows loading indicator during presign request" name="UploadButton requesting presign state shows loading indicator during presign request" time="0.005">
+    </testcase>
+    <testcase classname="UploadButton uploading state displays progress percentage" name="UploadButton uploading state displays progress percentage" time="0.005">
+    </testcase>
+    <testcase classname="UploadButton uploading state shows loading indicator during upload" name="UploadButton uploading state shows loading indicator during upload" time="0.004">
+    </testcase>
+    <testcase classname="UploadButton uploading state disables button during upload" name="UploadButton uploading state disables button during upload" time="0.005">
+    </testcase>
+    <testcase classname="UploadButton uploading state updates progress text dynamically" name="UploadButton uploading state updates progress text dynamically" time="0.011">
+    </testcase>
+    <testcase classname="UploadButton paused state displays paused message" name="UploadButton paused state displays paused message" time="0.004">
+    </testcase>
+    <testcase classname="UploadButton paused state allows button press when paused" name="UploadButton paused state allows button press when paused" time="0.004">
+    </testcase>
+    <testcase classname="UploadButton success state displays success message" name="UploadButton success state displays success message" time="0.004">
     </testcase>
     <testcase classname="UploadButton success state allows button press after success" name="UploadButton success state allows button press after success" time="0.003">
     </testcase>
-    <testcase classname="UploadButton error state displays retry message" name="UploadButton error state displays retry message" time="0.002">
+    <testcase classname="UploadButton error state displays retry message" name="UploadButton error state displays retry message" time="0.003">
     </testcase>
-    <testcase classname="UploadButton error state allows button press to retry" name="UploadButton error state allows button press to retry" time="0.002">
+    <testcase classname="UploadButton error state allows button press to retry" name="UploadButton error state allows button press to retry" time="0.004">
     </testcase>
-    <testcase classname="UploadButton disabled state prevents interaction when explicitly disabled" name="UploadButton disabled state prevents interaction when explicitly disabled" time="0.002">
+    <testcase classname="UploadButton disabled state prevents interaction when explicitly disabled" name="UploadButton disabled state prevents interaction when explicitly disabled" time="0.003">
     </testcase>
-    <testcase classname="UploadButton progress bar shows progress bar during upload with progress &gt; 0" name="UploadButton progress bar shows progress bar during upload with progress &gt; 0" time="0.001">
+    <testcase classname="UploadButton progress bar shows progress bar during upload with progress &gt; 0" name="UploadButton progress bar shows progress bar during upload with progress &gt; 0" time="0.003">
     </testcase>
     <testcase classname="UploadButton progress bar does not show progress bar when progress is 0" name="UploadButton progress bar does not show progress bar when progress is 0" time="0.003">
     </testcase>
-    <testcase classname="UploadButton accessibility renders with accessible text in all states" name="UploadButton accessibility renders with accessible text in all states" time="0.012">
+    <testcase classname="UploadButton accessibility renders with accessible text in all states" name="UploadButton accessibility renders with accessible text in all states" time="0.018">
     </testcase>
-    <testcase classname="UploadButton edge cases handles progress values at boundaries" name="UploadButton edge cases handles progress values at boundaries" time="0.003">
+    <testcase classname="UploadButton edge cases handles progress values at boundaries" name="UploadButton edge cases handles progress values at boundaries" time="0.005">
     </testcase>
-    <testcase classname="UploadButton edge cases handles undefined progress gracefully" name="UploadButton edge cases handles undefined progress gracefully" time="0.001">
+    <testcase classname="UploadButton edge cases handles undefined progress gracefully" name="UploadButton edge cases handles undefined progress gracefully" time="0.004">
     </testcase>
   </testsuite>
-  <testsuite name="ErrorBoundary" errors="0" failures="0" skipped="0" timestamp="2025-11-01T10:41:05" time="2.361" tests="10">
-    <testcase classname="ErrorBoundary normal operation renders children when no error occurs" name="ErrorBoundary normal operation renders children when no error occurs" time="0.05">
+  <testsuite name="JobsScreen" errors="0" failures="0" skipped="0" timestamp="2025-11-01T12:01:29" time="2.072" tests="3">
+    <testcase classname="JobsScreen Basic Rendering renders title" name="JobsScreen Basic Rendering renders title" time="0.09">
+    </testcase>
+    <testcase classname="JobsScreen Basic Rendering renders subtitle" name="JobsScreen Basic Rendering renders subtitle" time="0.004">
+    </testcase>
+    <testcase classname="JobsScreen Basic Rendering renders without crashing" name="JobsScreen Basic Rendering renders without crashing" time="0.004">
+    </testcase>
+  </testsuite>
+  <testsuite name="SettingsScreen" errors="0" failures="0" skipped="0" timestamp="2025-11-01T12:01:29" time="2.061" tests="3">
+    <testcase classname="SettingsScreen Basic Rendering renders title" name="SettingsScreen Basic Rendering renders title" time="0.092">
+    </testcase>
+    <testcase classname="SettingsScreen Basic Rendering renders subtitle" name="SettingsScreen Basic Rendering renders subtitle" time="0.004">
+    </testcase>
+    <testcase classname="SettingsScreen Basic Rendering renders without crashing" name="SettingsScreen Basic Rendering renders without crashing" time="0.004">
+    </testcase>
+  </testsuite>
+  <testsuite name="ErrorBoundary" errors="0" failures="0" skipped="0" timestamp="2025-11-01T12:01:29" time="3.314" tests="10">
+    <testcase classname="ErrorBoundary normal operation renders children when no error occurs" name="ErrorBoundary normal operation renders children when no error occurs" time="0.059">
     </testcase>
     <testcase classname="ErrorBoundary normal operation renders multiple children without errors" name="ErrorBoundary normal operation renders multiple children without errors" time="0.003">
     </testcase>
-    <testcase classname="ErrorBoundary error handling catches errors from child components" name="ErrorBoundary error handling catches errors from child components" time="0.155">
+    <testcase classname="ErrorBoundary error handling catches errors from child components" name="ErrorBoundary error handling catches errors from child components" time="0.19">
     </testcase>
-    <testcase classname="ErrorBoundary error handling displays error message when error occurs" name="ErrorBoundary error handling displays error message when error occurs" time="0.01">
+    <testcase classname="ErrorBoundary error handling displays error message when error occurs" name="ErrorBoundary error handling displays error message when error occurs" time="0.009">
     </testcase>
-    <testcase classname="ErrorBoundary error handling displays restart button when error occurs" name="ErrorBoundary error handling displays restart button when error occurs" time="0.008">
+    <testcase classname="ErrorBoundary error handling displays restart button when error occurs" name="ErrorBoundary error handling displays restart button when error occurs" time="0.013">
     </testcase>
-    <testcase classname="ErrorBoundary error handling logs error to console" name="ErrorBoundary error handling logs error to console" time="0.007">
+    <testcase classname="ErrorBoundary error handling logs error to console" name="ErrorBoundary error handling logs error to console" time="0.011">
     </testcase>
-    <testcase classname="ErrorBoundary restart functionality resets error state when restart button is pressed" name="ErrorBoundary restart functionality resets error state when restart button is pressed" time="0.014">
+    <testcase classname="ErrorBoundary restart functionality resets error state when restart button is pressed" name="ErrorBoundary restart functionality resets error state when restart button is pressed" time="0.016">
     </testcase>
     <testcase classname="ErrorBoundary dev mode behavior shows error details in dev mode" name="ErrorBoundary dev mode behavior shows error details in dev mode" time="0.008">
     </testcase>
@@ -318,110 +392,110 @@
     <testcase classname="ErrorBoundary accessibility renders error UI with accessible text elements" name="ErrorBoundary accessibility renders error UI with accessible text elements" time="0.01">
     </testcase>
   </testsuite>
-  <testsuite name="UploadServiceAdapter - Basic Operations" errors="0" failures="0" skipped="0" timestamp="2025-11-01T10:41:05" time="3.513" tests="32">
+  <testsuite name="UploadServiceAdapter - Basic Operations" errors="0" failures="0" skipped="0" timestamp="2025-11-01T12:01:29" time="4.164" tests="32">
     <testcase classname="UploadServiceAdapter - Basic Operations setBaseUrl should set base URL and persist to storage" name="UploadServiceAdapter - Basic Operations setBaseUrl should set base URL and persist to storage" time="0.008">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations loadBaseUrl should load base URL from storage if available" name="UploadServiceAdapter - Basic Operations loadBaseUrl should load base URL from storage if available" time="0.001">
+    <testcase classname="UploadServiceAdapter - Basic Operations loadBaseUrl should load base URL from storage if available" name="UploadServiceAdapter - Basic Operations loadBaseUrl should load base URL from storage if available" time="0.002">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations loadBaseUrl should use default URL if storage is empty" name="UploadServiceAdapter - Basic Operations loadBaseUrl should use default URL if storage is empty" time="0.001">
+    <testcase classname="UploadServiceAdapter - Basic Operations loadBaseUrl should use default URL if storage is empty" name="UploadServiceAdapter - Basic Operations loadBaseUrl should use default URL if storage is empty" time="0.002">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations requestPresignedUrl should request presigned URL successfully" name="UploadServiceAdapter - Basic Operations requestPresignedUrl should request presigned URL successfully" time="0.04">
+    <testcase classname="UploadServiceAdapter - Basic Operations requestPresignedUrl should request presigned URL successfully" name="UploadServiceAdapter - Basic Operations requestPresignedUrl should request presigned URL successfully" time="0.067">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations requestPresignedUrl should handle HTTP 4xx errors with retry" name="UploadServiceAdapter - Basic Operations requestPresignedUrl should handle HTTP 4xx errors with retry" time="0.468">
+    <testcase classname="UploadServiceAdapter - Basic Operations requestPresignedUrl should handle HTTP 4xx errors with retry" name="UploadServiceAdapter - Basic Operations requestPresignedUrl should handle HTTP 4xx errors with retry" time="0.477">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations uploadImage should upload image to S3 successfully" name="UploadServiceAdapter - Basic Operations uploadImage should upload image to S3 successfully" time="0.001">
+    <testcase classname="UploadServiceAdapter - Basic Operations uploadImage should upload image to S3 successfully" name="UploadServiceAdapter - Basic Operations uploadImage should upload image to S3 successfully" time="0.004">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations uploadImage should handle S3 upload failures with retry" name="UploadServiceAdapter - Basic Operations uploadImage should handle S3 upload failures with retry" time="0.505">
+    <testcase classname="UploadServiceAdapter - Basic Operations uploadImage should handle S3 upload failures with retry" name="UploadServiceAdapter - Basic Operations uploadImage should handle S3 upload failures with retry" time="0.621">
     </testcase>
     <testcase classname="UploadServiceAdapter - Basic Operations getJobStatus should get job status successfully" name="UploadServiceAdapter - Basic Operations getJobStatus should get job status successfully" time="0.002">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations testConnection should return true when API is reachable" name="UploadServiceAdapter - Basic Operations testConnection should return true when API is reachable" time="0.001">
+    <testcase classname="UploadServiceAdapter - Basic Operations testConnection should return true when API is reachable" name="UploadServiceAdapter - Basic Operations testConnection should return true when API is reachable" time="0.002">
     </testcase>
     <testcase classname="UploadServiceAdapter - Basic Operations testConnection should return false when API is unreachable" name="UploadServiceAdapter - Basic Operations testConnection should return false when API is unreachable" time="0.001">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations processImage should process image end-to-end with polling" name="UploadServiceAdapter - Basic Operations processImage should process image end-to-end with polling" time="0.003">
+    <testcase classname="UploadServiceAdapter - Basic Operations processImage should process image end-to-end with polling" name="UploadServiceAdapter - Basic Operations processImage should process image end-to-end with polling" time="0.004">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations Batch Operations should request batch presigned URLs successfully" name="UploadServiceAdapter - Basic Operations Batch Operations should request batch presigned URLs successfully" time="0.002">
+    <testcase classname="UploadServiceAdapter - Basic Operations Batch Operations should request batch presigned URLs successfully" name="UploadServiceAdapter - Basic Operations Batch Operations should request batch presigned URLs successfully" time="0.004">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations Batch Operations should get batch job status successfully" name="UploadServiceAdapter - Basic Operations Batch Operations should get batch job status successfully" time="0.001">
+    <testcase classname="UploadServiceAdapter - Basic Operations Batch Operations should get batch job status successfully" name="UploadServiceAdapter - Basic Operations Batch Operations should get batch job status successfully" time="0.002">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations Device Token Management should register device token successfully" name="UploadServiceAdapter - Basic Operations Device Token Management should register device token successfully" time="0.001">
+    <testcase classname="UploadServiceAdapter - Basic Operations Device Token Management should register device token successfully" name="UploadServiceAdapter - Basic Operations Device Token Management should register device token successfully" time="0.002">
     </testcase>
     <testcase classname="UploadServiceAdapter - Basic Operations Device Token Management should deactivate device token successfully" name="UploadServiceAdapter - Basic Operations Device Token Management should deactivate device token successfully" time="0.001">
     </testcase>
     <testcase classname="UploadServiceAdapter - Basic Operations Device Token Management should register android device token" name="UploadServiceAdapter - Basic Operations Device Token Management should register android device token" time="0.001">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should poll until job completes successfully" name="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should poll until job completes successfully" time="0.01">
+    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should poll until job completes successfully" name="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should poll until job completes successfully" time="0.009">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should stop polling when job fails" name="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should stop polling when job fails" time="0.053">
+    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should stop polling when job fails" name="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should stop polling when job fails" time="0.102">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should timeout after 120 polling attempts" name="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should timeout after 120 polling attempts" time="0.046">
+    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should timeout after 120 polling attempts" name="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should timeout after 120 polling attempts" time="0.106">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should invoke progress callback during polling" name="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should invoke progress callback during polling" time="0.006">
+    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should invoke progress callback during polling" name="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should invoke progress callback during polling" time="0.01">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should continue polling on temporary network errors" name="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should continue polling on temporary network errors" time="0.002">
+    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should continue polling on temporary network errors" name="UploadServiceAdapter - Basic Operations Polling Logic - pollJobCompletion should continue polling on temporary network errors" time="0.004">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should track batch progress correctly" name="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should track batch progress correctly" time="0.005">
+    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should track batch progress correctly" name="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should track batch progress correctly" time="0.006">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should complete batch when all jobs succeed" name="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should complete batch when all jobs succeed" time="0.003">
+    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should complete batch when all jobs succeed" name="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should complete batch when all jobs succeed" time="0.004">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should handle batch failure" name="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should handle batch failure" time="0.113">
+    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should handle batch failure" name="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should handle batch failure" time="0.135">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should timeout batch after 240 polling attempts" name="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should timeout batch after 240 polling attempts" time="0.091">
+    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should timeout batch after 240 polling attempts" name="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should timeout batch after 240 polling attempts" time="0.114">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should continue batch polling on temporary network errors" name="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should continue batch polling on temporary network errors" time="0.003">
+    <testcase classname="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should continue batch polling on temporary network errors" name="UploadServiceAdapter - Basic Operations Polling Logic - pollBatchJobCompletion should continue batch polling on temporary network errors" time="0.004">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations Error Handling should handle network errors in uploadImage" name="UploadServiceAdapter - Basic Operations Error Handling should handle network errors in uploadImage" time="0.539">
+    <testcase classname="UploadServiceAdapter - Basic Operations Error Handling should handle network errors in uploadImage" name="UploadServiceAdapter - Basic Operations Error Handling should handle network errors in uploadImage" time="0.68">
     </testcase>
     <testcase classname="UploadServiceAdapter - Basic Operations Error Handling should handle malformed response data" name="UploadServiceAdapter - Basic Operations Error Handling should handle malformed response data" time="0.002">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations Error Handling should propagate error when processImage fails during presign" name="UploadServiceAdapter - Basic Operations Error Handling should propagate error when processImage fails during presign" time="0.371">
+    <testcase classname="UploadServiceAdapter - Basic Operations Error Handling should propagate error when processImage fails during presign" name="UploadServiceAdapter - Basic Operations Error Handling should propagate error when processImage fails during presign" time="0.551">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations Error Handling should propagate error when processImage fails during upload" name="UploadServiceAdapter - Basic Operations Error Handling should propagate error when processImage fails during upload" time="0.611">
+    <testcase classname="UploadServiceAdapter - Basic Operations Error Handling should propagate error when processImage fails during upload" name="UploadServiceAdapter - Basic Operations Error Handling should propagate error when processImage fails during upload" time="0.634">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations Request Headers should include traceparent and correlation-id headers" name="UploadServiceAdapter - Basic Operations Request Headers should include traceparent and correlation-id headers" time="0.002">
+    <testcase classname="UploadServiceAdapter - Basic Operations Request Headers should include traceparent and correlation-id headers" name="UploadServiceAdapter - Basic Operations Request Headers should include traceparent and correlation-id headers" time="0.001">
     </testcase>
-    <testcase classname="UploadServiceAdapter - Basic Operations Request Headers should include Content-Type header in requests" name="UploadServiceAdapter - Basic Operations Request Headers should include Content-Type header in requests" time="0.001">
+    <testcase classname="UploadServiceAdapter - Basic Operations Request Headers should include Content-Type header in requests" name="UploadServiceAdapter - Basic Operations Request Headers should include Content-Type header in requests" time="0.002">
     </testcase>
   </testsuite>
-  <testsuite name="NotificationServiceAdapter - Initialization and Permissions" errors="0" failures="0" skipped="0" timestamp="2025-11-01T10:41:05" time="6.127" tests="30">
-    <testcase classname="NotificationServiceAdapter - Initialization and Permissions Constructor should initialize with default base URL" name="NotificationServiceAdapter - Initialization and Permissions Constructor should initialize with default base URL" time="0.005">
+  <testsuite name="NotificationServiceAdapter - Initialization and Permissions" errors="0" failures="0" skipped="0" timestamp="2025-11-01T12:01:29" time="5.77" tests="30">
+    <testcase classname="NotificationServiceAdapter - Initialization and Permissions Constructor should initialize with default base URL" name="NotificationServiceAdapter - Initialization and Permissions Constructor should initialize with default base URL" time="0.01">
     </testcase>
-    <testcase classname="NotificationServiceAdapter - Initialization and Permissions Constructor should initialize with environment base URL when set" name="NotificationServiceAdapter - Initialization and Permissions Constructor should initialize with environment base URL when set" time="0">
+    <testcase classname="NotificationServiceAdapter - Initialization and Permissions Constructor should initialize with environment base URL when set" name="NotificationServiceAdapter - Initialization and Permissions Constructor should initialize with environment base URL when set" time="0.001">
     </testcase>
-    <testcase classname="NotificationServiceAdapter - Initialization and Permissions initialize - Permission Granted should successfully initialize with granted permissions" name="NotificationServiceAdapter - Initialization and Permissions initialize - Permission Granted should successfully initialize with granted permissions" time="0.023">
+    <testcase classname="NotificationServiceAdapter - Initialization and Permissions initialize - Permission Granted should successfully initialize with granted permissions" name="NotificationServiceAdapter - Initialization and Permissions initialize - Permission Granted should successfully initialize with granted permissions" time="0.05">
     </testcase>
-    <testcase classname="NotificationServiceAdapter - Initialization and Permissions initialize - Permission Request Flow should request permissions when not granted" name="NotificationServiceAdapter - Initialization and Permissions initialize - Permission Request Flow should request permissions when not granted" time="0.003">
+    <testcase classname="NotificationServiceAdapter - Initialization and Permissions initialize - Permission Request Flow should request permissions when not granted" name="NotificationServiceAdapter - Initialization and Permissions initialize - Permission Request Flow should request permissions when not granted" time="0.006">
     </testcase>
-    <testcase classname="NotificationServiceAdapter - Initialization and Permissions initialize - Permission Request Flow should handle denied permissions gracefully" name="NotificationServiceAdapter - Initialization and Permissions initialize - Permission Request Flow should handle denied permissions gracefully" time="0.001">
+    <testcase classname="NotificationServiceAdapter - Initialization and Permissions initialize - Permission Request Flow should handle denied permissions gracefully" name="NotificationServiceAdapter - Initialization and Permissions initialize - Permission Request Flow should handle denied permissions gracefully" time="0.002">
     </testcase>
-    <testcase classname="NotificationServiceAdapter - Initialization and Permissions scheduleLocalNotification should schedule local notification with title and body" name="NotificationServiceAdapter - Initialization and Permissions scheduleLocalNotification should schedule local notification with title and body" time="0">
+    <testcase classname="NotificationServiceAdapter - Initialization and Permissions scheduleLocalNotification should schedule local notification with title and body" name="NotificationServiceAdapter - Initialization and Permissions scheduleLocalNotification should schedule local notification with title and body" time="0.002">
     </testcase>
     <testcase classname="NotificationServiceAdapter - Initialization and Permissions scheduleLocalNotification should schedule local notification with data payload" name="NotificationServiceAdapter - Initialization and Permissions scheduleLocalNotification should schedule local notification with data payload" time="0.001">
     </testcase>
-    <testcase classname="NotificationServiceAdapter - Initialization and Permissions scheduleLocalNotification should handle scheduling errors gracefully" name="NotificationServiceAdapter - Initialization and Permissions scheduleLocalNotification should handle scheduling errors gracefully" time="0.02">
+    <testcase classname="NotificationServiceAdapter - Initialization and Permissions scheduleLocalNotification should handle scheduling errors gracefully" name="NotificationServiceAdapter - Initialization and Permissions scheduleLocalNotification should handle scheduling errors gracefully" time="0.029">
     </testcase>
     <testcase classname="NotificationServiceAdapter - Initialization and Permissions cancelAllNotifications should cancel all scheduled notifications" name="NotificationServiceAdapter - Initialization and Permissions cancelAllNotifications should cancel all scheduled notifications" time="0.001">
     </testcase>
-    <testcase classname="NotificationServiceAdapter - Backend Registration Device Token Registration should register device token with backend on iOS" name="NotificationServiceAdapter - Backend Registration Device Token Registration should register device token with backend on iOS" time="0.002">
+    <testcase classname="NotificationServiceAdapter - Backend Registration Device Token Registration should register device token with backend on iOS" name="NotificationServiceAdapter - Backend Registration Device Token Registration should register device token with backend on iOS" time="0.004">
     </testcase>
-    <testcase classname="NotificationServiceAdapter - Backend Registration Device Token Registration should register device token with backend on Android" name="NotificationServiceAdapter - Backend Registration Device Token Registration should register device token with backend on Android" time="0.002">
+    <testcase classname="NotificationServiceAdapter - Backend Registration Device Token Registration should register device token with backend on Android" name="NotificationServiceAdapter - Backend Registration Device Token Registration should register device token with backend on Android" time="0.003">
     </testcase>
-    <testcase classname="NotificationServiceAdapter - Backend Registration Device Token Registration should handle backend registration HTTP 4xx errors" name="NotificationServiceAdapter - Backend Registration Device Token Registration should handle backend registration HTTP 4xx errors" time="1.15">
+    <testcase classname="NotificationServiceAdapter - Backend Registration Device Token Registration should handle backend registration HTTP 4xx errors" name="NotificationServiceAdapter - Backend Registration Device Token Registration should handle backend registration HTTP 4xx errors" time="1.137">
     </testcase>
-    <testcase classname="NotificationServiceAdapter - Backend Registration Device Token Registration should handle backend registration HTTP 5xx errors" name="NotificationServiceAdapter - Backend Registration Device Token Registration should handle backend registration HTTP 5xx errors" time="1.007">
+    <testcase classname="NotificationServiceAdapter - Backend Registration Device Token Registration should handle backend registration HTTP 5xx errors" name="NotificationServiceAdapter - Backend Registration Device Token Registration should handle backend registration HTTP 5xx errors" time="1.016">
     </testcase>
-    <testcase classname="NotificationServiceAdapter - Backend Registration Device Token Registration should handle network failures during registration" name="NotificationServiceAdapter - Backend Registration Device Token Registration should handle network failures during registration" time="1.116">
+    <testcase classname="NotificationServiceAdapter - Backend Registration Device Token Registration should handle network failures during registration" name="NotificationServiceAdapter - Backend Registration Device Token Registration should handle network failures during registration" time="1.145">
     </testcase>
     <testcase classname="NotificationServiceAdapter - Backend Registration Device Token Registration should generate device ID when not stored" name="NotificationServiceAdapter - Backend Registration Device Token Registration should generate device ID when not stored" time="0.001">
     </testcase>
     <testcase classname="NotificationServiceAdapter - Backend Registration unregisterFromBackend should unregister device token from backend" name="NotificationServiceAdapter - Backend Registration unregisterFromBackend should unregister device token from backend" time="0.001">
     </testcase>
-    <testcase classname="NotificationServiceAdapter - Backend Registration unregisterFromBackend should handle unregister HTTP errors gracefully" name="NotificationServiceAdapter - Backend Registration unregisterFromBackend should handle unregister HTTP errors gracefully" time="0.607">
+    <testcase classname="NotificationServiceAdapter - Backend Registration unregisterFromBackend should handle unregister HTTP errors gracefully" name="NotificationServiceAdapter - Backend Registration unregisterFromBackend should handle unregister HTTP errors gracefully" time="0.385">
     </testcase>
-    <testcase classname="NotificationServiceAdapter - Backend Registration unregisterFromBackend should handle unregister network failures gracefully" name="NotificationServiceAdapter - Backend Registration unregisterFromBackend should handle unregister network failures gracefully" time="0.534">
+    <testcase classname="NotificationServiceAdapter - Backend Registration unregisterFromBackend should handle unregister network failures gracefully" name="NotificationServiceAdapter - Backend Registration unregisterFromBackend should handle unregister network failures gracefully" time="0.459">
     </testcase>
-    <testcase classname="NotificationServiceAdapter - Edge Cases and Platform Behavior scheduleJobCompletionNotification should schedule job completion notification with push token" name="NotificationServiceAdapter - Edge Cases and Platform Behavior scheduleJobCompletionNotification should schedule job completion notification with push token" time="0.001">
+    <testcase classname="NotificationServiceAdapter - Edge Cases and Platform Behavior scheduleJobCompletionNotification should schedule job completion notification with push token" name="NotificationServiceAdapter - Edge Cases and Platform Behavior scheduleJobCompletionNotification should schedule job completion notification with push token" time="0.002">
     </testcase>
     <testcase classname="NotificationServiceAdapter - Edge Cases and Platform Behavior scheduleJobCompletionNotification should skip job completion notification when no push token available" name="NotificationServiceAdapter - Edge Cases and Platform Behavior scheduleJobCompletionNotification should skip job completion notification when no push token available" time="0.003">
     </testcase>
@@ -439,39 +513,402 @@
     </testcase>
     <testcase classname="NotificationServiceAdapter - Edge Cases and Platform Behavior Backend Registration Response Validation should handle backend response with success=false" name="NotificationServiceAdapter - Edge Cases and Platform Behavior Backend Registration Response Validation should handle backend response with success=false" time="0.001">
     </testcase>
-    <testcase classname="NotificationServiceAdapter - Edge Cases and Platform Behavior Backend Registration Response Validation should handle malformed backend response" name="NotificationServiceAdapter - Edge Cases and Platform Behavior Backend Registration Response Validation should handle malformed backend response" time="1.021">
+    <testcase classname="NotificationServiceAdapter - Edge Cases and Platform Behavior Backend Registration Response Validation should handle malformed backend response" name="NotificationServiceAdapter - Edge Cases and Platform Behavior Backend Registration Response Validation should handle malformed backend response" time="0.801">
     </testcase>
     <testcase classname="NotificationServiceAdapter - Edge Cases and Platform Behavior getExpoPushToken should return undefined when not initialized" name="NotificationServiceAdapter - Edge Cases and Platform Behavior getExpoPushToken should return undefined when not initialized" time="0">
     </testcase>
-    <testcase classname="NotificationServiceAdapter - Edge Cases and Platform Behavior getExpoPushToken should return token after successful initialization" name="NotificationServiceAdapter - Edge Cases and Platform Behavior getExpoPushToken should return token after successful initialization" time="0.001">
+    <testcase classname="NotificationServiceAdapter - Edge Cases and Platform Behavior getExpoPushToken should return token after successful initialization" name="NotificationServiceAdapter - Edge Cases and Platform Behavior getExpoPushToken should return token after successful initialization" time="0.002">
     </testcase>
   </testsuite>
-  <testsuite name="retry utilities" errors="0" failures="0" skipped="0" timestamp="2025-11-01T10:41:05" time="8.412" tests="15">
-    <testcase classname="retry utilities calculateBackoffDelay calculates exponential backoff correctly" name="retry utilities calculateBackoffDelay calculates exponential backoff correctly" time="0.009">
+  <testsuite name="HomeScreen" errors="0" failures="12" skipped="0" timestamp="2025-11-01T12:01:29" time="5.895" tests="12">
+    <testcase classname="HomeScreen Basic Rendering renders title and subtitle" name="HomeScreen Basic Rendering renders title and subtitle" time="0.123">
+      <failure>TypeError: Cannot read properties of undefined (reading &apos;jobs&apos;)
+    at jobs (/home/jeffreymoya/dev/photoeditor/mobile/src/screens/HomeScreen.tsx:44:11)
+    at Component (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:6351:18)
+    at renderWithHooks (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:9855:13)
+    at mountIndeterminateComponent (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:11312:16)
+    at beginWork$1 (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15808:12)
+    at performUnitOfWork (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15745:5)
+    at workLoopSync (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15717:7)
+    at renderRootSync (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15187:20)
+    at recoverFromConcurrentError (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15087:22)
+    at callback (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react@18.2.0/node_modules/react/cjs/react.development.js:2667:24)
+    at flushActQueue (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react@18.2.0/node_modules/react/cjs/react.development.js:2582:11)
+    at actImplementation (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/act.ts:30:25)
+    at renderWithAct (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+    at renderInternal (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+    at renderInternal (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+    at renderHomeScreen (/home/jeffreymoya/dev/photoeditor/mobile/src/screens/__tests__/HomeScreen.test.tsx:44:16)
+    at Object.renderHomeScreen (/home/jeffreymoya/dev/photoeditor/mobile/src/screens/__tests__/HomeScreen.test.tsx:60:7)
+    at Promise.then.completed (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/utils.js:298:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/utils.js:231:10)
+    at _callCircusTest (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:316:40)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at _runTest (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:252:3)
+    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:126:9)
+    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:121:9)
+    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:121:9)
+    at run (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:71:3)
+    at runAndTransformResultsToJestFormat (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)</failure>
     </testcase>
-    <testcase classname="retry utilities calculateBackoffDelay respects max delay cap" name="retry utilities calculateBackoffDelay respects max delay cap" time="0.001">
+    <testcase classname="HomeScreen Basic Rendering renders Quick Actions section" name="HomeScreen Basic Rendering renders Quick Actions section" time="0.005">
+      <failure>TypeError: Cannot read properties of undefined (reading &apos;jobs&apos;)
+    at jobs (/home/jeffreymoya/dev/photoeditor/mobile/src/screens/HomeScreen.tsx:44:11)
+    at Component (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:6351:18)
+    at renderWithHooks (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:9855:13)
+    at mountIndeterminateComponent (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:11312:16)
+    at beginWork$1 (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15808:12)
+    at performUnitOfWork (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15745:5)
+    at workLoopSync (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15717:7)
+    at renderRootSync (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15187:20)
+    at recoverFromConcurrentError (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15087:22)
+    at callback (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react@18.2.0/node_modules/react/cjs/react.development.js:2667:24)
+    at flushActQueue (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react@18.2.0/node_modules/react/cjs/react.development.js:2582:11)
+    at actImplementation (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/act.ts:30:25)
+    at renderWithAct (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+    at renderInternal (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+    at renderInternal (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+    at renderHomeScreen (/home/jeffreymoya/dev/photoeditor/mobile/src/screens/__tests__/HomeScreen.test.tsx:44:16)
+    at Object.renderHomeScreen (/home/jeffreymoya/dev/photoeditor/mobile/src/screens/__tests__/HomeScreen.test.tsx:69:7)
+    at Promise.then.completed (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/utils.js:298:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/utils.js:231:10)
+    at _callCircusTest (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:316:40)
+    at _runTest (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:252:3)
+    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:126:9)
+    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:121:9)
+    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:121:9)
+    at run (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:71:3)
+    at runAndTransformResultsToJestFormat (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)</failure>
+    </testcase>
+    <testcase classname="HomeScreen Navigation Actions navigates to Camera when Take Photo is pressed" name="HomeScreen Navigation Actions navigates to Camera when Take Photo is pressed" time="0.004">
+      <failure>TypeError: Cannot read properties of undefined (reading &apos;jobs&apos;)
+    at jobs (/home/jeffreymoya/dev/photoeditor/mobile/src/screens/HomeScreen.tsx:44:11)
+    at Component (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:6351:18)
+    at renderWithHooks (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:9855:13)
+    at mountIndeterminateComponent (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:11312:16)
+    at beginWork$1 (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15808:12)
+    at performUnitOfWork (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15745:5)
+    at workLoopSync (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15717:7)
+    at renderRootSync (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15187:20)
+    at recoverFromConcurrentError (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15087:22)
+    at callback (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react@18.2.0/node_modules/react/cjs/react.development.js:2667:24)
+    at flushActQueue (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react@18.2.0/node_modules/react/cjs/react.development.js:2582:11)
+    at actImplementation (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/act.ts:30:25)
+    at renderWithAct (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+    at renderInternal (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+    at renderInternal (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+    at renderHomeScreen (/home/jeffreymoya/dev/photoeditor/mobile/src/screens/__tests__/HomeScreen.test.tsx:44:16)
+    at Object.renderHomeScreen (/home/jeffreymoya/dev/photoeditor/mobile/src/screens/__tests__/HomeScreen.test.tsx:80:7)
+    at Promise.then.completed (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/utils.js:298:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/utils.js:231:10)
+    at _callCircusTest (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:316:40)
+    at _runTest (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:252:3)
+    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:126:9)
+    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:121:9)
+    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:121:9)
+    at run (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:71:3)
+    at runAndTransformResultsToJestFormat (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)</failure>
+    </testcase>
+    <testcase classname="HomeScreen Navigation Actions navigates to Gallery when Select from Gallery is pressed" name="HomeScreen Navigation Actions navigates to Gallery when Select from Gallery is pressed" time="0.003">
+      <failure>TypeError: Cannot read properties of undefined (reading &apos;jobs&apos;)
+    at jobs (/home/jeffreymoya/dev/photoeditor/mobile/src/screens/HomeScreen.tsx:44:11)
+    at Component (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:6351:18)
+    at renderWithHooks (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:9855:13)
+    at mountIndeterminateComponent (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:11312:16)
+    at beginWork$1 (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15808:12)
+    at performUnitOfWork (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15745:5)
+    at workLoopSync (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15717:7)
+    at renderRootSync (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15187:20)
+    at recoverFromConcurrentError (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15087:22)
+    at callback (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react@18.2.0/node_modules/react/cjs/react.development.js:2667:24)
+    at flushActQueue (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react@18.2.0/node_modules/react/cjs/react.development.js:2582:11)
+    at actImplementation (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/act.ts:30:25)
+    at renderWithAct (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+    at renderInternal (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+    at renderInternal (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+    at renderHomeScreen (/home/jeffreymoya/dev/photoeditor/mobile/src/screens/__tests__/HomeScreen.test.tsx:44:16)
+    at Object.renderHomeScreen (/home/jeffreymoya/dev/photoeditor/mobile/src/screens/__tests__/HomeScreen.test.tsx:90:7)
+    at Promise.then.completed (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/utils.js:298:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/utils.js:231:10)
+    at _callCircusTest (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:316:40)
+    at _runTest (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:252:3)
+    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:126:9)
+    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:121:9)
+    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:121:9)
+    at run (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:71:3)
+    at runAndTransformResultsToJestFormat (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)</failure>
+    </testcase>
+    <testcase classname="HomeScreen Navigation Actions navigates to Jobs when View Jobs is pressed" name="HomeScreen Navigation Actions navigates to Jobs when View Jobs is pressed" time="0.004">
+      <failure>TypeError: Cannot read properties of undefined (reading &apos;jobs&apos;)
+    at jobs (/home/jeffreymoya/dev/photoeditor/mobile/src/screens/HomeScreen.tsx:44:11)
+    at Component (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:6351:18)
+    at renderWithHooks (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:9855:13)
+    at mountIndeterminateComponent (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:11312:16)
+    at beginWork$1 (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15808:12)
+    at performUnitOfWork (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15745:5)
+    at workLoopSync (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15717:7)
+    at renderRootSync (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15187:20)
+    at recoverFromConcurrentError (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15087:22)
+    at callback (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react@18.2.0/node_modules/react/cjs/react.development.js:2667:24)
+    at flushActQueue (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react@18.2.0/node_modules/react/cjs/react.development.js:2582:11)
+    at actImplementation (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/act.ts:30:25)
+    at renderWithAct (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+    at renderInternal (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+    at renderInternal (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+    at renderHomeScreen (/home/jeffreymoya/dev/photoeditor/mobile/src/screens/__tests__/HomeScreen.test.tsx:44:16)
+    at Object.renderHomeScreen (/home/jeffreymoya/dev/photoeditor/mobile/src/screens/__tests__/HomeScreen.test.tsx:100:7)
+    at Promise.then.completed (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/utils.js:298:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/utils.js:231:10)
+    at _callCircusTest (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:316:40)
+    at _runTest (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:252:3)
+    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:126:9)
+    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:121:9)
+    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:121:9)
+    at run (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:71:3)
+    at runAndTransformResultsToJestFormat (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)</failure>
+    </testcase>
+    <testcase classname="HomeScreen Recent Jobs Display does not render Recent Jobs section when jobs array is empty" name="HomeScreen Recent Jobs Display does not render Recent Jobs section when jobs array is empty" time="0.003">
+      <failure>TypeError: Cannot read properties of undefined (reading &apos;jobs&apos;)
+    at jobs (/home/jeffreymoya/dev/photoeditor/mobile/src/screens/HomeScreen.tsx:44:11)
+    at Component (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:6351:18)
+    at renderWithHooks (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:9855:13)
+    at mountIndeterminateComponent (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:11312:16)
+    at beginWork$1 (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15808:12)
+    at performUnitOfWork (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15745:5)
+    at workLoopSync (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15717:7)
+    at renderRootSync (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15187:20)
+    at recoverFromConcurrentError (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15087:22)
+    at callback (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react@18.2.0/node_modules/react/cjs/react.development.js:2667:24)
+    at flushActQueue (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react@18.2.0/node_modules/react/cjs/react.development.js:2582:11)
+    at actImplementation (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/act.ts:30:25)
+    at renderWithAct (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+    at renderInternal (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+    at renderInternal (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+    at renderHomeScreen (/home/jeffreymoya/dev/photoeditor/mobile/src/screens/__tests__/HomeScreen.test.tsx:44:16)
+    at Object.renderHomeScreen (/home/jeffreymoya/dev/photoeditor/mobile/src/screens/__tests__/HomeScreen.test.tsx:112:7)
+    at Promise.then.completed (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/utils.js:298:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/utils.js:231:10)
+    at _callCircusTest (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:316:40)
+    at _runTest (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:252:3)
+    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:126:9)
+    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:121:9)
+    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:121:9)
+    at run (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:71:3)
+    at runAndTransformResultsToJestFormat (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)</failure>
+    </testcase>
+    <testcase classname="HomeScreen Recent Jobs Display renders Recent Jobs section when jobs exist" name="HomeScreen Recent Jobs Display renders Recent Jobs section when jobs exist" time="0.008">
+      <failure>TypeError: Cannot read properties of undefined (reading &apos;jobs&apos;)
+    at jobs (/home/jeffreymoya/dev/photoeditor/mobile/src/screens/HomeScreen.tsx:44:11)
+    at Component (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:6351:18)
+    at renderWithHooks (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:9855:13)
+    at mountIndeterminateComponent (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:11312:16)
+    at beginWork$1 (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15808:12)
+    at performUnitOfWork (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15745:5)
+    at workLoopSync (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15717:7)
+    at renderRootSync (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15187:20)
+    at recoverFromConcurrentError (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15087:22)
+    at callback (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react@18.2.0/node_modules/react/cjs/react.development.js:2667:24)
+    at flushActQueue (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react@18.2.0/node_modules/react/cjs/react.development.js:2582:11)
+    at actImplementation (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/act.ts:30:25)
+    at renderWithAct (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+    at renderInternal (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+    at renderInternal (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+    at renderHomeScreen (/home/jeffreymoya/dev/photoeditor/mobile/src/screens/__tests__/HomeScreen.test.tsx:44:16)
+    at Object.renderHomeScreen (/home/jeffreymoya/dev/photoeditor/mobile/src/screens/__tests__/HomeScreen.test.tsx:144:7)
+    at Promise.then.completed (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/utils.js:298:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/utils.js:231:10)
+    at _callCircusTest (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:316:40)
+    at _runTest (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:252:3)
+    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:126:9)
+    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:121:9)
+    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:121:9)
+    at run (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:71:3)
+    at runAndTransformResultsToJestFormat (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)</failure>
+    </testcase>
+    <testcase classname="HomeScreen Recent Jobs Display renders only first 5 recent jobs when more exist" name="HomeScreen Recent Jobs Display renders only first 5 recent jobs when more exist" time="0.003">
+      <failure>TypeError: Cannot read properties of undefined (reading &apos;jobs&apos;)
+    at jobs (/home/jeffreymoya/dev/photoeditor/mobile/src/screens/HomeScreen.tsx:44:11)
+    at Component (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:6351:18)
+    at renderWithHooks (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:9855:13)
+    at mountIndeterminateComponent (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:11312:16)
+    at beginWork$1 (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15808:12)
+    at performUnitOfWork (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15745:5)
+    at workLoopSync (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15717:7)
+    at renderRootSync (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15187:20)
+    at recoverFromConcurrentError (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15087:22)
+    at callback (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react@18.2.0/node_modules/react/cjs/react.development.js:2667:24)
+    at flushActQueue (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react@18.2.0/node_modules/react/cjs/react.development.js:2582:11)
+    at actImplementation (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/act.ts:30:25)
+    at renderWithAct (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+    at renderInternal (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+    at renderInternal (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+    at renderHomeScreen (/home/jeffreymoya/dev/photoeditor/mobile/src/screens/__tests__/HomeScreen.test.tsx:44:16)
+    at Object.renderHomeScreen (/home/jeffreymoya/dev/photoeditor/mobile/src/screens/__tests__/HomeScreen.test.tsx:169:7)
+    at Promise.then.completed (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/utils.js:298:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/utils.js:231:10)
+    at _callCircusTest (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:316:40)
+    at _runTest (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:252:3)
+    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:126:9)
+    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:121:9)
+    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:121:9)
+    at run (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:71:3)
+    at runAndTransformResultsToJestFormat (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)</failure>
+    </testcase>
+    <testcase classname="HomeScreen Recent Jobs Display navigates to Jobs screen when View All is pressed" name="HomeScreen Recent Jobs Display navigates to Jobs screen when View All is pressed" time="0.003">
+      <failure>TypeError: Cannot read properties of undefined (reading &apos;jobs&apos;)
+    at jobs (/home/jeffreymoya/dev/photoeditor/mobile/src/screens/HomeScreen.tsx:44:11)
+    at Component (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:6351:18)
+    at renderWithHooks (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:9855:13)
+    at mountIndeterminateComponent (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:11312:16)
+    at beginWork$1 (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15808:12)
+    at performUnitOfWork (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15745:5)
+    at workLoopSync (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15717:7)
+    at renderRootSync (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15187:20)
+    at recoverFromConcurrentError (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15087:22)
+    at callback (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react@18.2.0/node_modules/react/cjs/react.development.js:2667:24)
+    at flushActQueue (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react@18.2.0/node_modules/react/cjs/react.development.js:2582:11)
+    at actImplementation (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/act.ts:30:25)
+    at renderWithAct (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+    at renderInternal (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+    at renderInternal (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+    at renderHomeScreen (/home/jeffreymoya/dev/photoeditor/mobile/src/screens/__tests__/HomeScreen.test.tsx:44:16)
+    at Object.renderHomeScreen (/home/jeffreymoya/dev/photoeditor/mobile/src/screens/__tests__/HomeScreen.test.tsx:202:7)
+    at Promise.then.completed (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/utils.js:298:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/utils.js:231:10)
+    at _callCircusTest (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:316:40)
+    at _runTest (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:252:3)
+    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:126:9)
+    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:121:9)
+    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:121:9)
+    at run (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:71:3)
+    at runAndTransformResultsToJestFormat (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)</failure>
+    </testcase>
+    <testcase classname="HomeScreen Job Status Display displays job status badges with correct text" name="HomeScreen Job Status Display displays job status badges with correct text" time="0.003">
+      <failure>TypeError: Cannot read properties of undefined (reading &apos;jobs&apos;)
+    at jobs (/home/jeffreymoya/dev/photoeditor/mobile/src/screens/HomeScreen.tsx:44:11)
+    at Component (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:6351:18)
+    at renderWithHooks (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:9855:13)
+    at mountIndeterminateComponent (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:11312:16)
+    at beginWork$1 (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15808:12)
+    at performUnitOfWork (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15745:5)
+    at workLoopSync (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15717:7)
+    at renderRootSync (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15187:20)
+    at recoverFromConcurrentError (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15087:22)
+    at callback (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react@18.2.0/node_modules/react/cjs/react.development.js:2667:24)
+    at flushActQueue (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react@18.2.0/node_modules/react/cjs/react.development.js:2582:11)
+    at actImplementation (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/act.ts:30:25)
+    at renderWithAct (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+    at renderInternal (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+    at renderInternal (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+    at renderHomeScreen (/home/jeffreymoya/dev/photoeditor/mobile/src/screens/__tests__/HomeScreen.test.tsx:44:16)
+    at Object.renderHomeScreen (/home/jeffreymoya/dev/photoeditor/mobile/src/screens/__tests__/HomeScreen.test.tsx:231:7)
+    at Promise.then.completed (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/utils.js:298:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/utils.js:231:10)
+    at _callCircusTest (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:316:40)
+    at _runTest (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:252:3)
+    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:126:9)
+    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:121:9)
+    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:121:9)
+    at run (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:71:3)
+    at runAndTransformResultsToJestFormat (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)</failure>
+    </testcase>
+    <testcase classname="HomeScreen Job Status Display renders different job statuses correctly" name="HomeScreen Job Status Display renders different job statuses correctly" time="0.003">
+      <failure>TypeError: Cannot read properties of undefined (reading &apos;jobs&apos;)
+    at jobs (/home/jeffreymoya/dev/photoeditor/mobile/src/screens/HomeScreen.tsx:44:11)
+    at Component (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:6351:18)
+    at renderWithHooks (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:9855:13)
+    at mountIndeterminateComponent (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:11312:16)
+    at beginWork$1 (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15808:12)
+    at performUnitOfWork (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15745:5)
+    at workLoopSync (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15717:7)
+    at renderRootSync (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15187:20)
+    at recoverFromConcurrentError (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15087:22)
+    at callback (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react@18.2.0/node_modules/react/cjs/react.development.js:2667:24)
+    at flushActQueue (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react@18.2.0/node_modules/react/cjs/react.development.js:2582:11)
+    at actImplementation (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/act.ts:30:25)
+    at renderWithAct (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+    at renderInternal (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+    at renderInternal (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+    at renderHomeScreen (/home/jeffreymoya/dev/photoeditor/mobile/src/screens/__tests__/HomeScreen.test.tsx:44:16)
+    at Object.renderHomeScreen (/home/jeffreymoya/dev/photoeditor/mobile/src/screens/__tests__/HomeScreen.test.tsx:270:7)
+    at Promise.then.completed (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/utils.js:298:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/utils.js:231:10)
+    at _callCircusTest (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:316:40)
+    at _runTest (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:252:3)
+    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:126:9)
+    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:121:9)
+    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:121:9)
+    at run (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:71:3)
+    at runAndTransformResultsToJestFormat (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)</failure>
+    </testcase>
+    <testcase classname="HomeScreen Date Formatting formats createdAt date as locale date string" name="HomeScreen Date Formatting formats createdAt date as locale date string" time="0.002">
+      <failure>TypeError: Cannot read properties of undefined (reading &apos;jobs&apos;)
+    at jobs (/home/jeffreymoya/dev/photoeditor/mobile/src/screens/HomeScreen.tsx:44:11)
+    at Component (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:6351:18)
+    at renderWithHooks (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:9855:13)
+    at mountIndeterminateComponent (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:11312:16)
+    at beginWork$1 (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15808:12)
+    at performUnitOfWork (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15745:5)
+    at workLoopSync (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15717:7)
+    at renderRootSync (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15187:20)
+    at recoverFromConcurrentError (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react-test-renderer@18.2.0_react@18.2.0/node_modules/react-test-renderer/cjs/react-test-renderer.development.js:15087:22)
+    at callback (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react@18.2.0/node_modules/react/cjs/react.development.js:2667:24)
+    at flushActQueue (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/react@18.2.0/node_modules/react/cjs/react.development.js:2582:11)
+    at actImplementation (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/act.ts:30:25)
+    at renderWithAct (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+    at renderInternal (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/render.tsx:69:33)
+    at renderInternal (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/@testing-library+react-native@13.3.3_jest@29.7.0_react-native@0.73.4_react-test-renderer@18.2.0_react@18.2.0/node_modules/@testing-library/react-native/src/render.tsx:44:10)
+    at renderHomeScreen (/home/jeffreymoya/dev/photoeditor/mobile/src/screens/__tests__/HomeScreen.test.tsx:44:16)
+    at Object.renderHomeScreen (/home/jeffreymoya/dev/photoeditor/mobile/src/screens/__tests__/HomeScreen.test.tsx:298:7)
+    at Promise.then.completed (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/utils.js:298:28)
+    at new Promise (&lt;anonymous&gt;)
+    at callAsyncCircusFn (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/utils.js:231:10)
+    at _callCircusTest (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:316:40)
+    at _runTest (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:252:3)
+    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:126:9)
+    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:121:9)
+    at _runTestsForDescribeBlock (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:121:9)
+    at run (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/run.js:71:3)
+    at runAndTransformResultsToJestFormat (/home/jeffreymoya/dev/photoeditor/node_modules/.pnpm/jest-circus@29.7.0/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)</failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="retry utilities" errors="0" failures="0" skipped="0" timestamp="2025-11-01T12:01:29" time="7.341" tests="15">
+    <testcase classname="retry utilities calculateBackoffDelay calculates exponential backoff correctly" name="retry utilities calculateBackoffDelay calculates exponential backoff correctly" time="0.008">
+    </testcase>
+    <testcase classname="retry utilities calculateBackoffDelay respects max delay cap" name="retry utilities calculateBackoffDelay respects max delay cap" time="0">
     </testcase>
     <testcase classname="retry utilities calculateBackoffDelay applies jitter when enabled" name="retry utilities calculateBackoffDelay applies jitter when enabled" time="0.003">
     </testcase>
-    <testcase classname="retry utilities calculateBackoffDelay uses default options when not specified" name="retry utilities calculateBackoffDelay uses default options when not specified" time="0.002">
+    <testcase classname="retry utilities calculateBackoffDelay uses default options when not specified" name="retry utilities calculateBackoffDelay uses default options when not specified" time="0.001">
     </testcase>
-    <testcase classname="retry utilities withRetry succeeds on first attempt" name="retry utilities withRetry succeeds on first attempt" time="0.002">
+    <testcase classname="retry utilities withRetry succeeds on first attempt" name="retry utilities withRetry succeeds on first attempt" time="0.001">
     </testcase>
-    <testcase classname="retry utilities withRetry retries on failure and eventually succeeds" name="retry utilities withRetry retries on failure and eventually succeeds" time="2.526">
+    <testcase classname="retry utilities withRetry retries on failure and eventually succeeds" name="retry utilities withRetry retries on failure and eventually succeeds" time="2.031">
     </testcase>
-    <testcase classname="retry utilities withRetry throws after max retries exhausted" name="retry utilities withRetry throws after max retries exhausted" time="2.682">
+    <testcase classname="retry utilities withRetry throws after max retries exhausted" name="retry utilities withRetry throws after max retries exhausted" time="2.104">
     </testcase>
     <testcase classname="retry utilities withRetry does not retry non-retryable errors" name="retry utilities withRetry does not retry non-retryable errors" time="0.001">
     </testcase>
-    <testcase classname="retry utilities withRetry calls onRetry callback" name="retry utilities withRetry calls onRetry callback" time="0.991">
+    <testcase classname="retry utilities withRetry calls onRetry callback" name="retry utilities withRetry calls onRetry callback" time="0.964">
     </testcase>
-    <testcase classname="retry utilities withRetry retries 5xx server errors by default" name="retry utilities withRetry retries 5xx server errors by default" time="0.768">
+    <testcase classname="retry utilities withRetry retries 5xx server errors by default" name="retry utilities withRetry retries 5xx server errors by default" time="0.912">
     </testcase>
-    <testcase classname="retry utilities withRetry retries 429 Too Many Requests by default" name="retry utilities withRetry retries 429 Too Many Requests by default" time="0.942">
+    <testcase classname="retry utilities withRetry retries 429 Too Many Requests by default" name="retry utilities withRetry retries 429 Too Many Requests by default" time="0.791">
     </testcase>
-    <testcase classname="retry utilities createRetryState creates initial retry state" name="retry utilities createRetryState creates initial retry state" time="0.001">
+    <testcase classname="retry utilities createRetryState creates initial retry state" name="retry utilities createRetryState creates initial retry state" time="0">
     </testcase>
-    <testcase classname="retry utilities createRetryState uses default maxAttempts" name="retry utilities createRetryState uses default maxAttempts" time="0">
+    <testcase classname="retry utilities createRetryState uses default maxAttempts" name="retry utilities createRetryState uses default maxAttempts" time="0.001">
     </testcase>
     <testcase classname="retry utilities updateRetryState updates state after failed attempt" name="retry utilities updateRetryState updates state after failed attempt" time="0">
     </testcase>

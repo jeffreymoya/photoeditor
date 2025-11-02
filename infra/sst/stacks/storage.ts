@@ -6,13 +6,14 @@
  * See adr/0008-sst-parity.md for parity contract and migration plan.
  *
  * Standards compliance (inherited from future modules):
- * - S3 SSE-KMS encryption with customer-managed keys (cross-cutting.md L52)
- * - S3 block-public-access enabled (cross-cutting.md L10, L52)
- * - Cost tags: Project, Env, Owner, CostCenter (cross-cutting.md L11)
- * - Temp bucket: 48h lifecycle (infrastructure-tier.md L26)
- * - Final bucket: versioning, incomplete multipart cleanup (infrastructure-tier.md L27)
- * - DynamoDB PITR enabled (infrastructure-tier.md L37)
- * - DynamoDB TTL for device tokens (infrastructure-tier.md L38)
+ * - S3 SSE-KMS encryption with customer-managed keys (cross-cutting.md#security--privacy)
+ * - S3 block-public-access enabled (cross-cutting.md#hard-fail-controls: "Production buckets without KMS encryption or block-public-access controls hard fail")
+ * - Cost tags: Project, Env, Owner, CostCenter (cross-cutting.md#hard-fail-controls: "Cloud resources must carry Project, Env, Owner, and CostCenter tags")
+ * - Temp bucket: 48h lifecycle (infrastructure-tier.md#storage)
+ * - Final bucket: versioning, incomplete multipart cleanup, Glacier after 90d (infrastructure-tier.md#storage: "transition compliance archives to Glacier after 90 days")
+ * - DynamoDB PITR enabled (infrastructure-tier.md#database)
+ * - DynamoDB capacity: on-demand for dev/stage, provisioned for prod (infrastructure-tier.md#database: "run on on-demand capacity for dev/stage and provisioned throughput for prod")
+ * - DynamoDB TTL for device tokens (infrastructure-tier.md#database: "Apply item TTL where appropriate")
  *
  * Module migration status:
  * - KMS key → Future module (TASK-0823)
@@ -20,7 +21,47 @@
  * - DynamoDB tables → Future module (TASK-0823)
  */
 
+/**
+ * DynamoDB capacity configuration per stage
+ * Per infrastructure-tier.md#database: "run on on-demand capacity for dev/stage and provisioned throughput for prod"
+ * Targets documented in docs/storage/capacity-and-lifecycle.md
+ */
+type DynamoCapacityConfig = {
+  readonly billingMode: "PAY_PER_REQUEST" | "PROVISIONED";
+  readonly readCapacity?: number;
+  readonly writeCapacity?: number;
+};
+
+const JOBS_TABLE_CAPACITY: Record<string, DynamoCapacityConfig> = {
+  dev: { billingMode: "PAY_PER_REQUEST" },
+  stage: { billingMode: "PAY_PER_REQUEST" },
+  prod: { billingMode: "PROVISIONED", readCapacity: 10, writeCapacity: 5 },
+};
+
+const DEVICE_TOKENS_TABLE_CAPACITY: Record<string, DynamoCapacityConfig> = {
+  dev: { billingMode: "PAY_PER_REQUEST" },
+  stage: { billingMode: "PAY_PER_REQUEST" },
+  prod: { billingMode: "PROVISIONED", readCapacity: 3, writeCapacity: 2 },
+};
+
+const BATCH_JOBS_TABLE_CAPACITY: Record<string, DynamoCapacityConfig> = {
+  dev: { billingMode: "PAY_PER_REQUEST" },
+  stage: { billingMode: "PAY_PER_REQUEST" },
+  prod: { billingMode: "PROVISIONED", readCapacity: 5, writeCapacity: 3 },
+};
+
+/**
+ * Get capacity configuration for the current stage, falling back to on-demand for unknown stages
+ */
+function getCapacityConfig(
+  configMap: Record<string, DynamoCapacityConfig>,
+  stage: string
+): DynamoCapacityConfig {
+  return configMap[stage] ?? { billingMode: "PAY_PER_REQUEST" };
+}
+
 export default function StorageStack() {
+  const stage = $app.stage;
   // KMS key for encryption (customer-managed)
   const kmsKey = new aws.kms.Key("PhotoEditorDevKey", {
     description: "PhotoEditor dev environment encryption key",
@@ -119,6 +160,7 @@ export default function StorageStack() {
   });
 
   // Lifecycle rules for final bucket
+  // Per infrastructure-tier.md#storage: "transition compliance archives to Glacier after 90 days"
   new aws.s3.BucketLifecycleConfigurationV2("FinalBucketLifecycle", {
     bucket: finalBucket.name,
     rules: [
@@ -128,6 +170,16 @@ export default function StorageStack() {
         abortIncompleteMultipartUpload: {
           daysAfterInitiation: 7,
         },
+      },
+      {
+        id: "transition-to-glacier-90d",
+        status: "Enabled",
+        transitions: [
+          {
+            days: 90,
+            storageClass: "GLACIER",
+          },
+        ],
       },
     ],
   });
@@ -155,7 +207,8 @@ export default function StorageStack() {
     restrictPublicBuckets: true,
   });
 
-  // DynamoDB table for jobs - PITR enabled, on-demand billing
+  // DynamoDB table for jobs - PITR enabled, stage-aware capacity
+  const jobsCapacity = getCapacityConfig(JOBS_TABLE_CAPACITY, stage);
   const jobsTable = new sst.aws.Dynamo("JobsTable", {
     fields: {
       jobId: "string",
@@ -182,7 +235,11 @@ export default function StorageStack() {
     stream: "new-and-old-images",
     transform: {
       table: {
-        billingMode: "PAY_PER_REQUEST",
+        billingMode: jobsCapacity.billingMode,
+        ...(jobsCapacity.billingMode === "PROVISIONED" && {
+          readCapacity: jobsCapacity.readCapacity,
+          writeCapacity: jobsCapacity.writeCapacity,
+        }),
         pointInTimeRecovery: {
           enabled: true,
         },
@@ -196,7 +253,8 @@ export default function StorageStack() {
     },
   });
 
-  // DynamoDB table for device tokens - PITR enabled, on-demand billing, TTL for expiry
+  // DynamoDB table for device tokens - PITR enabled, stage-aware capacity, TTL for expiry
+  const deviceTokensCapacity = getCapacityConfig(DEVICE_TOKENS_TABLE_CAPACITY, stage);
   const deviceTokensTable = new sst.aws.Dynamo("DeviceTokensTable", {
     fields: {
       userId: "string",
@@ -212,7 +270,11 @@ export default function StorageStack() {
     ttl: "expiresAt", // Automatic expiry after 90 days
     transform: {
       table: {
-        billingMode: "PAY_PER_REQUEST",
+        billingMode: deviceTokensCapacity.billingMode,
+        ...(deviceTokensCapacity.billingMode === "PROVISIONED" && {
+          readCapacity: deviceTokensCapacity.readCapacity,
+          writeCapacity: deviceTokensCapacity.writeCapacity,
+        }),
         pointInTimeRecovery: {
           enabled: true,
         },
@@ -231,7 +293,8 @@ export default function StorageStack() {
     },
   });
 
-  // DynamoDB table for batch jobs - PITR enabled, on-demand billing
+  // DynamoDB table for batch jobs - PITR enabled, stage-aware capacity
+  const batchCapacity = getCapacityConfig(BATCH_JOBS_TABLE_CAPACITY, stage);
   const batchTable = new sst.aws.Dynamo("BatchJobsTable", {
     fields: {
       batchJobId: "string",
@@ -249,7 +312,11 @@ export default function StorageStack() {
     stream: "new-and-old-images",
     transform: {
       table: {
-        billingMode: "PAY_PER_REQUEST",
+        billingMode: batchCapacity.billingMode,
+        ...(batchCapacity.billingMode === "PROVISIONED" && {
+          readCapacity: batchCapacity.readCapacity,
+          writeCapacity: batchCapacity.writeCapacity,
+        }),
         pointInTimeRecovery: {
           enabled: true,
         },

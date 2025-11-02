@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Task workflow CLI wrapper - Delegates to Python implementation
+# This Bash wrapper is DEPRECATED and will be removed in Week 3.
+# All functionality has been migrated to scripts/tasks.py (Python CLI).
+#
+# Week 2 Status (2025-11-01):
+# - Python CLI implements all commands with bug fixes:
+#   * Inline blocked_by arrays now work correctly
+#   * Unblocker prioritization fixed (unblockers ALWAYS first)
+#   * Archive resolution fixed (completed tasks satisfy blockers)
+#   * JSON output support added (--format json)
+#   * DOT graph export added (--graph)
+#   * Status transitions added (--claim, --complete)
+# - This wrapper delegates to Python for backward compatibility
+# - Direct Python usage recommended: python scripts/tasks.py [args]
+#
+# Migration timeline:
+# - Week 2: Delegation active (this script)
+# - Week 3: Rename to pick-task (no extension)
+# - Week 4: Full cutover, Bash script removed
+
+# Find script directory and repo root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "${SCRIPT_DIR}"/.. && pwd)"
+
+# Python CLI entry point
+PYTHON_CLI="${SCRIPT_DIR}/tasks.py"
+
+# Ensure Python CLI exists
+if [ ! -f "${PYTHON_CLI}" ]; then
+    echo "Error: Python CLI not found at ${PYTHON_CLI}" >&2
+    exit 1
+fi
+
+# Delegate all arguments to Python CLI
+exec python3 "${PYTHON_CLI}" "$@"

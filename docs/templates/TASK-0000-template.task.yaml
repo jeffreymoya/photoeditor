@@ -11,9 +11,10 @@ status: todo                     # todo | in_progress | blocked | completed
 blocked_reason: null             # REQUIRED when status=blocked; explain the external dependency
 priority: P1                     # P0 | P1 | P2
 area: backend                    # backend | mobile | shared | infra | docs | ops | other
-unblocker: false                 # true if this task unblocks other work (prioritized by pick-task.sh)
+unblocker: false                 # true if this task unblocks other work (task picker prioritizes it; Python CLI rollout in docs/proposals/task-workflow-python-refactor.md)
 order: null                      # Optional: execution order for orchestration
-blocked_by: []                   # Optional: dependent task IDs
+blocked_by: []                   # Hard execution blockers (task cannot START until these complete)
+depends_on: []                   # Informational dependencies (outputs needed but not blocking execution)
 agent_completion_state: {}       # Optional: managed by task-runner; tracks completed agents for resumption (do not edit manually)
 
 description: >-

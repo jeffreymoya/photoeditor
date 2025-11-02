@@ -55,19 +55,105 @@ Work is organized in `tasks/` as `.task.yaml` files. Use `tasks/README.md` for a
 
 ### Task Management
 
+The Python CLI (`scripts/tasks.py`) provides deterministic task selection, dependency validation, and workflow automation. All commands support `--format json` for machine-readable output.
+
+#### Core Commands
+
 ```bash
-# List available tasks
-scripts/pick-task.sh --list
+# List tasks (with optional filtering)
+python scripts/tasks.py --list                    # All non-completed tasks
+python scripts/tasks.py --list todo               # Only TODO tasks
+python scripts/tasks.py --list unblocker          # Only unblocker tasks
+python scripts/tasks.py --list --format json      # JSON output
 
-# Pick highest-priority task without changing status
-scripts/pick-task.sh --pick todo
+# Pick next task (deterministic priority algorithm)
+python scripts/tasks.py --pick                    # Highest priority ready task
+python scripts/tasks.py --pick todo               # Filter to TODO status
+python scripts/tasks.py --pick --format json      # JSON output with full metadata
 
-# Claim a task (set status: in_progress)
-scripts/pick-task.sh --claim tasks/backend/TASK-0102-...yaml
+# Claim task (transition to in_progress)
+python scripts/tasks.py --claim tasks/mobile/TASK-0818-frontend-tier-gap-analysis.task.yaml
 
-# Complete and archive task
-scripts/pick-task.sh --complete tasks/backend/TASK-0102-...yaml
+# Complete task (archive to docs/completed-tasks/)
+python scripts/tasks.py --complete tasks/mobile/TASK-0818-frontend-tier-gap-analysis.task.yaml
+
+# Validate dependency graph
+python scripts/tasks.py --validate                # Check cycles, missing deps, duplicates
+
+# Export dependency graph (DOT format for Graphviz)
+python scripts/tasks.py --graph > tasks.dot
+dot -Tpng tasks.dot -o tasks.png
+
+# Force cache refresh (after manual task edits)
+python scripts/tasks.py --refresh-cache
+
+# Explain dependency chain for a task
+python scripts/tasks.py --explain TASK-0818            # Show blockers, artifacts, readiness
+python scripts/tasks.py --explain TASK-0818 --format json  # JSON output
 ```
+
+#### Bash Wrapper (Backward Compatibility)
+
+```bash
+# All commands also work via pick-task wrapper (delegates to Python CLI)
+scripts/pick-task --list
+scripts/pick-task --pick todo
+scripts/pick-task --claim tasks/backend/TASK-0102-...yaml
+scripts/pick-task --complete tasks/backend/TASK-0102-...yaml
+scripts/pick-task --validate
+scripts/pick-task --graph
+```
+
+#### JSON Output Examples
+
+```bash
+# List tasks with full metadata
+python scripts/tasks.py --list --format json
+# Output: {"tasks": [{"id": "TASK-0818", "status": "todo", "priority": "P1", ...}]}
+
+# Pick task with decision rationale
+python scripts/tasks.py --pick --format json
+# Output: {"task": {"id": "TASK-0818", ...}, "reason": "unblocker", "snapshot_id": 42}
+
+# Validation results
+python scripts/tasks.py --validate --format json
+# Output: {"valid": true, "cycles": [], "missing": [], "duplicates": []}
+
+# Explain dependency chain
+python scripts/tasks.py --explain TASK-0200 --format json
+# Output: {"task": {"id": "TASK-0200", ...}, "hard_blockers": [...], "artifact_dependencies": [...], "readiness": {"ready": false, ...}}
+```
+
+#### Prioritization Algorithm
+
+Tasks are selected using deterministic precedence (per `docs/proposals/task-workflow-python-refactor.md` Section 3.2):
+
+1. **Unblocker tasks first** (regardless of priority - P2 unblocker before P0 non-unblocker)
+2. **Blocked tasks second** (surface for manual intervention)
+3. **In-progress tasks third** (resume existing work)
+4. **Priority fourth** (P0 > P1 > P2)
+5. **TODO tasks fifth** (new work)
+6. **Order field sixth** (lower values first)
+7. **Task ID last** (lexicographic tie-breaker)
+
+Only tasks with all `blocked_by` dependencies completed are considered "ready" for selection.
+
+#### Cache Behavior
+
+The CLI maintains `tasks/.cache/tasks_index.json` for fast lookups:
+- Automatically refreshes when task file mtimes change
+- Use `--refresh-cache` to force full rebuild
+- Cache includes snapshot IDs for audit trail
+- Atomic writes prevent torn reads
+
+> **Status (2025-11-01)**: Python CLI is now active (Week 3 cutover, see `docs/proposals/task-workflow-python-refactor.md`). All commands work correctly with bug fixes:
+> - Inline `blocked_by` arrays parse correctly (both `[A, B]` and multi-line YAML)
+> - Unblocker-first prioritization enforced (P2 unblocker chosen before P0 non-unblocker)
+> - Archive resolution fixed (completed tasks in `docs/completed-tasks/` satisfy blockers)
+> - JSON output mode available (`--format json`) for automation
+> - Deterministic output (sorted keys, stable ordering)
+> - File-based cache with atomic writes and file locking
+> - Bash wrapper delegates to Python for backward compatibility
 
 ### Task Structure
 

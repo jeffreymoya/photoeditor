@@ -5,13 +5,13 @@
 schema_version: "1.0"
 id: TASK-0818
 title: "Document frontend-tier compliance gaps and remediation design"
-status: blocked
-blocked_reason: "Pre-commit hook failure: @ts-ignore pattern detected in .husky/pre-commit staged changes (environmental issue, not task-related)"
+status: todo
+blocked_reason: null
 priority: P1
 area: mobile
-unblocker: true
+unblocker: false
 order: 1
-blocked_by: [TASK-0826]
+blocked_by: []
 
 description: >-
   Audit current mobile implementation against standards/frontend-tier.md to identify specific

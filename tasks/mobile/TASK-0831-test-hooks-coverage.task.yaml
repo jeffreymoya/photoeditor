@@ -1,0 +1,125 @@
+schema_version: "1.0"
+id: TASK-0831
+title: "Backfill test coverage for mobile hooks (useUpload, useUploadMachine)"
+status: todo
+priority: P1
+area: mobile
+unblocker: false
+order: 3
+blocked_by: []
+depends_on: []
+
+description: >-
+  Create comprehensive tests for core upload hooks (useUpload, useUploadMachine) to achieve
+  70% line coverage and 60% branch coverage per standards/testing-standards.md. These hooks
+  orchestrate upload flows and XState machines, making them critical for reliability.
+
+outcome: >-
+  Test files created for useUpload and useUploadMachine with stub ports, verifying state
+  transitions and upload orchestration. Coverage thresholds met for hooks layer.
+
+scope:
+  in:
+    - mobile/src/features/upload/hooks/__tests__/useUpload.test.ts (new)
+    - mobile/src/features/upload/hooks/__tests__/useUploadMachine.test.ts (new)
+  out:
+    - Screen tests
+    - Redux slice tests
+    - Service tests
+
+context:
+  affected_packages: [mobile]
+  standards_tier: mobile
+  related_docs:
+    - standards/frontend-tier.md
+    - standards/testing-standards.md
+  repo_paths:
+    - mobile/src/features/upload/hooks
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "18.x"
+  tools:
+    - name: pnpm
+      version: "8.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Use stub ports from services/__tests__/stubs.ts
+    - Focus on observable behavior (inputs → outputs)
+    - Test state transitions without mocking pure logic
+  prohibited:
+    - No flaky tests
+    - No network calls to real services
+
+plan:
+  - id: 1
+    title: Create useUpload.test.ts
+    details: >-
+      Test the useUpload hook with stub service ports. Verify upload orchestration,
+      state updates, error handling, and retry logic per standards/testing-standards.md.
+    actor: agent
+    inputs:
+      - mobile/src/features/upload/hooks/useUpload.ts
+      - mobile/src/services/__tests__/stubs.ts
+    outputs:
+      - mobile/src/features/upload/hooks/__tests__/useUpload.test.ts
+    definition_of_done:
+      - Tests cover happy path, error cases, retry scenarios
+      - Stub ports used for service dependencies
+      - Coverage ≥70% lines, ≥60% branches
+    estimate: M
+    expected_files_touched:
+      - mobile/src/features/upload/hooks/__tests__/useUpload.test.ts
+  - id: 2
+    title: Create useUploadMachine.test.ts
+    details: >-
+      Test the XState machine hook integration. Verify state transitions, context updates,
+      machine start/stop, and event handling per standards/frontend-tier.md#state--logic-layer.
+    actor: agent
+    inputs:
+      - mobile/src/features/upload/hooks/useUploadMachine.ts
+      - mobile/src/features/upload/machines/uploadMachine.ts
+    outputs:
+      - mobile/src/features/upload/hooks/__tests__/useUploadMachine.test.ts
+    definition_of_done:
+      - Tests cover all major state transitions
+      - Machine lifecycle tested (start, pause, resume, stop)
+      - Coverage ≥70% lines, ≥60% branches
+    estimate: M
+    expected_files_touched:
+      - mobile/src/features/upload/hooks/__tests__/useUploadMachine.test.ts
+
+acceptance_criteria:
+  must:
+    - Test files created for useUpload and useUploadMachine
+    - Coverage ≥70% lines, ≥60% branches for hooks
+    - All tests use stub ports per standards/testing-standards.md
+    - pnpm turbo run test --filter=photoeditor-mobile passes
+  quality_gates:
+    - "Hook tests verify state transitions"
+    - "Service dependencies use stub ports"
+
+validation:
+  static_checks:
+    - pnpm turbo run lint --filter=photoeditor-mobile
+    - pnpm turbo run typecheck --filter=photoeditor-mobile
+  unit_tests:
+    mobile:
+      - pnpm turbo run test --filter=photoeditor-mobile -- --coverage --testPathPattern=hooks
+  contract_tests: []
+  manual_checks: []
+
+deliverables:
+  - mobile/src/features/upload/hooks/__tests__/useUpload.test.ts
+  - mobile/src/features/upload/hooks/__tests__/useUploadMachine.test.ts
+
+risks:
+  - description: XState testing may require complex setup
+    mitigation: Reference existing uploadMachine.test.ts patterns

@@ -15,11 +15,12 @@
 # and author a separate unblocker task referenced via blocked_by.
 
 schema_version: "1.0"
-id: TASK-0817
+id: TASK-0829
 title: "Close mobile frontend-tier compliance gaps"
 status: blocked
 blocked_reason: "Broken down into subtasks for manageable implementation per standards/task-breakdown-canon.md"
-blocked_by: [TASK-0818, TASK-0819, TASK-0820, TASK-0821, TASK-0822, TASK-0823]
+blocked_by: [TASK-0818, TASK-0819, TASK-0830]
+depends_on: []
 priority: P1
 area: mobile
 
@@ -172,17 +173,17 @@ plan:
       - docs/ui/storybook/**/*
 
 acceptance_criteria:
-  - Screens delegate upload/edit orchestration to feature modules via `/public` exports; no cross-feature imports exist.
-  - All React Native StyleSheet color/spacing tokens come from shared `ui-tokens` or lucide/react-native-svg primitives per standards/frontend-tier.md.
-  - RTK Query slices + XState charts back job/upload state; `.scxml` or Mermaid exports stored under `docs/ui/state-metrics` with checksums.
-  - Services expose ports under `mobile/src/services/*/port.ts` with adapters using `cockatiel` (or approved equivalent) for retry/circuit breaker.
-  - Story coverage meets frontend-tier expectations; Chromatic + axe CI gates run and evidence is archived in `docs/ui/storybook`.
-  - No lint/type/test regressions; `pnpm turbo run qa:static --parallel` and mobile unit suites pass.
-  modularity:
+  must:
+    - Screens delegate upload/edit orchestration to feature modules via `/public` exports; no cross-feature imports exist.
+    - All React Native StyleSheet color/spacing tokens come from shared `ui-tokens` or lucide/react-native-svg primitives per standards/frontend-tier.md.
+    - RTK Query slices + XState charts back job/upload state; `.scxml` or Mermaid exports stored under `docs/ui/state-metrics` with checksums.
+    - Services expose ports under `mobile/src/services/*/port.ts` with adapters using `cockatiel` (or approved equivalent) for retry/circuit breaker.
+    - Story coverage meets frontend-tier expectations; Chromatic + axe CI gates run and evidence is archived in `docs/ui/storybook`.
+    - No lint/type/test regressions; `pnpm turbo run qa:static --parallel` and mobile unit suites pass.
+  quality_gates:
     - "Feature entry points export named APIs only; layers follow screens → feature → shared UI → hooks"
     - "Adapters encapsulate platform APIs; no direct Expo/Fetch usage in feature or component layers"
     - "No cross-layer imports (dependency-cruiser enforced)"
-  testability:
     - "Coverage thresholds per standards/testing-standards.md"
     - "Storybook Chromatic run reports no unresolved diffs"
 

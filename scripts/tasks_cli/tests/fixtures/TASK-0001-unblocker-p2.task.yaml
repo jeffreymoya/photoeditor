@@ -1,0 +1,12 @@
+id: TASK-0001
+title: Test unblocker task (P2)
+status: todo
+priority: P2
+area: test
+unblocker: true
+order: null
+blocked_by: []
+depends_on: []
+description: |
+  Test task with unblocker flag and P2 priority.
+  Should be picked BEFORE P0 non-unblocker tasks.

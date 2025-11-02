@@ -2,7 +2,16 @@
  * Upload feature public API
  * Exports only the public interface per the Frontend Tier standard
  * Per the TypeScript Standards: Named exports only, minimal public surface
+ *
+ * Standards citations:
+ * - standards/frontend-tier.md#feature-guardrails: "Each feature publishes a /public surface"
+ * - standards/typescript.md#analyzability: "Named exports in domain code"
  */
+
+// Re-export service context for dependency injection (TASK-0819)
+// Per standards/frontend-tier.md#services--integration-layer: Ports & Adapters pattern
+export { ServiceProvider, useServices } from '../context/ServiceContext';
+export type { ServiceContainer, ServiceProviderProps } from '../context/ServiceContext';
 
 // Re-export legacy hooks (for backward compatibility during migration)
 export { useUpload, UploadStatus } from '../hooks/useUpload';

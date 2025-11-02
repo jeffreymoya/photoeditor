@@ -129,7 +129,7 @@ export const HomeScreen = ({ navigation }: HomeScreenProps) => {
                     { backgroundColor: getStatusColor(job.status) },
                   ]}
                 >
-                  <Text style={styles.jobStatusText}>{job.status}</Text>
+                  <Text style={styles.jobStatusText}>{job.status.toUpperCase()}</Text>
                 </View>
               </View>
             ))}

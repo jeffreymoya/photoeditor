@@ -10,13 +10,14 @@
  */
 
 import { NavigationContainer } from '@react-navigation/native';
-import { render, screen, fireEvent } from '@testing-library/react-native';
 import { configureStore } from '@reduxjs/toolkit';
+import { render, screen, fireEvent } from '@testing-library/react-native';
 import React from 'react';
 import { Provider } from 'react-redux';
 
 import { jobSlice } from '@/store/slices/jobSlice';
 import { uploadApi } from '@/store/uploadApi';
+
 import { HomeScreen } from '../HomeScreen';
 
 // Mock the upload feature public exports

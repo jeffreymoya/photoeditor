@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { useServices } from '@/features/upload/context/ServiceContext';
+import { useServices } from '@/features/upload/public';
 import { colors, spacing, typography, borderRadius } from '@/lib/ui-tokens';
 import type { IUploadService } from '@/services/upload/port';
 import { useAppSelector } from '@/store';

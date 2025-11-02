@@ -194,7 +194,7 @@ export const CameraScreen = ({ navigation }: CameraScreenProps) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'black',
+    backgroundColor: colors.cameraBackground,
   },
   camera: {
     flex: 1,
@@ -227,8 +227,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 40,
-    paddingBottom: 40,
+    paddingHorizontal: spacing.xxl - 8, // 40px
+    paddingBottom: spacing.xxl - 8, // 40px
   },
   galleryButton: {
     alignItems: 'center',
@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   captureButtonDisabled: {
-    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    backgroundColor: colors.surfaceDisabled,
   },
   captureButtonInner: {
     width: 60,
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 40,
+    padding: spacing.xxl - 8, // 40px
     backgroundColor: colors.background,
   },
   permissionTitle: {

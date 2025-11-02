@@ -31,6 +31,10 @@ export const colors = {
   overlay: 'rgba(0, 0, 0, 0.5)',
   overlayLight: 'rgba(0, 0, 0, 0.3)',
 
+  // Camera/Full-screen backgrounds
+  cameraBackground: '#000000',
+  surfaceDisabled: 'rgba(255, 255, 255, 0.5)',
+
   // Transparent
   transparent: 'transparent',
 } as const;

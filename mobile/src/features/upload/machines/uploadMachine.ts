@@ -169,7 +169,6 @@ export const uploadMachine = createMachine<UploadContext, UploadEvent>(
             actions: 'resetContext',
           },
         },
-        type: 'final',
       },
       failed: {
         on: {

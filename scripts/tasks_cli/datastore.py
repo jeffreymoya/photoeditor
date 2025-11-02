@@ -8,6 +8,7 @@ invalidated when file mtime or hash changes.
 See: docs/proposals/task-workflow-python-refactor.md Section 3.3
 """
 
+import hashlib
 import json
 import os
 import tempfile
@@ -17,7 +18,7 @@ from typing import Dict, List, Optional
 
 from filelock import FileLock
 
-from .constants import CACHE_VERSION
+from .constants import CACHE_VERSION, SNAPSHOT_COUNTER_FILE
 from .models import Task
 from .parser import TaskParser
 
@@ -36,6 +37,7 @@ class TaskDatastore:
         self.cache_dir = repo_root / "tasks" / ".cache"
         self.cache_file = self.cache_dir / "tasks_index.json"
         self.lock_file = self.cache_dir / "tasks_index.lock"
+        self.snapshot_counter_file = repo_root / SNAPSHOT_COUNTER_FILE
         self.parser = TaskParser(repo_root)
 
         # Ensure cache directory exists
@@ -162,6 +164,51 @@ class TaskDatastore:
             print(f"Warning: Cache invalid ({e}), rebuilding...", flush=True)
             return None
 
+    def _get_next_snapshot_id(self) -> int:
+        """
+        Get next snapshot ID (monotonically increasing counter).
+
+        Returns:
+            Next snapshot ID
+        """
+        try:
+            if self.snapshot_counter_file.exists():
+                with open(self.snapshot_counter_file, 'r', encoding='utf-8') as f:
+                    current = int(f.read().strip())
+            else:
+                current = 0
+
+            # Increment and save
+            next_id = current + 1
+            with open(self.snapshot_counter_file, 'w', encoding='utf-8') as f:
+                f.write(str(next_id))
+
+            return next_id
+
+        except (OSError, ValueError):
+            # If counter file corrupted, start from 1
+            with open(self.snapshot_counter_file, 'w', encoding='utf-8') as f:
+                f.write('1')
+            return 1
+
+    def _compute_config_hash(self) -> Optional[str]:
+        """
+        Compute SHA256 hash of tasks/tasks_config.yaml if it exists.
+
+        Returns:
+            SHA256 hash string or None if config doesn't exist
+        """
+        config_file = self.repo_root / "tasks" / "tasks_config.yaml"
+        if not config_file.exists():
+            return None
+
+        try:
+            with open(config_file, 'rb') as f:
+                content = f.read()
+            return f"sha256:{hashlib.sha256(content).hexdigest()}"
+        except OSError:
+            return None
+
     def _save_to_cache(self, tasks: List[Task]) -> None:
         """
         Save tasks to JSON cache with atomic write.
@@ -197,9 +244,15 @@ class TaskDatastore:
                 if 'completed-tasks' in task.path:
                     archives.append(task.id)
 
+            # Get snapshot ID and config hash for audit trail
+            snapshot_id = self._get_next_snapshot_id()
+            config_hash = self._compute_config_hash()
+
             cache = {
                 'version': CACHE_VERSION,
                 'generated_at': datetime.now(timezone.utc).isoformat(),
+                'snapshot_id': snapshot_id,
+                'config_hash': config_hash,
                 'tasks': task_data,
                 'archives': archives,
             }
@@ -230,6 +283,23 @@ class TaskDatastore:
         except Exception as e:
             print(f"Warning: Failed to save cache: {e}", flush=True)
 
+    def get_snapshot_id(self) -> Optional[int]:
+        """
+        Get current snapshot ID from cache.
+
+        Returns:
+            Snapshot ID or None if cache doesn't exist
+        """
+        if not self.cache_file.exists():
+            return None
+
+        try:
+            with open(self.cache_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            return data.get('snapshot_id')
+        except Exception:
+            return None
+
     def get_cache_info(self) -> Dict:
         """
         Get cache metadata for diagnostics.
@@ -248,6 +318,8 @@ class TaskDatastore:
                 'exists': True,
                 'version': data.get('version'),
                 'generated_at': data.get('generated_at'),
+                'snapshot_id': data.get('snapshot_id'),
+                'config_hash': data.get('config_hash'),
                 'task_count': len(data.get('tasks', {})),
                 'archive_count': len(data.get('archives', [])),
             }

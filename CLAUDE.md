@@ -38,6 +38,10 @@ Structure:
    - Maps test requirements to standards tier files
    - Specifies validation commands and acceptance criteria format
 
+3. **Agent prompt sources**
+   - Active prompts in `.claude/agents/` all reference shared checklists at `docs/agents/implementation-preflight.md` (pre-task grounding) and `docs/agents/diff-safety-checklist.md` (diff audit). Update those shared docs first when standards shift so every agent inherits the change.
+   - Archived prompts are now stubs that simply point to repository history; consult git history if you need the legacy workflows.
+
 **Key constraints from standards:**
 - **Hard fail controls** (`standards/cross-cutting.md`): Handlers cannot import AWS SDKs, no cycles, complexity budgets
 - **Layering rules** (`standards/backend-tier.md`): handlers → services → providers (one-way only)

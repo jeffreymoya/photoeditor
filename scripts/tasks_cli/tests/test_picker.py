@@ -59,12 +59,15 @@ def test_unblocker_first_priority(mixed_priority_tasks):
     graph = DependencyGraph(mixed_priority_tasks)
     picker = TaskPicker(mixed_priority_tasks, graph)
 
-    next_task = picker.pick_next_task(completed_ids=set())
+    result = picker.pick_next_task(completed_ids=set())
+    assert result is not None
+    next_task, reason = result
 
     # Should pick P2 unblocker, NOT P0 regular
     assert next_task.id == "TASK-P2-UNBLOCKER"
     assert next_task.unblocker is True
     assert next_task.priority == "P2"
+    assert reason == "unblocker"
 
 
 def test_priority_order_within_non_unblockers(mixed_priority_tasks):
@@ -77,11 +80,14 @@ def test_priority_order_within_non_unblockers(mixed_priority_tasks):
     graph = DependencyGraph(non_unblocker_tasks)
     picker = TaskPicker(non_unblocker_tasks, graph)
 
-    next_task = picker.pick_next_task(completed_ids=set())
+    result = picker.pick_next_task(completed_ids=set())
+    assert result is not None
+    next_task, reason = result
 
     # Should pick P0 over P1 when no unblockers present
     assert next_task.id == "TASK-P0-REGULAR"
     assert next_task.priority == "P0"
+    assert reason == "highest_priority"
 
 
 def test_status_ordering():
@@ -119,10 +125,13 @@ def test_status_ordering():
     graph = DependencyGraph(tasks)
     picker = TaskPicker(tasks, graph)
 
-    next_task = picker.pick_next_task(completed_ids=set())
+    result = picker.pick_next_task(completed_ids=set())
+    assert result is not None
+    next_task, reason = result
 
     # Should pick blocked task first (for manual intervention)
     assert next_task.id == "TASK-BLOCKED"
+    assert reason == "blocked_manual_intervention"
 
 
 def test_order_field_tiebreaker():
@@ -163,7 +172,9 @@ def test_order_field_tiebreaker():
     graph = DependencyGraph(tasks)
     picker = TaskPicker(tasks, graph)
 
-    next_task = picker.pick_next_task(completed_ids=set())
+    result = picker.pick_next_task(completed_ids=set())
+    assert result is not None
+    next_task, reason = result
 
     # Should pick order=5 (lowest)
     assert next_task.id == "TASK-ORDER-5"
@@ -195,7 +206,9 @@ def test_id_tiebreaker():
     graph = DependencyGraph(tasks)
     picker = TaskPicker(tasks, graph)
 
-    next_task = picker.pick_next_task(completed_ids=set())
+    result = picker.pick_next_task(completed_ids=set())
+    assert result is not None
+    next_task, reason = result
 
     # Should pick TASK-A (lexicographically first)
     assert next_task.id == "TASK-A"
@@ -228,11 +241,15 @@ def test_pick_respects_dependencies():
     picker = TaskPicker(tasks, graph)
 
     # TASK-BLOCKER not completed - should pick it first
-    next_task = picker.pick_next_task(completed_ids=set())
+    result = picker.pick_next_task(completed_ids=set())
+    assert result is not None
+    next_task, reason = result
     assert next_task.id == "TASK-BLOCKER"
 
     # Once TASK-BLOCKER completed, should pick TASK-BLOCKED
-    next_task = picker.pick_next_task(completed_ids={"TASK-BLOCKER"})
+    result = picker.pick_next_task(completed_ids={"TASK-BLOCKER"})
+    assert result is not None
+    next_task, reason = result
     assert next_task.id == "TASK-BLOCKED"
 
 

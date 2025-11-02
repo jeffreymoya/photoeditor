@@ -540,8 +540,27 @@ This proposal requires synchronized updates (draft edits already staged):
     - Added `--explain` command examples to CLAUDE.md
     - Updated JSON output examples
   - ✅ All tests passing: 76 tests in 0.25s
-- **Status**: Week 4 hardening complete. Full test coverage with regression detection in place.
-- **Next action**: Week 5 enhancements (halt conditions, CLI-managed operations per Section 3.4 & 3.6) optional for future work.
+- **2025-11-02 (Contract Drift Fixes)**: COMPLETED
+  - ✅ Fixed JSON contract drift in `--pick` output
+    - Added `reason` field ("unblocker", "blocked_manual_intervention", "in_progress_resume", "highest_priority")
+    - Added `snapshot_id` field for audit trail (monotonic counter)
+    - Updated `scripts/tasks_cli/__main__.py:176-186` to include both fields in JSON response
+  - ✅ Enhanced cache schema with audit trail metadata
+    - Added `snapshot_id` field (monotonically increasing counter in `tasks/.cache/snapshot_counter.txt`)
+    - Added `config_hash` field (SHA256 of `tasks/tasks_config.yaml` for drift detection)
+    - Updated `scripts/tasks_cli/datastore.py:247-258` cache structure
+    - Added `get_snapshot_id()` method for CLI access
+  - ✅ Updated picker to return selection rationale
+    - Modified `pick_next_task()` to return `Tuple[Task, str]` instead of `Optional[Task]`
+    - Reason determined by task characteristics (unblocker flag, status, priority)
+    - Updated `scripts/tasks_cli/picker.py:76-139`
+  - ✅ Fixed documentation references
+    - Replaced all `scripts/pick-task.sh` → `scripts/pick-task` in `.claude/commands/task-runner.md` (5 occurrences)
+    - Updated `--check-halt` documentation from "future work" to active feature
+  - **Impact**: JSON contract now matches promises in CLAUDE.md, tasks/AGENTS.md, and proposal Section 3.3
+  - **Validation**: All existing tests pass, new fields available in `--pick --format json` output
+- **Status**: Week 4 hardening + contract fixes complete. Full test coverage with regression detection in place.
+- **Next action**: Week 5 enhancements (CLI-managed operations per Section 3.6) optional for future work.
 
 ---
 

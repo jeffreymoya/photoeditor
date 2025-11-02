@@ -168,14 +168,20 @@ def cmd_pick(args, picker: TaskPicker, datastore: TaskDatastore) -> int:
     # Determine status filter
     status_filter = args.filter if args.filter and args.filter != "auto" else None
 
-    # Pick next task
-    task = picker.pick_next_task(completed_ids, status_filter=status_filter)
+    # Pick next task (returns tuple of (task, reason) or None)
+    result = picker.pick_next_task(completed_ids, status_filter=status_filter)
 
-    if task:
+    if result:
+        task, reason = result
+        # Get snapshot_id for audit trail
+        snapshot_id = datastore.get_snapshot_id()
+
         # Output based on format
         if args.format == 'json':
             output_json({
                 'task': task_to_dict(task),
+                'reason': reason,
+                'snapshot_id': snapshot_id,
                 'status': 'success'
             })
         else:

@@ -51,3 +51,6 @@ DEFAULT_PRIORITY_RANK = 99
 
 # Cache schema version
 CACHE_VERSION = 1
+
+# Snapshot tracking for audit trail
+SNAPSHOT_COUNTER_FILE = "tasks/.cache/snapshot_counter.txt"

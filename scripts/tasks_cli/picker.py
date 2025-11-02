@@ -8,7 +8,7 @@ CRITICAL FIX: Prioritizes unblocker tasks BEFORE higher-priority non-unblockers.
 The Bash script incorrectly sorts by priority first.
 """
 
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from .constants import DEFAULT_PRIORITY_RANK, DEFAULT_STATUS_RANK, PRIORITY_RANK, STATUS_RANK
 from .exceptions import WorkflowHaltError
@@ -77,7 +77,7 @@ class TaskPicker:
         self,
         completed_ids: set,
         status_filter: Optional[str] = None
-    ) -> Optional[Task]:
+    ) -> Optional[Tuple[Task, str]]:
         """
         Pick the next task following solo-developer workflow priorities.
 
@@ -96,7 +96,9 @@ class TaskPicker:
             status_filter: Optional status filter (todo, in_progress, blocked, etc.)
 
         Returns:
-            Next task to execute, or None if no ready tasks
+            Tuple of (task, reason) or None if no ready tasks
+            Reason values: "unblocker", "blocked_manual_intervention",
+                          "in_progress_resume", "highest_priority"
 
         Raises:
             WorkflowHaltError: If workflow must halt for manual intervention
@@ -119,7 +121,22 @@ class TaskPicker:
         # Sort by priority algorithm
         sorted_tasks = sorted(ready, key=self._sort_key)
 
-        return sorted_tasks[0] if sorted_tasks else None
+        if not sorted_tasks:
+            return None
+
+        task = sorted_tasks[0]
+
+        # Determine selection reason based on task characteristics
+        if task.unblocker:
+            reason = "unblocker"
+        elif task.status == "blocked":
+            reason = "blocked_manual_intervention"
+        elif task.status == "in_progress":
+            reason = "in_progress_resume"
+        else:
+            reason = "highest_priority"
+
+        return (task, reason)
 
     def list_tasks(
         self,

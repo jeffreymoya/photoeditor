@@ -131,7 +131,7 @@ describe('jobSlice reducer', () => {
 
       const state = jobSlice.reducer(
         stateWithJob,
-        updateJob({ id: 'job-1', finalS3Key: 's3://bucket/key', error: undefined })
+        updateJob({ id: 'job-1', finalS3Key: 's3://bucket/key' })
       );
 
       expect(state.jobs[0]).toMatchObject({

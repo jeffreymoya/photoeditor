@@ -132,6 +132,29 @@ def test_claim_task_invalid_status(temp_repo):
     assert "completed" in str(exc_info.value)
 
 
+def test_claim_task_from_draft_disallowed(temp_repo):
+    """Draft tasks must be clarified before they can be claimed."""
+    task_path = temp_repo / "tasks" / "TASK-003A.yaml"
+    create_test_task_file(task_path, "TASK-003A", status="draft")
+
+    task = Task(
+        id="TASK-003A",
+        title="Draft task",
+        status="draft",
+        priority="P1",
+        area="test",
+        path=str(task_path),
+        blocked_by=[],
+    )
+
+    ops = TaskOperations(temp_repo)
+
+    with pytest.raises(TaskOperationError) as exc_info:
+        ops.claim_task(task)
+
+    assert "status is 'draft'" in str(exc_info.value)
+
+
 def test_complete_task_with_archive(temp_repo):
     """Test completing a task and archiving it."""
     task_path = temp_repo / "tasks" / "TASK-004.yaml"
@@ -195,6 +218,74 @@ def test_complete_task_without_archive(temp_repo):
     assert data['status'] == 'completed'
 
 
+def test_archive_completed_task_moves_file(temp_repo):
+    """Archiving should move completed tasks into docs/completed-tasks/."""
+    task_path = temp_repo / "tasks" / "TASK-007.yaml"
+    create_test_task_file(task_path, "TASK-007", status="completed")
+
+    task = Task(
+        id="TASK-007",
+        title="Completed task pending archive",
+        status="completed",
+        priority="P0",
+        area="test",
+        path=str(task_path),
+        blocked_by=[],
+    )
+
+    ops = TaskOperations(temp_repo)
+    result_path = ops.archive_task(task)
+
+    assert result_path.parent == temp_repo / "docs" / "completed-tasks"
+    assert result_path.exists()
+    assert not task_path.exists()
+
+
+def test_archive_requires_completed_status(temp_repo):
+    """Only completed tasks can be archived."""
+    task_path = temp_repo / "tasks" / "TASK-008.yaml"
+    create_test_task_file(task_path, "TASK-008", status="todo")
+
+    task = Task(
+        id="TASK-008",
+        title="Incomplete task",
+        status="todo",
+        priority="P0",
+        area="test",
+        path=str(task_path),
+        blocked_by=[],
+    )
+
+    ops = TaskOperations(temp_repo)
+
+    with pytest.raises(TaskOperationError) as exc_info:
+        ops.archive_task(task)
+
+    assert "Only completed tasks can be archived" in str(exc_info.value)
+
+
+def test_archive_no_op_when_already_archived(temp_repo):
+    """Archiving a task already in docs/completed-tasks is a no-op."""
+    archive_path = temp_repo / "docs" / "completed-tasks" / "TASK-009.yaml"
+    create_test_task_file(archive_path, "TASK-009", status="completed")
+
+    task = Task(
+        id="TASK-009",
+        title="Already archived",
+        status="completed",
+        priority="P0",
+        area="test",
+        path=str(archive_path),
+        blocked_by=[],
+    )
+
+    ops = TaskOperations(temp_repo)
+    result_path = ops.archive_task(task)
+
+    assert result_path == archive_path
+    assert archive_path.exists()
+
+
 def test_complete_already_completed_task(temp_repo):
     """Test that completing an already completed task raises error."""
     task_path = temp_repo / "tasks" / "TASK-006.yaml"
@@ -216,6 +307,30 @@ def test_complete_already_completed_task(temp_repo):
         ops.complete_task(task)
 
     assert "already completed" in str(exc_info.value)
+
+
+def test_complete_task_from_draft_disallowed(temp_repo):
+    """Draft tasks must be clarified and transitioned to todo before completion."""
+    task_path = temp_repo / "tasks" / "TASK-006A.yaml"
+    create_test_task_file(task_path, "TASK-006A", status="draft")
+
+    task = Task(
+        id="TASK-006A",
+        title="Draft task",
+        status="draft",
+        priority="P1",
+        area="test",
+        path=str(task_path),
+        blocked_by=[],
+    )
+
+    ops = TaskOperations(temp_repo)
+
+    with pytest.raises(TaskOperationError) as exc_info:
+        ops.complete_task(task)
+
+    assert "status is 'draft'" in str(exc_info.value)
+    assert "Resolve clarifications" in str(exc_info.value)
 
 
 def test_transition_status_valid(temp_repo):

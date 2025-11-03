@@ -12,6 +12,7 @@ from typing import Dict
 
 class TaskStatus(str, Enum):
     """Valid task status values per standards/task-breakdown-canon.md."""
+    DRAFT = "draft"
     TODO = "todo"
     IN_PROGRESS = "in_progress"
     BLOCKED = "blocked"
@@ -34,7 +35,8 @@ STATUS_RANK: Dict[str, int] = {
     TaskStatus.BLOCKED: 0,       # Surface for manual intervention
     TaskStatus.IN_PROGRESS: 1,   # Resume existing work
     TaskStatus.TODO: 2,          # New work
-    TaskStatus.COMPLETED: 3,     # Archived/done
+    TaskStatus.DRAFT: 3,         # Not ready for execution (grooming only)
+    TaskStatus.COMPLETED: 4,     # Archived/done
 }
 
 # Priority ranking for prioritization

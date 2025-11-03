@@ -75,4 +75,4 @@ __pycache__/
 .Python
 
 tasks/.cache/
-scripts/tasks_cli/__pycache__/
+scripts/tasks_cli/__pycache__/.claude/command-audit.log

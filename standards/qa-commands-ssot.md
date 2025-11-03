@@ -45,7 +45,9 @@ Package‑Scoped (preferred for agents and focused work)
 When to Use What
 
 - Humans (PRs): run repo‑wide static once, then package‑scoped tests for affected packages.
-- Agents: run package‑scoped commands only (per affected package). **Always run `lint:fix` before `qa:static`** to auto-fix unused imports, formatting issues, etc. Backend agents may include fitness functions listed above.
+- Implementer agent: run package-scoped commands only (per affected package). Execute `lint:fix` first, then `qa:static` so lint/typecheck output is clean before handoff. Save the logs to `.agent-output/` and capture notable fixes in the task summary.
+- Implementation reviewer: consume the implementer’s evidence first. Re-run package-scoped commands only when logs are missing, stale, or expose unresolved issues.
+- Validation agents: assume lint/typecheck already pass. Run the remaining static/fitness commands (dependency graph, dead exports, duplication, contracts, etc.) plus the relevant unit suites. Backend validation may include the fitness functions listed above.
 
 Evidence & Artifacts
 
@@ -54,4 +56,3 @@ Evidence & Artifacts
 Notes
 
 - Do not restate thresholds (coverage, complexity) here. Link to the relevant standards instead.
-

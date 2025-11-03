@@ -18,7 +18,7 @@ class Task:
     Attributes:
         id: Unique task identifier (e.g., TASK-0824)
         title: Human-readable task title
-        status: Current task status (todo, in_progress, blocked, completed)
+        status: Current task status (draft, todo, in_progress, blocked, completed)
         priority: Task priority (P0, P1, P2)
         area: Task area/category (e.g., mobile, backend, infra)
         path: Absolute file path to the .task.yaml file
@@ -44,6 +44,11 @@ class Task:
     blocked_reason: Optional[str] = None
     mtime: float = 0.0
     hash: str = ""
+
+    # Phase 2: Runtime-only fields for effective priority propagation
+    # (NOT serialized to YAML, recomputed fresh on every CLI invocation)
+    effective_priority: Optional[str] = field(default=None, init=False, repr=False)
+    priority_reason: Optional[str] = field(default=None, init=False, repr=False)
 
     def is_ready(self, completed_ids: set) -> bool:
         """

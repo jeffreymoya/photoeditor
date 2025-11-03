@@ -9,6 +9,7 @@ Key semantics (per proposal Section 3.5):
 - depends_on: Informational dependencies (not enforced by readiness)
 """
 
+from collections import deque
 from typing import Dict, List, Set, Tuple
 
 from .models import Task
@@ -36,6 +37,15 @@ class DependencyGraph:
         self.depends_on_edges: Dict[str, List[str]] = {}
         for task in tasks:
             self.depends_on_edges[task.id] = task.depends_on.copy()
+
+        # Phase 2: Build reverse adjacency list for priority propagation
+        # Maps blocker_id → [task_ids that are blocked by it]
+        self.reverse_blocked_by: Dict[str, List[str]] = {}
+        for task in tasks:
+            for blocker_id in task.blocked_by:
+                if blocker_id not in self.reverse_blocked_by:
+                    self.reverse_blocked_by[blocker_id] = []
+                self.reverse_blocked_by[blocker_id].append(task.id)
 
     def detect_cycles(self) -> List[List[str]]:
         """
@@ -285,6 +295,49 @@ class DependencyGraph:
 
         return closure
 
+    def find_transitively_blocked(self, task_id: str) -> List[Task]:
+        """
+        Find all tasks that are transitively blocked by this task.
+
+        Traverses the dependency graph in REVERSE: if task_id appears in
+        another task's blocked_by, that task is directly blocked. Recursively
+        traverses to find all downstream tasks.
+
+        Uses BFS with visited set to handle diamond dependencies correctly
+        and prevent infinite loops (even though cycles are validated elsewhere).
+
+        Args:
+            task_id: Task ID to find downstream blocked tasks for
+
+        Returns:
+            List of Task objects that are directly or transitively blocked
+            by this task. Empty list if task blocks nothing.
+
+        Example:
+            TASK-A blocks TASK-B, TASK-B blocks TASK-C
+            find_transitively_blocked("TASK-A") → [TASK-B, TASK-C]
+        """
+        blocked = []
+        blocked_ids = set()  # Track IDs to prevent duplicates
+        queue = deque([task_id])
+        visited = {task_id}
+
+        while queue:
+            current_id = queue.popleft()  # O(1) with deque, not list.pop(0)
+
+            # Find tasks directly blocked by current task
+            for blocked_id in self.reverse_blocked_by.get(current_id, []):
+                if blocked_id not in visited:
+                    visited.add(blocked_id)
+                    queue.append(blocked_id)
+
+                    # Add to result list (only if task exists and not already added)
+                    if blocked_id in self.task_by_id and blocked_id not in blocked_ids:
+                        blocked_ids.add(blocked_id)
+                        blocked.append(self.task_by_id[blocked_id])
+
+        return blocked
+
     def export_dot(self) -> str:
         """
         Export dependency graph in Graphviz DOT format.
@@ -313,6 +366,7 @@ class DependencyGraph:
                 'completed': 'lightgreen',
                 'in_progress': 'lightyellow',
                 'blocked': 'lightcoral',
+                'draft': 'aliceblue',
                 'todo': 'lightgray',
             }
             color = status_colors.get(task.status, 'white')

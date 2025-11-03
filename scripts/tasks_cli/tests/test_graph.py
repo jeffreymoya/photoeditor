@@ -507,3 +507,210 @@ def test_compute_dependency_closure_nonexistent_task():
     assert len(closure['blocking']) == 0
     assert len(closure['artifacts']) == 0
     assert len(closure['transitive']) == 0
+
+
+# ==============================================================================
+# Phase 2: Transitive Priority Propagation Tests
+# ==============================================================================
+
+
+def test_find_transitively_blocked_single_hop():
+    """Test finding tasks blocked by a single-level dependency."""
+    tasks = [
+        Task(
+            id="TASK-A",
+            title="Task A",
+            status="todo",
+            priority="P2",
+            area="test",
+            path="/test/a.yaml",
+            blocked_by=[],
+        ),
+        Task(
+            id="TASK-B",
+            title="Task B",
+            status="blocked",
+            priority="P1",
+            area="test",
+            path="/test/b.yaml",
+            blocked_by=["TASK-A"],
+        ),
+    ]
+
+    graph = DependencyGraph(tasks)
+    blocked = graph.find_transitively_blocked("TASK-A")
+
+    # TASK-A directly blocks TASK-B
+    assert len(blocked) == 1
+    assert blocked[0].id == "TASK-B"
+
+
+def test_find_transitively_blocked_multi_hop():
+    """Test finding tasks blocked by multi-level transitive dependencies."""
+    tasks = [
+        Task(
+            id="TASK-A",
+            title="Task A",
+            status="todo",
+            priority="P2",
+            area="test",
+            path="/test/a.yaml",
+            blocked_by=[],
+        ),
+        Task(
+            id="TASK-B",
+            title="Task B",
+            status="blocked",
+            priority="P1",
+            area="test",
+            path="/test/b.yaml",
+            blocked_by=["TASK-A"],
+        ),
+        Task(
+            id="TASK-C",
+            title="Task C",
+            status="blocked",
+            priority="P0",
+            area="test",
+            path="/test/c.yaml",
+            blocked_by=["TASK-B"],
+        ),
+    ]
+
+    graph = DependencyGraph(tasks)
+    blocked = graph.find_transitively_blocked("TASK-A")
+
+    # TASK-A blocks TASK-B, which blocks TASK-C (transitive)
+    assert len(blocked) == 2
+    blocked_ids = {task.id for task in blocked}
+    assert "TASK-B" in blocked_ids
+    assert "TASK-C" in blocked_ids
+
+
+def test_find_transitively_blocked_diamond():
+    """Test diamond dependency structure (no duplicate results)."""
+    tasks = [
+        Task(
+            id="TASK-A",
+            title="Task A",
+            status="todo",
+            priority="P2",
+            area="test",
+            path="/test/a.yaml",
+            blocked_by=[],
+        ),
+        Task(
+            id="TASK-B",
+            title="Task B",
+            status="blocked",
+            priority="P1",
+            area="test",
+            path="/test/b.yaml",
+            blocked_by=["TASK-A"],
+        ),
+        Task(
+            id="TASK-C",
+            title="Task C",
+            status="blocked",
+            priority="P0",
+            area="test",
+            path="/test/c.yaml",
+            blocked_by=["TASK-A"],
+        ),
+        Task(
+            id="TASK-D",
+            title="Task D",
+            status="blocked",
+            priority="P0",
+            area="test",
+            path="/test/d.yaml",
+            blocked_by=["TASK-B", "TASK-C"],
+        ),
+    ]
+
+    graph = DependencyGraph(tasks)
+    blocked = graph.find_transitively_blocked("TASK-A")
+
+    # TASK-A blocks B and C, both block D (diamond)
+    # Should get all three, no duplicates
+    assert len(blocked) == 3
+    blocked_ids = {task.id for task in blocked}
+    assert "TASK-B" in blocked_ids
+    assert "TASK-C" in blocked_ids
+    assert "TASK-D" in blocked_ids
+
+
+def test_find_transitively_blocked_empty():
+    """Test task that blocks nothing returns empty list."""
+    tasks = [
+        Task(
+            id="TASK-A",
+            title="Task A",
+            status="todo",
+            priority="P2",
+            area="test",
+            path="/test/a.yaml",
+            blocked_by=[],
+        ),
+        Task(
+            id="TASK-B",
+            title="Task B",
+            status="todo",
+            priority="P1",
+            area="test",
+            path="/test/b.yaml",
+            blocked_by=[],
+        ),
+    ]
+
+    graph = DependencyGraph(tasks)
+    blocked = graph.find_transitively_blocked("TASK-A")
+
+    # TASK-A blocks nothing
+    assert len(blocked) == 0
+
+
+def test_reverse_adjacency_list_construction():
+    """Test reverse blocked_by graph is built correctly."""
+    tasks = [
+        Task(
+            id="TASK-A",
+            title="Task A",
+            status="todo",
+            priority="P2",
+            area="test",
+            path="/test/a.yaml",
+            blocked_by=[],
+        ),
+        Task(
+            id="TASK-B",
+            title="Task B",
+            status="blocked",
+            priority="P1",
+            area="test",
+            path="/test/b.yaml",
+            blocked_by=["TASK-A"],
+        ),
+        Task(
+            id="TASK-C",
+            title="Task C",
+            status="blocked",
+            priority="P0",
+            area="test",
+            path="/test/c.yaml",
+            blocked_by=["TASK-A", "TASK-B"],
+        ),
+    ]
+
+    graph = DependencyGraph(tasks)
+
+    # TASK-A blocks both B and C
+    assert "TASK-A" in graph.reverse_blocked_by
+    assert set(graph.reverse_blocked_by["TASK-A"]) == {"TASK-B", "TASK-C"}
+
+    # TASK-B blocks only C
+    assert "TASK-B" in graph.reverse_blocked_by
+    assert graph.reverse_blocked_by["TASK-B"] == ["TASK-C"]
+
+    # TASK-C blocks nothing, should not be in reverse map
+    assert "TASK-C" not in graph.reverse_blocked_by

@@ -39,8 +39,14 @@ Structure:
    - Specifies validation commands and acceptance criteria format
 
 3. **Agent prompt sources**
-   - Active prompts in `.claude/agents/` all reference shared checklists at `docs/agents/implementation-preflight.md` (pre-task grounding) and `docs/agents/diff-safety-checklist.md` (diff audit). Update those shared docs first when standards shift so every agent inherits the change.
-   - Archived prompts are now stubs that simply point to repository history; consult git history if you need the legacy workflows.
+ - Active prompts in `.claude/agents/` all reference shared checklists at `docs/agents/implementation-preflight.md` (pre-task grounding) and `docs/agents/diff-safety-checklist.md` (diff audit). Update those shared docs first when standards shift so every agent inherits the change.
+  - Archived prompts are now stubs that simply point to repository history; consult git history if you need the legacy workflows.
+
+### Agent Responsibilities (2025-11-02 update)
+
+- **Task Implementer** runs lint/typecheck for every affected package (`lint:fix` ➜ `qa:static`) before handing off, records the command output in the implementation summary, and skips broader test suites.
+- **Implementation Reviewer** reruns the same lint/typecheck pair after edits to ensure the diff stays green, capturing command results in the reviewer summary.
+- **Validation agents** assume lint/typecheck already pass and focus on the remaining static/fitness commands plus unit/contract suites. Surface lint/typecheck regressions back to implementer/reviewer unless a trivial fix is applied in place.
 
 **Key constraints from standards:**
 - **Hard fail controls** (`standards/cross-cutting.md`): Handlers cannot import AWS SDKs, no cycles, complexity budgets
@@ -150,14 +156,13 @@ The CLI maintains `tasks/.cache/tasks_index.json` for fast lookups:
 - Cache includes snapshot IDs for audit trail
 - Atomic writes prevent torn reads
 
-> **Status (2025-11-01)**: Python CLI is now active (Week 3 cutover, see `docs/proposals/task-workflow-python-refactor.md`). All commands work correctly with bug fixes:
-> - Inline `blocked_by` arrays parse correctly (both `[A, B]` and multi-line YAML)
-> - Unblocker-first prioritization enforced (P2 unblocker chosen before P0 non-unblocker)
-> - Archive resolution fixed (completed tasks in `docs/completed-tasks/` satisfy blockers)
-> - JSON output mode available (`--format json`) for automation
-> - Deterministic output (sorted keys, stable ordering)
-> - File-based cache with atomic writes and file locking
-> - Bash wrapper delegates to Python for backward compatibility
+> **Status (2025-11-03)**: Python CLI Phase 2 active (automatic priority propagation, see `docs/proposals/transitive-unblocker-detection.md`). All Phase 1 features plus:
+> - **Phase 2**: Automatic effective priority propagation - tasks inherit max priority of all work they transitively block
+> - New selection reason: `priority_inherited` when tasks inherit higher priority from blocked work
+> - JSON output includes `effective_priority` and `priority_reason` fields (always present, null when N/A)
+> - Manual `unblocker: true` flag still takes highest precedence as override
+> - Phase 1 features: Inline `blocked_by` arrays, unblocker-first prioritization, archive resolution
+> - JSON output mode (`--format json`), deterministic output, file-based cache, bash wrapper compatibility
 
 ### Task Structure
 

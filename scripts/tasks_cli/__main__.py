@@ -15,6 +15,7 @@ Usage:
     python scripts/tasks.py --explain TASK-ID [--format json]
     python scripts/tasks.py --claim TASK_PATH
     python scripts/tasks.py --complete TASK_PATH
+    python scripts/tasks.py --archive TASK_PATH
 """
 
 import argparse
@@ -65,6 +66,9 @@ def task_to_dict(task: Task) -> Dict[str, Any]:
     Per proposal Section 3.2: includes all metadata fields with
     deterministic ordering (sorted keys).
 
+    Phase 2: Includes effective_priority and priority_reason fields
+    (always present, null when not applicable).
+
     Args:
         task: Task instance to serialize
 
@@ -75,16 +79,91 @@ def task_to_dict(task: Task) -> Dict[str, Any]:
         'area': task.area,
         'blocked_by': sorted(task.blocked_by),  # Deterministic ordering
         'depends_on': sorted(task.depends_on),
+        'effective_priority': task.effective_priority,  # Phase 2: Runtime-computed
         'hash': task.hash,
         'id': task.id,
         'mtime': task.mtime,
         'order': task.order,
         'path': str(task.path),
         'priority': task.priority,
+        'priority_reason': task.priority_reason,  # Phase 2: Audit trail
         'status': task.status,
         'title': task.title,
         'unblocker': task.unblocker,
     }
+
+
+def emit_draft_warnings(alerts: Dict[str, Any]) -> None:
+    """
+    Emit human-readable warnings for draft tasks and their downstream dependencies.
+
+    Args:
+        alerts: Draft alert metadata from TaskPicker.get_draft_alerts()
+    """
+    if not alerts.get('has_drafts'):
+        return
+
+    draft_meta = {draft['id']: draft for draft in alerts.get('drafts', [])}
+
+    header = (
+        f"WARNING: {alerts['draft_count']} draft task(s) require clarification "
+        f"before new work is picked."
+    )
+    print(header, file=sys.stderr)
+
+    # High-priority warning for draft unblockers
+    draft_unblockers = alerts.get('draft_unblockers', [])
+    if draft_unblockers:
+        print("\n  CRITICAL: Draft unblocker tasks detected!", file=sys.stderr)
+        print("  Unblockers are prioritized first but cannot be picked while in draft status:", file=sys.stderr)
+        for unblocker in draft_unblockers:
+            title = unblocker.get('title', '').strip()
+            priority = unblocker.get('priority', 'P?')
+            title_suffix = f' — {title}' if title else ''
+            print(f"    - {unblocker['id']} ({priority}){title_suffix}", file=sys.stderr)
+        print("  Resolve clarifications urgently to unblock workflow.\n", file=sys.stderr)
+
+    for downstream in alerts.get('downstream', []):
+        draft_id = downstream['draft_id']
+        meta = draft_meta.get(draft_id, {})
+        title = meta.get('title', '').strip()
+        title_suffix = f' — {title}' if title else ''
+        blocked_count = len(downstream.get('blocked_by', []))
+        depends_count = len(downstream.get('depends_on_only', []))
+        summary_parts = []
+        if blocked_count:
+            summary_parts.append(f"{blocked_count} downstream task(s) blocked")
+        else:
+            summary_parts.append("no downstream tasks blocked")
+        if depends_count:
+            summary_parts.append(f"{depends_count} downstream task(s) missing blocked_by")
+        summary = "; ".join(summary_parts)
+        print(f"  - {draft_id}{title_suffix}: {summary}", file=sys.stderr)
+
+    missing_blocked_by = alerts.get('violations', {}).get('missing_blocked_by', [])
+    if missing_blocked_by:
+        print("  Tasks missing blocked_by linkage to drafts:", file=sys.stderr)
+        for item in missing_blocked_by:
+            print(
+                f"    - {item['task_id']} (status={item['task_status']}) → draft {item['draft_id']}",
+                file=sys.stderr,
+            )
+
+    needs_blocked_status = alerts.get('violations', {}).get('needs_blocked_status', [])
+    if needs_blocked_status:
+        print("  Tasks referencing drafts must be marked status=blocked:", file=sys.stderr)
+        for item in needs_blocked_status:
+            print(
+                f"    - {item['task_id']} currently '{item['task_status']}' → draft {item['draft_id']}",
+                file=sys.stderr,
+            )
+
+    filtered = alerts.get('filtered_out_by_picker', [])
+    if filtered:
+        print(
+            "  The picker skipped tasks missing blocked_by linkage; update them before retrying.",
+            file=sys.stderr,
+        )
 
 
 def output_json(data: Dict[str, Any]) -> None:
@@ -163,10 +242,17 @@ def cmd_pick(args, picker: TaskPicker, datastore: TaskDatastore) -> int:
     """
     # Get completed task IDs for readiness check
     tasks = datastore.load_tasks()
+    graph = DependencyGraph(tasks)
+    picker.refresh(tasks, graph)
     completed_ids = {task.id for task in tasks if task.is_completed()}
 
     # Determine status filter
     status_filter = args.filter if args.filter and args.filter != "auto" else None
+
+    # Gather draft alerts and emit warnings for text mode
+    draft_alerts = picker.get_draft_alerts()
+    if args.format != 'json':
+        emit_draft_warnings(draft_alerts)
 
     # Pick next task (returns tuple of (task, reason) or None)
     result = picker.pick_next_task(completed_ids, status_filter=status_filter)
@@ -182,7 +268,8 @@ def cmd_pick(args, picker: TaskPicker, datastore: TaskDatastore) -> int:
                 'task': task_to_dict(task),
                 'reason': reason,
                 'snapshot_id': snapshot_id,
-                'status': 'success'
+                'status': 'success',
+                'draft_alerts': draft_alerts,
             })
         else:
             # Just the file path (backward compatible)
@@ -193,7 +280,8 @@ def cmd_pick(args, picker: TaskPicker, datastore: TaskDatastore) -> int:
             output_json({
                 'task': None,
                 'status': 'no_ready_tasks',
-                'message': 'No ready tasks found'
+                'message': 'No ready tasks found',
+                'draft_alerts': draft_alerts,
             })
         else:
             print("No ready tasks found", file=sys.stderr)
@@ -576,6 +664,50 @@ def cmd_complete(args, datastore: TaskDatastore, repo_root: Path) -> int:
         return 1
 
 
+def cmd_archive(args, datastore: TaskDatastore, repo_root: Path) -> int:
+    """
+    Archive an already-completed task without modifying its status.
+
+    Args:
+        args: Parsed command-line arguments (contains task_path)
+        datastore: TaskDatastore instance
+        repo_root: Repository root path
+
+    Returns:
+        Exit code (0 for success, 1 for errors)
+    """
+    tasks = datastore.load_tasks()
+    task_path = Path(args.task_path).resolve()
+
+    task = None
+    for t in tasks:
+        if Path(t.path).resolve() == task_path:
+            task = t
+            break
+
+    if not task:
+        print(f"Error: Task not found: {args.task_path}", file=sys.stderr)
+        return 1
+
+    ops = TaskOperations(repo_root)
+    try:
+        result_path = ops.archive_task(task)
+
+        if Path(task.path).resolve() == Path(result_path).resolve():
+            print(f"✓ Task {task.id} already archived")
+            print(f"  File: {result_path}")
+        else:
+            print(f"✓ Archived task {task.id}")
+            print(f"  Moved to: {result_path}")
+
+        datastore.load_tasks(force_refresh=True)
+        return 0
+
+    except TaskOperationError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -623,6 +755,11 @@ def main():
         '--complete',
         metavar='TASK_PATH',
         help='Complete a task and archive it to docs/completed-tasks/'
+    )
+    group.add_argument(
+        '--archive',
+        metavar='TASK_PATH',
+        help='Archive a completed task to docs/completed-tasks/ without changing status'
     )
     group.add_argument(
         '--explain',
@@ -685,6 +822,10 @@ def main():
         elif args.complete:
             args.task_path = args.complete
             return cmd_complete(args, datastore, repo_root)
+
+        elif args.archive:
+            args.task_path = args.archive
+            return cmd_archive(args, datastore, repo_root)
 
         elif args.explain:
             return cmd_explain(args, graph, datastore)

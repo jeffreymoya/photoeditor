@@ -56,6 +56,12 @@ class TaskOperations:
             TaskOperationError: If task cannot be claimed
         """
         # Validate current status
+        if task.status == 'draft':
+            raise TaskOperationError(
+                f"Cannot claim task {task.id}: status is 'draft'. "
+                f"Resolve clarifications, attach evidence, and transition to 'todo' first."
+            )
+
         if task.status not in ('todo', 'blocked'):
             raise TaskOperationError(
                 f"Cannot claim task {task.id}: status is '{task.status}'. "
@@ -90,6 +96,13 @@ class TaskOperations:
                 f"Task {task.id} is already completed"
             )
 
+        # Validate task is not in draft status
+        if task.status == 'draft':
+            raise TaskOperationError(
+                f"Cannot complete task {task.id}: status is 'draft'. "
+                f"Resolve clarifications, attach evidence, and transition to 'todo' first."
+            )
+
         # Update status to completed
         task_path = Path(task.path)
         self._update_status(str(task_path), 'completed')
@@ -99,6 +112,57 @@ class TaskOperations:
             return self._archive_task(task_path, task.id)
         else:
             return task_path
+
+    def archive_task(self, task: Task) -> Path:
+        """
+        Archive a completed task without changing its status.
+
+        Useful when a task was manually marked completed but the file
+        was not moved to docs/completed-tasks/.
+
+        Args:
+            task: Task to archive
+
+        Returns:
+            Final file path in archive directory (or original path if already archived)
+
+        Raises:
+            TaskOperationError: If task cannot be archived
+        """
+        task_path = Path(task.path)
+
+        if not task_path.exists():
+            raise TaskOperationError(
+                f"Task file not found: {task_path}"
+            )
+
+        # If already in archive directory, treat as no-op
+        if self._is_in_archive(task_path):
+            return task_path
+
+        # Ensure task status is completed (both cached model and on-disk YAML)
+        if task.status != 'completed':
+            raise TaskOperationError(
+                f"Cannot archive task {task.id}: status is '{task.status}'. "
+                f"Only completed tasks can be archived."
+            )
+
+        try:
+            with open(task_path, 'r', encoding='utf-8') as f:
+                data = self.yaml.load(f)
+        except Exception as e:
+            raise TaskOperationError(
+                f"Failed to read task file {task_path}: {e}"
+            ) from e
+
+        file_status = data.get('status')
+        if file_status != 'completed':
+            raise TaskOperationError(
+                f"Cannot archive task {task.id}: file status is '{file_status}'. "
+                f"Resolve status before archiving."
+            )
+
+        return self._archive_task(task_path, task.id)
 
     def transition_status(
         self,
@@ -121,7 +185,7 @@ class TaskOperations:
             TaskOperationError: If transition is invalid
         """
         # Validate status value
-        valid_statuses = ('todo', 'in_progress', 'blocked', 'completed')
+        valid_statuses = ('draft', 'todo', 'in_progress', 'blocked', 'completed')
         if to_status not in valid_statuses:
             raise TaskOperationError(
                 f"Invalid status '{to_status}'. Must be one of: {valid_statuses}"
@@ -163,6 +227,12 @@ class TaskOperations:
         # Same status is no-op (but allowed)
         if from_status == to_status:
             return
+
+        # From draft, only allow staying draft, moving to todo, or blocked
+        if from_status == 'draft' and to_status not in ('draft', 'todo', 'blocked'):
+            raise TaskOperationError(
+                "Draft tasks can only transition to 'todo' or 'blocked' after clarifications are resolved."
+            )
 
         # All other transitions are allowed (flexible workflow)
         # This aligns with solo-developer needs where blocked tasks
@@ -243,6 +313,14 @@ class TaskOperations:
             raise TaskOperationError(
                 f"Failed to archive task {task_id} to {dest_path}: {e}"
             ) from e
+
+    def _is_in_archive(self, task_path: Path) -> bool:
+        """Return True if path already resides within the archive directory."""
+        try:
+            task_path.resolve().relative_to(self.archive_dir.resolve())
+            return True
+        except ValueError:
+            return False
 
 
 def claim_task_cli(repo_root: Path, task: Task) -> None:

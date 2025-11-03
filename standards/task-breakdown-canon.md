@@ -20,7 +20,7 @@ Authoritative guidance for decomposing work into independently shippable, automa
    - File fan-out: >5 files across different modules or layers.
    - Plan size: >6 ordered steps or multiple parallel efforts.
    - Architectural breadth: new contracts + infra + app logic in one go.
-   - Risk & unknowns: ambiguous scope, research required, external dependencies.
+   - Risk & unknowns: ambiguous scope, research required, external dependencies → keep originating task in `status: draft` until clarifications are recorded per `docs/proposals/task-workflow-draft-status.md`.
    - Reviewer “DO NOT FIX”: issues that should be deferred (see section below).
 3) If no “Too Complex” signal and scope is ≤5 related files in one tier with ≤6 steps → implement directly.
 
@@ -82,6 +82,12 @@ When any task is marked `status: blocked` and `blocked_reason` indicates complex
 - Run a Breakdown Pass using this canon.
 - Verify required subtasks exist and dependency links are set.
 - If subtasks are missing, create them immediately using the template, then keep the original task blocked until all subtasks complete.
+
+## Draft Ambiguity Guardrail
+- Leave newly authored tasks in `status: draft` while clarifications, standards citations, or scope questions remain unresolved.
+- Capture open questions in the template’s `clarifications.outstanding` list and log the investigation in `docs/evidence/tasks/<task-id>-clarifications.md`.
+- Downstream work referencing a draft task MUST list it under `blocked_by`, set `status: blocked`, and provide a `blocked_reason` describing the ambiguity. The CLI surfaces warnings when this linkage is missing.
+- Transition from `draft` to `todo` only after the clarifications list is empty (or explicitly resolved), the evidence file is linked, and the task satisfies acceptance criteria and plan completeness requirements.
 
 ## Implementation Reviewer: “DO NOT FIX” → Defer via Subtask
 When the reviewer encounters items labeled “DO NOT FIX” (out of scope or too large):

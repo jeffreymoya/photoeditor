@@ -15,6 +15,8 @@ All work now uses a single canonical template: `docs/templates/TASK-0000-templat
 - Allocate a stable `id` (e.g., `TASK-0123`) and a short slug (e.g., `image-crop-bounds`).
 - Copy the single template: `cp docs/templates/TASK-0000-template.task.yaml tasks/<area>/TASK-<id>-<slug>.task.yaml`
 - Replace every placeholder. Keep IDs and titles stable.
+- Leave `status: draft` until clarifications, standards citations, and evidence paths are complete; only then transition to `todo`.
+- Record every ambiguity under the template's `clarifications` block and link the evidence file you will use to resolve it.
 - Link the relevant standards via `context.standards_tier` and `context.related_docs`.
 - Add a dedicated plan stage to confirm the work complies with the cited standards and to record any gaps that require standards updates.
 - Commit the task alongside the code branch that will implement it.
@@ -28,13 +30,14 @@ All work now uses a single canonical template: `docs/templates/TASK-0000-templat
 
 ## Fields You Must Fill
 Use the comments in the template as your checklist. At minimum, complete:
-- `id`, `title`, `status`, `priority`, `area`
+- `id`, `title`, `status`, `priority`, `area` (start in `draft`; move to `todo` only when clarifications settle)
 - `description` (2–6 sentences of context)
 - `outcome` (verifiable end state, not steps)
 - `scope.in` and `scope.out`
 - `context.related_docs` with the applicable tier standards + testing standards
-- `repo_paths` for touched files (approximate is fine initially)
+- `repo_paths` for touched files (approximate is fine initially; update it before implementation wraps so reviewers inherit the exact diff scope)
 - `environment`, `constraints`
+- `clarifications.outstanding` (list open questions; remove once answered) and `clarifications.evidence_path` (point to `docs/evidence/tasks/<task-id>-clarifications.md`)
 - `plan` (ordered steps)
   - Each step must declare: `actor` (agent|human), `inputs`, `outputs`, `definition_of_done`, and an `estimate` (S|M|L). Do not include shell `commands` in plan steps; validation runs elsewhere and AC is the source of truth.
   - Cite the exact standards clause governing the step (file path + heading slug, e.g., `standards/backend-tier.md#service-layer-boundaries`) inside `details` or `definition_of_done` so the reviewer can trace intent directly to the rule.
@@ -43,7 +46,14 @@ Use the comments in the template as your checklist. At minimum, complete:
 - `validation` (manual checks or bespoke tooling outside the automated agent flow)
 - `deliverables` and `risks`
 
-If sequencing matters, also set `blocked_by`, `depends_on`, and `order`.
+If sequencing matters, also set `blocked_by`, `depends_on`, and `order`. Any downstream task referencing a `draft` MUST list that draft under `blocked_by` (not merely `depends_on`) and stay `status: blocked` until the draft transitions to `todo`.
+
+### Draft Resolution Checklist
+Before flipping a task from `draft` to `todo`, confirm:
+- All `clarifications.outstanding` entries are resolved (delete the list or leave it empty).
+- `clarifications.evidence_path` exists and points to the Markdown file capturing the resolution.
+- Acceptance criteria, plan steps, and standards citations are complete and referenced.
+- Downstream tasks that depend on this work have updated their `blocked_by` lists and `blocked_reason` values if applicable.
 
 ### Dependency Fields: `blocked_by` vs `depends_on`
 
@@ -53,6 +63,7 @@ Tasks support two types of dependencies with different semantics:
 - Task **CANNOT START** until all dependencies have `status: completed`
 - Enforced by the Python CLI task picker (`python scripts/tasks.py --pick`)
 - Use for strict sequencing (e.g., schema definition must complete before implementation)
+- Include draft tasks here until they exit `draft`; this keeps downstream work explicitly blocked and surfaces CLI warnings if missing.
 - Example: `blocked_by: [TASK-0199]` means this task is not ready until TASK-0199 completes
 
 **`depends_on` (informational/artifact dependency):**
@@ -74,6 +85,21 @@ blocked_by: [TASK-0199]  # Cannot start until upload schema is defined
 depends_on: [TASK-0150]  # Uses S3 bucket from infra (already completed, for context)
 ```
 
+**Draft tasks and artifact dependencies:**
+When a task depends on an artifact produced by a draft task, you MUST include the draft task in `blocked_by` to ensure work doesn't start before the design is clarified. The CLI only checks task status for `blocked_by` dependencies—it does not track which tasks produce which artifacts. Without explicit `blocked_by` linkage, a task could appear ready even though its upstream artifact producer is still in draft status.
+
+Example:
+```yaml
+# TASK-A (draft): Design data model
+status: draft
+deliverables:
+  - shared/schemas/user-profile.ts
+
+# TASK-B: Implement profile endpoint (depends on schema from TASK-A)
+blocked_by: [TASK-A]  # Required! Schema producer is still in draft
+depends_on: [TASK-A]  # Documents artifact dependency (schema file)
+```
+
 See `docs/proposals/task-workflow-python-refactor.md` Section 3.5 for detailed semantics and Python CLI implementation.
 
 ### Unblocker Tasks
@@ -82,6 +108,47 @@ Set `unblocker: true` for tasks that unblock other work. The Python task picker 
 - Resolve dependency/tooling blockers
 - Address cross-cutting issues that impede multiple feature branches
 - Clear path for other high-priority work
+
+### Automatic Priority Propagation
+
+**Phase 2 (Active)**: The Python CLI automatically propagates priority through dependency chains. Tasks inherit the **maximum priority** of all work they transitively block, eliminating the need for manual `unblocker: true` flags in most cases.
+
+**How it works:**
+- If TASK-A (P2) blocks TASK-B (P1), TASK-A automatically inherits P1 effective priority
+- Multi-hop chains work: TASK-A → TASK-B → TASK-C means TASK-A inherits the max priority of B and C
+- Diamond dependencies handled correctly: each task inherits the highest priority from all downstream work
+
+**Example:**
+```yaml
+# TASK-0832: Backfill screens coverage (P2 declared)
+priority: P2
+status: todo
+blocked_by: []
+
+# TASK-0830: Test coverage evidence (P1 declared)
+priority: P1
+status: blocked
+blocked_by: [TASK-0832]  # Blocks P1 work
+
+# Result: TASK-0832 automatically inherits P1 effective priority
+# CLI output: reason="priority_inherited", effective_priority="P1"
+```
+
+**When tasks inherit priority:**
+- Task blocks higher-priority work (P2 blocking P1 → inherits P1)
+- Task blocks same priority work (P1 blocking P1 → no change)
+- Task blocks lower-priority work (P0 blocking P1 → no change, keeps P0)
+
+**Manual override:**
+- Setting `unblocker: true` still takes highest precedence (selected before all priority-based work)
+- Use manual override for external blockers not tracked in the system
+
+**JSON output:**
+- `effective_priority`: Computed priority (inherited from blocked work)
+- `priority_reason`: Audit trail (e.g., "Blocks P1 work: TASK-0830")
+- Fields always present in JSON output, null when not applicable
+
+See `docs/proposals/transitive-unblocker-detection.md` for complete design and rationale.
 
 ## Standards Alignment
 - SSOT for grounding and standards changes: `standards/standards-governance-ssot.md`.
@@ -113,7 +180,8 @@ It defines when to decompose work, how to create subtasks using the canonical te
 
 
 ## Status Flow & Archival
-- Default flow: `todo → in_progress → completed` (use `blocked` only with a concrete reason).
+- Default flow: `draft → todo → in_progress → completed`, with `blocked` as an exception state for external dependencies. Tasks MUST start in `draft` until clarifications are documented.
+- The CLI refuses to pick `draft` tasks and prints a warning summary listing drafts and downstream tasks still waiting on clarifications.
 - On completion, move the file to `docs/completed-tasks/` (see template notes).
 
 ## Keep the Template Authoritative

@@ -1,8 +1,9 @@
 # Frontend Tier Compliance Gap Analysis
 
-**Document Version:** 1.0
+**Document Version:** 1.1
 **Date:** 2025-11-01
-**Status:** Analysis Complete
+**Updated:** 2025-11-03 (TASK-0830: test coverage consolidation)
+**Status:** Remediation Complete for Test Coverage
 **Scope:** Mobile codebase compliance against `standards/frontend-tier.md`
 
 ## Executive Summary
@@ -16,6 +17,15 @@ This document identifies specific gaps between the current mobile implementation
 - Services layer implements ports/adapters pattern correctly but missing fitness evidence and some documentation
 
 **Remediation Priority:** P1 items focus on missing infrastructure (Storybook, design tokens, fitness gates); P2 items address refinements (selector audits, statechart exports).
+
+**Remediation Status Update (2025-11-03):**
+- ✅ Test coverage backfilling **COMPLETE** (TASK-0825, TASK-0831, TASK-0832, TASK-0830)
+  - Redux slices: 100% coverage (imageSlice, settingsSlice)
+  - Upload hooks: 93.33% lines, 73.52% branches (exceeds thresholds)
+  - Screens: Baseline established with 26 E2E test candidates documented
+  - Total: 24 test suites, 428 tests (up from 11 suites, ~70 tests)
+- ✅ Fitness evidence bundle updated with current metrics
+- See "Remediation Status" section below for detailed gap-by-gap completion tracking
 
 ---
 
@@ -597,6 +607,87 @@ TASK-0821 (Storybook) → TASK-0819 (Feature Layer) → TASK-0820 (Services)
 
 ---
 
+## Remediation Status
+
+This section tracks the completion status of each gap identified in this analysis.
+
+### Completed Gaps (2025-11-03)
+
+#### Test Coverage Campaign (TASK-0825, TASK-0831, TASK-0832, TASK-0830)
+**Status:** ✅ COMPLETE
+
+**Work Completed:**
+1. **Redux Slice Tests (TASK-0825)**
+   - Created `imageSlice.test.ts` with 38 tests → 100% coverage
+   - Created `settingsSlice.test.ts` with 31 tests → 100% coverage
+   - All tests verify immer mutations and pure state transitions
+   - Validation: PASS (docs/tests/reports/2025-11-03-validation-mobile-TASK-0825.md)
+
+2. **Hook Tests (TASK-0831)**
+   - Created `useUpload.test.ts` with 24 tests
+   - Created `useUploadMachine.test.ts` with 17 tests
+   - Coverage: 93.33% lines, 73.52% branches (exceeds 70%/60% thresholds)
+   - All XState transitions tested with pure guards verified
+   - Validation: PASS (docs/tests/reports/2025-11-02-validation-mobile-TASK-0831.md)
+
+3. **Screen Tests (TASK-0832)**
+   - Created `CameraScreen.test.tsx` (4 tests + 10 E2E candidates)
+   - Created `GalleryScreen.test.tsx` (5 tests + 8 E2E candidates)
+   - Created `PreviewScreen.test.tsx` (5 tests + 8 E2E candidates)
+   - Platform APIs mocked at boundaries per testing standards
+   - Total: 26 E2E test scenarios documented for future Detox implementation
+   - Validation: PASS (docs/tests/reports/2025-11-03-validation-mobile-TASK-0832.md)
+
+4. **Evidence Consolidation (TASK-0830)**
+   - Updated fitness evidence bundle with all test metrics
+   - Consolidated validation reports from blocker tasks
+   - Verified coverage thresholds met per `standards/testing-standards.md`
+   - Updated gap analysis with completion status (this document)
+
+**Evidence:**
+- Fitness Evidence Bundle: `docs/ui/fitness-evidence-bundle.md` (updated v1.1)
+- Validation Reports: `docs/tests/reports/2025-11-*-validation-mobile-TASK-*.md`
+- Coverage Metrics: 24 test suites, 428 tests passing, critical areas at 79-100% coverage
+
+**Standards Compliance:**
+- ✅ `standards/testing-standards.md#coverage-expectations`: Services/Adapters/Hooks ≥70% lines, ≥60% branches
+- ✅ `standards/testing-standards.md#test-authoring-guidelines`: All tests use proper patterns (stub ports, observable behavior)
+- ✅ `standards/frontend-tier.md#state--logic-layer`: Redux tests dispatch actions and assert state
+- ✅ `standards/frontend-tier.md#state--logic-layer`: XState guards verified pure
+
+### In Progress Gaps
+
+None currently. All planned test coverage work complete.
+
+### Remaining Gaps (Not Addressed by Test Coverage Campaign)
+
+The following gaps remain open and are tracked for future remediation:
+- F-1: Feature layering deep imports
+- F-2: Design system infrastructure (Radix/Tamagui)
+- F-3: Storybook infrastructure (partially complete; needs expansion)
+- F-4: Accessibility testing automation
+- F-5: Snapshot policy definition
+- F-6: Upload breadcrumb trails
+- S-1: Selector purity enforcement (partially complete; needs automation)
+- S-2: Reducer complexity tracking (partially complete; needs automation)
+- S-3: XState statechart exports (complete for uploadMachine; needs coverage for future machines)
+- S-4: XState test coverage (complete for uploadMachine)
+- S-5: Offline support sync queue
+- S-6: Feature flags integration
+- SV-1: Contract drift check automation
+- SV-2: Port purity check automation
+- SV-3: Fitness evidence automation (partially complete)
+- SV-4: Retry policy configuration externalization
+- P-1: Mobile test harness screen
+- P-2: Navigation smoke tests (E2E with Detox)
+- P-3: Release checklist formalization
+- X-1: HEIC→JPEG fallback preprocessing
+- X-2: Background retry/resume persistence
+
+See "Remediation Approach" section for task breakdown and sequencing of remaining gaps.
+
+---
+
 ## Next Steps
 
 1. **Immediate (Sprint 1):**
@@ -629,5 +720,5 @@ TASK-0821 (Storybook) → TASK-0819 (Feature Layer) → TASK-0820 (Services)
 ---
 
 **Document Owner:** Mobile Engineering (Solo Developer)
-**Last Reviewed:** 2025-11-01
-**Next Review:** After TASK-0823 completion
+**Last Reviewed:** 2025-11-03 (updated per TASK-0830 completion)
+**Next Review:** After TASK-0821 completion (Storybook + Chromatic setup)

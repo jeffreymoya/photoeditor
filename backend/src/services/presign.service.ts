@@ -7,9 +7,22 @@ import {
   CreateBatchJobRequest
 } from '@photoeditor/shared';
 
-import { JobService } from './job.service';
+import { JobService, JobServiceError } from './job.service';
 import { S3Service } from './s3.service';
 
+/**
+ * PresignService errors - typed error union for Result flows
+ */
+export type PresignServiceError = JobServiceError | { type: 'S3Error'; message: string };
+
+/**
+ * PresignService - Orchestrates job creation and presigned URL generation
+ *
+ * Refactored per standards/backend-tier.md#domain-service-layer:
+ * - Uses Result/ResultAsync for all operations
+ * - No thrown exceptions for control flow
+ * - Calls Result-based JobService APIs
+ */
 export class PresignService {
   private jobService: JobService;
   private s3Service: S3Service;
@@ -23,7 +36,7 @@ export class PresignService {
     userId: string,
     request: PresignUploadRequest
   ): Promise<PresignUploadResponse> {
-    // Create job first
+    // Create job first - using Result-based API
     const createJobRequest: CreateJobRequest = {
       userId,
       locale: 'en',
@@ -31,7 +44,11 @@ export class PresignService {
       prompt: request.prompt
     };
 
-    const job = await this.jobService.createJob(createJobRequest);
+    const jobResult = await this.jobService.createJobResult(createJobRequest);
+    if (jobResult.isErr()) {
+      throw jobResult.error;
+    }
+    const job = jobResult.value;
 
     // Generate presigned URL
     const presignedUpload = await this.s3Service.generatePresignedUpload(
@@ -53,7 +70,7 @@ export class PresignService {
     userId: string,
     request: BatchUploadRequest
   ): Promise<BatchUploadResponse> {
-    // Create batch job first
+    // Create batch job first - using Result-based API
     const createBatchJobRequest: CreateBatchJobRequest = {
       userId,
       sharedPrompt: request.sharedPrompt,
@@ -63,10 +80,14 @@ export class PresignService {
       settings: {}
     };
 
-    const batchJob = await this.jobService.createBatchJob(createBatchJobRequest);
+    const batchJobResult = await this.jobService.createBatchJobResult(createBatchJobRequest);
+    if (batchJobResult.isErr()) {
+      throw batchJobResult.error;
+    }
+    const batchJob = batchJobResult.value;
 
-    // Create individual child jobs for each file
-    const childJobs = await Promise.all(
+    // Create individual child jobs for each file - using Result-based API
+    const childJobResults = await Promise.all(
       request.files.map(async (_, index) => {
         const prompt = request.individualPrompts?.[index] || request.sharedPrompt;
         const createJobRequest: CreateJobRequest = {
@@ -76,14 +97,25 @@ export class PresignService {
           prompt,
           batchJobId: batchJob.batchJobId
         };
-        return await this.jobService.createJob(createJobRequest);
+        return await this.jobService.createJobResult(createJobRequest);
       })
     );
 
-    // Update batch job with child job IDs
-    await this.jobService.updateBatchJobStatus(batchJob.batchJobId, batchJob.status, {
+    // Check for failures in child job creation
+    const failedResult = childJobResults.find(r => r.isErr());
+    if (failedResult?.isErr()) {
+      throw failedResult.error;
+    }
+
+    const childJobs = childJobResults.map(r => r._unsafeUnwrap());
+
+    // Update batch job with child job IDs - using Result-based API
+    const updateResult = await this.jobService.updateBatchJobStatusResult(batchJob.batchJobId, batchJob.status, {
       childJobIds: childJobs.map(job => job.jobId)
     });
+    if (updateResult.isErr()) {
+      throw updateResult.error;
+    }
 
     // Generate presigned URLs for all files
     const uploads = await Promise.all(

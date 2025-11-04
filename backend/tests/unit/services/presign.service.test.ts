@@ -1,13 +1,15 @@
 import { JobStatus } from '@photoeditor/shared';
+import { ok, err } from 'neverthrow';
 import { PresignService } from '../../../src/services/presign.service';
 import { JobService } from '../../../src/services/job.service';
 import { S3Service } from '../../../src/services/s3.service';
+import { JobValidationError } from '../../../src/domain/job.domain';
 
 describe('PresignService', () => {
   let jobServiceMock: {
-    createJob: jest.Mock;
-    createBatchJob: jest.Mock;
-    updateBatchJobStatus: jest.Mock;
+    createJobResult: jest.Mock;
+    createBatchJobResult: jest.Mock;
+    updateBatchJobStatusResult: jest.Mock;
   };
   let s3ServiceMock: {
     generatePresignedUpload: jest.Mock;
@@ -28,9 +30,9 @@ describe('PresignService', () => {
 
   beforeEach(() => {
     jobServiceMock = {
-      createJob: jest.fn(),
-      createBatchJob: jest.fn(),
-      updateBatchJobStatus: jest.fn()
+      createJobResult: jest.fn(),
+      createBatchJobResult: jest.fn(),
+      updateBatchJobStatusResult: jest.fn()
     };
 
     s3ServiceMock = {
@@ -45,10 +47,10 @@ describe('PresignService', () => {
 
   it('generates presigned upload for single file flow', async () => {
     const expiresAt = new Date('2025-10-29T01:00:00.000Z');
-    jobServiceMock.createJob.mockResolvedValue({
+    jobServiceMock.createJobResult.mockResolvedValue(ok({
       ...baseJob,
       prompt: 'Upload prompt'
-    });
+    }));
     s3ServiceMock.generatePresignedUpload.mockResolvedValue({
       url: 'https://s3.local/upload',
       fields: {
@@ -66,7 +68,7 @@ describe('PresignService', () => {
       prompt: 'Upload prompt'
     });
 
-    expect(jobServiceMock.createJob).toHaveBeenCalledWith({
+    expect(jobServiceMock.createJobResult).toHaveBeenCalledWith({
       userId: 'user-123',
       locale: 'en',
       settings: {},
@@ -87,7 +89,8 @@ describe('PresignService', () => {
   });
 
   it('propagates errors when job creation fails', async () => {
-    jobServiceMock.createJob.mockRejectedValue(new Error('job create failed'));
+    const error = new JobValidationError('userId is required');
+    jobServiceMock.createJobResult.mockResolvedValue(err(error));
 
     await expect(
       service.generatePresignedUpload('user-123', {
@@ -96,7 +99,7 @@ describe('PresignService', () => {
         fileSize: 1024,
         prompt: 'Upload prompt'
       })
-    ).rejects.toThrow('job create failed');
+    ).rejects.toThrow('userId is required');
 
     expect(s3ServiceMock.generatePresignedUpload).not.toHaveBeenCalled();
   });
@@ -118,10 +121,11 @@ describe('PresignService', () => {
       expires_at: 0
     };
 
-    jobServiceMock.createBatchJob.mockResolvedValue(batchJob);
-    jobServiceMock.createJob
-      .mockResolvedValueOnce({ ...baseJob, jobId: 'job-101', prompt: 'prompt-a' })
-      .mockResolvedValueOnce({ ...baseJob, jobId: 'job-102', prompt: 'prompt-b' });
+    jobServiceMock.createBatchJobResult.mockResolvedValue(ok(batchJob));
+    jobServiceMock.createJobResult
+      .mockResolvedValueOnce(ok({ ...baseJob, jobId: 'job-101', prompt: 'prompt-a' }))
+      .mockResolvedValueOnce(ok({ ...baseJob, jobId: 'job-102', prompt: 'prompt-b' }));
+    jobServiceMock.updateBatchJobStatusResult.mockResolvedValue(ok({ ...batchJob, childJobIds: ['job-101', 'job-102'] }));
 
     s3ServiceMock.generatePresignedUpload.mockImplementation(
       async (_userId: string, jobId: string, fileName: string) => ({
@@ -144,7 +148,7 @@ describe('PresignService', () => {
       ]
     });
 
-    expect(jobServiceMock.createBatchJob).toHaveBeenCalledWith({
+    expect(jobServiceMock.createBatchJobResult).toHaveBeenCalledWith({
       userId: 'user-123',
       sharedPrompt: 'shared',
       individualPrompts: ['prompt-a', 'prompt-b'],
@@ -152,21 +156,21 @@ describe('PresignService', () => {
       locale: 'en',
       settings: {}
     });
-    expect(jobServiceMock.createJob).toHaveBeenNthCalledWith(1, {
+    expect(jobServiceMock.createJobResult).toHaveBeenNthCalledWith(1, {
       userId: 'user-123',
       locale: 'en',
       settings: {},
       prompt: 'prompt-a',
       batchJobId: 'batch-001'
     });
-    expect(jobServiceMock.createJob).toHaveBeenNthCalledWith(2, {
+    expect(jobServiceMock.createJobResult).toHaveBeenNthCalledWith(2, {
       userId: 'user-123',
       locale: 'en',
       settings: {},
       prompt: 'prompt-b',
       batchJobId: 'batch-001'
     });
-    expect(jobServiceMock.updateBatchJobStatus).toHaveBeenCalledWith('batch-001', JobStatus.QUEUED, {
+    expect(jobServiceMock.updateBatchJobStatusResult).toHaveBeenCalledWith('batch-001', JobStatus.QUEUED, {
       childJobIds: ['job-101', 'job-102']
     });
     expect(response).toEqual({
@@ -204,10 +208,11 @@ describe('PresignService', () => {
       expires_at: 0
     };
 
-    jobServiceMock.createBatchJob.mockResolvedValue(batchJob);
-    jobServiceMock.createJob
-      .mockResolvedValueOnce({ ...baseJob, jobId: 'job-201', prompt: 'prompt-one' })
-      .mockResolvedValueOnce({ ...baseJob, jobId: 'job-202', prompt: 'shared' });
+    jobServiceMock.createBatchJobResult.mockResolvedValue(ok(batchJob));
+    jobServiceMock.createJobResult
+      .mockResolvedValueOnce(ok({ ...baseJob, jobId: 'job-201', prompt: 'prompt-one' }))
+      .mockResolvedValueOnce(ok({ ...baseJob, jobId: 'job-202', prompt: 'shared' }));
+    jobServiceMock.updateBatchJobStatusResult.mockResolvedValue(ok({ ...batchJob, childJobIds: ['job-201', 'job-202'] }));
 
     s3ServiceMock.generatePresignedUpload.mockResolvedValue({
       url: 'https://s3.local/upload',
@@ -228,7 +233,7 @@ describe('PresignService', () => {
       ]
     });
 
-    const secondCallArgs = jobServiceMock.createJob.mock.calls[1][0];
+    const secondCallArgs = jobServiceMock.createJobResult.mock.calls[1][0];
     expect(secondCallArgs.prompt).toBe('shared');
   });
 
@@ -249,10 +254,11 @@ describe('PresignService', () => {
       expires_at: 0
     };
 
-    jobServiceMock.createBatchJob.mockResolvedValue(batchJob);
-    jobServiceMock.createJob
-      .mockResolvedValueOnce({ ...baseJob, jobId: 'job-301' })
-      .mockRejectedValueOnce(new Error('child job failed'));
+    const error = new JobValidationError('child job failed');
+    jobServiceMock.createBatchJobResult.mockResolvedValue(ok(batchJob));
+    jobServiceMock.createJobResult
+      .mockResolvedValueOnce(ok({ ...baseJob, jobId: 'job-301' }))
+      .mockResolvedValueOnce(err(error));
 
     await expect(
       service.generateBatchPresignedUpload('user-123', {
@@ -264,7 +270,47 @@ describe('PresignService', () => {
     })
     ).rejects.toThrow('child job failed');
 
-    expect(jobServiceMock.updateBatchJobStatus).not.toHaveBeenCalled();
+    expect(jobServiceMock.updateBatchJobStatusResult).not.toHaveBeenCalled();
+    expect(s3ServiceMock.generatePresignedUpload).not.toHaveBeenCalled();
+  });
+
+  it('propagates errors when batch job update fails', async () => {
+    const batchJob = {
+      batchJobId: 'batch-update-err',
+      userId: 'user-123',
+      status: JobStatus.QUEUED,
+      createdAt: '2025-10-29T00:00:00.000Z',
+      updatedAt: '2025-10-29T00:00:00.000Z',
+      sharedPrompt: 'shared',
+      individualPrompts: undefined,
+      childJobIds: [],
+      completedCount: 0,
+      totalCount: 2,
+      locale: 'en',
+      settings: {},
+      expires_at: 0
+    };
+
+    const updateError = { type: 'UpdateError' as const, message: 'batch update failed' };
+    jobServiceMock.createBatchJobResult.mockResolvedValue(ok(batchJob));
+    jobServiceMock.createJobResult
+      .mockResolvedValueOnce(ok({ ...baseJob, jobId: 'job-401' }))
+      .mockResolvedValueOnce(ok({ ...baseJob, jobId: 'job-402' }));
+    jobServiceMock.updateBatchJobStatusResult.mockResolvedValue(err(updateError));
+
+    await expect(
+      service.generateBatchPresignedUpload('user-123', {
+        sharedPrompt: 'shared',
+        files: [
+          { fileName: 'a.png', contentType: 'image/png', fileSize: 2048 },
+          { fileName: 'b.png', contentType: 'image/png', fileSize: 4096 }
+        ]
+      })
+    ).rejects.toEqual(updateError);
+
+    expect(jobServiceMock.updateBatchJobStatusResult).toHaveBeenCalledWith('batch-update-err', JobStatus.QUEUED, {
+      childJobIds: ['job-401', 'job-402']
+    });
     expect(s3ServiceMock.generatePresignedUpload).not.toHaveBeenCalled();
   });
 });

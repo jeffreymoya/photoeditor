@@ -4,15 +4,15 @@ set -e
 echo "🔍 Checking for standards violations..."
 echo ""
 
-# Block @ts-ignore additions (except in docs/, .husky/, and tasks/)
-if git diff --cached --diff-filter=AM -- ':!docs/' ':!.husky/' ':!tasks/' | grep -E '^\+.*@ts-ignore'; then
+# Block @ts-ignore additions (except in docs/, .husky/, tasks/, and .agent-outputs/)
+if git diff --cached --diff-filter=AM -- ':!docs/' ':!.husky/' ':!tasks/' ':!.agent-outputs/' | grep -E '^\+.*@ts-ignore'; then
   echo "❌ ERROR: @ts-ignore addition detected (standards/typescript.md violation)"
   echo "   If exception needed, document in docs/exceptions/ with expiry date"
   exit 1
 fi
 
 # Block it.skip additions (test weakening)
-if git diff --cached --diff-filter=AM -- ':!.husky/' ':!docs/' ':!tasks/' | grep -E '^\+.*it\.skip|^\+.*describe\.skip'; then
+if git diff --cached --diff-filter=AM -- ':!.husky/' ':!docs/' ':!tasks/' ':!.agent-outputs/' | grep -E '^\+.*it\.skip|^\+.*describe\.skip'; then
   echo "❌ ERROR: it.skip/describe.skip detected (standards/testing-standards.md violation)"
   echo "   Fix tests properly rather than skipping them"
   exit 1

@@ -12,18 +12,28 @@ import {
   InvalidStateTransitionError,
   JobValidationError
 } from '../../../src/domain/job.domain';
+import { FixedTimeProvider, FixedIdProvider } from '../../../src/utils/providers';
 import { Job, BatchJob, JobStatus, CreateJobRequest, CreateBatchJobRequest } from '@photoeditor/shared';
 
 describe('Job Domain Logic', () => {
+  const fixedTime = '2024-01-01T00:00:00.000Z';
+  const fixedEpoch = 1704067200;
+  const timeProvider = new FixedTimeProvider(fixedTime, fixedEpoch);
+  const idProvider = new FixedIdProvider(['job-001', 'job-002', 'batch-001']);
+
+  beforeEach(() => {
+    idProvider.reset();
+  });
+
   describe('createJobEntity', () => {
-    it('should create a valid job entity', () => {
+    it('should create a valid job entity with deterministic providers', () => {
       const request: CreateJobRequest = {
         userId: 'user-123',
         locale: 'en',
         prompt: 'Make it better'
       };
 
-      const result = createJobEntity(request);
+      const result = createJobEntity(request, timeProvider, idProvider);
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
@@ -32,9 +42,9 @@ describe('Job Domain Logic', () => {
         expect(job.status).toBe(JobStatus.QUEUED);
         expect(job.locale).toBe('en');
         expect(job.prompt).toBe('Make it better');
-        expect(job.jobId).toBeDefined();
-        expect(job.createdAt).toBeDefined();
-        expect(job.updatedAt).toBeDefined();
+        expect(job.jobId).toBe('job-001');
+        expect(job.createdAt).toBe(fixedTime);
+        expect(job.updatedAt).toBe(fixedTime);
       }
     });
 
@@ -44,7 +54,7 @@ describe('Job Domain Logic', () => {
         locale: 'en' // default value
       };
 
-      const result = createJobEntity(request);
+      const result = createJobEntity(request, timeProvider, idProvider);
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
@@ -55,7 +65,7 @@ describe('Job Domain Logic', () => {
     it('should fail when userId is missing', () => {
       const request = { userId: '' } as CreateJobRequest;
 
-      const result = createJobEntity(request);
+      const result = createJobEntity(request, timeProvider, idProvider);
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -66,7 +76,7 @@ describe('Job Domain Logic', () => {
   });
 
   describe('createBatchJobEntity', () => {
-    it('should create a valid batch job entity', () => {
+    it('should create a valid batch job entity with deterministic providers', () => {
       const request: CreateBatchJobRequest = {
         userId: 'user-123',
         sharedPrompt: 'Apply filter to all',
@@ -74,7 +84,7 @@ describe('Job Domain Logic', () => {
         locale: 'en'
       };
 
-      const result = createBatchJobEntity(request);
+      const result = createBatchJobEntity(request, timeProvider, idProvider);
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
@@ -85,6 +95,8 @@ describe('Job Domain Logic', () => {
         expect(batchJob.totalCount).toBe(5);
         expect(batchJob.completedCount).toBe(0);
         expect(batchJob.childJobIds).toEqual([]);
+        expect(batchJob.batchJobId).toBe('job-001');
+        expect(batchJob.createdAt).toBe(fixedTime);
       }
     });
 
@@ -95,7 +107,7 @@ describe('Job Domain Logic', () => {
         fileCount: 5
       } as CreateBatchJobRequest;
 
-      const result = createBatchJobEntity(request);
+      const result = createBatchJobEntity(request, timeProvider, idProvider);
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -110,7 +122,7 @@ describe('Job Domain Logic', () => {
         fileCount: 0
       } as CreateBatchJobRequest;
 
-      const result = createBatchJobEntity(request);
+      const result = createBatchJobEntity(request, timeProvider, idProvider);
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -129,21 +141,21 @@ describe('Job Domain Logic', () => {
       locale: 'en'
     });
 
-    it('should successfully transition from QUEUED to PROCESSING', () => {
+    it('should successfully transition from QUEUED to PROCESSING with deterministic time', () => {
       const job = createQueuedJob();
-      const result = transitionToProcessing(job, 's3://bucket/temp-key');
+      const result = transitionToProcessing(job, 's3://bucket/temp-key', timeProvider);
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         expect(result.value.status).toBe(JobStatus.PROCESSING);
         expect(result.value.updates.tempS3Key).toBe('s3://bucket/temp-key');
-        expect(result.value.updates.updatedAt).toBeDefined();
+        expect(result.value.updates.updatedAt).toBe(fixedTime);
       }
     });
 
     it('should fail when transitioning from invalid state', () => {
       const job = { ...createQueuedJob(), status: JobStatus.COMPLETED };
-      const result = transitionToProcessing(job, 's3://bucket/temp-key');
+      const result = transitionToProcessing(job, 's3://bucket/temp-key', timeProvider);
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -166,18 +178,18 @@ describe('Job Domain Logic', () => {
 
     it('should successfully transition from PROCESSING to EDITING', () => {
       const job = createProcessingJob();
-      const result = transitionToEditing(job);
+      const result = transitionToEditing(job, timeProvider);
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         expect(result.value.status).toBe(JobStatus.EDITING);
-        expect(result.value.updates.updatedAt).toBeDefined();
+        expect(result.value.updates.updatedAt).toBe(fixedTime);
       }
     });
 
     it('should fail when transitioning from QUEUED', () => {
       const job = { ...createProcessingJob(), status: JobStatus.QUEUED };
-      const result = transitionToEditing(job);
+      const result = transitionToEditing(job, timeProvider);
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -199,19 +211,19 @@ describe('Job Domain Logic', () => {
 
     it('should successfully transition from EDITING to COMPLETED', () => {
       const job = createEditingJob();
-      const result = transitionToCompleted(job, 's3://bucket/final-key');
+      const result = transitionToCompleted(job, 's3://bucket/final-key', timeProvider);
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         expect(result.value.status).toBe(JobStatus.COMPLETED);
         expect(result.value.updates.finalS3Key).toBe('s3://bucket/final-key');
-        expect(result.value.updates.updatedAt).toBeDefined();
+        expect(result.value.updates.updatedAt).toBe(fixedTime);
       }
     });
 
     it('should fail when transitioning from PROCESSING', () => {
       const job = { ...createEditingJob(), status: JobStatus.PROCESSING };
-      const result = transitionToCompleted(job, 's3://bucket/final-key');
+      const result = transitionToCompleted(job, 's3://bucket/final-key', timeProvider);
 
       expect(result.isErr()).toBe(true);
       if (result.isErr()) {
@@ -231,12 +243,13 @@ describe('Job Domain Logic', () => {
         locale: 'en'
       };
 
-      const result = transitionToFailed(job, 'Upload failed');
+      const result = transitionToFailed(job, 'Upload failed', timeProvider);
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
         expect(result.value.status).toBe(JobStatus.FAILED);
         expect(result.value.updates.error).toBe('Upload failed');
+        expect(result.value.updates.updatedAt).toBe(fixedTime);
       }
     });
 
@@ -250,7 +263,7 @@ describe('Job Domain Logic', () => {
         locale: 'en'
       };
 
-      const result = transitionToFailed(job, 'Processing error');
+      const result = transitionToFailed(job, 'Processing error', timeProvider);
 
       expect(result.isOk()).toBe(true);
       if (result.isOk()) {
@@ -268,7 +281,7 @@ describe('Job Domain Logic', () => {
         locale: 'en'
       };
 
-      const result = transitionToFailed(job, 'error');
+      const result = transitionToFailed(job, 'error', timeProvider);
 
       expect(result.isErr()).toBe(true);
     });

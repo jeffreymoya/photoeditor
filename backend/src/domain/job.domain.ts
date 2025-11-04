@@ -7,7 +7,22 @@ import {
   JobEvent
 } from '@photoeditor/shared/statecharts/jobLifecycle.machine';
 import { Result, ok, err } from 'neverthrow';
-import { v4 as uuidv4 } from 'uuid';
+
+/**
+ * Injectable provider interfaces for deterministic domain logic
+ * Per standards/typescript.md#analyzability: domain functions must be pure
+ */
+export interface TimeProvider {
+  /** Returns current time as ISO 8601 string */
+  now(): string;
+  /** Returns current Unix epoch seconds for TTL calculations */
+  nowEpochSeconds(): number;
+}
+
+export interface IdProvider {
+  /** Generates a unique identifier */
+  generateId(): string;
+}
 
 /**
  * Domain errors - pure, no infrastructure dependencies
@@ -37,19 +52,24 @@ export class JobValidationError extends Error {
 
 /**
  * Creates a new job entity with initial state
- * Pure function - no side effects
+ * Pure function - accepts injected providers for deterministic behavior
+ * Per standards/typescript.md#analyzability: no direct Date.now() or uuid calls
  */
-export function createJobEntity(request: CreateJobRequest): Result<Job, JobValidationError> {
+export function createJobEntity(
+  request: CreateJobRequest,
+  timeProvider: TimeProvider,
+  idProvider: IdProvider
+): Result<Job, JobValidationError> {
   // Validate request
   if (!request.userId) {
     return err(new JobValidationError('userId is required'));
   }
 
-  const now = new Date().toISOString();
-  const expires_at = Math.floor(Date.now() / 1000) + (APP_CONFIG.JOB_TTL_DAYS * 24 * 60 * 60);
+  const now = timeProvider.now();
+  const expires_at = timeProvider.nowEpochSeconds() + (APP_CONFIG.JOB_TTL_DAYS * 24 * 60 * 60);
 
   const job: Job = {
-    jobId: uuidv4(),
+    jobId: idProvider.generateId(),
     userId: request.userId,
     status: JobStatus.QUEUED,
     createdAt: now,
@@ -66,8 +86,13 @@ export function createJobEntity(request: CreateJobRequest): Result<Job, JobValid
 
 /**
  * Creates a new batch job entity
+ * Pure function - accepts injected providers for deterministic behavior
  */
-export function createBatchJobEntity(request: CreateBatchJobRequest): Result<BatchJob, JobValidationError> {
+export function createBatchJobEntity(
+  request: CreateBatchJobRequest,
+  timeProvider: TimeProvider,
+  idProvider: IdProvider
+): Result<BatchJob, JobValidationError> {
   if (!request.userId) {
     return err(new JobValidationError('userId is required'));
   }
@@ -80,11 +105,11 @@ export function createBatchJobEntity(request: CreateBatchJobRequest): Result<Bat
     return err(new JobValidationError('fileCount must be positive'));
   }
 
-  const now = new Date().toISOString();
-  const expires_at = Math.floor(Date.now() / 1000) + (APP_CONFIG.JOB_TTL_DAYS * 24 * 60 * 60);
+  const now = timeProvider.now();
+  const expires_at = timeProvider.nowEpochSeconds() + (APP_CONFIG.JOB_TTL_DAYS * 24 * 60 * 60);
 
   const batchJob: BatchJob = {
-    batchJobId: uuidv4(),
+    batchJobId: idProvider.generateId(),
     userId: request.userId,
     status: JobStatus.QUEUED,
     createdAt: now,
@@ -104,10 +129,12 @@ export function createBatchJobEntity(request: CreateBatchJobRequest): Result<Bat
 
 /**
  * Validates and transitions job to PROCESSING state
+ * Pure function - accepts time provider for deterministic timestamps
  */
 export function transitionToProcessing(
   job: Job,
-  tempS3Key: string
+  tempS3Key: string,
+  timeProvider: TimeProvider
 ): Result<{ status: JobStatusType; updates: Partial<Job> }, InvalidStateTransitionError> {
   const event: JobEvent = { type: 'START_PROCESSING', tempS3Key };
 
@@ -124,16 +151,18 @@ export function transitionToProcessing(
     status: nextState,
     updates: {
       tempS3Key,
-      updatedAt: new Date().toISOString()
+      updatedAt: timeProvider.now()
     }
   });
 }
 
 /**
  * Validates and transitions job to EDITING state
+ * Pure function - accepts time provider for deterministic timestamps
  */
 export function transitionToEditing(
-  job: Job
+  job: Job,
+  timeProvider: TimeProvider
 ): Result<{ status: JobStatusType; updates: Partial<Job> }, InvalidStateTransitionError> {
   const event: JobEvent = { type: 'START_EDITING' };
 
@@ -149,17 +178,19 @@ export function transitionToEditing(
   return ok({
     status: nextState,
     updates: {
-      updatedAt: new Date().toISOString()
+      updatedAt: timeProvider.now()
     }
   });
 }
 
 /**
  * Validates and transitions job to COMPLETED state
+ * Pure function - accepts time provider for deterministic timestamps
  */
 export function transitionToCompleted(
   job: Job,
-  finalS3Key: string
+  finalS3Key: string,
+  timeProvider: TimeProvider
 ): Result<{ status: JobStatusType; updates: Partial<Job> }, InvalidStateTransitionError> {
   const event: JobEvent = { type: 'COMPLETE', finalS3Key };
 
@@ -176,7 +207,7 @@ export function transitionToCompleted(
     status: nextState,
     updates: {
       finalS3Key,
-      updatedAt: new Date().toISOString()
+      updatedAt: timeProvider.now()
     }
   });
 }
@@ -184,10 +215,12 @@ export function transitionToCompleted(
 /**
  * Validates and transitions job to FAILED state
  * Can be called from any state
+ * Pure function - accepts time provider for deterministic timestamps
  */
 export function transitionToFailed(
   job: Job,
-  error: string
+  error: string,
+  timeProvider: TimeProvider
 ): Result<{ status: JobStatusType; updates: Partial<Job> }, InvalidStateTransitionError> {
   const event: JobEvent = { type: 'FAIL', error };
 
@@ -204,7 +237,7 @@ export function transitionToFailed(
     status: nextState,
     updates: {
       error,
-      updatedAt: new Date().toISOString()
+      updatedAt: timeProvider.now()
     }
   });
 }

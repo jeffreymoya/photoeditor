@@ -14,9 +14,12 @@ import {
   isJobTerminal,
   isJobInProgress,
   InvalidStateTransitionError,
-  JobValidationError
+  JobValidationError,
+  TimeProvider,
+  IdProvider
 } from '../domain/job.domain';
 import { JobRepository, JobNotFoundError, JobAlreadyExistsError, RepositoryError } from '../repositories/job.repository';
+import { SystemTimeProvider, SystemIdProvider } from '../utils/providers';
 
 import type { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 
@@ -39,27 +42,34 @@ export type JobServiceError =
  * - Uses neverthrow Result types for error handling
  * - No thrown exceptions for control flow
  * - State transitions validated via XState machine in shared/statecharts
+ * - Accepts injectable time/id providers for deterministic testing
  */
 export class JobService {
   private repository: JobRepository;
+  private timeProvider: TimeProvider;
+  private idProvider: IdProvider;
 
   constructor(
     tableName: string,
     region: string,
     batchTableName?: string,
-    client?: DynamoDBClient
+    client?: DynamoDBClient,
+    timeProvider?: TimeProvider,
+    idProvider?: IdProvider
   ) {
     const dynamoClient = client || createDynamoDBClient(region);
     const batchTable = batchTableName || `${tableName}-batches`;
     this.repository = new JobRepository(dynamoClient, tableName, batchTable);
+    this.timeProvider = timeProvider || new SystemTimeProvider();
+    this.idProvider = idProvider || new SystemIdProvider();
   }
 
   /**
    * Creates a new job using domain entity factory - Returns Result
    */
   async createJobResult(request: CreateJobRequest): Promise<Result<Job, JobServiceError>> {
-    // Domain: create entity
-    const jobResult = createJobEntity(request);
+    // Domain: create entity with injected providers
+    const jobResult = createJobEntity(request, this.timeProvider, this.idProvider);
     if (jobResult.isErr()) {
       return jobResult;
     }
@@ -108,7 +118,7 @@ export class JobService {
   ): Promise<Result<Job, JobServiceError>> {
     // Note: Direct status update - for backward compatibility
     // Consider using specific transition methods instead
-    const now = new Date().toISOString();
+    const now = this.timeProvider.now();
     return await this.repository.updateStatus(jobId, status, {
       ...updates,
       updatedAt: now
@@ -142,8 +152,8 @@ export class JobService {
       return jobResult;
     }
 
-    // Domain: validate transition
-    const transitionResult = transitionToFailed(jobResult.value, error);
+    // Domain: validate transition with injected provider
+    const transitionResult = transitionToFailed(jobResult.value, error, this.timeProvider);
     if (transitionResult.isErr()) {
       return err(transitionResult.error);
     }
@@ -176,7 +186,7 @@ export class JobService {
       return jobResult;
     }
 
-    const transitionResult = transitionToProcessing(jobResult.value, tempS3Key);
+    const transitionResult = transitionToProcessing(jobResult.value, tempS3Key, this.timeProvider);
     if (transitionResult.isErr()) {
       return err(transitionResult.error);
     }
@@ -207,7 +217,7 @@ export class JobService {
       return jobResult;
     }
 
-    const transitionResult = transitionToEditing(jobResult.value);
+    const transitionResult = transitionToEditing(jobResult.value, this.timeProvider);
     if (transitionResult.isErr()) {
       return err(transitionResult.error);
     }
@@ -238,7 +248,7 @@ export class JobService {
       return jobResult;
     }
 
-    const transitionResult = transitionToCompleted(jobResult.value, finalS3Key);
+    const transitionResult = transitionToCompleted(jobResult.value, finalS3Key, this.timeProvider);
     if (transitionResult.isErr()) {
       return err(transitionResult.error);
     }
@@ -282,7 +292,7 @@ export class JobService {
    * Creates a new batch job using domain entity factory - Returns Result
    */
   async createBatchJobResult(request: CreateBatchJobRequest): Promise<Result<BatchJob, JobServiceError>> {
-    const batchJobResult = createBatchJobEntity(request);
+    const batchJobResult = createBatchJobEntity(request, this.timeProvider, this.idProvider);
     if (batchJobResult.isErr()) {
       return batchJobResult;
     }
@@ -328,7 +338,7 @@ export class JobService {
     status: JobStatusType,
     updates: Partial<Pick<BatchJob, 'completedCount' | 'error' | 'childJobIds'>> = {}
   ): Promise<Result<BatchJob, JobServiceError>> {
-    const now = new Date().toISOString();
+    const now = this.timeProvider.now();
     return await this.repository.updateBatchStatus(batchJobId, status, {
       ...updates,
       updatedAt: now
@@ -369,7 +379,7 @@ export class JobService {
     const { status, completedCount } = progressResult.value;
     return await this.repository.updateBatchStatus(batchJobId, status, {
       completedCount,
-      updatedAt: new Date().toISOString()
+      updatedAt: this.timeProvider.now()
     });
   }
 

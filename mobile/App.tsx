@@ -1,6 +1,6 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Provider } from 'react-redux';
@@ -11,10 +11,11 @@ import { AppNavigator } from '@/navigation/AppNavigator';
 import { notificationService } from '@/services/notification/adapter';
 import { store } from '@/store';
 
-// Initialize notification service
-notificationService.initialize();
+export function App(): JSX.Element {
+  useEffect(() => {
+    void notificationService.initialize();
+  }, []);
 
-export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Provider store={store}>

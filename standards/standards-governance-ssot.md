@@ -31,8 +31,37 @@ Roles & Responsibilities (Solo Maintainer Friendly)
 How to Cite Standards (Tasks & PRs)
 
 - Prefer file + section: e.g., `standards/typescript.md#Discriminated Unions & Exhaustiveness`.
-- When a precise sentence matters, also cite a stable phrase in quotes: e.g., “Zod at boundaries”.
+- When a precise sentence matters, also cite a stable phrase in quotes: e.g., "Zod at boundaries".
 - Include at least one tier file and any cross‑cutting or language files that apply.
+
+Anchor Heading Requirements (Schema 1.1+)
+
+**Effective 2025-11-04:** Task files using schema version 1.1+ must reference verifiable anchor headings.
+
+- **Heading-to-slug conversion rules:**
+  - Convert heading text to lowercase
+  - Replace spaces with hyphens
+  - Remove special characters (except hyphens)
+  - Example: "Domain Service Layer" → `#domain-service-layer`
+
+- **Validation requirements:**
+  - Anchors cited in task `plan.details` and `definition_of_done` fields must exist in the referenced standards file
+  - Use `python scripts/tasks.py --lint` to validate anchor references before transitioning tasks from `draft` to `todo`
+  - Task linter warns when referenced headings cannot be resolved
+
+- **Stability expectations:**
+  - Heading anchors are considered stable API surface for standards documents
+  - When renaming headings during Standards CR, preserve old anchors or update all referencing tasks
+  - Document anchor changes in the Standards CR evidence
+
+- **Example valid citations:**
+  - `standards/typescript.md#analyzability` (heading exists: "Analyzability")
+  - `standards/backend-tier.md#domain-service-layer` (heading exists: "Domain Service Layer")
+  - `standards/testing-standards.md#coverage-expectations` (heading exists: "Coverage Expectations")
+
+- **Example invalid citations:**
+  - `standards/typescript.md#neverthrow-result-pattern` (heading does not exist)
+  - `standards/backend-tier.md#service-rules` (ambiguous, multiple potential matches)
 
 Classifying Which Standards Apply (Agents)
 

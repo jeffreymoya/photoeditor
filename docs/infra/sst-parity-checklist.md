@@ -210,7 +210,7 @@ All stack files now cite:
 - ✅ ADR merged with status "Accepted" and cites `infrastructure-tier.md` 5-12 as authority
 - ✅ SST stacks document current state (Phase 1 inline provisioning)
 - ✅ Task summary enumerates residual gaps with linked follow-up tasks (TASK-0823)
-- ⏳ `pnpm turbo run qa:static --parallel` - To be validated by test agents
+- ⏳ `pnpm turbo run qa:static --parallel` - Implementation/review agents must supply clean output before validation (lint/typecheck live there)
 
 ## References
 

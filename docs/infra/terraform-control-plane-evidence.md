@@ -273,6 +273,10 @@ conftest test tfplan.json --policy ../infra/policy-as-code/policies
 # 5. Drift Detection (requires AWS credentials)
 terraform init  # with backend configured
 terraform plan -var="environment=dev" -out=drift-check.tfplan -detailed-exitcode
+
+# 6. Environment Registry (infrastructure-tier.md L12, cross-cutting.md L121-133)
+# Reference docs/infra/environment-registry.json for deployed resource identifiers
+# Regenerate registry after deployments via: pnpm infra:registry
 ```
 
 ## CI/CD Pipeline
@@ -322,7 +326,7 @@ terraform plan -var="environment=dev" -out=drift-check.tfplan -detailed-exitcode
 **Pending** (Future Tasks):
 - ⏳ Remaining Terraform modules (s3-bucket, dynamodb-table, sqs-queue, etc.)
 - ⏳ SST stack refactoring to consume Terraform modules
-- ⏳ Environment registry for SST output export
+- ✅ Environment registry for SST output export (completed TASK-0827)
 - ⏳ AWS OIDC configuration for drift detection
 - ⏳ Terraform state backend (S3 + DynamoDB locking)
 
@@ -358,6 +362,7 @@ This control plane satisfies the following standards requirements:
 
 - **L5-12**: SST parity ADR and migration strategy (ADR-0008)
 - **L7**: Versioned modules with input/output contracts (modules/kms/)
+- **L12**: SST envs map 1:1 to stage; outputs recorded in environment registry (docs/infra/environment-registry.json)
 - **L19**: Terraform validate/plan artifacts stored (CI artifacts + drift reports)
 - **L20**: Weekly drift check with reports (GitHub Actions cron + docs/infra/drift/)
 - **L21**: Policy-as-code via OPA/Conftest (infra/policy-as-code/)
@@ -370,6 +375,7 @@ This control plane satisfies the following standards requirements:
 - **L11**: Mandatory tags enforced (mandatory_tags.rego)
 - **L25**: DLQ configuration enforced (sqs_dlq.rego)
 - **L52**: KMS encryption for stateful resources (kms_encryption.rego)
+- **L121-133**: Governance & Knowledge - Evidence bundle with environment registry (docs/infra/environment-registry.json)
 
 ### Global Standards (standards/global.md)
 
@@ -380,6 +386,7 @@ This control plane satisfies the following standards requirements:
 
 ### Documentation
 - **ADR-0008**: SST Parity with Terraform Modules (`adr/0008-sst-parity.md`)
+- **Environment Registry**: `docs/infra/environment-registry.md` (documentation), `docs/infra/environment-registry.json` (artifact)
 - **Parity Checklist**: `docs/infra/sst-parity-checklist.md`
 - **Drift Reports**: `docs/infra/drift/README.md`
 - **Policy Documentation**: `infra/policy-as-code/README.md`
@@ -395,9 +402,11 @@ This control plane satisfies the following standards requirements:
 - **Workflow**: `.github/workflows/terraform.yml`
 - **Policies**: `infra/policy-as-code/policies/*.rego`
 - **Modules**: `infrastructure/modules/`
+- **Registry Export**: `scripts/infra/export-environment-registry.ts`
 
 ### Tasks
 - **Driving Task**: `tasks/infra/TASK-0823-terraform-control-plane.task.yaml`
+- **Environment Registry**: `tasks/infra/TASK-0827-environment-registry-evidence.task.yaml`
 - **Prerequisite**: TASK-0822 (SST ADR, completed)
 - **Follow-Up**: Module authoring and SST integration (Phase 2-3)
 

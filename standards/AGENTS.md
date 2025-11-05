@@ -2,8 +2,8 @@
 
 Important
 
-- Read `standards/standards-governance-ssot.md` (authoritative grounding and standards change‑request process) before applying any tier rules.
-- For decomposition, follow `standards/task-breakdown-canon.md`.
+- Governance SSOT: `standards/standards-governance-ssot.md` — follow for grounding and standards change requests.
+- Task Breakdown Canon: `standards/task-breakdown-canon.md` — follow for decomposition when tasks are complex or blocked.
 - For QA commands, use `standards/qa-commands-ssot.md` (commands only; thresholds live in testing/cross‑cutting standards).
 
 Tier/Rule Sources

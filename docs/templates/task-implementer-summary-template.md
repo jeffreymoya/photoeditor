@@ -13,12 +13,19 @@ Use these markdown scaffolds when writing to `.agent-output/`.
 ## Features Added
 - {short bullet}
 
+## Scope Confirmation
+- Task `repo_paths` alignment: ✅ Matches diff / ❌ Updated → {describe additions/removals}
+- Git diff summary: `{git diff --stat}`
+
 ## Standards Enforced
 - {STANDARD-ID — brief paraphrase}
 
 ## Tests Created/Updated
 **CRITICAL:** Document every test file so validation agents can target runs.
 - {path} ({new/updated}: {context})
+
+## QA Evidence
+- `{command}` — PASS — log: `.agent-output/{TASK-ID}-{command}.log` (notes)
 
 ## Diff Safety Audit
 - Prohibited patterns (`@ts-ignore`, `eslint-disable`, `it.skip`): ✅ PASS/❌ FAIL

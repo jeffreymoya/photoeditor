@@ -22,6 +22,7 @@ class Task:
         priority: Task priority (P0, P1, P2)
         area: Task area/category (e.g., mobile, backend, infra)
         path: Absolute file path to the .task.yaml file
+        schema_version: Task schema version (e.g., "1.0", "1.1")
         unblocker: Whether this task unblocks other tasks (prioritized first)
         order: Optional ordering within same priority/status
         blocked_by: List of task IDs that block this task (hard blockers)
@@ -37,6 +38,7 @@ class Task:
     priority: str
     area: str
     path: str
+    schema_version: str = "1.0"  # Default to 1.0 for backward compatibility
     unblocker: bool = False
     order: Optional[int] = None
     blocked_by: List[str] = field(default_factory=list)

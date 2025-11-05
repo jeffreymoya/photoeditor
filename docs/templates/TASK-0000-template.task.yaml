@@ -4,18 +4,23 @@
 # If the effort feels wider than one independently shippable change, stop and split it into
 # multiple task files before continuing.
 
-schema_version: "1.0"
+schema_version: "1.1"  # Schema 1.1 requires validation section and non-empty plan outputs
 id: TASK-0000                    # REPLACE: stable ID (e.g., TASK-0123)
 title: "REPLACE: action-oriented title"
-status: todo                     # todo | in_progress | blocked | completed
+status: draft                    # draft | todo | in_progress | blocked | completed — stay draft until clarifications resolved
 blocked_reason: null             # REQUIRED when status=blocked; explain the external dependency
 priority: P1                     # P0 | P1 | P2
 area: backend                    # backend | mobile | shared | infra | docs | ops | other
 unblocker: false                 # true if this task unblocks other work (task picker prioritizes it; Python CLI rollout in docs/proposals/task-workflow-python-refactor.md)
 order: null                      # Optional: execution order for orchestration
 blocked_by: []                   # Hard execution blockers (task cannot START until these complete)
-depends_on: []                   # Informational dependencies (outputs needed but not blocking execution)
+depends_on: []                   # Informational dependencies (outputs needed but not blocking execution); if the dependency is draft, add it to blocked_by instead
 agent_completion_state: {}       # Optional: managed by task-runner; tracks completed agents for resumption (do not edit manually)
+
+clarifications:
+  outstanding:
+    - REPLACE: open question, ambiguity, or standards gap to resolve before moving to todo; remove this list when empty
+  evidence_path: "REPLACE: docs/evidence/tasks/TASK-0000-clarifications.md"  # REQUIRED before transitioning draft -> todo; keep history even if list is empty
 
 description: >-
   REPLACE: Provide concise context (2–5 sentences). Include business value, constraints,
@@ -40,7 +45,7 @@ context:
     - REPLACE: standards/<tier>-tier.md
     - REPLACE: docs/design/<reference>.md
   repo_paths:
-    - REPLACE: approximate file path or directory touched
+    - REPLACE: approximate file path or directory touched (refresh with the exact files before closing the task)
   dependencies: []                # List external services/packages or remove if unused
 
 environment:
@@ -84,10 +89,13 @@ plan:
   - id: 2
     title: Implement change
     details: >-
-      REPLACE: describe the core implementation approach and call out which standards clause guides the design (e.g., standards/typescript.md#neverthrow-result-pattern).
+      REPLACE: describe the core implementation approach and call out which standards clause guides the design (e.g., standards/typescript.md#analyzability or standards/backend-tier.md#domain-service-layer).
+      Verify anchor headings exist in referenced standards files before citing.
     actor: agent
     inputs: []
-    outputs: []
+    outputs:  # REPLACE_WITH_DELIVERABLES: List all files created/modified (e.g., src/domain/job.ts, tests/job.test.ts)
+      - REPLACE: primary implementation file(s)
+      - REPLACE: test file(s) or evidence updates
     definition_of_done:
       - REPLACE: Implementation satisfies standards/<tier>-tier.md#<heading>; mention evidence path proving compliance.
     estimate: M
@@ -96,15 +104,32 @@ plan:
   - id: 3
     title: Validate and document
     details: >-
-      REPLACE: describe evidence collection and documentation handoff; automated test suites run via agents. Cite the QA requirement you are satisfying (e.g., standards/testing-standards.md#backend-coverage-minimums).
+      REPLACE: describe evidence collection and documentation handoff; automated test suites run via agents. Cite the QA requirement you are satisfying (e.g., standards/testing-standards.md#coverage-expectations).
     actor: agent
     inputs: []
-    outputs: []
+    outputs:  # REPLACE_WITH_DELIVERABLES: Evidence artifacts, test reports, or documentation files
+      - REPLACE: docs/evidence/tasks/TASK-0000-clarifications.md (validation notes)
     definition_of_done:
       - REPLACE: Validation artifacts stored and cross-referenced with standards/testing-standards.md#<heading> thresholds.
     estimate: S
     expected_files_touched:
       - REPLACE: docs or evidence paths
+
+# Validation commands must be executable via standards/qa-commands-ssot.md pipeline.
+# Reference coverage thresholds from standards/testing-standards.md (SSOT: ≥70% lines, ≥60% branches).
+# Tier-specific overrides (if any) are documented in standards/<tier>-tier.md.
+# See docs/templates/validation-section-examples.md for copy-paste examples per package.
+validation:
+  pipeline:
+    - command: pnpm turbo run lint:fix --filter=@photoeditor/REPLACE_PACKAGE
+      description: Auto-fix linting issues in REPLACE_PACKAGE package
+    - command: pnpm turbo run qa:static --filter=@photoeditor/REPLACE_PACKAGE
+      description: Run static analysis (typecheck + lint) on REPLACE_PACKAGE
+    - command: pnpm turbo run test --filter=@photoeditor/REPLACE_PACKAGE
+      description: Run unit tests for REPLACE_PACKAGE package
+    - command: pnpm turbo run test:coverage --filter=@photoeditor/REPLACE_PACKAGE
+      description: Run tests with coverage reporting to verify thresholds (≥70% lines, ≥60% branches per standards/testing-standards.md)
+  manual_checks: []  # Add manual verification steps if automation cannot cover; prefer pipeline commands
 
 acceptance_criteria:
   must:

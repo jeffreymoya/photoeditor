@@ -708,6 +708,145 @@ def cmd_archive(args, datastore: TaskDatastore, repo_root: Path) -> int:
         return 1
 
 
+def cmd_lint(args, repo_root: Path) -> int:
+    """
+    Lint a task file for schema 1.1 compliance.
+
+    Args:
+        args: Parsed command-line arguments
+        repo_root: Repository root path
+
+    Returns:
+        Exit code (0 = success, 1 = violations found)
+    """
+    from .linter import TaskLinter, format_violations, ViolationLevel
+
+    task_path = Path(args.task_path)
+
+    if not task_path.exists():
+        print(f"Error: Task file not found: {args.task_path}", file=sys.stderr)
+        return 1
+
+    linter = TaskLinter(repo_root)
+    violations = linter.lint_file(task_path)
+
+    if not violations:
+        print(f"✅ {task_path.name} passes all schema 1.1 checks")
+        return 0
+
+    # Format and display violations
+    print(f"\n📋 Lint results for {task_path.name}:")
+    print(format_violations(violations, show_suggestions=True))
+
+    # Count errors (warnings don't block)
+    errors = [v for v in violations if v.level == ViolationLevel.ERROR]
+
+    if errors:
+        print(f"\n❌ {len(errors)} error(s) must be fixed before transitioning to 'todo'")
+        return 1
+    else:
+        print(f"\n✅ No blocking errors (warnings should be addressed)")
+        return 0
+
+
+def cmd_bootstrap_evidence(args, repo_root: Path) -> int:
+    """
+    Create evidence file stub for a task.
+
+    Args:
+        args: Parsed command-line arguments
+        repo_root: Repository root path
+
+    Returns:
+        Exit code (0 = success, 1 = error)
+    """
+    task_id = args.task_id
+
+    # Validate task ID format
+    if not task_id.startswith('TASK-'):
+        print(f"Error: Invalid task ID format: {task_id} (expected TASK-XXXX)", file=sys.stderr)
+        return 1
+
+    # Create evidence directory if needed
+    evidence_dir = repo_root / "docs" / "evidence" / "tasks"
+    evidence_dir.mkdir(parents=True, exist_ok=True)
+
+    # Evidence file path
+    evidence_path = evidence_dir / f"{task_id}-clarifications.md"
+
+    if evidence_path.exists():
+        print(f"⚠️  Evidence file already exists: {evidence_path}")
+        print(f"   Not overwriting existing file")
+        return 0
+
+    # Create evidence stub
+    template = f"""# {task_id} Clarifications & Evidence
+
+## Purpose
+This document tracks clarifications, standards alignment notes, and validation evidence for {task_id}.
+
+## Clarifications
+
+### Outstanding Questions
+<!-- List any unresolved questions or ambiguities -->
+- [Resolved] Example question that was clarified
+
+### Resolved Items
+<!-- Document resolutions with timestamps -->
+- **2025-11-04**: Initial task drafted, no outstanding clarifications
+
+## Standards Alignment
+
+### Grounding References
+<!-- Cite specific standards sections this task satisfies -->
+- `standards/REPLACE-tier.md#REPLACE-section` - REPLACE: describe alignment
+- `standards/testing-standards.md#coverage-expectations` - Coverage thresholds verified
+
+### Gap Analysis
+<!-- Note any standards gaps or deviations discovered -->
+No gaps identified during planning.
+
+## Implementation Notes
+
+### Approach
+<!-- Document key implementation decisions and rationale -->
+TODO: Add implementation approach after plan refinement
+
+### Standards Compliance
+<!-- Evidence that implementation satisfies cited standards -->
+TODO: Add compliance evidence during implementation
+
+## Validation Evidence
+
+### Static Analysis
+<!-- Output from lint:fix and qa:static commands -->
+TODO: Add static analysis results
+
+### Test Results
+<!-- Unit test and coverage reports -->
+TODO: Add test results with coverage percentages
+
+### Manual Verification
+<!-- Any manual checks performed -->
+TODO: Document manual verification steps if needed
+
+## References
+- Task file: `tasks/REPLACE-area/{task_id}-REPLACE-slug.task.yaml`
+- Related docs: `docs/REPLACE-path`
+"""
+
+    with open(evidence_path, 'w', encoding='utf-8') as f:
+        f.write(template)
+
+    print(f"✅ Created evidence stub: {evidence_path}")
+    print(f"\nNext steps:")
+    print(f"1. Fill in REPLACE placeholders in the evidence file")
+    print(f"2. Update task YAML: clarifications.evidence_path: \"docs/evidence/tasks/{task_id}-clarifications.md\"")
+    print(f"3. Document any clarifications or standards gaps as you plan the task")
+
+    return 0
+
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -771,6 +910,16 @@ def main():
         action='store_true',
         help='Check for workflow halt conditions (blocked unblockers)'
     )
+    group.add_argument(
+        '--lint',
+        metavar='TASK_PATH',
+        help='Lint a task file for schema 1.1 compliance (validates evidence paths, validation section, plan outputs, standards anchors)'
+    )
+    group.add_argument(
+        '--bootstrap-evidence',
+        metavar='TASK_ID',
+        help='Create evidence file stub for a task (creates docs/evidence/tasks/TASK-ID-clarifications.md)'
+    )
 
     # Output format option (applies to list, pick, validate, explain, check-halt)
     parser.add_argument(
@@ -832,6 +981,14 @@ def main():
 
         elif args.check_halt:
             return cmd_check_halt(args, tasks)
+
+        elif args.lint:
+            args.task_path = args.lint
+            return cmd_lint(args, repo_root)
+
+        elif args.bootstrap_evidence:
+            args.task_id = args.bootstrap_evidence
+            return cmd_bootstrap_evidence(args, repo_root)
 
     except KeyboardInterrupt:
         print("\nInterrupted", file=sys.stderr)

@@ -195,12 +195,11 @@ AWS_REGION: aws.getRegionOutput().name,
 
 ### Validation Notes
 
-**Pre-Completion Verification Commands** (to be run by validation agents):
+**Pre-Completion Verification Commands**:
 
-1. `pnpm turbo run typecheck --filter=@photoeditor/backend` - Verify no type errors
-2. `pnpm turbo run lint:fix --filter=@photoeditor/backend` - Auto-fix and verify lint
-3. `pnpm turbo run qa:static --filter=@photoeditor/backend` - Full static QA
-4. SST diff/build - Verify configuration changes deploy successfully
+1. `pnpm turbo run lint:fix --filter=@photoeditor/backend` — Implementation/review agents auto-fix imports before static checks.
+2. `pnpm turbo run qa:static --filter=@photoeditor/backend` — Implementation/review agents confirm lint/typecheck are green pre-handoff.
+3. SST diff/build — Validation agent verifies the configuration changes deploy successfully (record output in the validation report).
 
 **Expected Outcomes**:
 - All Lambdas receive AWS_REGION explicitly

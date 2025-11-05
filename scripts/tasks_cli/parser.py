@@ -60,6 +60,11 @@ class TaskParser:
             if not all([task_id, title, status, priority, area]):
                 return None
 
+            # Extract schema version (default to "1.0" for backward compatibility)
+            schema_version = data.get('schema_version', '1.0')
+            if not isinstance(schema_version, str):
+                schema_version = str(schema_version)
+
             # Extract optional fields
             unblocker = bool(data.get('unblocker', False))
             order = data.get('order')
@@ -91,6 +96,7 @@ class TaskParser:
                 priority=priority,
                 area=area,
                 path=str(file_path),
+                schema_version=schema_version,
                 unblocker=unblocker,
                 order=order,
                 blocked_by=blocked_by,

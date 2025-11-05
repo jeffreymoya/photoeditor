@@ -1,0 +1,54 @@
+{
+  "version": "1.0",
+  "generated": "2025-11-04T12:00:00Z",
+  "environments": {
+    "dev": {
+      "stage": "dev",
+      "timestamp": null,
+      "region": null,
+      "stack": null,
+      "resources": {
+        "sst": {},
+        "terraform": {}
+      },
+      "metadata": {
+        "generatedBy": null,
+        "sstVersion": null,
+        "terraformVersion": null,
+        "nodeVersion": null
+      }
+    },
+    "stage": {
+      "stage": "stage",
+      "timestamp": null,
+      "region": null,
+      "stack": null,
+      "resources": {
+        "sst": {},
+        "terraform": {}
+      },
+      "metadata": {
+        "generatedBy": null,
+        "sstVersion": null,
+        "terraformVersion": null,
+        "nodeVersion": null
+      }
+    },
+    "prod": {
+      "stage": "prod",
+      "timestamp": null,
+      "region": null,
+      "stack": null,
+      "resources": {
+        "sst": {},
+        "terraform": {}
+      },
+      "metadata": {
+        "generatedBy": null,
+        "sstVersion": null,
+        "terraformVersion": null,
+        "nodeVersion": null
+      }
+    }
+  }
+}

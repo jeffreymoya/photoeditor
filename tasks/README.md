@@ -4,11 +4,18 @@ This guide shows how to create a new machine‑readable task file using the cano
 
 ## Template Selection
 
-All work now uses a single canonical template: `docs/templates/TASK-0000-template.task.yaml`.
+All work now uses a single canonical template: `docs/templates/TASK-0000-template.task.yaml` (Schema 1.1).
 
 - Copy that file verbatim, then replace every `REPLACE` placeholder.
 - Delete comment lines once satisfied, but keep the YAML keys so automation can parse the task.
 - If the scope feels broader than one independently shippable change, stop and split the requirements into multiple task files—the template is intentionally concise, so multiple tasks are preferred over an oversized document.
+
+**Schema 1.1 Requirements (active as of 2025-11-04):**
+- Tasks MUST include a `validation` section with `pipeline` commands (see `standards/qa-commands-ssot.md`)
+- Plan step `outputs` cannot be empty arrays - list specific deliverable files or use inline comments to guide completion
+- Standards references in plan steps must cite verifiable anchor headings (e.g., `#analyzability`, not made-up slugs)
+- Evidence paths referenced in `clarifications.evidence_path` must exist before transitioning from `draft` to `todo`
+- See `docs/templates/validation-section-examples.md` for copy-paste examples per package
 
 ## Quick Start
 - Choose an `area`: `backend | mobile | shared | infra | docs | ops | other`.
@@ -43,7 +50,12 @@ Use the comments in the template as your checklist. At minimum, complete:
   - Cite the exact standards clause governing the step (file path + heading slug, e.g., `standards/backend-tier.md#service-layer-boundaries`) inside `details` or `definition_of_done` so the reviewer can trace intent directly to the rule.
   - Write `definition_of_done` statements as observable outcomes ("Document notes in docs/evidence/standards-review.md citing standards/backend-tier.md#service-layer-boundaries") rather than vague actions.
 - `acceptance_criteria` (objective checks tied to observable signals)
-- `validation` (manual checks or bespoke tooling outside the automated agent flow)
+- `validation` (REQUIRED in schema 1.1):
+  - `validation.pipeline`: array of commands from `standards/qa-commands-ssot.md` (e.g., lint:fix, qa:static, test, coverage)
+  - `validation.manual_checks`: optional human verification steps if automation cannot cover; default to empty array
+  - Each pipeline command must have `command` and `description` fields
+  - Reference coverage thresholds from `standards/testing-standards.md` (SSOT: ≥70% lines, ≥60% branches)
+  - See `docs/templates/validation-section-examples.md` for package-specific templates
 - `deliverables` and `risks`
 
 If sequencing matters, also set `blocked_by`, `depends_on`, and `order`. Any downstream task referencing a `draft` MUST list that draft under `blocked_by` (not merely `depends_on`) and stay `status: blocked` until the draft transitions to `todo`.
@@ -51,9 +63,14 @@ If sequencing matters, also set `blocked_by`, `depends_on`, and `order`. Any dow
 ### Draft Resolution Checklist
 Before flipping a task from `draft` to `todo`, confirm:
 - All `clarifications.outstanding` entries are resolved (delete the list or leave it empty).
-- `clarifications.evidence_path` exists and points to the Markdown file capturing the resolution.
+- `clarifications.evidence_path` exists and points to the Markdown file capturing the resolution (REQUIRED for schema 1.1).
+- The `validation` section is complete with non-empty `pipeline` array (schema 1.1 requirement).
+- Plan step `outputs` are populated with specific deliverable files (no empty arrays in schema 1.1).
+- Standards references cite verifiable anchor headings (use `python scripts/tasks.py --lint` to validate).
 - Acceptance criteria, plan steps, and standards citations are complete and referenced.
 - Downstream tasks that depend on this work have updated their `blocked_by` lists and `blocked_reason` values if applicable.
+
+**Tip:** Run `python scripts/tasks.py --lint tasks/<area>/TASK-XXXX.task.yaml` to verify schema 1.1 compliance before transitioning to `todo`.
 
 ### Dependency Fields: `blocked_by` vs `depends_on`
 
@@ -174,9 +191,31 @@ It defines when to decompose work, how to create subtasks using the canonical te
 
 
 ## Validation & Evidence
+
+**Schema 1.1 requires a `validation` section with structured pipeline commands.**
+
+### Validation Section Structure
+```yaml
+validation:
+  pipeline:
+    - command: pnpm turbo run lint:fix --filter=@photoeditor/backend
+      description: Auto-fix linting issues in backend package
+    - command: pnpm turbo run qa:static --filter=@photoeditor/backend
+      description: Run static analysis (typecheck + lint) on backend
+    - command: pnpm turbo run test --filter=@photoeditor/backend
+      description: Run unit tests for backend package
+    - command: pnpm turbo run test:coverage --filter=@photoeditor/backend
+      description: Run tests with coverage reporting to verify thresholds
+  manual_checks: []  # Optional: add human verification steps if needed
+```
+
+### Guidelines
 - Automated static, unit, and contract tests run through the `.claude/` test agents. Command names are authoritative in `standards/qa-commands-ssot.md`.
-- Do not list shell commands under `validation`; rely on acceptance criteria and record any human actions under `validation.manual_checks`.
-- Attach artifacts listed under the task’s `artifacts` list when applicable, especially when they prove standards compliance.
+- Each `pipeline` entry must specify the exact command and a clear description
+- Reference coverage thresholds from `standards/testing-standards.md` (≥70% lines, ≥60% branches repo-wide; tier-specific overrides documented in tier standards)
+- Use `manual_checks` sparingly - prefer automated pipeline commands
+- See `docs/templates/validation-section-examples.md` for copy-paste templates per package (backend, mobile, shared)
+- Attach artifacts listed under the task's `artifacts` list when applicable, especially when they prove standards compliance
 
 
 ## Status Flow & Archival

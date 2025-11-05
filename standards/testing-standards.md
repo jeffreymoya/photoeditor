@@ -37,9 +37,21 @@ These standards define the required safety nets for PhotoEditor after removing i
 
 ## Coverage Expectations
 
-- **Services / Adapters / Hooks:** ≥70% line coverage, ≥60% branch coverage.
-- **Handlers / Components:** Exercise all happy paths and failure paths that impact external contracts.
-- Use `jest --coverage` or the Turborepo pipeline to validate thresholds. Failing coverage blocks merges by policy.
+**This section is the single source of truth (SSOT) for coverage thresholds repo-wide.**
+
+- **Repo-wide baseline:** ≥70% line coverage, ≥60% branch coverage for Services, Adapters, and Hooks
+- **Handlers / Components:** Exercise all happy paths and failure paths that impact external contracts
+- **Tier-specific overrides:** None currently defined (all tiers use the baseline thresholds above)
+  - If a tier file (e.g., `standards/backend-tier.md`) specifies higher requirements, those supersede the baseline for that tier only
+  - Any tier-specific overrides must be explicitly documented in the tier file with rationale
+
+**Validation:**
+- Use `jest --coverage` or the Turborepo pipeline to validate thresholds
+- Failing coverage blocks merges by policy
+- Tasks must reference these thresholds in their `validation` section (schema 1.1+)
+- CLI command: `pnpm turbo run test:coverage --filter=<package>` per `standards/qa-commands-ssot.md`
+
+**Note:** As of 2025-11-04 (schema 1.1), task files must cite this section when specifying coverage requirements in their validation pipeline descriptions.
 
 ## Required Commands Before PR
 

@@ -55,7 +55,7 @@ Automation guards most validation gates, but several high-volume decisions still
 ### 3.4 Validation Harness Wrapper
 
 - Wrap package-scoped QA commands in `scripts/ci/run_validation.mjs`:
-  - Executes `lint:fix`, `qa:static`, unit tests, and optional fitness scripts in sequence.
+  - Executes `lint:fix`, `qa:static`, unit tests, and optional fitness scripts in sequence (mirrors the implementer/reviewer responsibilities before validation agents pick up remaining checks).
   - Tracks retry attempts (cap at two per `docs/agents/common-validation-guidelines.md`) and captures structured JSON reports in `docs/tests/reports/{date}-{package}.json`.
   - Emits explicit PASS/FAIL/BLOCKED codes for task-runner consumption and attaches command logs to the agent summary.
 - Performs a pre-flight dirty worktree check, stores transient artifacts in `.agent-output/tmp`, and redacts secrets using `REDACT_PATTERNS` from `standards/global.md` before persisting logs.

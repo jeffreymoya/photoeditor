@@ -13,6 +13,9 @@ Use this format for `.agent-output/implementation-reviewer-summary-{TASK-ID}.md`
 - Prohibited patterns (`@ts-ignore`, `eslint-disable`, `it.skip`): ✅ NONE / ❌ FOUND {and action}
 - Status: PASS / BLOCKED
 
+## Static Check Verification
+- `{command}` — PASS/FAIL (notes)
+
 ## Standards Alignment Check
 - Cross-Cutting (Hard-Fail Controls) ✓/✗
 - TypeScript ✓/✗

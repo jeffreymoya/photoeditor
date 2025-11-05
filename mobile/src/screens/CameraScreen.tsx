@@ -1,7 +1,7 @@
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { CompositeNavigationProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { Camera as ExpoCamera, CameraType } from 'expo-camera';
+import { Camera as ExpoCamera, CameraType } from 'expo-camera/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import { X, SwitchCamera, Images, Camera } from 'lucide-react-native';
 import React, { useState, useRef, useEffect } from 'react';

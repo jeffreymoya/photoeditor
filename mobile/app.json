@@ -64,7 +64,7 @@
           "color": "#ffffff"
         }
       ],
-      "@config-plugins/detox"
+      "expo-font"
     ],
     "extra": {
       "eas": {

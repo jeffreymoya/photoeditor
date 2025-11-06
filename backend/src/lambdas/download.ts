@@ -1,4 +1,4 @@
-import { MetricUnits } from '@aws-lambda-powertools/metrics';
+import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import middy from '@middy/core';
 import { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from 'aws-lambda';
 
@@ -52,7 +52,7 @@ const baseHandler = async (
     if ('statusCode' in validation) return validation;
     const { job } = validation;
     const downloadUrl = await s3Service.generatePresignedDownload(s3Service.getFinalBucket(), job.finalS3Key!, 3600);
-    metrics.addMetric('DownloadGenerated', MetricUnits.Count, 1);
+    metrics.addMetric('DownloadGenerated', MetricUnit.Count, 1);
     logger.info('Download URL generated', { jobId });
     return {
       statusCode: 200,
@@ -66,7 +66,7 @@ const baseHandler = async (
     };
   } catch (error) {
     logger.error('Error processing download request', { error: error as Error });
-    metrics.addMetric('DownloadError', MetricUnits.Count, 1);
+    metrics.addMetric('DownloadError', MetricUnit.Count, 1);
     return { statusCode: 500, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Internal server error' }) };
   } finally {
     subsegment?.close();

@@ -1,4 +1,4 @@
-import { MetricUnits } from '@aws-lambda-powertools/metrics';
+import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import middy from '@middy/core';
 import { JobStatus, GeminiAnalysisResponse, SeedreamEditingResponse } from '@photoeditor/shared';
 import { SQSEvent, SQSRecord } from 'aws-lambda';
@@ -180,7 +180,7 @@ async function handleJobSuccess(
   await s3Service!.deleteObject(bucketName, objectKey);
   await s3Service!.deleteObject(bucketName, optimizedKey);
 
-  metrics.addMetric('JobProcessed', MetricUnits.Count, 1);
+  metrics.addMetric('JobProcessed', MetricUnit.Count, 1);
   contextLogger.info('Job processing completed', { jobId });
 }
 
@@ -201,7 +201,7 @@ async function handleJobFailure(
     contextLogger.error('Failed to notify job failure', { error: notifyError as Error, jobId });
   }
 
-  metrics.addMetric('JobProcessingError', MetricUnits.Count, 1);
+  metrics.addMetric('JobProcessingError', MetricUnit.Count, 1);
 }
 
 async function processS3Event(
@@ -278,7 +278,7 @@ const baseHandler = async (
 
   } catch (error) {
     logger.error('Worker handler error', { error: error as Error });
-    metrics.addMetric('WorkerError', MetricUnits.Count, 1);
+    metrics.addMetric('WorkerError', MetricUnit.Count, 1);
     throw error;
   } finally {
     subsegment?.close();

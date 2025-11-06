@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Lint a task YAML file using the Python task CLI.
+#
+# Usage:
+#   scripts/validate-task-yaml tasks/backend/TASK-1234-example.task.yaml
+#
+# Accepts absolute or repository-relative paths. If a bare path under tasks/ is
+# provided, it resolves it relative to the repo root.
+
+if [[ $# -ne 1 ]]; then
+  echo "Usage: $(basename "$0") <task-yaml-path>" >&2
+  exit 1
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+TASKS_CLI="${REPO_ROOT}/scripts/tasks.py"
+
+if [[ ! -f "${TASKS_CLI}" ]]; then
+  echo "Error: Task CLI not found at ${TASKS_CLI}" >&2
+  exit 1
+fi
+
+INPUT_PATH="$1"
+
+# Allow passing paths relative to the repo root or directly under tasks/
+if [[ -f "${INPUT_PATH}" ]]; then
+  TASK_PATH="$(cd "$(dirname "${INPUT_PATH}")" && pwd)/$(basename "${INPUT_PATH}")"
+elif [[ -f "${REPO_ROOT}/${INPUT_PATH}" ]]; then
+  TASK_PATH="${REPO_ROOT}/${INPUT_PATH}"
+elif [[ -f "${REPO_ROOT}/tasks/${INPUT_PATH}" ]]; then
+  TASK_PATH="${REPO_ROOT}/tasks/${INPUT_PATH}"
+else
+  echo "Error: Task file not found: ${INPUT_PATH}" >&2
+  exit 1
+fi
+
+echo "Validating task: ${TASK_PATH#"${REPO_ROOT}/"}"
+python3 "${TASKS_CLI}" --lint "${TASK_PATH}"

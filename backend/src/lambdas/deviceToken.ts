@@ -1,5 +1,5 @@
 import { Logger } from '@aws-lambda-powertools/logger';
-import { Metrics, MetricUnits } from '@aws-lambda-powertools/metrics';
+import { Metrics, MetricUnit } from '@aws-lambda-powertools/metrics';
 import { Tracer } from '@aws-lambda-powertools/tracer';
 import { DeviceTokenRegistrationSchema } from '@photoeditor/shared';
 import { APIGatewayProxyEventV2, APIGatewayProxyResultV2, Context } from 'aws-lambda';
@@ -52,7 +52,7 @@ export const handler = async (
 
   } catch (error) {
     logger.error('Error in device token handler', { error: error as Error });
-    metrics.addMetric('DeviceTokenError', MetricUnits.Count, 1);
+    metrics.addMetric('DeviceTokenError', MetricUnit.Count, 1);
 
     return {
       statusCode: 500,
@@ -94,7 +94,7 @@ async function handleRegisterDeviceToken(
 
     const registrationResult = await deviceTokenService.registerDeviceToken(userId, validatedRequest);
 
-    metrics.addMetric('DeviceTokenRegistered', MetricUnits.Count, 1);
+    metrics.addMetric('DeviceTokenRegistered', MetricUnit.Count, 1);
 
     return {
       statusCode: 200,
@@ -139,7 +139,7 @@ async function handleDeactivateDeviceToken(
 
     await deviceTokenService.deactivateDeviceToken(userId, deviceId);
 
-    metrics.addMetric('DeviceTokenDeactivated', MetricUnits.Count, 1);
+    metrics.addMetric('DeviceTokenDeactivated', MetricUnit.Count, 1);
 
     return {
       statusCode: 200,

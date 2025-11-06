@@ -9,6 +9,7 @@ All work now uses a single canonical template: `docs/templates/TASK-0000-templat
 - Copy that file verbatim, then replace every `REPLACE` placeholder.
 - Delete comment lines once satisfied, but keep the YAML keys so automation can parse the task.
 - If the scope feels broader than one independently shippable change, stop and split the requirements into multiple task files—the template is intentionally concise, so multiple tasks are preferred over an oversized document.
+- After filling out the template, run `scripts/validate-task-yaml tasks/<area>/TASK-<id>-<slug>.task.yaml` to lint the YAML via the Python CLI before moving past draft status. Capture the command output in your implementation notes.
 
 **Schema 1.1 Requirements (active as of 2025-11-04):**
 - Tasks MUST include a `validation` section with `pipeline` commands (see `standards/qa-commands-ssot.md`)

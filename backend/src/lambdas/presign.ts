@@ -1,4 +1,4 @@
-import { MetricUnits } from '@aws-lambda-powertools/metrics';
+import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import middy from '@middy/core';
 import { PresignUploadRequestSchema, BatchUploadRequestSchema, ErrorType } from '@photoeditor/shared';
 import { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from 'aws-lambda';
@@ -43,8 +43,8 @@ async function handleBatchUpload(
 
   const response = await presignService.generateBatchPresignedUpload(userId, validatedRequest);
 
-  metrics.addMetric('BatchPresignedUrlsGenerated', MetricUnits.Count, 1);
-  metrics.addMetric('FilesInBatch', MetricUnits.Count, validatedRequest.files.length);
+  metrics.addMetric('BatchPresignedUrlsGenerated', MetricUnit.Count, 1);
+  metrics.addMetric('FilesInBatch', MetricUnit.Count, validatedRequest.files.length);
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -92,7 +92,7 @@ async function handleSingleUpload(
 
   const response = await presignService.generatePresignedUpload(userId, validatedRequest);
 
-  metrics.addMetric('PresignedUrlGenerated', MetricUnits.Count, 1);
+  metrics.addMetric('PresignedUrlGenerated', MetricUnit.Count, 1);
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -174,7 +174,7 @@ const baseHandler = async (
 
   } catch (error) {
     logger.error('Error generating presigned URL', { requestId, error: error as Error });
-    metrics.addMetric('PresignedUrlError', MetricUnits.Count, 1);
+    metrics.addMetric('PresignedUrlError', MetricUnit.Count, 1);
 
     const errorResponse = ErrorHandler.createSimpleErrorResponse(
       ErrorType.INTERNAL_ERROR,

@@ -1,4 +1,4 @@
-import { MetricUnits } from '@aws-lambda-powertools/metrics';
+import { MetricUnit } from '@aws-lambda-powertools/metrics';
 import middy from '@middy/core';
 import { ErrorType } from '@photoeditor/shared';
 import { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from 'aws-lambda';
@@ -34,7 +34,7 @@ async function handleJobStatus(
   }
 
   const job = jobResult.value;
-  metrics.addMetric('JobStatusFetched', MetricUnits.Count, 1);
+  metrics.addMetric('JobStatusFetched', MetricUnit.Count, 1);
   const headers: Record<string, string> = { 'Content-Type': 'application/json', 'x-request-id': requestId };
   if (traceparent) headers['traceparent'] = traceparent;
   return { statusCode: 200, headers, body: JSON.stringify({ jobId: job.jobId, status: job.status, createdAt: job.createdAt, updatedAt: job.updatedAt, tempS3Key: job.tempS3Key, finalS3Key: job.finalS3Key, error: job.error }) };
@@ -81,7 +81,7 @@ async function handleBatchStatus(
 
   const batchJob = batchJobResult.value;
 
-  metrics.addMetric('BatchJobStatusFetched', MetricUnits.Count, 1);
+  metrics.addMetric('BatchJobStatusFetched', MetricUnit.Count, 1);
 
   const response = {
     batchJobId: batchJob.batchJobId,
@@ -131,7 +131,7 @@ const baseHandler = async (
     return await handleJobStatus(event.pathParameters?.jobId, requestId, traceparent, container);
   } catch (error) {
     logger.error('Error fetching job status', { requestId, error: error as Error });
-    metrics.addMetric('JobStatusError', MetricUnits.Count, 1);
+    metrics.addMetric('JobStatusError', MetricUnit.Count, 1);
     return ErrorHandler.createSimpleErrorResponse(ErrorType.INTERNAL_ERROR, 'UNEXPECTED_ERROR', 'An unexpected error occurred while fetching job status', requestId, traceparent);
   } finally {
     subsegment?.close();

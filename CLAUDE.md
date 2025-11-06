@@ -63,6 +63,9 @@ When implementing or refactoring, cite specific standards tier files and section
 
 Work is organized in `tasks/` as `.task.yaml` files. Use `tasks/README.md` for authoring instructions and start from the canonical template at `docs/templates/TASK-0000-template.task.yaml`. As the sole maintainer, treat these records as your substitute for peer sign-off and retrospective context:
 
+- Immediately after creating or updating a task file, run `scripts/validate-task-yaml <task-path>` so the Python CLI lint pass confirms the YAML structure and Schema 1.1 requirements before the task leaves `draft`.
+  - Include the command output in your implementation evidence when you move the task forward.
+
 ### Task Management
 
 The Python CLI (`scripts/tasks.py`) provides deterministic task selection, dependency validation, and workflow automation. All commands support `--format json` for machine-readable output.

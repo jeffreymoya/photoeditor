@@ -61,6 +61,48 @@ export interface PreprocessedImage {
 }
 
 /**
+ * Converts SupportedFormat to SaveFormat enum
+ *
+ * @param format - Target format string
+ * @returns SaveFormat enum value
+ */
+function toSaveFormat(format: SupportedFormat): SaveFormat {
+  if (format === 'jpeg') {
+    return SaveFormat.JPEG;
+  }
+  if (format === 'png') {
+    return SaveFormat.PNG;
+  }
+  return SaveFormat.WEBP;
+}
+
+/**
+ * Converts SupportedFormat to MIME type string
+ *
+ * @param format - Target format string
+ * @returns MIME type string
+ */
+function toMimeType(format: SupportedFormat): string {
+  if (format === 'jpeg') {
+    return 'image/jpeg';
+  }
+  if (format === 'png') {
+    return 'image/png';
+  }
+  return 'image/webp';
+}
+
+/**
+ * Extracts file size from FileInfo result
+ *
+ * @param fileInfo - File info result from getInfoAsync
+ * @returns File size in bytes, or 0 if unavailable
+ */
+function extractFileSize(fileInfo: FileSystem.FileInfo): number {
+  return fileInfo.exists && 'size' in fileInfo ? fileInfo.size : 0;
+}
+
+/**
  * Converts HEIC images to JPEG and resizes to meet upload constraints
  *
  * Implements:
@@ -90,13 +132,6 @@ export async function preprocessImage(
       throw new Error('Image file does not exist');
     }
 
-    // Determine target format
-    const saveFormat = format === 'jpeg'
-      ? SaveFormat.JPEG
-      : format === 'png'
-      ? SaveFormat.PNG
-      : SaveFormat.WEBP;
-
     // Process image: resize if needed and convert format
     const result = await manipulateAsync(
       uri,
@@ -110,29 +145,20 @@ export async function preprocessImage(
       ],
       {
         compress: quality,
-        format: saveFormat,
+        format: toSaveFormat(format),
       }
     );
 
     // Get processed file size
     const processedInfo = await FileSystem.getInfoAsync(result.uri);
-    const size = processedInfo.exists && 'size' in processedInfo
-      ? processedInfo.size
-      : 0;
-
-    // Determine MIME type
-    const mimeType = format === 'jpeg'
-      ? 'image/jpeg'
-      : format === 'png'
-      ? 'image/png'
-      : 'image/webp';
+    const size = extractFileSize(processedInfo);
 
     return {
       uri: result.uri,
       width: result.width,
       height: result.height,
       size,
-      mimeType,
+      mimeType: toMimeType(format),
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';

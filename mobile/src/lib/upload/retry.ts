@@ -125,6 +125,40 @@ function defaultIsRetryable(error: Error): boolean {
 }
 
 /**
+ * Normalizes caught values to Error instances
+ *
+ * @param error - Caught error value
+ * @returns Error instance
+ */
+function normalizeError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(String(error));
+}
+
+/**
+ * Determines if retry should be attempted
+ *
+ * @param attempt - Current attempt number (0-based)
+ * @param maxAttempts - Maximum attempts allowed
+ * @param error - Error that occurred
+ * @param isRetryable - Retry predicate function
+ * @returns True if should retry, false if should throw
+ */
+function shouldRetry(
+  attempt: number,
+  maxAttempts: number,
+  error: Error,
+  isRetryable: (error: Error) => boolean
+): boolean {
+  // If this is the last attempt, don't retry
+  if (attempt === maxAttempts - 1) {
+    return false;
+  }
+
+  // Check if error is retryable
+  return isRetryable(error);
+}
+
+/**
  * Executes a function with retry logic and exponential backoff
  *
  * Implements:
@@ -153,15 +187,10 @@ export async function withRetry<T>(
     try {
       return await fn();
     } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
+      lastError = normalizeError(error);
 
-      // If this is the last attempt, throw
-      if (attempt === maxAttempts - 1) {
-        throw lastError;
-      }
-
-      // Check if error is retryable
-      if (!isRetryable(lastError)) {
+      // Check if we should retry
+      if (!shouldRetry(attempt, maxAttempts, lastError, isRetryable)) {
         throw lastError;
       }
 

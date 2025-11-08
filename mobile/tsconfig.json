@@ -9,20 +9,45 @@
     "noFallthroughCasesInSwitch": true,
     "noImplicitOverride": true,
     "forceConsistentCasingInFileNames": true,
+    "jsx": "react-native",
     "baseUrl": "./",
     "paths": {
-      "@/*": ["src/*"],
-      "@/components/*": ["src/components/*"],
-      "@/screens/*": ["src/screens/*"],
-      "@/services/*": ["src/services/*"],
-      "@/hooks/*": ["src/hooks/*"],
-      "@/types/*": ["src/types/*"],
-      "@/utils/*": ["src/utils/*"],
-      "@/store/*": ["src/store/*"],
-      "@/constants/*": ["src/constants/*"],
-      "@/assets/*": ["assets/*"],
-      "@/features/*": ["src/features/*"],
-      "@/lib/*": ["src/lib/*"]
+      "@/*": [
+        "src/*"
+      ],
+      "@/components/*": [
+        "src/components/*"
+      ],
+      "@/screens/*": [
+        "src/screens/*"
+      ],
+      "@/services/*": [
+        "src/services/*"
+      ],
+      "@/hooks/*": [
+        "src/hooks/*"
+      ],
+      "@/types/*": [
+        "src/types/*"
+      ],
+      "@/utils/*": [
+        "src/utils/*"
+      ],
+      "@/store/*": [
+        "src/store/*"
+      ],
+      "@/constants/*": [
+        "src/constants/*"
+      ],
+      "@/assets/*": [
+        "assets/*"
+      ],
+      "@/features/*": [
+        "src/features/*"
+      ],
+      "@/lib/*": [
+        "src/lib/*"
+      ]
     },
     "skipLibCheck": true,
     "allowSyntheticDefaultImports": true,
@@ -33,9 +58,7 @@
   },
   "include": [
     "**/*.ts",
-    "**/*.tsx",
-    ".expo/types/**/*.ts",
-    "expo-env.d.ts"
+    "**/*.tsx"
   ],
   "exclude": [
     "node_modules"

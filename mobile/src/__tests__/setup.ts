@@ -30,6 +30,18 @@ jest.mock('expo-camera', () => ({
   },
 }));
 
+// Mock expo-camera/legacy submodule (required for CameraScreen imports)
+jest.mock('expo-camera/legacy', () => ({
+  Camera: {
+    Constants: {},
+    requestCameraPermissionsAsync: () => Promise.resolve({ status: 'granted' }),
+  },
+  CameraType: {
+    back: 'back',
+    front: 'front',
+  },
+}));
+
 jest.mock('expo-image-picker', () => ({
   launchImageLibraryAsync: () => Promise.resolve({ canceled: true }),
   requestMediaLibraryPermissionsAsync: () => Promise.resolve({ status: 'granted' }),

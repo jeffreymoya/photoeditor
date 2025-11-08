@@ -71,7 +71,7 @@ export interface ServiceProviderProps {
  *   <UploadScreen />
  * </ServiceProvider>
  */
-export function ServiceProvider({ children, services = {} }: ServiceProviderProps): JSX.Element {
+export function ServiceProvider({ children, services = {} }: ServiceProviderProps): React.JSX.Element {
   const container: ServiceContainer = {
     uploadService: services.uploadService ?? uploadService,
     notificationService: services.notificationService ?? notificationService,

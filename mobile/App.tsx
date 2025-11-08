@@ -11,7 +11,7 @@ import { AppNavigator } from '@/navigation/AppNavigator';
 import { notificationService } from '@/services/notification/adapter';
 import { store } from '@/store';
 
-export function App(): JSX.Element {
+export function App(): React.JSX.Element {
   useEffect(() => {
     void notificationService.initialize();
   }, []);

@@ -1,0 +1,317 @@
+# Task: Migrate to Expo SDK 53 and prep for RN 0.82 New Architecture
+
+schema_version: "1.1"
+id: TASK-0907
+title: "Migrate to Expo SDK 53 and prep for RN 0.82 New Architecture"
+status: completed
+blocked_reason:
+priority: P0
+area: mobile
+unblocker: true
+order:
+blocked_by: []
+depends_on: [TASK-0906]
+agent_completion_state:
+  task-implementer:
+    status: completed
+    timestamp: "2025-11-08T01:32:00Z"
+    summary_path: "docs/agents/task-implementer-TASK-0907.agent-output.md"
+  implementation-reviewer:
+    status: completed
+    timestamp: "2025-11-08T01:35:00Z"
+    summary_path: "docs/agents/implementation-reviewer-TASK-0907.agent-output.md"
+  test-validation-mobile:
+    status: completed
+    timestamp: "2025-11-08T01:38:00Z"
+    summary_path: "docs/agents/test-validation-mobile-TASK-0907.agent-output.md"
+
+clarifications:
+  outstanding: []
+  evidence_path: "docs/evidence/tasks/TASK-0907-clarifications.md"
+
+description: >-
+  Migrate the mobile workspace from Expo SDK 51 (React Native 0.74.5) to Expo SDK
+  53 (React Native 0.79)
+  with New Architecture enabled by default. Expo SDK 53 enables the New Architecture
+  everywhere, introduces
+  expo-background-task, edge-to-edge defaults, and experimental Expo UI components
+  (SwiftUI/Compose primitives).
+  This migration aligns with React Native 0.82's mandatory New Architecture requirement
+  and prepares the codebase
+  for future ecosystem tooling. Includes upgrading Expo CLI, patching Node/Xcode images,
+  running qa:static and
+  smoke tests under New Architecture, and documenting opt-out paths for modules trailing
+  on New Architecture support.
+
+outcome: >-
+  Mobile workspace successfully upgraded to Expo SDK 53 with New Architecture enabled.
+  All builds and tests pass
+  under the new runtime. Opt-out strategy documented for incompatible modules. Baseline
+  cold-start metrics captured
+  for Hermes V1. CI images updated to Node 20+ and Xcode 16.1.
+
+scope:
+  in:
+  - Upgrading mobile/package.json Expo SDK dependencies to SDK 53
+  - Enabling New Architecture in app config (app.json or expo.config.js)
+  - Updating Expo CLI to latest version compatible with SDK 53
+  - Patching CI images to Node 20+ and Xcode 16.1
+  - Running pnpm turbo run qa:static --filter=photoeditor-mobile
+  - Smoke testing builds on iOS simulator and Android emulator
+  - Documenting opt-out paths for modules trailing on New Architecture
+  - Capturing baseline cold-start benchmarks (Hermes V1 vs legacy)
+  out:
+  - Feature-level changes (navigation, styling, list virtualization) deferred to
+    phase tasks
+  - VisionCamera or background task integration (TASK-0911)
+  - FlashList or Legend List migration (TASK-0910)
+  - NativeWind/Tamagui adoption (TASK-0909)
+  - Expo Router adoption (TASK-0908)
+
+context:
+  affected_packages: [mobile]
+  standards_tier: mobile
+  related_docs:
+  - standards/global.md
+  - standards/AGENTS.md
+  - standards/frontend-tier.md
+  - standards/typescript.md
+  - standards/testing-standards.md
+  - docs/proposals/mobile-stack-modernization.md
+  repo_paths:
+  - mobile/package.json
+  - mobile/app.json
+  - mobile/expo.config.js
+  - .github/workflows/
+  - docs/mobile/
+  dependencies:
+  - Expo SDK 53
+  - React Native 0.79
+  - Node 20+
+  - Xcode 16.1
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+  - name: pnpm
+    version: "8.x"
+  - name: expo-cli
+    version: "latest"
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+  - Follow Expo SDK 53 migration guide
+  - Document opt-out strategy for incompatible modules
+  - Capture baseline metrics before and after migration
+  - Maintain backward compatibility where feasible
+  prohibited:
+  - No feature-level changes outside of SDK upgrade scope
+  - Do not migrate navigation or styling systems (deferred to phase tasks)
+
+plan:
+- id: 1
+  title: Audit current dependencies and identify New Architecture gaps
+  details: >-
+    Review mobile/package.json, identify Expo modules and third-party SDKs that may
+    trail
+    on New Architecture support (per proposal: Stripe, older camera libs). Document
+    findings
+    in clarifications file. Reference standards/frontend-tier.md for dependency management
+    guidance.
+  actor: agent
+  inputs:
+  - mobile/package.json
+  - docs/proposals/mobile-stack-modernization.md
+  - Expo SDK 53 release notes
+  outputs:
+  - docs/evidence/tasks/TASK-0907-clarifications.md (dependency audit findings)
+  definition_of_done:
+  - Clarifications file documents all modules trailing on New Architecture
+  - Opt-out strategy defined for incompatible modules
+  estimate: M
+  expected_files_touched:
+  - docs/evidence/tasks/TASK-0907-clarifications.md
+- id: 2
+  title: Upgrade Expo SDK and enable New Architecture
+  details: >-
+    Update mobile/package.json to Expo SDK 53 dependencies. Enable New Architecture
+    in
+    app.json or expo.config.js (newArchEnabled: true). Install dependencies via pnpm
+    install.
+    Verify standards/typescript.md strict config remains satisfied.
+  actor: agent
+  inputs:
+  - mobile/package.json
+  - mobile/app.json
+  - Expo SDK 53 migration guide
+  outputs:
+  - mobile/package.json (updated dependencies)
+  - mobile/app.json (New Architecture enabled)
+  - pnpm-lock.yaml (updated lockfile)
+  definition_of_done:
+  - mobile/package.json references Expo SDK 53 dependencies
+  - New Architecture enabled in app config
+  - pnpm install completes successfully
+  estimate: L
+  expected_files_touched:
+  - mobile/package.json
+  - mobile/app.json
+  - pnpm-lock.yaml
+- id: 3
+  title: Update CI images and toolchain
+  details: >-
+    Patch CI workflow files (.github/workflows/) to use Node 20+ and Xcode 16.1 images.
+    Verify builds pass in CI environment. Document toolchain changes per standards/global.md
+    evidence requirements.
+  actor: agent
+  inputs:
+  - .github/workflows/
+  - React Native 0.81 release notes (Node 20 / Xcode 16.1 minimums)
+  outputs:
+  - .github/workflows/ (updated CI images)
+  - docs/evidence/tasks/TASK-0907-toolchain-update.md
+  definition_of_done:
+  - CI images updated to Node 20+ and Xcode 16.1
+  - CI builds pass with new toolchain
+  estimate: M
+  expected_files_touched:
+  - .github/workflows/ci.yml
+  - docs/evidence/tasks/TASK-0907-toolchain-update.md
+- id: 4
+  title: Run qa:static and smoke tests under New Architecture
+  details: >-
+    Execute pnpm turbo run qa:static --filter=photoeditor-mobile to verify typecheck
+    and lint pass.
+    Run smoke tests on iOS simulator and Android emulator. Capture any New Architecture-specific
+    errors or warnings. Reference standards/testing-standards.md for test expectations.
+  actor: agent
+  inputs:
+  - mobile/ (updated codebase)
+  outputs:
+  - Test execution logs
+  - docs/evidence/tasks/TASK-0907-smoke-test-results.md
+  definition_of_done:
+  - pnpm turbo run qa:static --filter=photoeditor-mobile passes
+  - Smoke tests pass on iOS simulator and Android emulator
+  - No critical New Architecture errors
+  estimate: M
+  expected_files_touched:
+  - docs/evidence/tasks/TASK-0907-smoke-test-results.md
+- id: 5
+  title: Capture baseline cold-start metrics for Hermes V1
+  details: >-
+    Benchmark cold-start times on iOS and Android before and after migration. Compare
+    Hermes V1 runtime against legacy Hermes baseline. Document metrics in evidence
+    file.
+    Reference standards/frontend-tier.md for performance thresholds if applicable.
+  actor: agent
+  inputs:
+  - mobile/ (Expo SDK 53 build)
+  outputs:
+  - docs/evidence/tasks/TASK-0907-cold-start-metrics.md
+  definition_of_done:
+  - Baseline metrics captured for iOS and Android
+  - Hermes V1 vs legacy Hermes comparison documented
+  estimate: S
+  expected_files_touched:
+  - docs/evidence/tasks/TASK-0907-cold-start-metrics.md
+- id: 6
+  title: Document opt-out strategy and update mobile docs
+  details: >-
+    Document opt-out paths for modules trailing on New Architecture (temporary shims
+    or replacements).
+    Update docs/mobile/ with migration outcomes, known issues, and rollback procedures.
+    Ensure
+    standards/global.md evidence bundle requirements are met.
+  actor: agent
+  inputs:
+  - docs/evidence/tasks/TASK-0907-clarifications.md
+  outputs:
+  - docs/mobile/expo-sdk-53-migration.md
+  definition_of_done:
+  - Opt-out strategy documented
+  - Migration outcomes, known issues, and rollback procedures documented in 
+    docs/mobile/
+  estimate: S
+  expected_files_touched:
+  - docs/mobile/expo-sdk-53-migration.md
+
+validation:
+  pipeline:
+  - command: pnpm turbo run lint:fix --filter=photoeditor-mobile
+    description: Auto-fix linting issues in mobile package
+  - command: pnpm turbo run qa:static --filter=photoeditor-mobile
+    description: Run static analysis (typecheck + lint) on mobile
+  - command: pnpm turbo run test --filter=photoeditor-mobile
+    description: Run unit tests for mobile package
+  - command: pnpm turbo run test:coverage --filter=photoeditor-mobile
+    description: Run tests with coverage reporting to verify thresholds (≥70% 
+      lines, ≥60% branches per standards/testing-standards.md)
+  manual_checks:
+  - Verify iOS simulator build succeeds with New Architecture enabled
+  - Verify Android emulator build succeeds with New Architecture enabled
+  - Confirm Expo SDK 53 dependencies installed correctly (expo doctor)
+  - Test app launches and navigates without critical errors on both platforms
+
+acceptance_criteria:
+  must:
+  - mobile/package.json references Expo SDK 53 dependencies
+  - New Architecture enabled in app.json or expo.config.js
+  - pnpm turbo run qa:static --filter=photoeditor-mobile passes
+  - Smoke tests pass on iOS simulator and Android emulator under New 
+    Architecture
+  - CI images updated to Node 20+ and Xcode 16.1
+  - Baseline cold-start metrics captured for Hermes V1
+  - Opt-out strategy documented for modules trailing on New Architecture
+  - No regressions in existing feature functionality
+  quality_gates:
+  - All tests pass under New Architecture
+  - No critical errors in Expo SDK 53 runtime
+  - Cold-start metrics do not regress beyond acceptable threshold
+  - Migration documentation complete per standards/global.md
+
+artifacts:
+- path: docs/evidence/tasks/TASK-0907-clarifications.md
+  description: Dependency audit findings and opt-out strategy for incompatible 
+    modules
+- path: docs/evidence/tasks/TASK-0907-toolchain-update.md
+  description: CI toolchain update log (Node 20+, Xcode 16.1)
+- path: docs/evidence/tasks/TASK-0907-smoke-test-results.md
+  description: Smoke test execution results on iOS and Android
+- path: docs/evidence/tasks/TASK-0907-cold-start-metrics.md
+  description: Cold-start benchmark comparison (Hermes V1 vs legacy)
+- path: docs/mobile/expo-sdk-53-migration.md
+  description: Migration outcomes, known issues, rollback procedures
+
+deliverables:
+- mobile/package.json (Expo SDK 53 dependencies)
+- mobile/app.json (New Architecture enabled)
+- pnpm-lock.yaml (updated lockfile)
+- .github/workflows/ci.yml (Node 20+, Xcode 16.1)
+- docs/evidence/tasks/TASK-0907-clarifications.md
+- docs/evidence/tasks/TASK-0907-toolchain-update.md
+- docs/evidence/tasks/TASK-0907-smoke-test-results.md
+- docs/evidence/tasks/TASK-0907-cold-start-metrics.md
+- docs/mobile/expo-sdk-53-migration.md
+
+risks:
+- description: Third-party modules (Stripe, camera libs) may not support New 
+    Architecture yet
+  mitigation: Document opt-out strategy, use temporary shims or replacements 
+    during migration window
+- description: Cold-start time may regress with Hermes V1 on lower-end devices
+  mitigation: Capture baseline metrics, profile regressions, add feature flags 
+    for lower-end devices if needed
+- description: CI image updates may destabilize local dev machines temporarily
+  mitigation: Document toolchain requirements, provide rollback instructions, 
+    coordinate upgrade timing
+- description: New Architecture may surface latent bugs in existing code
+  mitigation: Run full test suite, smoke test on both platforms, document known 
+    issues and workarounds

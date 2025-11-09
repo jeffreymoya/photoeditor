@@ -320,7 +320,7 @@ describe('GET /v1/batch-status/{batchJobId} - Contract Tests', () => {
       expect(response.instance).toBe('contract-test-request-id');
     });
 
-    it.skip('should return 500 with error schema for internal errors', async () => {
+    it('should return 500 with error schema for internal errors', async () => {
       const batchJobId = '660e8400-e29b-41d4-a716-446655440500';
       const event = createEvent(batchJobId);
 

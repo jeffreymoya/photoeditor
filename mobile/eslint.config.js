@@ -29,6 +29,16 @@ if (expoTypescriptConfig) {
     '@typescript-eslint/no-explicit-any': 'error',
     '@typescript-eslint/ban-types': 'off',
     '@typescript-eslint/array-type': ['warn', { default: 'array' }],
+    '@typescript-eslint/ban-ts-comment': [
+      'error',
+      {
+        'ts-ignore': true,
+        'ts-nocheck': true,
+        'ts-expect-error': 'allow-with-description',
+        'ts-check': false,
+        minimumDescriptionLength: 10,
+      },
+    ],
   };
 }
 const { plugins: _ignoredImportRecommendedPlugins, ...importRecommendedConfig } =

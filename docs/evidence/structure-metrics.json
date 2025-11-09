@@ -1,0 +1,2141 @@
+{
+  "modules": [
+    {
+      "source": "backend/src/domain/job.domain.ts",
+      "dependencies": [
+        {
+          "module": "@photoeditor/shared/statecharts/jobLifecycle.machine",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "undetermined",
+            "import"
+          ],
+          "resolved": "shared/statecharts/jobLifecycle.machine.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        }
+      ],
+      "dependents": [
+        "backend/src/services/job.service.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "shared/statecharts/jobLifecycle.machine.ts",
+      "dependencies": [
+        {
+          "module": "../schemas/job.schema",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "shared/schemas/job.schema.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        }
+      ],
+      "dependents": [
+        "backend/src/domain/job.domain.ts",
+        "shared/index.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "shared/schemas/job.schema.ts",
+      "dependencies": [],
+      "dependents": [
+        "shared/statecharts/jobLifecycle.machine.ts",
+        "shared/schemas/index.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "backend/src/lambdas/deviceToken.ts",
+      "dependencies": [
+        {
+          "module": "../services/deviceToken.service",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "backend/src/services/deviceToken.service.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "../utils/tracing",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "backend/src/utils/tracing.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        }
+      ],
+      "dependents": [],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "backend/src/services/deviceToken.service.ts",
+      "dependencies": [],
+      "dependents": [
+        "backend/src/lambdas/deviceToken.ts",
+        "backend/src/services/index.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "backend/src/utils/tracing.ts",
+      "dependencies": [],
+      "dependents": [
+        "backend/src/lambdas/deviceToken.ts",
+        "backend/src/lambdas/presign.ts",
+        "backend/src/lambdas/worker.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "backend/src/lambdas/download.ts",
+      "dependencies": [],
+      "dependents": [],
+      "orphan": true,
+      "valid": true
+    },
+    {
+      "source": "backend/src/lambdas/presign.ts",
+      "dependencies": [
+        {
+          "module": "../utils/errors",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "backend/src/utils/errors.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "../utils/tracing",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "backend/src/utils/tracing.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        }
+      ],
+      "dependents": [],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "backend/src/utils/errors.ts",
+      "dependencies": [],
+      "dependents": [
+        "backend/src/lambdas/presign.ts",
+        "backend/src/lambdas/status.ts",
+        "backend/src/utils/index.ts",
+        "backend/src/utils/validation.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "backend/src/lambdas/status.ts",
+      "dependencies": [
+        {
+          "module": "../repositories/job.repository",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "backend/src/repositories/job.repository.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "../utils/errors",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "backend/src/utils/errors.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        }
+      ],
+      "dependents": [],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "backend/src/repositories/job.repository.ts",
+      "dependencies": [],
+      "dependents": [
+        "backend/src/lambdas/status.ts",
+        "backend/src/services/job.service.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "backend/src/lambdas/worker.ts",
+      "dependencies": [
+        {
+          "module": "../services/imageProcessing.service",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "backend/src/services/imageProcessing.service.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "../utils/logger",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "backend/src/utils/logger.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "../utils/tracing",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "backend/src/utils/tracing.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        }
+      ],
+      "dependents": [],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "backend/src/services/imageProcessing.service.ts",
+      "dependencies": [],
+      "dependents": [
+        "backend/src/lambdas/worker.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "backend/src/utils/logger.ts",
+      "dependencies": [],
+      "dependents": [
+        "backend/src/lambdas/worker.ts",
+        "backend/src/utils/index.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "backend/src/libs/aws-clients.ts",
+      "dependencies": [],
+      "dependents": [],
+      "orphan": true,
+      "valid": true
+    },
+    {
+      "source": "backend/src/libs/core/providers/resilience-policy.ts",
+      "dependencies": [],
+      "dependents": [
+        "backend/src/providers/base.provider.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "backend/src/providers/analysis.provider.ts",
+      "dependencies": [],
+      "dependents": [
+        "backend/src/providers/index.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "backend/src/providers/base.provider.ts",
+      "dependencies": [
+        {
+          "module": "../libs/core/providers/resilience-policy",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "backend/src/libs/core/providers/resilience-policy.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        }
+      ],
+      "dependents": [
+        "backend/src/providers/gemini.provider.ts",
+        "backend/src/providers/seedream.provider.ts",
+        "backend/src/providers/stub.providers.ts",
+        "backend/src/providers/index.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "backend/src/providers/editing.provider.ts",
+      "dependencies": [],
+      "dependents": [
+        "backend/src/providers/index.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "backend/src/providers/factory.ts",
+      "dependencies": [
+        {
+          "module": "./gemini.provider",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "backend/src/providers/gemini.provider.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "./seedream.provider",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "backend/src/providers/seedream.provider.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "./stub.providers",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "backend/src/providers/stub.providers.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        }
+      ],
+      "dependents": [
+        "backend/src/providers/index.ts",
+        "backend/src/services/bootstrap.service.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "backend/src/providers/gemini.provider.ts",
+      "dependencies": [
+        {
+          "module": "./base.provider",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "backend/src/providers/base.provider.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        }
+      ],
+      "dependents": [
+        "backend/src/providers/factory.ts",
+        "backend/src/providers/index.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "backend/src/providers/seedream.provider.ts",
+      "dependencies": [
+        {
+          "module": "./base.provider",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "backend/src/providers/base.provider.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        }
+      ],
+      "dependents": [
+        "backend/src/providers/factory.ts",
+        "backend/src/providers/index.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "backend/src/providers/stub.providers.ts",
+      "dependencies": [
+        {
+          "module": "./base.provider",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "backend/src/providers/base.provider.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        }
+      ],
+      "dependents": [
+        "backend/src/providers/factory.ts",
+        "backend/src/providers/index.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "backend/src/providers/index.ts",
+      "dependencies": [
+        {
+          "module": "./analysis.provider",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "export"
+          ],
+          "resolved": "backend/src/providers/analysis.provider.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "./base.provider",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "export"
+          ],
+          "resolved": "backend/src/providers/base.provider.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "./editing.provider",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "export"
+          ],
+          "resolved": "backend/src/providers/editing.provider.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "./factory",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "export"
+          ],
+          "resolved": "backend/src/providers/factory.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "./gemini.provider",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "export"
+          ],
+          "resolved": "backend/src/providers/gemini.provider.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "./seedream.provider",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "export"
+          ],
+          "resolved": "backend/src/providers/seedream.provider.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "./stub.providers",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "export"
+          ],
+          "resolved": "backend/src/providers/stub.providers.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        }
+      ],
+      "dependents": [],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "backend/src/services/bootstrap.service.ts",
+      "dependencies": [
+        {
+          "module": "../providers/factory",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "backend/src/providers/factory.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        }
+      ],
+      "dependents": [],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "backend/src/services/config.service.ts",
+      "dependencies": [],
+      "dependents": [],
+      "orphan": true,
+      "valid": true
+    },
+    {
+      "source": "backend/src/services/index.ts",
+      "dependencies": [
+        {
+          "module": "./deviceToken.service",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "export"
+          ],
+          "resolved": "backend/src/services/deviceToken.service.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "./job.service",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "export"
+          ],
+          "resolved": "backend/src/services/job.service.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "./notification.service",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "export"
+          ],
+          "resolved": "backend/src/services/notification.service.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "./presign.service",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "export"
+          ],
+          "resolved": "backend/src/services/presign.service.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "./s3.service",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "export"
+          ],
+          "resolved": "backend/src/services/s3.service.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        }
+      ],
+      "dependents": [],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "backend/src/services/job.service.ts",
+      "dependencies": [
+        {
+          "module": "../domain/job.domain",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "backend/src/domain/job.domain.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "../repositories/job.repository",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "backend/src/repositories/job.repository.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "../utils/providers",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "backend/src/utils/providers.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        }
+      ],
+      "dependents": [
+        "backend/src/services/index.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "backend/src/utils/providers.ts",
+      "dependencies": [],
+      "dependents": [
+        "backend/src/services/job.service.ts",
+        "backend/src/utils/index.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "backend/src/services/notification.service.ts",
+      "dependencies": [],
+      "dependents": [
+        "backend/src/services/index.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "backend/src/services/presign.service.ts",
+      "dependencies": [],
+      "dependents": [
+        "backend/src/services/index.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "backend/src/services/s3.service.ts",
+      "dependencies": [],
+      "dependents": [
+        "backend/src/services/index.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "backend/src/utils/index.ts",
+      "dependencies": [
+        {
+          "module": "./errors",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "export"
+          ],
+          "resolved": "backend/src/utils/errors.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "./logger",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "export"
+          ],
+          "resolved": "backend/src/utils/logger.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "./providers",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "export"
+          ],
+          "resolved": "backend/src/utils/providers.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "./validation",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "export"
+          ],
+          "resolved": "backend/src/utils/validation.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        }
+      ],
+      "dependents": [],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "backend/src/utils/validation.ts",
+      "dependencies": [
+        {
+          "module": "./errors",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "backend/src/utils/errors.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        }
+      ],
+      "dependents": [
+        "backend/src/utils/index.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/components/ErrorBoundary.stories.tsx",
+      "dependencies": [
+        {
+          "module": "./ErrorBoundary",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "mobile/src/components/ErrorBoundary.tsx",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        }
+      ],
+      "dependents": [],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/components/ErrorBoundary.tsx",
+      "dependencies": [],
+      "dependents": [
+        "mobile/src/components/ErrorBoundary.stories.tsx"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/components/jobs/JobCard.tsx",
+      "dependencies": [],
+      "dependents": [
+        "mobile/src/components/jobs/index.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/components/jobs/JobDetailCard.tsx",
+      "dependencies": [],
+      "dependents": [
+        "mobile/src/components/jobs/index.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/components/jobs/JobsHeader.tsx",
+      "dependencies": [],
+      "dependents": [
+        "mobile/src/components/jobs/index.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/components/jobs/index.ts",
+      "dependencies": [
+        {
+          "module": "./JobCard",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "export"
+          ],
+          "resolved": "mobile/src/components/jobs/JobCard.tsx",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "./JobDetailCard",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "export"
+          ],
+          "resolved": "mobile/src/components/jobs/JobDetailCard.tsx",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "./JobsHeader",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "export"
+          ],
+          "resolved": "mobile/src/components/jobs/JobsHeader.tsx",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        }
+      ],
+      "dependents": [],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/features/upload/components/UploadButton.stories.tsx",
+      "dependencies": [
+        {
+          "module": "../hooks/useUpload",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "mobile/src/features/upload/hooks/useUpload.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "./UploadButton",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "mobile/src/features/upload/components/UploadButton.tsx",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        }
+      ],
+      "dependents": [],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/features/upload/hooks/useUpload.ts",
+      "dependencies": [],
+      "dependents": [
+        "mobile/src/features/upload/components/UploadButton.stories.tsx",
+        "mobile/src/features/upload/components/UploadButton.tsx",
+        "mobile/src/features/upload/public/index.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/features/upload/components/UploadButton.tsx",
+      "dependencies": [
+        {
+          "module": "../hooks/useUpload",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "mobile/src/features/upload/hooks/useUpload.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        }
+      ],
+      "dependents": [
+        "mobile/src/features/upload/components/UploadButton.stories.tsx"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/features/upload/context/ServiceContext.tsx",
+      "dependencies": [
+        {
+          "module": "../../../services/notification/adapter",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "mobile/src/services/notification/adapter.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "../../../services/upload/adapter",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "mobile/src/services/upload/adapter.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        }
+      ],
+      "dependents": [
+        "mobile/src/features/upload/public/index.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/services/notification/adapter.ts",
+      "dependencies": [
+        {
+          "module": "../../utils/logger",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "mobile/src/utils/logger.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        }
+      ],
+      "dependents": [
+        "mobile/src/features/upload/context/ServiceContext.tsx"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/utils/logger.ts",
+      "dependencies": [],
+      "dependents": [
+        "mobile/src/services/notification/adapter.ts",
+        "mobile/src/services/NotificationService.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/services/upload/adapter.ts",
+      "dependencies": [],
+      "dependents": [
+        "mobile/src/features/upload/context/ServiceContext.tsx"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/features/upload/hooks/useUploadMachine.ts",
+      "dependencies": [
+        {
+          "module": "../machines/uploadMachine",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "mobile/src/features/upload/machines/uploadMachine.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        }
+      ],
+      "dependents": [
+        "mobile/src/features/upload/public/index.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/features/upload/machines/uploadMachine.ts",
+      "dependencies": [],
+      "dependents": [
+        "mobile/src/features/upload/hooks/useUploadMachine.ts",
+        "mobile/src/features/upload/public/index.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/features/upload/public/index.ts",
+      "dependencies": [
+        {
+          "module": "../context/ServiceContext",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "export"
+          ],
+          "resolved": "mobile/src/features/upload/context/ServiceContext.tsx",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "../hooks/useUpload",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "export"
+          ],
+          "resolved": "mobile/src/features/upload/hooks/useUpload.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "../hooks/useUploadMachine",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "export"
+          ],
+          "resolved": "mobile/src/features/upload/hooks/useUploadMachine.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "../machines/uploadMachine",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "export"
+          ],
+          "resolved": "mobile/src/features/upload/machines/uploadMachine.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        }
+      ],
+      "dependents": [],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/lib/ui-tokens.ts",
+      "dependencies": [],
+      "dependents": [],
+      "orphan": true,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/lib/upload/network.ts",
+      "dependencies": [],
+      "dependents": [],
+      "orphan": true,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/lib/upload/preprocessing.ts",
+      "dependencies": [],
+      "dependents": [],
+      "orphan": true,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/lib/upload/retry.ts",
+      "dependencies": [],
+      "dependents": [],
+      "orphan": true,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/navigation/AppNavigator.tsx",
+      "dependencies": [],
+      "dependents": [],
+      "orphan": true,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/screens/CameraScreen.tsx",
+      "dependencies": [],
+      "dependents": [],
+      "orphan": true,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/screens/EditScreen.tsx",
+      "dependencies": [],
+      "dependents": [],
+      "orphan": true,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/screens/GalleryScreen.tsx",
+      "dependencies": [],
+      "dependents": [],
+      "orphan": true,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/screens/HomeScreen.tsx",
+      "dependencies": [],
+      "dependents": [],
+      "orphan": true,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/screens/JobsScreen.tsx",
+      "dependencies": [],
+      "dependents": [],
+      "orphan": true,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/screens/PreviewScreen.tsx",
+      "dependencies": [],
+      "dependents": [],
+      "orphan": true,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/screens/SettingsScreen.tsx",
+      "dependencies": [],
+      "dependents": [],
+      "orphan": true,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/services/ApiService.ts",
+      "dependencies": [],
+      "dependents": [
+        "mobile/src/services/NotificationService.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/services/NotificationService.ts",
+      "dependencies": [
+        {
+          "module": "../utils/logger",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "mobile/src/utils/logger.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "./ApiService",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "mobile/src/services/ApiService.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        }
+      ],
+      "dependents": [],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/services/notification/port.ts",
+      "dependencies": [],
+      "dependents": [],
+      "orphan": true,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/services/upload/port.ts",
+      "dependencies": [],
+      "dependents": [],
+      "orphan": true,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/store/index.ts",
+      "dependencies": [
+        {
+          "module": "./slices/imageSlice",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "mobile/src/store/slices/imageSlice.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "./slices/jobSlice",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "mobile/src/store/slices/jobSlice.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "./slices/settingsSlice",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "mobile/src/store/slices/settingsSlice.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "./uploadApi",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "mobile/src/store/uploadApi.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        }
+      ],
+      "dependents": [],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/store/slices/imageSlice.ts",
+      "dependencies": [],
+      "dependents": [
+        "mobile/src/store/index.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/store/slices/jobSlice.ts",
+      "dependencies": [],
+      "dependents": [
+        "mobile/src/store/index.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/store/slices/settingsSlice.ts",
+      "dependencies": [],
+      "dependents": [
+        "mobile/src/store/index.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/store/uploadApi.ts",
+      "dependencies": [],
+      "dependents": [
+        "mobile/src/store/index.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "mobile/src/store/selectors/jobSelectors.ts",
+      "dependencies": [],
+      "dependents": [],
+      "orphan": true,
+      "valid": true
+    },
+    {
+      "source": "shared/constants/index.ts",
+      "dependencies": [],
+      "dependents": [
+        "shared/index.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "shared/eslint.config.js",
+      "dependencies": [],
+      "dependents": [],
+      "orphan": true,
+      "valid": true
+    },
+    {
+      "source": "shared/index.ts",
+      "dependencies": [
+        {
+          "module": "./constants",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "export"
+          ],
+          "resolved": "shared/constants/index.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "./routes.manifest",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "export"
+          ],
+          "resolved": "shared/routes.manifest.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "./schemas",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "export"
+          ],
+          "resolved": "shared/schemas/index.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "./statecharts/jobLifecycle.machine",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "export"
+          ],
+          "resolved": "shared/statecharts/jobLifecycle.machine.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "./types",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "export"
+          ],
+          "resolved": "shared/types/index.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        }
+      ],
+      "dependents": [],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "shared/routes.manifest.ts",
+      "dependencies": [
+        {
+          "module": "./schemas",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "import"
+          ],
+          "resolved": "shared/schemas/index.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        }
+      ],
+      "dependents": [
+        "shared/index.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "shared/schemas/index.ts",
+      "dependencies": [
+        {
+          "module": "./api.schema",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "export"
+          ],
+          "resolved": "shared/schemas/api.schema.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "./job.schema",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "export"
+          ],
+          "resolved": "shared/schemas/job.schema.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "./provider.schema",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "export"
+          ],
+          "resolved": "shared/schemas/provider.schema.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        }
+      ],
+      "dependents": [
+        "shared/index.ts",
+        "shared/routes.manifest.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "shared/schemas/api.schema.ts",
+      "dependencies": [],
+      "dependents": [
+        "shared/schemas/index.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "shared/schemas/provider.schema.ts",
+      "dependencies": [],
+      "dependents": [
+        "shared/schemas/index.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "shared/types/index.ts",
+      "dependencies": [
+        {
+          "module": "./error.types",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "export"
+          ],
+          "resolved": "shared/types/error.types.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        },
+        {
+          "module": "./s3.types",
+          "moduleSystem": "es6",
+          "dynamic": false,
+          "exoticallyRequired": false,
+          "dependencyTypes": [
+            "local",
+            "export"
+          ],
+          "resolved": "shared/types/s3.types.ts",
+          "coreModule": false,
+          "followable": true,
+          "couldNotResolve": false,
+          "matchesDoNotFollow": false,
+          "circular": false,
+          "valid": true
+        }
+      ],
+      "dependents": [
+        "shared/index.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "shared/types/error.types.ts",
+      "dependencies": [],
+      "dependents": [
+        "shared/types/index.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "shared/types/s3.types.ts",
+      "dependencies": [],
+      "dependents": [
+        "shared/types/index.ts"
+      ],
+      "orphan": false,
+      "valid": true
+    },
+    {
+      "source": "shared/jest.config.cjs",
+      "dependencies": [],
+      "dependents": [],
+      "orphan": true,
+      "valid": true
+    }
+  ],
+  "summary": {
+    "violations": [],
+    "error": 0,
+    "warn": 0,
+    "info": 0,
+    "ignore": 0,
+    "totalCruised": 83,
+    "totalDependenciesCruised": 71,
+    "optionsUsed": {
+      "baseDir": "/home/jeffreymoya/dev/photoeditor",
+      "combinedDependencies": false,
+      "detectJSDocImports": false,
+      "doNotFollow": {
+        "path": "node_modules"
+      },
+      "exclude": {
+        "path": "dist|__tests__|\\.test\\.ts$|\\.spec\\.ts$"
+      },
+      "exoticRequireStrings": [],
+      "externalModuleResolutionStrategy": "node_modules",
+      "includeOnly": "^backend/src|^shared|^mobile/src|^node_modules/@aws-sdk",
+      "metrics": false,
+      "moduleSystems": [
+        "es6",
+        "cjs",
+        "tsd",
+        "amd"
+      ],
+      "outputTo": "-",
+      "outputType": "json",
+      "preserveSymlinks": false,
+      "reporterOptions": {
+        "dot": {
+          "collapsePattern": "node_modules/[^/]+"
+        },
+        "metrics": {
+          "hideModules": true,
+          "hideFolders": true
+        }
+      },
+      "rulesFile": "tooling/dependency-rules.json",
+      "skipAnalysisNotInRules": false,
+      "tsConfig": {
+        "fileName": "./tooling/tsconfig.dependency-cruiser.json"
+      },
+      "tsPreCompilationDeps": false,
+      "args": "backend/src shared mobile/src"
+    },
+    "ruleSetUsed": {
+      "forbidden": [
+        {
+          "name": "no-circular",
+          "severity": "error",
+          "comment": "Circular dependencies risk runtime issues and hamper refactors.",
+          "from": {},
+          "to": {
+            "circular": true
+          },
+          "scope": "module"
+        },
+        {
+          "name": "backend-handlers-no-aws-sdk-imports",
+          "severity": "error",
+          "comment": "Handlers must not import AWS SDK directly; use services/providers.",
+          "from": {
+            "path": "^backend/src/lambdas"
+          },
+          "to": {
+            "path": "^(@aws-sdk/|node_modules/@aws-sdk/|aws-sdk$)",
+            "dependencyTypes": [
+              "npm"
+            ]
+          },
+          "scope": "module"
+        },
+        {
+          "name": "backend-services-no-handlers",
+          "severity": "error",
+          "comment": "Services expose logic to handlers; they must not import the lambda layer.",
+          "from": {
+            "path": "^backend/src/services"
+          },
+          "to": {
+            "path": "^backend/src/lambdas"
+          },
+          "scope": "module"
+        },
+        {
+          "name": "backend-providers-isolated",
+          "severity": "error",
+          "comment": "Providers are lowest-level adapters and must not depend on higher layers.",
+          "from": {
+            "path": "^backend/src/providers"
+          },
+          "to": {
+            "path": "^backend/src/(lambdas|services)"
+          },
+          "scope": "module"
+        },
+        {
+          "name": "backend-handlers-no-providers",
+          "severity": "error",
+          "comment": "Handlers should resolve dependencies through services instead of talking to providers.",
+          "from": {
+            "path": "^backend/src/lambdas"
+          },
+          "to": {
+            "path": "^backend/src/providers"
+          },
+          "scope": "module"
+        },
+        {
+          "name": "shared-package-framework-agnostic",
+          "severity": "error",
+          "comment": "Shared package must remain framework-agnostic (STANDARDS.md line 64).",
+          "from": {
+            "path": "^shared"
+          },
+          "to": {
+            "path": "^(react|react-native|@nestjs|express|@aws-sdk)"
+          },
+          "scope": "module"
+        },
+        {
+          "name": "mobile-no-cross-feature-imports",
+          "severity": "error",
+          "comment": "Mobile features must not import from each other; use shared/public APIs (STANDARDS.md line 52).",
+          "from": {
+            "path": "^mobile/src/features/([^/]+)"
+          },
+          "to": {
+            "path": "^mobile/src/features/(?!$1)[^/]+/(?!public)",
+            "pathNot": "^mobile/src/features/[^/]+/public"
+          },
+          "scope": "module"
+        },
+        {
+          "name": "mobile-screens-layering",
+          "severity": "error",
+          "comment": "Mobile screens can only import from features (via /public), components, hooks, lib, services, store, utils (STANDARDS.md line 53).",
+          "from": {
+            "path": "^mobile/src/screens"
+          },
+          "to": {
+            "pathNot": "^mobile/src/(features/.*/public|components|hooks|lib|services|store|utils|types|constants|navigation)"
+          },
+          "scope": "module"
+        },
+        {
+          "name": "mobile-features-no-screens",
+          "severity": "error",
+          "comment": "Mobile features must not import from screens (STANDARDS.md line 53).",
+          "from": {
+            "path": "^mobile/src/features"
+          },
+          "to": {
+            "path": "^mobile/src/screens"
+          },
+          "scope": "module"
+        },
+        {
+          "name": "mobile-shared-ui-limited-imports",
+          "severity": "error",
+          "comment": "Shared UI components can only import from hooks, lib, and utils (STANDARDS.md line 53).",
+          "from": {
+            "path": "^mobile/src/components"
+          },
+          "to": {
+            "path": "^mobile/src/(features|screens|services|store)"
+          },
+          "scope": "module"
+        },
+        {
+          "name": "mobile-hooks-limited-imports",
+          "severity": "error",
+          "comment": "Hooks can only import from lib and utils (STANDARDS.md line 53).",
+          "from": {
+            "path": "^mobile/src/hooks"
+          },
+          "to": {
+            "path": "^mobile/src/(features|screens|services|store|components)"
+          },
+          "scope": "module"
+        },
+        {
+          "name": "no-lateral-imports",
+          "severity": "error",
+          "comment": "No lateral imports between layers (STANDARDS.md line 24).",
+          "from": {
+            "path": "^(backend/src|mobile/src)/(services|adapters|providers)/[^/]+"
+          },
+          "to": {
+            "path": "^\\1/\\2/(?!.*$)"
+          },
+          "scope": "module"
+        }
+      ]
+    }
+  }
+}

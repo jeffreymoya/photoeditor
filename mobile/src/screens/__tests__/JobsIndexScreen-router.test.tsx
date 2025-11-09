@@ -1,7 +1,9 @@
-import { render } from '@testing-library/react-native';
 import React from 'react';
 
 import JobsIndexScreen from '../../../app/(jobs)/index';
+import { renderWithProviders } from '../../__tests__/test-utils';
+
+const renderJobsScreen = () => renderWithProviders(<JobsIndexScreen />);
 
 /**
  * Test suite for JobsIndexScreen component.
@@ -11,37 +13,38 @@ import JobsIndexScreen from '../../../app/(jobs)/index';
  */
 describe('JobsIndexScreen', () => {
   it('should render without crashing', () => {
-    const { toJSON } = render(<JobsIndexScreen />);
+    const { toJSON } = renderJobsScreen();
     expect(toJSON()).toBeTruthy();
   });
 
   it('should display Jobs title', () => {
-    const { getByText } = render(<JobsIndexScreen />);
+    const { getByText } = renderJobsScreen();
     const title = getByText('Jobs');
     expect(title).toBeTruthy();
   });
 
   it('should display subtitle', () => {
-    const { getByText } = render(<JobsIndexScreen />);
+    const { getByText } = renderJobsScreen();
     const subtitle = getByText('Track your photo processing jobs');
     expect(subtitle).toBeTruthy();
   });
 
   it('should render navigation link to job detail', () => {
-    const { getByText } = render(<JobsIndexScreen />);
-    const link = getByText('View Example Job');
-    expect(link).toBeTruthy();
+    const { getAllByText, getByText } = renderJobsScreen();
+    expect(getByText('Beach Sunset Enhancement')).toBeTruthy();
+    const statusLabels = getAllByText(/Status:/);
+    expect(statusLabels.length).toBe(3);
   });
 
   it('should apply correct styling', () => {
-    const { toJSON } = render(<JobsIndexScreen />);
+    const { toJSON } = renderJobsScreen();
     const tree = toJSON();
     // Styles applied via StyleSheet.create
     expect(tree).toMatchSnapshot();
   });
 
   it('should use design tokens from ui-tokens', () => {
-    const { toJSON } = render(<JobsIndexScreen />);
+    const { toJSON } = renderJobsScreen();
     // Colors and typography from @/lib/ui-tokens are applied
     expect(toJSON()).toBeTruthy();
   });

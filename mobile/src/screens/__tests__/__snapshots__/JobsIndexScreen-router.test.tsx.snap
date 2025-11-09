@@ -12,58 +12,409 @@ exports[`JobsIndexScreen should apply correct styling 1`] = `
   }
   style={
     {
-      "alignItems": "center",
-      "backgroundColor": "#F8F9FA",
       "flex": 1,
-      "justifyContent": "center",
-      "padding": 16,
     }
   }
 >
-  <Text
-    style={
-      {
-        "color": "#1D1D1F",
-        "fontSize": 24,
-        "fontWeight": "600",
-        "marginBottom": 8,
-      }
-    }
-  >
-    Jobs
-  </Text>
-  <Text
-    style={
-      {
-        "color": "#86868B",
-        "fontSize": 16,
-        "marginBottom": 24,
-      }
-    }
-  >
-    Track your photo processing jobs
-  </Text>
-  <Text
-    href="/jobs/example-job-123"
-    onPress={[Function]}
-    role="link"
-    style={
-      {
-        "marginTop": 16,
-      }
-    }
-  >
-    <Text
-      style={
-        {
-          "color": "#007AFF",
-          "fontSize": 16,
-          "textDecorationLine": "underline",
+  <RCTScrollView>
+    <View>
+      <View
+        style={
+          {
+            "backgroundColor": "#ffffff",
+            "flex": 1,
+            "flexDirection": "column",
+            "paddingBottom": 16,
+            "paddingLeft": 16,
+            "paddingRight": 16,
+            "paddingTop": 16,
+          }
         }
-      }
-    >
-      View Example Job
-    </Text>
-  </Text>
+      >
+        <View
+          style={
+            {
+              "flexDirection": "column",
+              "marginBottom": 24,
+            }
+          }
+        >
+          <Text
+            style={
+              {
+                "color": "#171717",
+                "fontWeight": "700",
+                "marginBottom": 8,
+              }
+            }
+            suppressHighlighting={true}
+          >
+            Jobs
+          </Text>
+          <Text
+            style={
+              {
+                "color": "#262626",
+              }
+            }
+            suppressHighlighting={true}
+          >
+            Track your photo processing jobs
+          </Text>
+        </View>
+        <View
+          style={
+            {
+              "flexDirection": "column",
+              "gap": 8,
+            }
+          }
+        >
+          <View
+            accessibilityState={
+              {
+                "busy": undefined,
+                "checked": undefined,
+                "disabled": undefined,
+                "expanded": undefined,
+                "selected": undefined,
+              }
+            }
+            accessibilityValue={
+              {
+                "max": undefined,
+                "min": undefined,
+                "now": undefined,
+                "text": undefined,
+              }
+            }
+            accessible={true}
+            collapsable={false}
+            focusable={true}
+            href="/jobs/job-001"
+            onBlur={[Function]}
+            onClick={[Function]}
+            onFocus={[Function]}
+            onResponderGrant={[Function]}
+            onResponderMove={[Function]}
+            onResponderRelease={[Function]}
+            onResponderTerminate={[Function]}
+            onResponderTerminationRequest={[Function]}
+            onStartShouldSetResponder={[Function]}
+            role="link"
+          >
+            <View
+              onBlur={[Function]}
+              onClick={[Function]}
+              onFocus={[Function]}
+              onResponderGrant={[Function]}
+              onResponderMove={[Function]}
+              onResponderRelease={[Function]}
+              onResponderTerminate={[Function]}
+              onResponderTerminationRequest={[Function]}
+              onStartShouldSetResponder={[Function]}
+              style={
+                {
+                  "backgroundColor": "#f5f5f5",
+                  "borderBottomColor": "#d4d4d4",
+                  "borderBottomLeftRadius": 8,
+                  "borderBottomRightRadius": 8,
+                  "borderBottomWidth": 1,
+                  "borderLeftColor": "#d4d4d4",
+                  "borderLeftWidth": 1,
+                  "borderRightColor": "#d4d4d4",
+                  "borderRightWidth": 1,
+                  "borderStyle": "solid",
+                  "borderTopColor": "#d4d4d4",
+                  "borderTopLeftRadius": 8,
+                  "borderTopRightRadius": 8,
+                  "borderTopWidth": 1,
+                  "flexDirection": "column",
+                  "marginBottom": 12,
+                  "paddingBottom": 16,
+                  "paddingLeft": 16,
+                  "paddingRight": 16,
+                  "paddingTop": 16,
+                }
+              }
+            >
+              <Text
+                style={
+                  {
+                    "color": "#171717",
+                    "fontWeight": "600",
+                    "marginBottom": 8,
+                  }
+                }
+                suppressHighlighting={true}
+              >
+                Beach Sunset Enhancement
+              </Text>
+              <View
+                style={
+                  {
+                    "flexDirection": "column",
+                    "gap": 4,
+                  }
+                }
+              >
+                <Text
+                  style={
+                    {
+                      "color": "#16a34a",
+                      "fontWeight": "500",
+                    }
+                  }
+                  suppressHighlighting={true}
+                >
+                  Status: 
+                  Completed
+                </Text>
+                <Text
+                  style={
+                    {
+                      "color": "#262626",
+                    }
+                  }
+                  suppressHighlighting={true}
+                >
+                  Created: 
+                  11/9/2025
+                </Text>
+              </View>
+            </View>
+          </View>
+          <View
+            accessibilityState={
+              {
+                "busy": undefined,
+                "checked": undefined,
+                "disabled": undefined,
+                "expanded": undefined,
+                "selected": undefined,
+              }
+            }
+            accessibilityValue={
+              {
+                "max": undefined,
+                "min": undefined,
+                "now": undefined,
+                "text": undefined,
+              }
+            }
+            accessible={true}
+            collapsable={false}
+            focusable={true}
+            href="/jobs/job-002"
+            onBlur={[Function]}
+            onClick={[Function]}
+            onFocus={[Function]}
+            onResponderGrant={[Function]}
+            onResponderMove={[Function]}
+            onResponderRelease={[Function]}
+            onResponderTerminate={[Function]}
+            onResponderTerminationRequest={[Function]}
+            onStartShouldSetResponder={[Function]}
+            role="link"
+          >
+            <View
+              onBlur={[Function]}
+              onClick={[Function]}
+              onFocus={[Function]}
+              onResponderGrant={[Function]}
+              onResponderMove={[Function]}
+              onResponderRelease={[Function]}
+              onResponderTerminate={[Function]}
+              onResponderTerminationRequest={[Function]}
+              onStartShouldSetResponder={[Function]}
+              style={
+                {
+                  "backgroundColor": "#f5f5f5",
+                  "borderBottomColor": "#d4d4d4",
+                  "borderBottomLeftRadius": 8,
+                  "borderBottomRightRadius": 8,
+                  "borderBottomWidth": 1,
+                  "borderLeftColor": "#d4d4d4",
+                  "borderLeftWidth": 1,
+                  "borderRightColor": "#d4d4d4",
+                  "borderRightWidth": 1,
+                  "borderStyle": "solid",
+                  "borderTopColor": "#d4d4d4",
+                  "borderTopLeftRadius": 8,
+                  "borderTopRightRadius": 8,
+                  "borderTopWidth": 1,
+                  "flexDirection": "column",
+                  "marginBottom": 12,
+                  "paddingBottom": 16,
+                  "paddingLeft": 16,
+                  "paddingRight": 16,
+                  "paddingTop": 16,
+                }
+              }
+            >
+              <Text
+                style={
+                  {
+                    "color": "#171717",
+                    "fontWeight": "600",
+                    "marginBottom": 8,
+                  }
+                }
+                suppressHighlighting={true}
+              >
+                Portrait Background Removal
+              </Text>
+              <View
+                style={
+                  {
+                    "flexDirection": "column",
+                    "gap": 4,
+                  }
+                }
+              >
+                <Text
+                  style={
+                    {
+                      "color": "#0284c7",
+                      "fontWeight": "500",
+                    }
+                  }
+                  suppressHighlighting={true}
+                >
+                  Status: 
+                  Processing
+                </Text>
+                <Text
+                  style={
+                    {
+                      "color": "#262626",
+                    }
+                  }
+                  suppressHighlighting={true}
+                >
+                  Created: 
+                  11/9/2025
+                </Text>
+              </View>
+            </View>
+          </View>
+          <View
+            accessibilityState={
+              {
+                "busy": undefined,
+                "checked": undefined,
+                "disabled": undefined,
+                "expanded": undefined,
+                "selected": undefined,
+              }
+            }
+            accessibilityValue={
+              {
+                "max": undefined,
+                "min": undefined,
+                "now": undefined,
+                "text": undefined,
+              }
+            }
+            accessible={true}
+            collapsable={false}
+            focusable={true}
+            href="/jobs/job-003"
+            onBlur={[Function]}
+            onClick={[Function]}
+            onFocus={[Function]}
+            onResponderGrant={[Function]}
+            onResponderMove={[Function]}
+            onResponderRelease={[Function]}
+            onResponderTerminate={[Function]}
+            onResponderTerminationRequest={[Function]}
+            onStartShouldSetResponder={[Function]}
+            role="link"
+          >
+            <View
+              onBlur={[Function]}
+              onClick={[Function]}
+              onFocus={[Function]}
+              onResponderGrant={[Function]}
+              onResponderMove={[Function]}
+              onResponderRelease={[Function]}
+              onResponderTerminate={[Function]}
+              onResponderTerminationRequest={[Function]}
+              onStartShouldSetResponder={[Function]}
+              style={
+                {
+                  "backgroundColor": "#f5f5f5",
+                  "borderBottomColor": "#d4d4d4",
+                  "borderBottomLeftRadius": 8,
+                  "borderBottomRightRadius": 8,
+                  "borderBottomWidth": 1,
+                  "borderLeftColor": "#d4d4d4",
+                  "borderLeftWidth": 1,
+                  "borderRightColor": "#d4d4d4",
+                  "borderRightWidth": 1,
+                  "borderStyle": "solid",
+                  "borderTopColor": "#d4d4d4",
+                  "borderTopLeftRadius": 8,
+                  "borderTopRightRadius": 8,
+                  "borderTopWidth": 1,
+                  "flexDirection": "column",
+                  "marginBottom": 12,
+                  "paddingBottom": 16,
+                  "paddingLeft": 16,
+                  "paddingRight": 16,
+                  "paddingTop": 16,
+                }
+              }
+            >
+              <Text
+                style={
+                  {
+                    "color": "#171717",
+                    "fontWeight": "600",
+                    "marginBottom": 8,
+                  }
+                }
+                suppressHighlighting={true}
+              >
+                Product Photo Color Correction
+              </Text>
+              <View
+                style={
+                  {
+                    "flexDirection": "column",
+                    "gap": 4,
+                  }
+                }
+              >
+                <Text
+                  style={
+                    {
+                      "color": "#737373",
+                      "fontWeight": "500",
+                    }
+                  }
+                  suppressHighlighting={true}
+                >
+                  Status: 
+                  Pending
+                </Text>
+                <Text
+                  style={
+                    {
+                      "color": "#262626",
+                    }
+                  }
+                  suppressHighlighting={true}
+                >
+                  Created: 
+                  11/9/2025
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+      </View>
+    </View>
+  </RCTScrollView>
 </RNCSafeAreaView>
 `;

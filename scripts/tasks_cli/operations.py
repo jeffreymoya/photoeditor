@@ -16,6 +16,7 @@ from typing import Optional
 from ruamel.yaml import YAML
 
 from .models import Task
+from .notify import get_notification_service
 
 
 class TaskOperationError(Exception):
@@ -109,9 +110,18 @@ class TaskOperations:
 
         # Archive if requested
         if archive:
-            return self._archive_task(task_path, task.id)
+            result_path = self._archive_task(task_path, task.id)
         else:
-            return task_path
+            result_path = task_path
+
+        # Send success notification
+        notifier = get_notification_service()
+        notifier.notify_success(
+            task_id=task.id,
+            title=getattr(task, 'title', 'Task completed')
+        )
+
+        return result_path
 
     def archive_task(self, task: Task) -> Path:
         """
@@ -338,6 +348,13 @@ def claim_task_cli(repo_root: Path, task: Task) -> None:
         print(f"  Status: todo → in_progress")
         print(f"  File: {result_path}")
     except TaskOperationError as e:
+        # Send error notification
+        notifier = get_notification_service()
+        notifier.notify_error(
+            task_id=task.id,
+            title=getattr(task, 'title', 'Unknown task'),
+            error_message=str(e)
+        )
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
@@ -364,5 +381,12 @@ def complete_task_cli(repo_root: Path, task: Task, archive: bool = True) -> None
             print(f"  File: {result_path}")
 
     except TaskOperationError as e:
+        # Send error notification
+        notifier = get_notification_service()
+        notifier.notify_error(
+            task_id=task.id,
+            title=getattr(task, 'title', 'Unknown task'),
+            error_message=str(e)
+        )
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)

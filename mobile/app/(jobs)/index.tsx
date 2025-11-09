@@ -1,57 +1,66 @@
-import { Link } from 'expo-router';
+import { YStack } from '@tamagui/stacks';
 import React from 'react';
-import { Text, StyleSheet } from 'react-native';
+import { ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { colors, spacing, typography } from '@/lib/ui-tokens';
+import { JobCard, JobsHeader } from '@/components/jobs';
 
 /**
  * Jobs list screen using Expo Router file-based routing.
  *
- * This screen displays the list of photo processing jobs.
- * Implements file-based routing per standards/frontend-tier.md#feature-guardrails.
+ * This screen displays the list of photo processing jobs using NativeWind v5
+ * and Tamagui themed components per TASK-0909.
+ *
+ * Implements file-based routing per standards/frontend-tier.md#feature-guardrails
+ * with theme-aware styling that renders identically on iOS and Android.
  */
 export const JobsIndexScreen = () => {
-  return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Jobs</Text>
-      <Text style={styles.subtitle}>Track your photo processing jobs</Text>
+  // TODO: Replace with actual Redux state or API data
+  const mockJobs = [
+    {
+      id: 'job-001',
+      title: 'Beach Sunset Enhancement',
+      status: 'completed' as const,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: 'job-002',
+      title: 'Portrait Background Removal',
+      status: 'processing' as const,
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: 'job-003',
+      title: 'Product Photo Color Correction',
+      status: 'pending' as const,
+      createdAt: new Date().toISOString(),
+    },
+  ];
 
-      {/* Example link to job detail - replace with actual job list */}
-      <Link href="/jobs/example-job-123" style={styles.link}>
-        <Text style={styles.linkText}>View Example Job</Text>
-      </Link>
+  return (
+    <SafeAreaView style={{ flex: 1 }}>
+      <ScrollView>
+        <YStack padding="$4" backgroundColor="$background" flex={1}>
+          <JobsHeader
+            title="Jobs"
+            subtitle="Track your photo processing jobs"
+          />
+
+          <YStack gap="$2">
+            {mockJobs.map((job) => (
+              <JobCard
+                key={job.id}
+                id={job.id}
+                title={job.title}
+                status={job.status}
+                createdAt={job.createdAt}
+              />
+            ))}
+          </YStack>
+        </YStack>
+      </ScrollView>
     </SafeAreaView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.background,
-    padding: spacing.md,
-  },
-  title: {
-    fontSize: typography.sizes.xxl,
-    fontWeight: typography.weights.semibold,
-    color: colors.textPrimary,
-    marginBottom: spacing.sm,
-  },
-  subtitle: {
-    fontSize: typography.sizes.md,
-    color: colors.textSecondary,
-    marginBottom: spacing.lg,
-  },
-  link: {
-    marginTop: spacing.md,
-  },
-  linkText: {
-    fontSize: typography.sizes.md,
-    color: colors.primary,
-    textDecorationLine: 'underline',
-  },
-});
 
 export default JobsIndexScreen;

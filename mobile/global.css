@@ -1,0 +1,10 @@
+/* PhotoEditor Mobile - NativeWind v5 global styles */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * Global CSS for compile-time utility class processing
+ * NativeWind v5 processes these directives at build time
+ * with zero runtime overhead per TASK-0909
+ */

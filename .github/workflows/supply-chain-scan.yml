@@ -1,0 +1,151 @@
+name: Supply Chain Security Scan
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'mobile/package.json'
+      - 'mobile/pnpm-lock.yaml'
+      - 'backend/package.json'
+      - 'shared/package.json'
+      - 'pnpm-lock.yaml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'mobile/package.json'
+      - 'mobile/pnpm-lock.yaml'
+      - 'backend/package.json'
+      - 'shared/package.json'
+      - 'pnpm-lock.yaml'
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20.x'
+
+jobs:
+  # SBOM Generation and Provenance Scanning
+  # Implements hybrid npm provenance + pnpm audit per TASK-0909 clarifications
+  sbom-and-provenance:
+    name: SBOM Generation & Provenance Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Setup pnpm via Corepack
+        run: corepack prepare pnpm@8.15.4 --activate
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Verify npm provenance attestations for all packages
+      # This ensures packages are signed and haven't been tampered with
+      - name: Verify npm provenance attestations
+        id: provenance
+        run: |
+          echo "::group::Verifying npm provenance"
+          pnpm audit signatures 2>&1 | tee provenance-results.txt
+          PROVENANCE_EXIT_CODE=$?
+          echo "::endgroup::"
+
+          if [ $PROVENANCE_EXIT_CODE -eq 0 ]; then
+            echo "✅ All packages have valid provenance attestations"
+            echo "status=pass" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Some packages are missing provenance attestations"
+            echo "status=fail" >> $GITHUB_OUTPUT
+            cat provenance-results.txt
+            exit 1
+          fi
+
+      # Check for known vulnerabilities
+      - name: Run pnpm audit
+        id: audit
+        run: |
+          echo "::group::Running pnpm audit"
+          pnpm audit --audit-level=moderate --json > audit-results.json 2>&1 || true
+          pnpm audit --audit-level=moderate 2>&1 | tee audit-results.txt
+          AUDIT_EXIT_CODE=$?
+          echo "::endgroup::"
+
+          if [ $AUDIT_EXIT_CODE -eq 0 ]; then
+            echo "✅ No vulnerabilities found"
+            echo "status=pass" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️  Vulnerabilities detected - review audit-results.txt"
+            echo "status=warning" >> $GITHUB_OUTPUT
+          fi
+        continue-on-error: true
+
+      # Generate SBOM in CycloneDX format
+      - name: Generate SBOM
+        run: |
+          echo "::group::Generating SBOM"
+          npx @cyclonedx/cyclonedx-npm --output-file sbom.json
+          echo "::endgroup::"
+          echo "✅ SBOM generated: sbom.json"
+
+      # Upload SBOM as artifact for auditing
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-cyclonedx
+          path: sbom.json
+          retention-days: 90
+
+      # Upload provenance results
+      - name: Upload provenance results
+        uses: actions/upload-artifact@v4
+        with:
+          name: provenance-scan-results
+          path: provenance-results.txt
+          retention-days: 90
+
+      # Upload audit results
+      - name: Upload audit results
+        uses: actions/upload-artifact@v4
+        with:
+          name: vulnerability-scan-results
+          path: |
+            audit-results.txt
+            audit-results.json
+          retention-days: 90
+
+      # Summary report
+      - name: Generate summary
+        if: always()
+        run: |
+          echo "## Supply Chain Security Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Provenance Verification" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.provenance.outputs.status }}" = "pass" ]; then
+            echo "✅ **PASS** - All packages have valid npm provenance attestations" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **FAIL** - Some packages missing provenance attestations" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Vulnerability Audit" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.audit.outputs.status }}" = "pass" ]; then
+            echo "✅ **PASS** - No vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️  **WARNING** - Vulnerabilities detected (review artifacts)" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Artifacts Generated" >> $GITHUB_STEP_SUMMARY
+          echo "- SBOM (CycloneDX format): \`sbom.json\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Provenance results: \`provenance-results.txt\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Audit results: \`audit-results.txt\`, \`audit-results.json\`" >> $GITHUB_STEP_SUMMARY

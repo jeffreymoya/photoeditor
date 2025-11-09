@@ -3,7 +3,7 @@
 schema_version: "1.1"
 id: TASK-0909
 title: "Implement NativeWind v5 + Tamagui with supply-chain scanning"
-status: in_progress
+status: completed
 blocked_reason:
 priority: P1
 area: mobile
@@ -259,6 +259,34 @@ plan:
   expected_files_touched:
   - docs/mobile/design-token-system.md
   - docs/security/ui-kit-supply-chain-guardrails.md
+- id: 7
+  title: Capture structure metrics and reuse evidence
+  details: >-
+    Run `pnpm run analyze:deps > docs/evidence/structure-metrics.json` to capture
+    fan-in/fan-out
+    plus instability data, then update `docs/evidence/reuse-ratio.json` with the new
+    shared UI
+    surface entry. Reference `standards/cross-cutting.md#coupling--cohesion-controls-isoiec-25010-modularity`
+    and `standards/typescript.md#reuse-evidence--cohesion-heuristics` to prove high
+    cohesion before
+    requesting review.
+  actor: agent
+  inputs:
+  - mobile/src/components/<surface>/
+  - docs/evidence/tasks/TASK-0909-themed-component-test-results.md
+  - docs/evidence/tasks/TASK-0909-sbom-scan-results.md
+  outputs:
+  - docs/evidence/structure-metrics.json
+  - docs/evidence/reuse-ratio.json
+  definition_of_done:
+  - Structure metrics file updated and referenced from the driving task
+  - Reuse ratio entry documents current vs target consumers for the new shared 
+    components
+  - Task validation section cites the updated evidence paths
+  estimate: S
+  expected_files_touched:
+  - docs/evidence/structure-metrics.json
+  - docs/evidence/reuse-ratio.json
 
 validation:
   pipeline:
@@ -266,12 +294,17 @@ validation:
     description: Auto-fix linting issues in mobile package
   - command: pnpm turbo run qa:static --filter=photoeditor-mobile
     description: Run static analysis (typecheck + lint) on mobile
+  - command: "pnpm run analyze:deps > docs/evidence/structure-metrics.json"
+    description: Capture coupling/cohesion structure metrics per 
+      standards/cross-cutting.md#coupling--cohesion-controls-isoiec-25010-modularity
   - command: pnpm turbo run test --filter=photoeditor-mobile
     description: Run unit tests for mobile package
   - command: pnpm turbo run test:coverage --filter=photoeditor-mobile
     description: Run tests with coverage reporting to verify thresholds (≥70% 
       lines, ≥60% branches per standards/testing-standards.md)
   manual_checks:
+  - Update docs/evidence/reuse-ratio.json with current vs target consumers for 
+    the new shared UI components
   - Verify themed components render identically on iOS simulator and Android 
     emulator
   - Confirm NativeWind v5 compiler-backed tokens work without runtime class 
@@ -289,6 +322,8 @@ acceptance_criteria:
   - Themed components render identically on iOS and Android
   - SBOM generation and provenance scanning configured in CI
   - Dependency allowlist created and documented
+  - docs/evidence/structure-metrics.json and docs/evidence/reuse-ratio.json 
+    updated for this change
   - pnpm turbo run qa:static --filter=photoeditor-mobile passes
   - SBOM pipeline passes with provenance validation
   - Design token system documented for reuse
@@ -313,6 +348,10 @@ artifacts:
 - path: docs/security/ui-kit-supply-chain-guardrails.md
   description: Supply-chain scanning procedures, allowlist, provenance 
     validation workflow
+- path: docs/evidence/structure-metrics.json
+  description: Coupling/cohesion metrics export from `pnpm run analyze:deps`
+- path: docs/evidence/reuse-ratio.json
+  description: Reuse ratio entry updated for new shared UI components
 
 deliverables:
 - mobile/package.json (NativeWind v5, Tamagui dependencies)
@@ -328,6 +367,8 @@ deliverables:
 - docs/evidence/tasks/TASK-0909-sbom-scan-results.md
 - docs/mobile/design-token-system.md
 - docs/security/ui-kit-supply-chain-guardrails.md
+- docs/evidence/structure-metrics.json
+- docs/evidence/reuse-ratio.json
 
 risks:
 - description: Tamagui documentation gaps may slow adoption and increase 

@@ -14,8 +14,7 @@ Repo‑wide Baseline (humans)
 
 - Use for quick pre‑PR hygiene across the monorepo:
   - `pnpm turbo run qa:static --parallel`
-  - `pnpm run analyze:deps` (exports depcruise metrics + import graph)
-  - `pnpm run analyze:deps > docs/evidence/structure-metrics.json` (capture the metrics JSON for the evidence bundle)
+  - `pnpm run analyze:deps > docs/evidence/structure-metrics.json` (exports depcruise metrics + saves them for the evidence bundle)
 
 Structure & Reuse Evidence
 

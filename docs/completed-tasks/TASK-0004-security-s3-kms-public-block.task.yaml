@@ -1,0 +1,84 @@
+schema_version: "1.0"
+id: TASK-0004
+title: "Security: enforce KMS on final S3 and block public access"
+status: completed
+priority: P0
+complexity: S
+area: infra
+
+description: >-
+  Verify and enforce that the final S3 bucket uses SSE-KMS with a CMK and that
+  both temp and final buckets have Block Public Access enabled. Confirm the
+  Terraform modules reflect this and add checks to prevent regressions.
+
+outcome: >-
+  Terraform definitions ensure final bucket SSE-KMS (CMK per env) and Block
+  Public Access on all buckets. Evidence captured with code references and
+  validation commands.
+
+scope:
+  in:
+    - infrastructure/modules/s3/main.tf
+    - infrastructure/modules/s3/variables.tf
+  out:
+    - Non-S3 Terraform components
+
+context:
+  issues: []
+  related_docs:
+    - rubric.md
+  repo_paths:
+    - infrastructure/modules/s3/main.tf:80
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  tools:
+    - name: terraform
+      version: ">=1.6"
+    - name: bash
+      version: any
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep changes minimal; modules already enforce KMS and public access blocks.
+
+plan:
+  - id: 1
+    title: Verify encryption and public access blocks
+    details: Confirm SSE-KMS and public access blocks exist for final and temp.
+    commands:
+      - rg -n 'aws_s3_bucket_server_side_encryption_configuration.*final' infrastructure/modules/s3/main.tf
+      - rg -n 'aws_s3_bucket_public_access_block.*final' infrastructure/modules/s3/main.tf
+  - id: 2
+    title: Document and gate
+    details: Add notes and optional assertions (comments or tfsec in CI task).
+    commands: []
+
+acceptance_criteria:
+  - "Final bucket uses `sse_algorithm: aws:kms` with `kms_master_key_id`."
+  - Public access block resources exist for both temp and final buckets.
+  - Changelog entry captures evidence paths.
+
+validation:
+  commands:
+    - rg -n 'sse_algorithm\s*=\s*"aws:kms"' infrastructure/modules/s3/main.tf
+    - rg -n 'aws_s3_bucket_public_access_block' infrastructure/modules/s3/main.tf
+  manual_checks:
+    - Confirm KMS key is parameterized via variables.
+  artifacts:
+    - screenshots: []
+
+deliverables:
+  - changelog/YYYY-MM-DD-s3-kms-and-public-block.md
+
+risks:
+  - description: LocalStack path may not fully simulate KMS.
+    mitigation: Scope to Terraform config review; enforce via CI scanners separately.
+
+order: 4
+

@@ -1,0 +1,177 @@
+# Task: Update esbuild to resolve MODERATE severity CVE
+# Area: ops (dependency management)
+# Priority: P0 (security vulnerability)
+
+schema_version: "1.1"
+id: TASK-0902
+title: "Update esbuild to ^0.25.0 to fix CVE (arbitrary file read)"
+status: completed
+blocked_reason:
+priority: P0
+area: ops
+unblocker: true  # Unblocks safe dependency updates
+order:
+blocked_by: []
+depends_on: []
+agent_completion_state: {}
+
+clarifications:
+  outstanding: []
+  evidence_path: "docs/evidence/tasks/TASK-0902-clarifications.md"
+
+description: >-
+  The backend package currently uses esbuild@0.19.12, which has a MODERATE severity
+  vulnerability (CVE) allowing the development server to read arbitrary files. This
+  affects the build tooling used for Lambda bundling. Update to esbuild@0.25.0+ to
+  resolve the vulnerability. This is a low-risk update as esbuild is a build-time
+  tool with no runtime impact on deployed Lambdas.
+
+outcome: >-
+  Backend package.json updated to esbuild@^0.25.0, lockfile regenerated, Lambda
+  builds verified successful, and dependency audit shows no esbuild CVE.
+
+scope:
+  in:
+  - backend/package.json esbuild dependency version
+  - pnpm-lock.yaml regeneration
+  - Lambda build verification
+  out:
+  - Mobile package esbuild (handled by Expo SDK update in TASK-0903)
+  - Other deprecated dependencies (separate tasks)
+  - Runtime code changes (build tool only)
+
+context:
+  affected_packages: [backend]
+  standards_tier: ops
+  related_docs:
+  - standards/global.md
+  - standards/backend-tier.md
+  - standards/testing-standards.md
+  repo_paths:
+  - backend/package.json
+  - pnpm-lock.yaml
+  dependencies:
+  - esbuild (build-time dependency)
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+  - name: pnpm
+    version: "8.x"
+  - name: esbuild
+    version: "0.25.0+"
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+  - Keep diffs minimal (package.json version bump only).
+  - Verify Lambda builds succeed after update.
+  - Follow repository standards for dependency management.
+  prohibited:
+  - No functional code changes (build tool update only).
+
+plan:
+- id: 1
+  title: Verify current esbuild usage and CVE details
+  details: >-
+    Audit backend/package.json for esbuild version, confirm CVE affects current
+    version (0.19.12), document build commands that use esbuild. This satisfies
+    standards/global.md requirement for evidence-based changes.
+  actor: agent
+  inputs:
+  - backend/package.json
+  - pnpm-lock.yaml
+  outputs:
+  - docs/evidence/tasks/TASK-0902-clarifications.md (CVE verification notes)
+  definition_of_done:
+  - CVE details confirmed for esbuild <=0.24.2
+  - Current version 0.19.12 documented
+  - Build commands identified
+  estimate: S
+  expected_files_touched: []
+- id: 2
+  title: Update esbuild version in backend package.json
+  details: >-
+    Change esbuild version from ^0.19.12 to ^0.25.0 in backend/package.json,
+    run pnpm install to regenerate lockfile. This aligns with standards/global.md
+    security update requirements.
+  actor: agent
+  inputs:
+  - backend/package.json
+  outputs:
+  - backend/package.json (updated esbuild version)
+  - pnpm-lock.yaml (regenerated with new esbuild)
+  definition_of_done:
+  - backend/package.json shows esbuild@^0.25.0
+  - pnpm-lock.yaml updated without errors
+  - No other unintended dependency changes
+  estimate: S
+  expected_files_touched:
+  - backend/package.json
+  - pnpm-lock.yaml
+- id: 3
+  title: Verify Lambda builds and run QA checks
+  details: >-
+    Run pnpm turbo run build:lambdas --filter=@photoeditor/backend to verify
+    all Lambda bundles build successfully with new esbuild version. Run qa:static
+    to ensure no regressions. Per standards/testing-standards.md, build verification
+    is required for toolchain updates.
+  actor: agent
+  inputs:
+  - Updated backend package
+  outputs:
+  - docs/evidence/tasks/TASK-0902-clarifications.md (build verification results)
+  definition_of_done:
+  - All Lambda bundles build successfully
+  - qa:static passes (typecheck + lint)
+  - No build warnings or errors introduced
+  - pnpm audit shows esbuild CVE resolved
+  estimate: S
+  expected_files_touched: []
+
+validation:
+  pipeline:
+  - command: pnpm turbo run build:lambdas --filter=@photoeditor/backend
+    description: Build all Lambda bundles with updated esbuild
+  - command: pnpm turbo run qa:static --filter=@photoeditor/backend
+    description: Run static analysis (typecheck + lint) on backend
+  - command: pnpm audit --filter=@photoeditor/backend
+    description: Verify esbuild CVE is resolved in dependency audit
+  manual_checks:
+  - Manually verify pnpm-lock.yaml changes are minimal (only esbuild and its 
+    dependencies)
+
+acceptance_criteria:
+  must:
+  - backend/package.json lists esbuild@^0.25.0
+  - pnpm-lock.yaml updated with esbuild@0.25.0+
+  - All Lambda bundles build successfully (verified via build:lambdas command)
+  - pnpm audit shows no esbuild CVE warnings
+  - No unrelated dependency changes introduced
+  quality_gates:
+  - standards/global.md security update requirements satisfied
+  - No build regressions
+  - No lint/type errors
+
+artifacts:
+- path: docs/evidence/tasks/TASK-0902-clarifications.md
+  description: CVE verification, build verification results, and audit output
+
+deliverables:
+- backend/package.json (esbuild@^0.25.0)
+- pnpm-lock.yaml (regenerated)
+- docs/evidence/tasks/TASK-0902-clarifications.md
+
+risks:
+- description: esbuild breaking changes affect Lambda bundling
+  mitigation: Run full build:lambdas suite before committing; esbuild maintains 
+    good backward compatibility for stable features
+- description: Lockfile changes affect other packages
+  mitigation: Review pnpm-lock.yaml diff to ensure only esbuild tree updated; 
+    use --filter=@photoeditor/backend to isolate changes

@@ -1,0 +1,106 @@
+schema_version: "1.0"
+id: TASK-0286
+title: "Refactor JobService into neverthrow domain + repositories"
+status: completed
+priority: P1
+area: backend
+
+description: >-
+  JobService currently mixes DynamoDB I/O, orchestration, and domain logic with thrown exceptions and no statechart.
+  standards/backend-tier.md mandates neverthrow-based domain services, pure domain logic (≥70%), and shared statecharts.
+  We need to split JobService into a pure domain module returning Result types, introduce repositories, and define
+  XState statecharts under shared/statecharts for job lifecycle transitions.
+
+outcome: >-
+  Domain layer exposes pure functions returning neverthrow Results; I/O lives in repository adapters; job lifecycle
+  statechart exists in shared/statecharts with checksum recorded; unit tests cover allowed/forbidden transitions.
+
+scope:
+  in:
+    - backend/src/services/job.service.ts
+    - backend/src/services/presign.service.ts
+    - backend/src/services/notification.service.ts
+    - backend/tests/unit/services/**/*
+    - shared/statecharts/**/*
+  out:
+    - Provider integrations (handled separately)
+    - Mobile/web consumers beyond DTO updates
+
+context:
+  issues: []
+  related_docs:
+    - standards/global.md
+    - standards/AGENTS.md
+    - standards/backend-tier.md
+    - standards/testing-standards.md
+    - shared/ARCHITECTURE.md
+  repo_paths:
+    - backend/src/services/job.service.ts
+    - shared/schemas/job.schema.ts
+  dependencies:
+    - type: package
+      name: neverthrow
+      requirement: required
+    - type: package
+      name: "@xstate/fsm"
+      requirement: required
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: pnpm
+      version: "8.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep domain modules pure (no AWS SDK).
+    - Document statechart via generated assets.
+  prohibited:
+    - Throwing exceptions for control flow in domain.
+    - Accessing AWS SDK directly from domain modules.
+  architecture:
+    - "DDD-lite services + repository pattern"
+    - "State machine definitions in shared/statecharts"
+  modularity:
+    - "Domain services ≤200 LOC, complexity ≤15"
+  testability:
+    - "Add unit/statechart transition tests with coverage ≥80% lines"
+
+implementation_plan:
+  - step: Introduce JobRepository adapter for DynamoDB access
+    detail: Extract CRUD operations into repository with dependency injection.
+  - step: Create jobLifecycle statechart in shared/statecharts
+    detail: Define XState machine covering QUEUED→PROCESSING→EDITING→COMPLETED/FAILED; export checksum.
+  - step: Refactor services to use neverthrow Result types
+    detail: Replace throw-based errors with Result, add tests validating transitions and failure paths.
+
+validation:
+  commands:
+    - pnpm --filter @photoeditor/backend test:unit -- --testPathPattern=services
+    - pnpm --filter @photoeditor/shared test
+    - pnpm turbo run qa:static --filter=@photoeditor/backend
+  manual_checks:
+    - Review generated statechart checksum committed under shared/statecharts.
+  artifacts:
+    - screenshots: []
+
+materials:
+  - shared/statecharts/jobLifecycle.machine.ts
+  - docs/evidence/statecharts/jobLifecycle-checksum.txt
+
+evidence:
+  quality:
+    - path: docs/evidence/statecharts/jobLifecycle-transitions.json
+      description: "Test output showing allowed/forbidden transitions"
+
+risks:
+  - description: neverthrow adoption ripples into consumers.
+    mitigation: Provide adapter functions for existing call sites; update tests sequentially.
+  - description: Statechart drift with clients.
+    mitigation: Export checksum and fail CI when shared/statecharts schema changes without regen.

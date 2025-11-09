@@ -1,0 +1,96 @@
+schema_version: "1.0"
+id: TASK-0018
+title: "Consolidate mobile API URL lookup"
+status: completed
+priority: P1
+complexity: S
+area: mobile
+
+description: >-
+  Mobile make targets each call `terraform output` to fetch the API URL, which
+  is wasteful and slows the developer loop. Introduce a shared helper target or
+  variable so the lookup runs once per invocation, while keeping the Android
+  host substitution logic intact.
+
+outcome: >-
+  Running any `mobile-*` make target resolves the API URL exactly once and
+  reuses it for Expo commands, improving responsiveness and reducing repeated
+  Terraform shelling.
+
+scope:
+  in:
+    - Makefile
+  out:
+    - Terraform configuration files
+    - Expo project source code
+
+context:
+  issues: []
+  related_docs:
+    - README.md
+  repo_paths:
+    - Makefile
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: make
+      version: any
+    - name: terraform
+      version: "1.6.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+
+plan:
+  - id: 1
+    title: Audit existing mobile targets
+    details: Note how API URL is fetched and transformed today.
+    commands:
+      - rg -n "mobile-ios" Makefile
+    expected_files_touched: []
+  - id: 2
+    title: Add shared helper
+    details: Introduce a phony target or pattern rule that captures the API URL
+      once and exports it for dependent targets.
+    commands: []
+    expected_files_touched:
+      - Makefile
+  - id: 3
+    title: Verify dry run order
+    details: Ensure helper executes before Expo commands without duplicate
+      Terraform calls using make dry-runs.
+    commands:
+      - make -n mobile-ios
+      - make -n mobile-android
+
+acceptance_criteria:
+  - "`make -n mobile-ios` and `make -n mobile-android` show at most one `terraform output` invocation per target."
+  - Android target still rewrites localhost to `10.0.2.2`.
+  - Mobile help text remains accurate.
+
+validation:
+  commands:
+    - make -n mobile-ios
+    - make -n mobile-android
+  manual_checks:
+    - Time the first invocation and confirm subsequent runs skip redundant
+      Terraform calls when API URL is cached within the make session.
+  artifacts:
+    - screenshots: []
+
+deliverables:
+  - Makefile
+
+risks:
+  - description: Incorrect variable scoping may leak stale URLs between runs.
+    mitigation: Use make automatic variables or `.PHONY` targets to force fresh
+      evaluation per invocation.
+
+order: 10

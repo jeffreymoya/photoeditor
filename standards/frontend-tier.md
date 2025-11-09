@@ -94,6 +94,14 @@ Mobile state logic should maximize purity and enforce immutability to enable tim
 
 See `standards/typescript.md#analyzability` and `standards/typescript.md#immutability--readonly` for foundational patterns and `docs/evidence/purity-immutability-gap-notes.md` for analysis.
 
+### Coupling & Cohesion Evidence
+
+- Every feature directory exposes a `/public` barrel with ≤5 exports. When a module needs more, split by capability and document the single reason to change in the driving task and PR evidence.
+- `pnpm run analyze:deps` metrics (saved to `docs/evidence/structure-metrics.json`) must remain in the evidence bundle. Fan-in ≥15 or fan-out ≥12 on any feature module is an automatic failure unless an ADR documents the exception.
+- Update `docs/evidence/reuse-ratio.json` whenever shared UI primitives, hooks, or services change. Reuse ratio target is ≥1.5; modules below that limit must relocate next to their only consumer or attach a remediation task before merge.
+- Selectors, hooks, or services may not import other feature internals directly. Cross-feature collaboration happens via the feature’s `/public` surface only; depcruise edges that bypass the surface block CI.
+- Screens and feature entry points must include a doc block enumerating owner, surface, and explicit dependents so reviewers can confirm high cohesion.
+
 **Strategies**
 
 * **Statechart contracts**: export `.scxml` or Mermaid from XState to your KB.

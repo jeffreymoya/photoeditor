@@ -25,6 +25,14 @@
 * DLQ configuration and redrive drills must remain green in CI; failures block release.
 * Module flake-rate above 1% for more than 7 days blocks merges until remediated.
 
+### Coupling & Cohesion Controls (ISO/IEC 25010 Modularity)
+
+* `pnpm run analyze:deps` is the authoritative structure scan. Export the metrics output to `docs/evidence/structure-metrics.json` in every PR evidence bundle; tasks must cite the file under `validation`.
+* Hard fail when a module simultaneously exceeds fan-in ≥ 15 **and** fan-out ≥ 12, or exports > 10 public symbols; warn at 80% of those limits and break the module into cohesive slices before merging.
+* Any touched module must include a "single reason to change" note in the PR (tie it to the driving `tasks/*.task.yaml`). Mixing unrelated responsibilities demands an immediate extract-and-own plan.
+* Update `docs/evidence/reuse-ratio.json` whenever shared/backend/mobile public APIs change. Reuse ratio (unique importers ÷ exported modules) must stay ≥ 1.5; ratios < 1 require either relocation next to the sole consumer or a remediation task before approval.
+* Direct adapter↔adapter or service↔service imports are prohibited. All cross-module collaboration goes through ports; violating edges discovered in the structure scan block CI until eliminated or ADR-backed.
+
 **Purity & Immutability Evidence Requirements**
 
 When assessing domain logic changes or reviewing architectural refactors, reviewers should request and validate the following artefacts to ensure purity and immutability standards are upheld (see `standards/testing-standards.md#evidence-expectations` for broader evidence framework):

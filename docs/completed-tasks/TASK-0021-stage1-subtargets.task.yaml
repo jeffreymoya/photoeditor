@@ -1,0 +1,103 @@
+schema_version: "1.0"
+id: TASK-0021
+title: "Split stage1-verify into focused targets"
+status: completed
+priority: P1
+complexity: M
+area: ci
+
+description: >-
+  `stage1-verify` currently runs every fitness check (lint, tests, Terraform
+  validation, builds) in one long command, forcing engineers to wait even when
+  they only need part of the pipeline. Break the monolithic target into
+  sub-targets (e.g., `stage1-lint`, `stage1-tests`, `stage1-infra`, `stage1-build`)
+  while keeping the aggregate target for CI.
+
+outcome: >-
+  Developers can run granular Stage 1 targets independently, and the existing
+  `stage1-verify` composes them in order, improving feedback loops without
+  losing the all-in-one command.
+
+scope:
+  in:
+    - Makefile
+  out:
+    - Underlying npm scripts
+    - Terraform modules
+
+context:
+  issues: []
+  related_docs:
+    - docs/ci/stage1.md
+  repo_paths:
+    - Makefile
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: make
+      version: any
+    - name: npm
+      version: "9.x"
+    - name: terraform
+      version: "1.6.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+
+plan:
+  - id: 1
+    title: Map existing steps
+    details: Document the current 12-step pipeline to inform sub-target
+      grouping.
+    commands:
+      - sed -n '103,153p' Makefile
+    expected_files_touched: []
+  - id: 2
+    title: Define sub-targets
+    details: Create new phony targets encapsulating linting, tests, infra checks,
+      and builds; refactor `stage1-verify` to depend on them.
+    commands: []
+    expected_files_touched:
+      - Makefile
+  - id: 3
+    title: Verify composition
+    details: Run dry-runs or targeted commands to ensure ordering matches the
+      original pipeline and outputs remain meaningful.
+    commands:
+      - make stage1-lint
+      - make stage1-tests
+      - make stage1-verify
+
+acceptance_criteria:
+  - New Stage 1 sub-targets exist and run the same commands as their respective
+    sections of `stage1-verify`.
+  - "`stage1-verify` depends on the new targets so behavior stays identical for CI."
+  - Help text mentions the new granular targets.
+
+validation:
+  commands:
+    - make stage1-lint
+    - make stage1-tests
+    - make stage1-infra
+    - make stage1-build
+  manual_checks:
+    - Review console output to ensure Stage headings remain clear and ordered.
+  artifacts:
+    - screenshots: []
+
+deliverables:
+  - Makefile
+
+risks:
+  - description: Missing environment exports between targets could break the
+      composed pipeline.
+    mitigation: Keep targets phony and sequential; share only via make deps.
+
+order: 13

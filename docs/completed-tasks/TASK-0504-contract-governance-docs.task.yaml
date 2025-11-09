@@ -1,0 +1,82 @@
+schema_version: "1.0"
+id: TASK-0504
+title: "Publish error contract reference and deprecation playbook"
+status: completed
+priority: P1
+area: docs
+
+description: >-
+  Shared contract standards expect a markdown reference under docs/contracts/errors and a published
+  deprecation playbook covering migration timelines, fallbacks, and communication plans. These
+  artefacts do not exist, leaving engineers without guidance when evolving APIs. Create the missing
+  documentation and tie it into the evidence bundle.
+
+outcome: >-
+  A new docs/contracts/errors/ directory documents the canonical error schema, and an updated
+  deprecation playbook details fallback behaviours and outreach for non-TypeScript clients, both
+  linked from STANDARDS and future tasks.
+
+scope:
+  in:
+    - docs/contracts/errors/**/*.md
+    - docs/compatibility/versioning.md
+    - STANDARDS.md (references only)
+  out:
+    - Runtime error handling implementation
+    - Contract schema code changes
+    - Product-facing announcement tooling
+
+context:
+  issues: []
+  related_docs:
+    - standards/global.md
+    - standards/AGENTS.md
+    - standards/shared-contracts-tier.md
+    - standards/cross-cutting.md
+    - docs/testing-standards.md
+    - docs/compatibility/versioning.md
+    - shared/types/error.types.ts
+  repo_paths:
+    - docs/compatibility/versioning.md
+    - shared/types/error.types.ts
+    - STANDARDS.md
+  dependencies:
+    - type: service
+      name: GitHub Actions
+      requirement: optional
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: npm
+      version: "9.x"
+    - name: bash
+      version: any
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Align documentation tone with existing standards and ADR style.
+    - Provide concrete dates/examples when describing timelines.
+  prohibited:
+    - Do not modify shared schemas in this task.
+    - Do not remove existing deprecation policy content without replacement.
+  architecture:
+    - "Error contract docs must mirror shared/types/error.types.ts fields and enums."
+    - "Deprecation playbook must include communication, fallback, and timeline sections per standards."
+
+plan:
+  - id: 1
+    title: Author error contract reference
+    details: Create docs/contracts/errors/index.md aligning with shared error schema and SSOT notes.
+    commands: []
+  - id: 2
+    title: Expand deprecation playbook
+    details: Update docs/compatibility/versioning.md with fallback behaviours and communication plan; cross-link from STANDARDS.
+    commands: []

@@ -1,0 +1,95 @@
+schema_version: "1.0"
+id: TASK-0005
+title: "Reliability: DLQ redrive test for SQS"
+status: completed
+priority: P0
+complexity: M
+area: backend
+
+description: >-
+  Add automated tests that verify the presence of a DLQ for the processing
+  queue and a redrive flow that successfully returns messages to the main
+  queue. This satisfies the reliability hard-fail rule by providing executable
+  evidence in the backend test suite.
+
+outcome: >-
+  A Jest test suite exercises DLQ redrive behavior (mocked or LocalStack),
+  ensuring messages moved to the DLQ can be redriven back to the main queue and
+  processed idempotently. The suite runs in CI.
+
+scope:
+  in:
+    - backend/tests/**
+    - backend/package.json (scripts if needed)
+  out:
+    - Production code unrelated to testing
+
+context:
+  issues: []
+  related_docs:
+    - rubric.md
+  repo_paths:
+    - infrastructure/main.tf:125
+    - infrastructure/main.tf:134
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: npm
+      version: "9.x"
+    - name: jest
+      version: "29.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Prefer thin LocalStack test or mocked AWS SDK client.
+
+plan:
+  - id: 1
+    title: Create test skeleton
+    details: Add describe block and helpers for SQS queues (mock or LocalStack).
+    commands: []
+  - id: 2
+    title: Simulate DLQ flow
+    details: Send a message, force DLQ, then redrive to main.
+    commands: []
+  - id: 3
+    title: Assert idempotency
+    details: Ensure processing is idempotent on redriven messages.
+    commands: []
+  - id: 4
+    title: Wire to CI
+    details: Ensure it runs under `npm test` or labeled script.
+    commands:
+      - cd backend && npm test --silent
+
+acceptance_criteria:
+  - Test named "DLQ redrive" runs and passes locally.
+  - Redrive path verified by assertions.
+  - Fails fast if DLQ or policy missing.
+
+validation:
+  commands:
+    - cd backend && npm test --silent -- -t "DLQ redrive"
+  manual_checks:
+    - Inspect test logs to confirm DLQ→main redrive occurred.
+  artifacts:
+    - screenshots: []
+
+deliverables:
+  - backend/tests/reliability/dlq-redrive.test.ts
+  - backend/tests/helpers/sqs.ts
+
+risks:
+  - description: LocalStack differences vs AWS for redrive policy.
+    mitigation: Mock client path as fallback if LocalStack unavailable.
+
+order: 5
+

@@ -1,0 +1,120 @@
+schema_version: "1.0"
+id: TASK-0603
+title: "Add API versioning & snapshot governance automation"
+status: completed
+priority: P1
+area: backend
+
+description: >-
+  Implement the versioned API surface and governance hooks required by standards/shared-contracts-tier.md.
+  Introduce `/v1/` prefixed routes in API Gateway and Lambdas, emit `Deprecation`/`Sunset` headers from legacy
+  handlers, and add CI automation that posts contract snapshot diffs / fails missing changesets so reviewers get
+  mandated evidence. Document the rollout and update compatibility timelines.
+
+outcome: >-
+  All public routes are served under `/v1/...`, legacy aliases return deprecation headers with the six-month
+  sunset timeline, and CI leaves a PR comment (or fails) when contract snapshots change without approval.
+  Documentation reflects the active version and communication plan.
+
+scope:
+  in:
+    - infrastructure/modules/api-gateway/
+    - backend/src/lambdas/* route bindings
+    - docs/compatibility/versioning.md
+    - tooling/contract-check.js (automation hook)
+    - .github/workflows/ci-cd.yml (changeset enforcement/comment bot)
+  out:
+    - Client-side adoption (handled by mobile task)
+    - Release communications beyond documented plan
+    - Non-contract Lambdas (download, worker) except for route renaming
+    - API Gateway custom domain setup
+
+context:
+  issues: ["QA-2025-10-11"]
+  related_docs:
+    - standards/global.md
+    - standards/AGENTS.md
+    - standards/backend-tier.md
+    - standards/shared-contracts-tier.md
+    - standards/cross-cutting.md
+    - docs/testing-standards.md
+    - docs/compatibility/versioning.md
+    - adr/0005-npm-workspaces-contract-drift-prevention.md
+  repo_paths:
+    - infrastructure/modules/api-gateway/main.tf
+    - backend/src/lambdas/presign.ts
+    - backend/src/lambdas/status.ts
+    - tooling/contract-check.js
+    - .github/workflows/ci-cd.yml
+    - docs/compatibility/versioning.md
+  dependencies:
+    - type: service
+      name: GitHub Actions
+      requirement: required
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: npm
+      version: "10.x"
+    - name: terraform
+      version: "1.6.x"
+    - name: bash
+      version: any
+  data: []
+
+constraints:
+  approvals_required: true
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep backward-compatible aliases active through sunset date.
+  prohibited:
+    - Do not remove existing `/upload/presign` route until clients move.
+    - Do not bypass contract drift gates in CI.
+  architecture:
+    - "Edge layer handles version negotiation and deprecation headers per standards/backend-tier.md."
+    - "CI must surface snapshot diffs to reviewers (comment or failing status)."
+    - "Sunset date stored in configuration and reflected in headers + docs."
+
+plan:
+  - id: 1
+    title: Introduce versioned routes
+    details: Update infrastructure and Lambda handlers to serve `/v1/...` paths while keeping legacy aliases with deprecation headers.
+    commands:
+      - cd infrastructure && terraform validate
+    expected_files_touched:
+      - infrastructure/modules/api-gateway/main.tf
+      - backend/src/lambdas/presign.ts
+      - backend/src/lambdas/status.ts
+  - id: 2
+    title: Emit deprecation metadata
+    details: Implement middleware/util to add `Deprecation`, `Sunset`, and `Link` headers on old routes with date 2026-04-06.
+    commands: []
+    expected_files_touched:
+      - backend/src/services/http/**
+  - id: 3
+    title: Automate snapshot reviews
+    details: Extend tooling/contract-check.js or workflow to publish diff artifacts/comments and fail CI when changesets missing.
+    commands:
+      - npm run contracts:check
+    expected_files_touched:
+      - tooling/contract-check.js
+      - .github/workflows/ci-cd.yml
+      - scripts/ci/**
+  - id: 4
+    title: Update documentation
+    details: Refresh versioning doc with active v1 timeline, deprecation headers, and governance steps; link evidence bundle.
+    commands: []
+    expected_files_touched:
+      - docs/compatibility/versioning.md
+      - docs/contracts/changeset-governance.md
+
+acceptance_criteria:
+  - Requests to `/upload/presign` return `Deprecation` and `Sunset` headers pointing to `/v1/upload/presign`.
+  - Contract snapshot changes trigger automated diff output in CI (comment or check run).
+  - Terraform `plan` shows versioned routes with `/v1/` prefix and no drift for existing resources.
+  - Documentation explicitly states the 2026-04-06 sunset date and links to automation procedure.

@@ -1,0 +1,105 @@
+schema_version: "1.0"
+id: TASK-0100
+title: Enable happy-path UAT (single image)
+status: completed
+priority: P0
+area: other
+
+description: >-
+  Coordinate and track the minimal set of changes required to run a
+  successful single-image end-to-end UAT: select/take photo in the
+  mobile app, upload via presign URL, backend processes with worker,
+  and user retrieves edited image via download endpoint.
+
+outcome: >-
+  A tester can process one image from the mobile app through the
+  full flow and retrieve the edited image without manual workarounds
+  on a LocalStack environment.
+
+scope:
+  in:
+    - tasks/TASK-0101-dynamodb-jobs-pk.task.yaml
+    - tasks/TASK-0102-presign-upload-alignment.task.yaml
+    - tasks/TASK-0103-apigw-download-route.task.yaml
+    - tasks/TASK-0104-edit-screen-cleanup.task.yaml
+    - tasks/TASK-0105-lambda-artifacts-packaging.task.yaml
+  out:
+    - Batch status endpoint and push notifications
+
+context:
+  issues: []
+  related_docs:
+    - docs/requirements.md
+    - docs/e2e-localstack.feature
+  repo_paths:
+    - mobile/src/screens/EditScreen.tsx
+    - mobile/src/services/ApiService.ts
+    - backend/src/services/s3.service.ts
+    - backend/src/lambdas/download.ts
+    - infrastructure/main.tf
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "18.x"
+  tools:
+    - name: npm
+      version: "9.x"
+    - name: terraform
+      version: ">=1.6.0"
+    - name: docker
+      version: any
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep diffs minimal; prefer server-side simplifications for UAT.
+  prohibited:
+    - Do not introduce production-only secrets.
+
+plan:
+  - id: 1
+    title: Land PK fix and packaging
+    details: Align DDB key, ensure lambda artifacts build/deploy via Terraform.
+  - id: 2
+    title: Align presigned upload
+    details: Remove extra signed headers or return required headers and update client.
+  - id: 3
+    title: Expose download endpoint
+    details: Wire API Gateway route to download lambda.
+  - id: 4
+    title: Fix Edit screen compile issue
+    details: Remove undefined state setters and rely on selectedImages.
+  - id: 5
+    title: Validate end-to-end
+    details: Run through UAT checklist on LocalStack.
+
+acceptance_criteria:
+  - Mobile app compiles and can select images without runtime errors.
+  - Upload PUT succeeds (200) using presigned URL.
+  - Worker processes and marks job COMPLETED in DynamoDB.
+  - GET /download/{jobId} returns a JSON payload with a valid presigned URL.
+  - Tester can fetch the edited image via the returned downloadUrl.
+
+validation:
+  commands:
+    - bash scripts/localstack-setup.sh
+    - curl -s http://localhost:4566/_localstack/health | jq '.'
+    - npm --prefix backend run build:lambdas
+  manual_checks:
+    - From the app, process one image end-to-end and confirm download.
+
+deliverables:
+  - tasks/TASK-0101-dynamodb-jobs-pk.task.yaml
+  - tasks/TASK-0102-presign-upload-alignment.task.yaml
+  - tasks/TASK-0103-apigw-download-route.task.yaml
+  - tasks/TASK-0104-edit-screen-cleanup.task.yaml
+  - tasks/TASK-0105-lambda-artifacts-packaging.task.yaml
+
+risks:
+  - description: Presign/header alignment can be brittle across S3 impls (LocalStack vs AWS).
+    mitigation: Prefer minimal header set for UAT; add robust header propagation in a follow-up task.
+

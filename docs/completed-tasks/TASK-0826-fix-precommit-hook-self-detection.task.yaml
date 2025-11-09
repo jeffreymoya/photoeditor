@@ -1,0 +1,119 @@
+# Unblocker task for TASK-0818 pre-commit hook failure
+
+schema_version: "1.0"
+id: TASK-0826
+title: "Fix pre-commit hook self-detection of @ts-ignore pattern"
+status: completed
+blocked_reason: null
+priority: P1
+area: ops
+unblocker: true
+order: 0
+blocked_by: []
+
+description: >-
+  Pre-commit hook .husky/pre-commit was modified to include @ts-ignore pattern detection,
+  but when committing the hook changes themselves, the pattern matching logic detects its own
+  @ts-ignore string in the staged diff and fails the commit. This blocks TASK-0818 (and all
+  subsequent tasks) from committing their changes.
+
+outcome: >-
+  Pre-commit hook commits successfully without triggering its own @ts-ignore detection pattern,
+  allowing TASK-0818 and subsequent tasks to commit their work.
+
+scope:
+  in:
+    - .husky/pre-commit
+    - Hook pattern matching logic
+  out:
+    - Other git hooks or workflow changes
+    - Standards changes
+
+context:
+  affected_packages: []
+  standards_tier: ops
+  related_docs:
+    - standards/global.md
+    - standards/typescript.md
+  repo_paths:
+    - .husky/pre-commit
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes: {}
+  tools:
+    - name: git
+      version: "2.x"
+    - name: husky
+      version: "8.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep hook logic minimal and focused
+    - Preserve existing standards enforcement
+  prohibited:
+    - Do not weaken standards enforcement
+    - Do not remove @ts-ignore detection
+
+plan:
+  - id: 1
+    title: Fix hook pattern to exclude .husky/ path
+    details: >-
+      Modify the @ts-ignore grep pattern in .husky/pre-commit to exclude matches in .husky/ directory
+      itself, preventing the hook from detecting its own pattern. Add path exclusion to the grep
+      filter similar to how docs/exceptions/ is already excluded.
+    actor: agent
+    inputs:
+      - .husky/pre-commit
+    outputs:
+      - .husky/pre-commit (modified)
+    definition_of_done:
+      - Hook grep pattern excludes .husky/ path from @ts-ignore detection
+      - Existing standards enforcement preserved (docs/exceptions/ exclusion still works)
+      - Pattern still catches @ts-ignore in code files
+    estimate: S
+    expected_files_touched:
+      - .husky/pre-commit
+
+  - id: 2
+    title: Verify hook no longer self-blocks
+    details: >-
+      Stage the modified .husky/pre-commit and verify git commit succeeds without triggering
+      the @ts-ignore detection. Unstage and restage to confirm pattern works correctly.
+    actor: agent
+    inputs:
+      - .husky/pre-commit (modified)
+    outputs:
+      - Successful commit verification
+    definition_of_done:
+      - git commit with .husky/pre-commit staged does not trigger @ts-ignore error
+      - Test with actual @ts-ignore in code file still triggers error (standards preserved)
+    estimate: S
+    expected_files_touched: []
+
+acceptance_criteria:
+  - Pre-commit hook successfully commits without self-detection error
+  - Hook still blocks @ts-ignore additions in code files (outside .husky/ and docs/exceptions/)
+  - Hook still blocks it.skip/describe.skip additions
+  - Hook still blocks coverage threshold reductions
+  - No regression in existing standards enforcement
+
+validation:
+  static_checks: []
+  unit_tests: {}
+  contract_tests: []
+  manual_checks:
+    - Verify git commit with .husky/pre-commit staged succeeds
+    - Verify test @ts-ignore in code file still fails pre-commit
+
+deliverables:
+  - .husky/pre-commit (with path exclusion fix)
+
+risks:
+  - description: Pattern fix may be too broad and exclude valid violations
+    mitigation: Test pattern with sample @ts-ignore in code file to ensure detection still works

@@ -1,0 +1,89 @@
+schema_version: "1.0"
+id: TASK-0010
+title: "Analysis: add dependency-cruiser, ts-prune, jscpd"
+status: completed
+priority: P1
+complexity: M
+area: backend
+
+description: >-
+  Add static analysis tools to improve architectural discipline and detect dead
+  code and duplication. Configure dependency-cruiser rules to reflect layers,
+  add scripts for ts-prune and jscpd, and document usage.
+
+outcome: >-
+  Running analysis commands locally produces reports. CI integration can be
+  added in a separate task. Baseline rules for module boundaries exist.
+
+scope:
+  in:
+    - backend/package.json
+    - backend/.dependency-cruiser.js (or .json)
+    - backend/tsconfig.json
+  out:
+    - Non-backend packages
+
+context:
+  issues: []
+  related_docs:
+    - rubric.md
+  repo_paths:
+    - backend/package.json
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: npm
+      version: "9.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+
+plan:
+  - id: 1
+    title: Add devDependencies and scripts
+    details: Install and add npm scripts for the tools.
+    commands: []
+  - id: 2
+    title: Configure rules
+    details: Add dep-cruiser rules for layering and no-sdk-in-handlers baseline.
+    commands: []
+  - id: 3
+    title: Validate
+    details: Run tools locally.
+    commands:
+      - cd backend && npx dependency-cruiser --version || true
+      - cd backend && npx ts-prune || true
+      - cd backend && npx jscpd --version || true
+
+acceptance_criteria:
+  - Scripts exist in backend/package.json to run each tool.
+  - A baseline config file exists for dependency-cruiser.
+
+validation:
+  commands:
+    - cd backend && npm run dep:graph || true
+    - cd backend && npm run dep:lint || true
+    - cd backend && npm run deadcode || true
+    - cd backend && npm run dupes || true
+  manual_checks:
+    - Review initial reports; file issues for violations.
+  artifacts:
+    - screenshots: []
+
+deliverables:
+  - backend/package.json
+  - backend/.dependency-cruiser.js
+
+risks:
+  - description: Large initial report causing noise.
+    mitigation: Start with warn-only mode and tighten over time.
+
+order: 2
+

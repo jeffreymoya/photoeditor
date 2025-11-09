@@ -1,0 +1,119 @@
+schema_version: "1.0"
+id: TASK-0292
+title: "Automate API Smoke with Playwright"
+status: completed
+priority: P1
+complexity: M
+area: ops
+
+description: >-
+  Stand up a Playwright Test suite that exercises the presign → upload → status happy path against the
+  LocalStack-backed backend so we have an automated end-to-end smoke owned by the solo dev. Replace the
+  ad-hoc Cucumber flow with a lean TypeScript runner that bootstraps infrastructure, publishes traces,
+  and blocks PRs when the critical API contract fails.
+
+outcome: >-
+  Running `pnpm --filter @photoeditor/backend smoke:e2e` (or equivalent) spins up LocalStack, builds the
+  Lambdas, executes a Playwright smoke that validates presign/status, and exports trace artifacts consumed
+  by CI. The smoke is wired into `pnpm turbo run qa` and runs headlessly in CI without manual prep.
+
+scope:
+  in:
+    - tooling/playwright/**
+    - backend/tests/smoke/**
+    - turbo.json (task wiring)
+    - package.json scripts related to e2e smokes
+    - CI config in .github/ or ops scripts if required
+  out:
+    - Mobile Detox automation (tracked separately)
+    - Legacy Cucumber step rewrites (handled by dedicated cleanup task)
+    - Non-smoke Playwright scenarios beyond presign/status
+
+context:
+  issues: []
+  related_docs:
+    - standards/global.md
+    - standards/AGENTS.md
+    - standards/cross-cutting.md
+    - standards/testing-standards.md
+  repo_paths:
+    - backend/tests/
+    - tooling/
+    - turbo.json
+    - package.json
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "18.x"
+  tools:
+    - name: pnpm
+      version: "8.x"
+    - name: Playwright Test
+      version: latest
+    - name: bash
+      version: any
+  data:
+    - sample.jpg
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep Playwright fixtures modular (setup/teardown for LocalStack + Terraform).
+    - Ensure new scripts respect existing make/qa workflows.
+  prohibited:
+    - Do not reintroduce cucumber-js dependencies.
+    - Do not hardcode AWS credentials or secrets.
+  architecture:
+    - Preserve Ports & Adapters layering; smoke should call public endpoints only.
+    - No dependency cycles introduced when wiring new scripts.
+
+plan:
+  - id: 1
+    title: Design Playwright smoke architecture
+    details: Define fixtures for LocalStack bootstrap, trace capture, and target endpoints, referencing standards/cross-cutting.md.
+    commands: []
+  - id: 2
+    title: Implement smoke suite and tooling hooks
+    details: Build Playwright tests, scripts, and turbo wiring to execute presign → upload → status flow.
+    commands:
+      - pnpm --filter @photoeditor/backend smoke:e2e
+      - pnpm turbo run qa --filter=playwright-smoke
+  - id: 3
+    title: Document execution and integrate with CI
+    details: Record runtime guidance, trace artifacts, and CI wiring steps in docs evidence.
+    commands:
+      - pnpm turbo run qa --dry-run
+
+acceptance_criteria:
+  - Playwright smoke covers presign→upload→status path against LocalStack and runs via documented pnpm script.
+  - Turbo and CI pipelines execute the smoke headlessly, producing trace artifacts without manual setup.
+  - Documentation explains local execution, CI schedule, and trace artifact handling per standards/testing-standards.md.
+  - Legacy cucumber dependencies remain absent from manifests and scripts.
+
+deliverables:
+  - tooling/playwright/**
+  - backend/tests/smoke/**
+  - turbo.json
+  - docs/evidence/playwright-smoke-notes.md
+
+success_metrics:
+  automated_checks:
+    - pnpm --filter @photoeditor/backend smoke:e2e
+    - pnpm turbo run qa --filter=playwright-smoke
+    - CI job publishes Playwright trace.zip artifact
+  manual_checks:
+    - Verify trace report shows presign/status steps in chronological order.
+    - Document how to run the smoke locally in docs/evidence or README.
+  artifacts:
+    - docs/evidence/playwright-smoke-notes.md
+
+risks:
+  - description: LocalStack bootstrap may add minutes to every PR run.
+    mitigation: Cache Docker layers and gate terraform apply behind idempotent checks.
+  - description: Playwright trace storage could bloat repo artifacts.
+    mitigation: Prune traces to latest run and compress artifacts in CI.

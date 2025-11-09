@@ -6,6 +6,7 @@ import { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from 'aws-lambda';
 import { serviceInjection, ServiceContext } from '@backend/core';
 
 import { ErrorHandler } from '../utils/errors';
+import { withSubsegment, extractCorrelationContextFromApiEvent } from '../utils/tracing';
 
 async function handleBatchUpload(
   body: unknown,
@@ -109,6 +110,70 @@ async function handleSingleUpload(
   };
 }
 
+interface ParsedRequest {
+  body: unknown;
+  userId: string;
+}
+
+type UploadType = 'batch' | 'single';
+
+/**
+ * Parses and validates the request body from API Gateway event
+ * Returns parsed body and userId, or an error response if validation fails
+ */
+function parsePresignRequest(
+  event: APIGatewayProxyEventV2,
+  requestId: string,
+  traceparent: string | undefined,
+  logger: ServiceContext['container']['logger']
+): { success: true; data: ParsedRequest } | { success: false; response: APIGatewayProxyResultV2 } {
+  if (!event.body) {
+    logger.warn('Missing request body', { requestId });
+    return {
+      success: false,
+      response: ErrorHandler.createSimpleErrorResponse(
+        ErrorType.VALIDATION,
+        'MISSING_REQUEST_BODY',
+        'Request body is required',
+        requestId,
+        traceparent
+      )
+    };
+  }
+
+  let body: unknown;
+  try {
+    body = JSON.parse(event.body);
+  } catch {
+    logger.warn('Invalid JSON in request body', { requestId });
+    return {
+      success: false,
+      response: ErrorHandler.createSimpleErrorResponse(
+        ErrorType.VALIDATION,
+        'INVALID_JSON',
+        'Request body must be valid JSON',
+        requestId,
+        traceparent
+      )
+    };
+  }
+
+  interface JWTClaims { sub?: string; [key: string]: unknown; }
+  interface JWTAuthorizer { jwt?: { claims?: JWTClaims; }; }
+  const userId = ((event.requestContext as { authorizer?: JWTAuthorizer }).authorizer?.jwt?.claims?.sub) || 'anonymous';
+
+  return { success: true, data: { body, userId } };
+}
+
+/**
+ * Determines whether the request is for batch or single upload
+ * Based on presence of 'files' array in request body
+ */
+function determineUploadType(body: unknown): UploadType {
+  const isBatchUpload = typeof body === 'object' && body !== null && Array.isArray((body as { files?: unknown[] }).files);
+  return isBatchUpload ? 'batch' : 'single';
+}
+
 const baseHandler = async (
   event: APIGatewayProxyEventV2,
   context: ServiceContext
@@ -116,80 +181,38 @@ const baseHandler = async (
   const { container } = context;
   const { logger, metrics, tracer } = container;
 
-  // Start manual tracing
-  const segment = tracer.getSegment();
-  const subsegment = segment?.addNewSubsegment('presign-handler');
-  if (subsegment) {
-    tracer.setSegment(subsegment);
-  }
+  return withSubsegment('presign-handler', tracer, async () => {
+    const correlationContext = extractCorrelationContextFromApiEvent(event);
+    const { requestId, traceparent } = correlationContext;
 
-  // Extract correlation identifiers
-  const requestId = event.requestContext.requestId;
-  const traceparent = event.headers['traceparent'];
-
-  try {
-    if (!event.body) {
-      logger.warn('Missing request body', { requestId });
-      const errorResponse = ErrorHandler.createSimpleErrorResponse(
-        ErrorType.VALIDATION,
-        'MISSING_REQUEST_BODY',
-        'Request body is required',
-        requestId,
-        traceparent
-      );
-      return errorResponse;
-    }
-
-    // For APIGatewayProxyEventV2, we need to get user from JWT claims differently
-    interface JWTClaims { sub?: string; [key: string]: unknown; }
-    interface JWTAuthorizer { jwt?: { claims?: JWTClaims; }; }
-    const userId = ((event.requestContext as { authorizer?: JWTAuthorizer }).authorizer?.jwt?.claims?.sub) || 'anonymous';
-
-    let body: unknown;
     try {
-      body = JSON.parse(event.body);
-    } catch {
-      logger.warn('Invalid JSON in request body', { requestId });
-      const errorResponse = ErrorHandler.createSimpleErrorResponse(
-        ErrorType.VALIDATION,
-        'INVALID_JSON',
-        'Request body must be valid JSON',
+      const parseResult = parsePresignRequest(event, requestId, traceparent, logger);
+      if (!parseResult.success) {
+        return parseResult.response;
+      }
+
+      const { body, userId } = parseResult.data;
+      const uploadType = determineUploadType(body);
+
+      const response = uploadType === 'batch'
+        ? await handleBatchUpload(body, userId, requestId, traceparent, container)
+        : await handleSingleUpload(body, userId, requestId, traceparent, container);
+
+      return response;
+
+    } catch (error) {
+      logger.error('Error generating presigned URL', { requestId, error: error as Error });
+      metrics.addMetric('PresignedUrlError', MetricUnit.Count, 1);
+
+      return ErrorHandler.createSimpleErrorResponse(
+        ErrorType.INTERNAL_ERROR,
+        'UNEXPECTED_ERROR',
+        'An unexpected error occurred while generating presigned URL',
         requestId,
         traceparent
       );
-      return errorResponse;
     }
-
-    // Determine if batch or single upload and delegate
-    const isBatchUpload = typeof body === 'object' && body !== null && Array.isArray((body as { files?: unknown[] }).files);
-
-    let response: APIGatewayProxyResultV2;
-    if (isBatchUpload) {
-      response = await handleBatchUpload(body, userId, requestId, traceparent, container);
-    } else {
-      response = await handleSingleUpload(body, userId, requestId, traceparent, container);
-    }
-
-    return response;
-
-  } catch (error) {
-    logger.error('Error generating presigned URL', { requestId, error: error as Error });
-    metrics.addMetric('PresignedUrlError', MetricUnit.Count, 1);
-
-    const errorResponse = ErrorHandler.createSimpleErrorResponse(
-      ErrorType.INTERNAL_ERROR,
-      'UNEXPECTED_ERROR',
-      'An unexpected error occurred while generating presigned URL',
-      requestId,
-      traceparent
-    );
-    return errorResponse;
-  } finally {
-    subsegment?.close();
-    if (segment) {
-      tracer.setSegment(segment);
-    }
-  }
+  });
 };
 
 // Wrap with Middy middleware stack

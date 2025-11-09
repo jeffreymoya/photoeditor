@@ -1,0 +1,71 @@
+schema_version: "1.0"
+id: TASK-0105
+title: Ensure Lambda artifacts packaged for Terraform
+status: completed
+priority: P0
+area: infra
+
+description: >-
+  Terraform expects zip files at ../backend/dist/lambdas/*/*.zip, but
+  backend builds emit unzipped bundles in those folders. Add packaging
+  (zip) step in build or switch Terraform to use archive_file/source_dir.
+
+outcome: >-
+  Terraform can deploy presign, status, and worker lambdas without missing
+  artifact errors in LocalStack.
+
+scope:
+  in:
+    - backend/package.json (add zip step)
+    - infrastructure/main.tf (or switch to archive_file)
+  out:
+    - CI pipeline changes beyond local packaging
+
+context:
+  issues: []
+  related_docs: []
+  repo_paths:
+    - backend/package.json:6-14
+    - infrastructure/main.tf:229-293
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "18.x"
+  tools:
+    - name: npm
+      version: "9.x"
+    - name: zip
+      version: any
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+
+plan:
+  - id: 1
+    title: Add zip packaging
+    details: After esbuild, create presign.zip/status.zip/worker.zip in their respective folders.
+  - id: 2
+    title: Validate Terraform pick-up
+    details: Re-run terraform apply to confirm lambdas deploy.
+
+acceptance_criteria:
+  - Zip files exist under backend/dist/lambdas/*/*.zip after build.
+  - Terraform apply succeeds creating/updating three lambdas.
+
+validation:
+  commands:
+    - npm --prefix backend run build:lambdas && ls -la backend/dist/lambdas/**/**/*.zip || true
+    - cd infrastructure && terraform plan -var-file=terraform.tfvars.localstack -out=localstack.tfplan
+
+deliverables:
+  - backend/package.json (scripts)
+  - infrastructure/main.tf (if switching strategy)
+
+risks:
+  - description: Archive creation on different OS shells.
+    mitigation: Use cross-platform zip or Node-based archiver.
+

@@ -1,0 +1,321 @@
+schema_version: "1.0"
+id: TASK-0701
+title: "Implement /v1/batch-status endpoint across stack"
+status: completed
+priority: P1
+area: backend
+
+description: >-
+  Deliver a first-class batch job status endpoint so the mobile client and any
+  future consumers can poll aggregate batch progress without relying on the
+  planned-but-missing `/batch-status` API. This work aligns the shared contract,
+  backend Lambda, infrastructure wiring, and mobile service layer with the
+  architecture doc and `shared/routes.manifest.ts`, closing the documented gap
+  before we expand batch workflows.
+
+outcome: >-
+  `/v1/batch-status/{batchJobId}` returns batch job metadata matching a shared
+  schema, is deployed through SST/Terraform routes, consumed by the mobile
+  `ApiService`, and covered by automated tests plus contract regeneration.
+
+scope:
+  in:
+    - backend/src/lambdas/status.ts
+    - backend/src/services/batchJob.service.ts (new) and related domain logic
+    - shared/routes.manifest.ts and shared/schemas/batch.schema.ts
+    - mobile/src/services/ApiService.ts and related tests
+    - infra/sst/stacks/api.ts and infrastructure/modules/api-gateway
+  out:
+    - Batch processing worker enhancements beyond read-only status lookups
+    - Push notification flows (managed separately)
+    - Non-batch job endpoints (existing `/v1/jobs/{id}` is upstream of this task)
+    - Native UI changes beyond wiring the service (per standards/frontend-tier.md)
+    - Observability dashboards (covered by standards/cross-cutting.md)
+    - Direct SDK calls in handlers (standards/backend-tier.md line 20)
+    - Handlers >75 LOC or cyclomatic complexity >10 (standards/backend-tier.md line 110)
+    - Services >200 LOC or cyclomatic complexity >15 (standards/backend-tier.md line 110)
+    - Missing Powertools Logger/Tracer with correlation propagation (standards/backend-tier.md line 30-31)
+    - Missing Middy middleware for Lambda error handling (standards/backend-tier.md line 29)
+    - Services that throw exceptions for control flow (must use neverthrow Result, standards/backend-tier.md line 51)
+    - Contract drift or skipped codegen (standards/shared-contracts-tier.md)
+    - Untagged infrastructure resources (standards/infrastructure-tier.md)
+    - Routes without CloudWatch logging/X-Ray tracing (standards/infrastructure-tier.md)
+    - Breaking API changes without /v{n} versioning (standards/global.md line 36)
+
+context:
+  issues: ["#batch-status-gap"]
+  related_docs:
+    - standards/global.md
+    - standards/AGENTS.md
+    - standards/backend-tier.md
+    - standards/shared-contracts-tier.md
+    - standards/infrastructure-tier.md
+    - docs/testing-standards.md
+    - ARCHITECTURE.md
+  repo_paths:
+    - backend/src/lambdas/status.ts
+    - backend/src/services
+    - shared/routes.manifest.ts
+    - mobile/src/services/ApiService.ts
+    - infra/sst/stacks/api.ts
+    - infrastructure/modules/api-gateway
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: npm
+      version: "9.x"
+    - name: bash
+      version: any
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep diffs minimal and focused on the task.
+    - Respect repository conventions and structure.
+  prohibited:
+    - Do not commit secrets or tokens.
+    - Do not change unrelated files.
+  architecture:
+    - "Hexagonal boundaries respected (standards/global.md line 32)"
+    - "Handlers stay ≤75 LOC and delegate to services (standards/backend-tier.md line 110)"
+    - "No handler imports @aws-sdk/* - SDK clients injected via DI (standards/backend-tier.md line 20)"
+    - "Handler cyclomatic complexity ≤10 (fail threshold), services ≤15 (standards/backend-tier.md line 110)"
+    - "Use Middy middleware for Lambda boilerplate (standards/backend-tier.md line 29)"
+    - "Use Powertools Logger/Metrics/Tracer with correlation propagation (standards/backend-tier.md line 30-31)"
+    - "Services return neverthrow Result for error flows (standards/backend-tier.md line 51, standards/global.md line 28)"
+    - "Use OneTable for DynamoDB modeling (standards/backend-tier.md line 52)"
+    - "Shared Zod schemas as SSOT with regenerated clients (standards/shared-contracts-tier.md)"
+    - "Infrastructure resources tagged with Project/Env/Owner/CostCenter (standards/infrastructure-tier.md)"
+    - "No dependency cycles - handlers → services → adapters only (standards/backend-tier.md line 22, standards/global.md line 24)"
+
+plan:
+  - id: 1
+    title: Confirm batch job domain model and existing storage
+    details: Review backend services and DynamoDB schema to ensure batch job metadata is persisted and retrievable; adjust domain types as needed.
+    commands:
+      - rg -n "batchJob" backend/src
+      - rg -n "batch" shared/schemas
+    expected_files_touched: []
+  - id: 2
+    title: Extend shared contract and backend service layer
+    details: Add batch status schema/types, expose a service for DynamoDB lookups, and wire the status Lambda to route `/v1/batch-status/{batchJobId}`.
+    commands: []
+    expected_files_touched:
+      - shared/routes.manifest.ts
+      - shared/schemas/batch.schema.ts
+      - backend/src/lambdas/status.ts
+      - backend/src/services/batchJob.service.ts
+    architecture_checklist:
+      - "Handler delegates to service and stays ≤75 LOC with cyclomatic complexity ≤10 (standards/backend-tier.md line 110)"
+      - "Handler uses Middy middleware for error handling and validation (standards/backend-tier.md line 29)"
+      - "Handler propagates traceparent via Powertools Tracer (standards/backend-tier.md line 39)"
+      - "Service returns neverthrow Result for error flows (standards/backend-tier.md line 51)"
+      - "Service uses OneTable for DynamoDB operations (standards/backend-tier.md line 52)"
+      - "Powertools Logger includes correlationId, requestId, and domain context (standards/backend-tier.md line 30)"
+      - "No direct SDK imports in handler - use injected clients (standards/backend-tier.md line 20)"
+  - id: 3
+    title: Update infrastructure routing
+    details: Wire the new endpoint through SST and Terraform HTTP API definitions so deployments expose `/v1/batch-status/{batchJobId}`.
+    commands: []
+    expected_files_touched:
+      - infra/sst/stacks/api.ts
+      - infrastructure/modules/api-gateway/main.tf
+  - id: 4
+    title: Update mobile client integration and tests
+    details: Point `ApiService` to the new versioned route, adjust polling helpers, and extend unit tests.
+    commands:
+      - npm run test --prefix mobile -- ApiService
+    expected_files_touched:
+      - mobile/src/services/ApiService.ts
+      - mobile/src/services/__tests__/ApiService.test.ts
+  - id: 5
+    title: Regenerate contracts and run QA gates
+    details: Re-run contract/codegen scripts, static analysis, and targeted backend tests to ensure coverage.
+    commands:
+      - npm run contracts:generate --prefix shared
+      - npm run contracts:check --prefix shared
+      - scripts/ci/check-route-alignment.sh
+      - npm run qa-suite:static
+      - npm run test:unit --prefix backend -- status
+      - npm run test:integration --prefix backend
+      - npm run test:contract --prefix backend
+    evidence_generated:
+      - "depcruise report verifying handler → service → adapter layering (standards/backend-tier.md line 23)"
+      - "contract test summary and client generation log (standards/backend-tier.md line 21)"
+      - "route alignment validation confirming routes.manifest.ts matches deployed routes"
+
+acceptance_criteria:
+  # Modularity (standards/backend-tier.md line 110)
+  - Handler ≤75 LOC and cyclomatic complexity ≤10 (fail threshold)
+  - Service cyclomatic complexity ≤15 and ≤200 LOC
+  - Handler delegates to single service method without business logic
+
+  # Layering (standards/backend-tier.md line 13, 16, 20, 22)
+  - Handler uses Middy middleware for error handling and input validation
+  - Handler imports zero AWS SDK clients (verified by depcruise)
+  - Service returns neverthrow Result for error flows
+  - dependency-cruiser confirms handler → service → adapter flow with no cycles
+
+  # Observability (standards/backend-tier.md line 30-31, 39)
+  - Powertools Logger emits structured JSON with correlationId, requestId, batchJobId
+  - Powertools Tracer propagates traceparent to downstream calls
+  - X-Ray tracing enabled for Lambda and API Gateway route
+
+  # Data Layer (standards/backend-tier.md line 52)
+  - Service uses OneTable for DynamoDB batch job lookups
+  - DynamoDB queries use consistent read or GSI as appropriate
+
+  # Contracts (standards/shared-contracts-tier.md)
+  - Shared manifest exposes `/v1/batch-status/{batchJobId}` with Zod schema
+  - Contract tests validate request/response structure
+  - TypeScript client regenerated and exported from shared/
+  - "Route alignment check passes: routes.manifest.ts matches deployed routes"
+
+  # Infrastructure (standards/infrastructure-tier.md)
+  - Terraform route includes CloudWatch log group and X-Ray tracing
+  - All resources tagged with Project/Env/Owner/CostCenter
+  - API Gateway route wired to status Lambda with correct method/path
+
+  # Mobile Integration
+  - Mobile ApiService calls `/v1/batch-status/{batchJobId}` endpoint
+  - Tests cover happy path, 404 (not found), and 5XX error responses
+
+  # Quality Gates (standards/backend-tier.md line 108-111, standards/global.md line 23)
+  - Unit test coverage ≥80% for service layer
+  - Integration tests validate DynamoDB lookups via LocalStack
+  - Contract tests pass for batch-status endpoint
+  - Mutation score ≥60% for service layer (standards/backend-tier.md line 108)
+  - depcruise report shows zero forbidden dependencies
+  - QA suite (qa-suite:static) runs clean with all checks passing
+
+validation:
+  commands:
+    # Hard fail prevention (standards/backend-tier.md line 20)
+    - "! grep -r '@aws-sdk' backend/src/lambdas/status.ts"
+
+    # Layering verification (standards/backend-tier.md line 22-23, standards/global.md line 24)
+    - npm run lint:depcruise --prefix backend
+
+    # Complexity budgets (standards/backend-tier.md line 110)
+    - npm run lint --prefix backend -- --max-complexity=10 backend/src/lambdas/status.ts
+    - npm run lint --prefix backend -- --max-complexity=15 backend/src/services/batchJob.service.ts
+
+    # Test execution (standards/backend-tier.md line 108)
+    - npm run test:unit --prefix backend -- batchJob.service --coverage
+    - npm run test:integration --prefix backend
+    - npm run test:contract --prefix backend -- batch-status
+
+    # Mutation testing (standards/backend-tier.md line 108)
+    - npm run test:mutation --prefix backend -- batchJob.service --threshold 60
+
+    # Contract validation (docs/testing-standards.md line 106-119)
+    - npm run contracts:generate --prefix shared
+    - npm run contracts:check --prefix shared
+    - scripts/ci/check-route-alignment.sh
+
+    # QA suite (standards/global.md line 45-46)
+    - npm run qa-suite:static
+
+    # Infrastructure validation (standards/infrastructure-tier.md)
+    - cd infrastructure && terraform fmt -check && terraform validate
+
+    # Mobile tests
+    - npm run test --prefix mobile -- ApiService --coverage
+
+deliverables:
+  # Evidence per standards/backend-tier.md line 23, 45, 111
+  - path: docs/evidence/depcruise/backend-layers-report.json
+    description: "dependency-cruiser report showing handler → service → adapter layering compliance"
+
+  - path: docs/evidence/contract-tests/batch-status.log
+    description: "Contract test output validating /v1/batch-status request/response structure"
+
+  - path: docs/evidence/mutation-reports/batchJob-service.html
+    description: "Mutation testing dashboard for batchJob.service showing ≥60% score"
+
+  - path: docs/evidence/coverage/backend-unit.json
+    description: "Unit test coverage report showing ≥80% for service layer"
+
+  - path: docs/evidence/powertools/batch-status-trace.json
+    description: "Sample Powertools log showing correlationId, requestId, and traceparent propagation"
+
+  - path: docs/evidence/bundle-size/status-lambda.json
+    description: "Bundle size report for status Lambda (should be <5-10 MB zipped per standards/backend-tier.md line 43)"
+
+  # Contract artifacts (standards/shared-contracts-tier.md)
+  - path: docs/openapi/openapi-generated.yaml
+    description: "Regenerated OpenAPI spec with /v1/batch-status route documented"
+
+  - path: docs/contracts/clients/photoeditor-api.ts
+    description: "Regenerated TypeScript client with batch-status method"
+
+  - path: shared/contract-snapshot.json
+    description: "Updated contract snapshot hash for drift detection"
+
+  # Route alignment validation
+  - path: docs/evidence/routes/alignment-check.log
+    description: "Output from check-route-alignment.sh confirming routes.manifest.ts matches deployed routes"
+
+  # Infrastructure evidence (standards/infrastructure-tier.md)
+  - path: infrastructure/modules/api-gateway/main.tf
+    description: "Updated Terraform with /v1/batch-status route, tags, and logging"
+
+  # Test artifacts
+  - path: backend/tests/unit/services/batchJob.service.test.ts
+    description: "Unit tests for batch job service"
+
+  - path: backend/tests/contract/batch-status.contract.test.ts
+    description: "Contract test for batch-status endpoint"
+
+  - path: backend/tests/integration/batch-status.integration.test.ts
+    description: "Integration test validating DynamoDB lookups via LocalStack"
+
+  - path: mobile/src/services/__tests__/ApiService.test.ts
+    description: "Updated mobile service tests covering batch-status endpoint"
+
+risks:
+  # Hard fail risks (standards/backend-tier.md line 110)
+  - description: "Handler exceeds 75 LOC or cyclomatic complexity >10"
+    mitigation: "Keep handler thin - delegate all logic to service; validate with lint --max-complexity"
+    severity: high
+
+  - description: "Service exceeds 200 LOC or cyclomatic complexity >15"
+    mitigation: "Extract helper functions; use Result type for error flows to reduce branching"
+    severity: medium
+
+  # Coverage risks (standards/backend-tier.md line 108)
+  - description: "Mutation score <60% for service layer"
+    mitigation: "Add edge case tests; test error paths and boundary conditions"
+    severity: medium
+
+  - description: "Unit test coverage <80% for service layer"
+    mitigation: "Test all service methods including error cases and null handling"
+    severity: medium
+
+  # Integration risks (standards/backend-tier.md line 52)
+  - description: "DynamoDB schema mismatch or missing OneTable configuration"
+    mitigation: "Review existing batch job schema; use consistent OneTable entity definitions"
+    severity: medium
+
+  # Contract risks (standards/shared-contracts-tier.md)
+  - description: "Contract drift between shared schema and deployed route"
+    mitigation: "Run contracts:check and route-alignment script before commit; regenerate clients"
+    severity: high
+
+  # Observability risks (standards/backend-tier.md line 30-31, 39)
+  - description: "Missing correlation ID or traceparent propagation"
+    mitigation: "Use Powertools Logger/Tracer with Middy middleware; verify in logs"
+    severity: medium
+
+  # Cold start risk (standards/backend-tier.md line 43)
+  - description: "Bundle size exceeds 5-10 MB causing cold start >P50 budget"
+    mitigation: "Keep dependencies minimal; use tree-shaking; validate bundle size report"
+    severity: low

@@ -1,0 +1,67 @@
+schema_version: "1.0"
+id: TASK-0104
+title: Fix EditScreen undefined state usage
+status: completed
+priority: P0
+area: frontend
+
+description: >-
+  EditScreen still references removed single-image state setters
+  (setSelectedImage, setResultUrl), causing compile/runtime errors.
+  Clean up to use Redux image slice only and ensure processing button
+  enables correctly.
+
+outcome: >-
+  Mobile app compiles, allows selecting 1+ images, and enables
+  processing when a prompt is provided, with no undefined references.
+
+scope:
+  in:
+    - mobile/src/screens/EditScreen.tsx
+  out:
+    - Batch prompts UX enhancements
+
+context:
+  issues: []
+  related_docs: []
+  repo_paths:
+    - mobile/src/screens/EditScreen.tsx:45-47
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "18.x"
+  tools:
+    - name: npm
+      version: "9.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+
+plan:
+  - id: 1
+    title: Remove undefined setters
+    details: Delete setSelectedImage and setResultUrl references; rely on selectedImages from store.
+  - id: 2
+    title: Verify UI flows
+    details: Ensure select image, prompt entry, and processing button states are correct.
+
+acceptance_criteria:
+  - Typecheck passes (npm run typecheck in mobile/).
+  - App launches in simulator and Edit screen shows no errors on select.
+
+validation:
+  commands:
+    - npm --prefix mobile run typecheck
+    - npm --prefix mobile run lint || true
+
+deliverables:
+  - mobile/src/screens/EditScreen.tsx (cleaned)
+
+risks:
+  - description: Hidden UI regressions.
+    mitigation: Keep changes minimal; manual check basic flows.
+

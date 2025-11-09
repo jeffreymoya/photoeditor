@@ -1,0 +1,92 @@
+schema_version: "1.0"
+id: TASK-0019
+title: "Speed up deps target with npm ci"
+status: completed
+priority: P1
+complexity: S
+area: ops
+
+description: >-
+  The `deps` target still relies on `npm install`, which is slower and can drift
+  from the lockfile. Switch to `npm ci` where package-locks exist so fresh
+  workspaces bootstrap faster and reproducibly, while keeping a safe fallback
+  if a lockfile is missing.
+
+outcome: >-
+  `make deps` uses `npm ci` for `shared/`, `backend/`, and `mobile/`, providing
+  deterministic installs that align with committed lockfiles and reducing
+  average setup time.
+
+scope:
+  in:
+    - Makefile
+  out:
+    - package.json contents
+    - CI pipeline definitions
+
+context:
+  issues: []
+  related_docs:
+    - docs/setup/local.md
+  repo_paths:
+    - Makefile
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: make
+      version: any
+    - name: npm
+      version: "9.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+
+plan:
+  - id: 1
+    title: Confirm lockfiles exist
+    details: Check each workspace for package-lock.json to justify `npm ci`.
+    commands:
+      - ls backend/package-lock.json shared/package-lock.json mobile/package-lock.json
+    expected_files_touched: []
+  - id: 2
+    title: Update deps target
+    details: Swap commands to `npm ci`, adding fallbacks if necessary.
+    commands: []
+    expected_files_touched:
+      - Makefile
+  - id: 3
+    title: Dry run validation
+    details: Execute `make deps` in a clean state or simulate with `npm ci --dry-run`.
+    commands:
+      - npm ci --prefix backend --dry-run
+      - npm ci --prefix shared --dry-run
+
+acceptance_criteria:
+  - "`make deps` invokes `npm ci` for each workspace when lockfiles are present."
+  - Command gracefully falls back (or documents requirement) if lockfile is absent.
+  - Help text references deterministic installs if messaging changes.
+
+validation:
+  commands:
+    - make deps
+  manual_checks:
+    - Observe that reinstalling removes existing `node_modules` as per `npm ci` behavior.
+  artifacts:
+    - screenshots: []
+
+deliverables:
+  - Makefile
+
+risks:
+  - description: Existing local changes in node_modules may be wiped, surprising
+      contributors.
+    mitigation: Note behavior in docs/help or add messaging prior to `npm ci`.
+
+order: 11

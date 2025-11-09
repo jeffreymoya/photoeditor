@@ -1,0 +1,219 @@
+schema_version: "1.0"
+id: TASK-0102
+title: "Cover worker pipeline with deterministic integration tests"
+status: completed
+priority: P1
+complexity: M
+area: backend
+
+description: >-
+  Requirements mandate that uploaded images are optimized, analyzed by Gemini, edited by Seedream,
+  and finalized in S3 with user notifications, but we currently have no automated evidence that the
+  shared-core-powered worker Lambda orchestrates these steps correctly after the BFF refactor. Build
+  integration tests that invoke the worker handler with realistic S3/SQS payloads, stub external
+  providers, and assert that job status transitions, S3 writes, and notification calls occur as
+  expected without network access while keeping the worker decoupled from Nest.
+
+outcome: >-
+  Deterministic integration tests in backend/tests/integration exercise the worker Lambda (under
+  `backend/workers`) from SQS event through final S3 upload, proving the shared factory wiring,
+  Gemini and Seedream interactions (via stubs), fallback copy behavior, and SNS notifications
+  outlined in docs/requirements.md.
+
+scope:
+  in:
+    - backend/tests/integration
+    - backend/tests/helpers
+    - backend/workers/image-process
+    - backend/libs/core/services/job.service.ts
+    - backend/libs/core/services/s3.service.ts
+    - backend/libs/core/services/notification.service.ts
+  out:
+    - Changes to production provider implementations beyond test seams
+    - Mobile app notification handling
+    - Direct SDK imports in handlers (STANDARDS.md hard fail - handlers → services → adapters only)
+    - VPC configuration for API Lambdas (workers may be in VPC with ADR; STANDARDS.md line 127)
+    - Breaking changes to shared-core interfaces without versioning and migration guide
+    - Manual-only tests; all tests must run in CI (testing-standards.md)
+    - Testing implementation details vs. behavior; focus on contract compliance
+
+context:
+  issues: []
+  related_docs:
+    - STANDARDS.md
+    - docs/requirements.md
+    - docs/testing-standards.md
+    - docs/e2e-tests.md
+  repo_paths:
+    - backend/workers/image-process/handler.ts
+    - backend/libs/core/providers/factory.ts
+    - backend/tests/reliability/dlq-redrive.test.ts
+    - .dependency-cruiser.json
+  dependencies:
+    - type: package
+      name: aws-sdk-client-mock
+      version: ">=4 <5"
+    - type: service
+      name: localstack
+      requirement: optional
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: npm
+      version: "9.x"
+    - name: bash
+      version: any
+  data:
+    - sample.jpg
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Stub Gemini and Seedream providers per docs/testing-standards.md; no live HTTP calls.
+    - Control timers and randomness for deterministic assertions.
+    - Handlers must remain ≤50 LOC with cyclomatic complexity ≤5 (STANDARDS.md hard fail >10).
+    - No handler imports @aws-sdk/* or DB clients; obtain via adapter factories (STANDARDS.md hard fail).
+    - All services/adapters use DI; no 'new' of SDK/DB clients in business logic (STANDARDS.md hard fail).
+    - Emit structured JSON logs with correlationId, traceId, requestId, jobId per Powertools (STANDARDS.md).
+    - "Follow layers: handlers \u2192 services \u2192 adapters; no lateral imports (STANDARDS.md dependency policy)."
+  prohibited:
+    - Do not modify provider production endpoints or secrets.
+    - Do not rely on sequential test order.
+    - No direct SDK/database client imports in handlers or services.
+    - No breaking changes to shared-core interfaces without versioning and ADR.
+    - No VPC configuration for API Lambdas (workers may be in VPC when required with ADR).
+
+plan:
+  - id: 1
+    title: Inspect worker dependencies and seams
+    details: Identify injection points for shared factory wiring, S3 operations, and notifications.
+    commands:
+      - rg -n "ProviderFactory" backend/workers -g '*.ts'
+      - rg -n "NotificationService" backend/libs/core -g '*.ts'
+    expected_files_touched: []
+  - id: 2
+    title: Create deterministic test doubles
+    details: Add helper modules that mock Gemini/Seedream responses, S3 optimization, and SNS publishes while capturing invocations. Ensure stubs align with @photoeditor/shared schemas and validate against contract tests to prevent drift.
+    commands:
+      - npm run test:contract --prefix backend -- providers
+    expected_files_touched:
+      - backend/tests/helpers/provider-stubs.ts
+      - backend/tests/helpers/s3-spy.ts
+  - id: 3
+    title: Implement happy-path worker integration test
+    details: Simulate SQS event with optimized image workflow, assert job transitions QUEUED→PROCESSING→EDITING→COMPLETED and final S3 key creation.
+    commands: []
+    expected_files_touched:
+      - backend/tests/integration/worker-pipeline.integration.test.ts
+  - id: 4
+    title: Add fallback and notification scenarios
+    details: Cover Seedream failure fallback to original image and SNS notification dispatch for completed jobs/batches.
+    commands: []
+    expected_files_touched:
+      - backend/tests/integration/worker-pipeline.integration.test.ts
+  - id: 5
+    title: Execute integration suite and validate standards compliance
+    details: Run integration tests, enforce coverage/mutation thresholds, validate complexity budgets, verify dependency layering, and capture evidence artifacts per STANDARDS.md requirements.
+    commands:
+      - npm run test:integration --prefix backend -- worker
+      - npm run test:coverage --prefix backend -- --lines 80 --branches 70
+      - npm run test:mutation --prefix backend -- --threshold 60
+      - "npm run lint --prefix backend -- --max-warnings 0 --rule 'complexity: [\"error\", 5]'"
+      - npx dependency-cruiser --validate .dependency-cruiser.json backend/
+      - "! grep -r '@aws-sdk' backend/workers/*/handler.ts"
+    expected_files_touched:
+      - docs/evidence/integration-tests/worker-pipeline-coverage.html
+      - docs/evidence/integration-tests/mutation-report.html
+      - docs/evidence/integration-tests/dependency-graph.svg
+      - docs/evidence/logs/worker-structured-log-sample.json
+
+acceptance_criteria:
+  # Core Integration Coverage
+  - Worker integration tests assert optimized S3 uploads, Gemini analysis stub invocations, Seedream edit stub usage, and final S3 object writes while going through the shared-core factories.
+  - Tests cover both success path and fallback copy when Seedream returns an error, confirming final job completion and notification call.
+  - Batch job progress and SNS notification behaviors are verified with controlled mocks.
+  - Tests reset state, control time/uuid, and avoid external network per docs/testing-standards.md; runs are non-flaky.
+
+  # Testability (STANDARDS.md lines 95-104)
+  - Service layer achieves ≥80% line coverage and ≥70% branch coverage (STANDARDS.md requirement).
+  - Adapter layer achieves ≥80% line coverage and ≥70% branch coverage (STANDARDS.md requirement).
+  - Mutation testing score ≥60% for services and adapters (STANDARDS.md requirement).
+  - Contract tests validate stubs against shared schemas from @photoeditor/shared.
+  - Idempotency tests demonstrate workers handle duplicate SQS messages correctly.
+
+  # Hard Fail Prevention (STANDARDS.md lines 30-44)
+  - No handler imports @aws-sdk/* or database clients (verified by grep in validation).
+  - Worker handler remains ≤50 LOC with cyclomatic complexity ≤5 (lint enforced, hard fail >10).
+  - All services/adapters obtain clients via DI/factory pattern; no 'new' of SDK clients.
+  - Structured JSON logs emit correlationId, traceId, requestId, jobId using Powertools.
+  - Dependency graph validates handlers → services → adapters layering; no cycles detected.
+
+  # Modifiability (STANDARDS.md lines 86-92)
+  - Test changes confined to test files; no production code changes beyond test seams.
+  - Provider stubs align with existing contract tests; no schema drift.
+
+validation:
+  commands:
+    # Hard fail prevention (STANDARDS.md lines 30-44)
+    - "! grep -r '@aws-sdk' backend/workers/*/handler.ts"
+    - "! grep -r 'new.*Client' backend/libs/core/services/"
+
+    # Integration test execution
+    - npm run test:integration --prefix backend -- worker
+
+    # Coverage validation (STANDARDS.md lines 97-99)
+    - npm run test:coverage --prefix backend -- --lines 80 --branches 70 --functions 80
+
+    # Mutation testing (STANDARDS.md line 100)
+    - npm run test:mutation --prefix backend -- --threshold 60 services/ adapters/
+
+    # Complexity enforcement (STANDARDS.md lines 34-36)
+    - "npm run lint --prefix backend -- --max-warnings 0 --rule 'complexity: [\"error\", 5]'"
+
+    # Dependency layering validation (STANDARDS.md line 24)
+    - npx dependency-cruiser --validate .dependency-cruiser.json backend/
+
+    # Contract alignment
+    - npm run test:contract --prefix backend -- providers
+  manual_checks:
+    - Review captured stub logs to ensure no unintended provider calls leak through real network.
+    - Verify test output shows correlationId in all log entries.
+    - Confirm mutation report highlights killed mutants in business logic branches.
+  artifacts:
+    - coverage/integration
+    - coverage/lcov-report
+    - mutation-report.html
+    - dependency-graph.svg
+
+deliverables:
+  # Test files
+  - backend/tests/integration/worker-pipeline.integration.test.ts
+  - backend/tests/helpers/provider-stubs.ts
+  - backend/tests/helpers/s3-spy.ts
+
+  # Evidence artifacts (STANDARDS.md lines 236-244)
+  - docs/evidence/integration-tests/worker-pipeline-coverage.html
+  - docs/evidence/integration-tests/mutation-report.html
+  - docs/evidence/integration-tests/dependency-graph.svg
+  - docs/evidence/integration-tests/contract-validation.log
+  - docs/evidence/logs/worker-structured-log-sample.json
+
+risks:
+  - description: Complex stubbing could diverge from real provider contracts.
+    mitigation: Use shared schema types from @photoeditor/shared and align stub payloads with existing contract tests.
+  - description: Handler complexity may exceed ≤50 LOC or CC ≤5 if too much test setup logic added.
+    mitigation: Keep handler minimal; move test orchestration to helper factories. Enforce with lint rules (hard fail >10 CC).
+  - description: Test doubles may not exercise DI/factory patterns correctly, masking production wiring issues.
+    mitigation: Integration tests must import actual handler.ts and factory.ts; stub only at adapter boundaries (S3Client, SNSClient).
+  - description: Missing DLQ validation could allow messages to be lost in production.
+    mitigation: Verify DLQ configuration in IaC; add integration test simulating retry exhaustion and DLQ delivery (STANDARDS.md line 121).
+  - description: Flaky tests from uncontrolled async timing or shared state.
+    mitigation: Mock timers (jest.useFakeTimers), control UUIDs (jest.mock('uuid')), reset all mocks in beforeEach; enforce flake-rate <1% (STANDARDS.md line 104).
+  - description: Coverage thresholds may not catch untested error branches.
+    mitigation: Use mutation testing (≥60% kill rate) to validate branch coverage quality; review mutation survivors in PR (STANDARDS.md line 100).

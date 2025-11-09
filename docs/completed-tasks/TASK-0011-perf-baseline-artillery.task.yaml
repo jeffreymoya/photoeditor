@@ -1,0 +1,83 @@
+schema_version: "1.0"
+id: TASK-0011
+title: "Performance: add Artillery baseline for presign/status"
+status: completed
+priority: P1
+complexity: M
+area: backend
+
+description: >-
+  Add an Artillery scenario to baseline API latency for presign and status
+  endpoints. Establish a repeatable local load test and a target P95 threshold
+  suitable for development.
+
+outcome: >-
+  `npx artillery run backend/perf/*.yml` executes and reports P95 latency.
+  Baseline threshold documented; failures prompt investigation.
+
+scope:
+  in:
+    - backend/perf/**
+    - docs/perf/baseline.md
+  out:
+    - Production code
+
+context:
+  issues: []
+  related_docs:
+    - changelog/2025-10-02-fitness-functions.md
+  repo_paths:
+    - backend/
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: artillery
+      version: latest
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+
+plan:
+  - id: 1
+    title: Create config
+    details: Define presign/status flows; parameterize base URL.
+    commands: []
+  - id: 2
+    title: Document baseline
+    details: Add docs with target P95 and interpretation.
+    commands: []
+  - id: 3
+    title: Validate locally
+    details: Run a small load and capture results.
+    commands:
+      - npx artillery run backend/perf/presign-status.yml || true
+
+acceptance_criteria:
+  - Artillery config exists and runs.
+  - Docs capture baseline and how to run.
+
+validation:
+  commands:
+    - npx artillery run backend/perf/presign-status.yml || true
+  manual_checks:
+    - Ensure P95 results recorded in docs.
+  artifacts:
+    - screenshots: []
+
+deliverables:
+  - backend/perf/presign-status.yml
+  - docs/perf/baseline.md
+
+risks:
+  - description: Local environment variance affects results.
+    mitigation: Use relative comparisons and small loads.
+
+order: 3
+

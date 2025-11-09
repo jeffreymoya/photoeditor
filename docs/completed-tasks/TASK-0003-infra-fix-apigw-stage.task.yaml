@@ -1,0 +1,87 @@
+schema_version: "1.0"
+id: TASK-0003
+title: "Terraform: replace deprecated API Gateway stage_name"
+status: completed
+priority: P0
+complexity: S
+area: infra
+
+description: >-
+  Fix Terraform deprecation by removing `stage_name` from
+  `aws_api_gateway_deployment` and creating an explicit `aws_api_gateway_stage`
+  resource. This removes the deprecation warning noted in the fitness session
+  and aligns with current Terraform provider best practices.
+
+outcome: >-
+  API Gateway deployment no longer uses the deprecated `stage_name` attribute;
+  an `aws_api_gateway_stage` resource exists and Terraform validation passes
+  without deprecation warnings related to this field.
+
+scope:
+  in:
+    - infrastructure/main.tf
+  out:
+    - Non-API Gateway resources
+
+context:
+  issues: []
+  related_docs:
+    - changelog/2025-10-02-fitness-functions.md
+  repo_paths:
+    - infrastructure/main.tf:426
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes: {}
+  tools:
+    - name: terraform
+      version: ">=1.6"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep changes minimal and focused on the deprecation fix.
+
+plan:
+  - id: 1
+    title: Remove stage_name from deployment
+    details: Update aws_api_gateway_deployment to drop stage_name.
+    commands: []
+  - id: 2
+    title: Add aws_api_gateway_stage
+    details: Create stage resource referencing the deployment/rest api.
+    commands: []
+  - id: 3
+    title: Validate Terraform
+    details: fmt and validate configuration.
+    commands:
+      - cd infrastructure && terraform fmt -recursive
+      - cd infrastructure && terraform validate
+
+acceptance_criteria:
+  - "`infrastructure/main.tf` no longer sets `stage_name` on deployment."
+  - "`aws_api_gateway_stage` resource exists with desired stage name."
+  - "`terraform validate` passes locally."
+
+validation:
+  commands:
+    - cd infrastructure && terraform fmt -recursive
+    - cd infrastructure && terraform validate
+  manual_checks:
+    - Search confirms no `stage_name` under `aws_api_gateway_deployment`.
+  artifacts:
+    - screenshots: []
+
+deliverables:
+  - infrastructure/main.tf
+
+risks:
+  - description: Stage configuration changes may affect deployment ordering.
+    mitigation: Keep dependency relationships explicit via depends_on if needed.
+
+order: 2
+

@@ -1,0 +1,304 @@
+schema_version: "1.0"
+id: TASK-0428
+title: "Fix Turborepo Command Execution Failures"
+status: completed
+priority: P1
+area: ops
+
+description: >-
+  Turborepo 1.13.4 is failing to execute any commands with "unable to spawn child process: No such file or directory (os error 2)" errors.
+  This affects all `pnpm turbo run` commands including qa, lint, typecheck, test, and build across all packages.
+  The issue persists even after daemon restarts, --no-daemon mode, and --force flags.
+  Individual package commands work perfectly when run directly via `pnpm --filter <package> run <command>`,
+  indicating the issue is isolated to Turborepo's process spawning mechanism.
+  This blocks parallel execution of fitness functions and CI/CD pipelines that rely on turbo for orchestration.
+
+outcome: >-
+  Turborepo commands execute successfully without spawn errors, enabling parallel task execution across the monorepo.
+  CI/CD pipelines can leverage turbo's caching and parallelization features.
+  Developers can run `pnpm turbo run qa --parallel` and other turbo commands without errors.
+  All fitness functions execute via turbo as designed in turbo.json pipeline configuration.
+
+scope:
+  in:
+    - package.json
+    - turbo.json
+    - .github/workflows/ci-cd.yml
+    - .github/workflows/mobile-ci-cd.yml
+    - standards/testing-standards.md
+    - CLAUDE.md
+    - .husky/pre-commit (turbo integration validation)
+    - .husky/pre-push (turbo integration validation)
+  out:
+    - Individual package.json scripts (these work fine)
+    - Test implementations or code changes
+    - Infrastructure or deployment configs unrelated to build tooling
+    - Mobile or backend application logic
+    - Contract schemas or API definitions
+    - Switching from Turborepo to alternative build system without ADR (standards/global.md#org-wide-guardrails)
+    - Disabling remote cache without documented rollback plan (ADR-0007)
+
+risks:
+  - id: R1
+    description: "Turborepo upgrade may break remote cache integration (ADR-0007)"
+    impact: "CI build times increase from ~2min to ~8min without remote cache"
+    mitigation: "Test remote cache functionality in plan step 2 with --dry-run before full rollout"
+    references:
+      - standards/testing-standards.md#remote-caching
+      - adr/0007-turborepo-remote-cache-backend.md
+
+  - id: R2
+    description: "Breaking Husky hooks disrupts developer workflow and PR gates"
+    impact: "Developers can commit/push without running QA suite, bypassing fitness functions"
+    mitigation: "Validate Husky hook execution in plan step 5 and acceptance criteria"
+    references:
+      - standards/testing-standards.md#entry-points
+      - standards/cross-cutting.md#developer-experience
+
+  - id: R3
+    description: "CI/CD pipeline failures block all deployments"
+    impact: "Unable to deploy fixes or features until Turborepo is restored"
+    mitigation: "Test CI workflows in staging environment before merging; maintain rollback plan"
+    references:
+      - .github/workflows/ci-cd.yml
+      - .github/workflows/mobile-ci-cd.yml
+
+  - id: R4
+    description: "Build time regressions violate performance budgets"
+    impact: "Developer productivity decreases; CI costs increase"
+    mitigation: "Monitor build timings in validation commands; fail if >3min for builds or >2min for unit tests"
+    references:
+      - standards/cross-cutting.md#developer-experience
+
+  - id: R5
+    description: "Package filtering breakage prevents selective QA execution"
+    impact: "Developers forced to run full QA suite even for single-package changes, slowing iteration"
+    mitigation: "Test filtering with --filter=<package> and --filter=... patterns in validation"
+    references:
+      - standards/testing-standards.md#skip-controls-and-filtering
+
+context:
+  issues:
+    - "Turborepo 1.13.4 fails with \"unable to spawn child process: No such file or directory (os error 2)\""
+    - "Error occurs for all tasks: qa, qa:static, qa:duplication, qa:dead-exports, lint, typecheck, test, build"
+    - "Affects all packages: @photoeditor/backend, @photoeditor/shared, photoeditor-mobile"
+    - "Direct pnpm commands work: `pnpm --filter @photoeditor/backend run lint` succeeds"
+    - "Daemon restart does not resolve: `pnpm turbo daemon restart` has no effect"
+    - --no-daemon and --force flags do not resolve the issue
+    - Issue reproduced on Linux 6.16.3 with Node v22.15.0 and pnpm 8.15.4
+  related_docs:
+    - turbo.json
+    - standards/testing-standards.md
+    - CLAUDE.md
+    - adr/0007-turborepo-remote-cache-backend.md
+  repo_paths:
+    - turbo.json
+    - package.json
+    - .github/workflows/ci-cd.yml
+    - backend/package.json
+    - mobile/package.json
+    - shared/package.json
+  dependencies:
+    - type: package
+      name: 'turbo'
+      version: "1.13.4"
+      note: "Current version failing; consider upgrading to 2.x"
+    - type: package
+      name: 'pnpm'
+      version: "8.15.4"
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "22.15.0"
+  tools:
+    - name: pnpm
+      version: "8.15.4"
+    - name: turbo
+      version: "1.13.4"
+  data:
+    - Error output from `pnpm turbo run qa --parallel`
+    - Successful output from `pnpm --filter @photoeditor/backend run qa:static`
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Maintain backward compatibility with existing npm scripts
+    - Preserve turbo.json pipeline configuration structure
+    - Ensure CI/CD workflows continue to work
+    - Preserve build time budgets (build <3min, unit <2min per standards/cross-cutting.md#developer-experience)
+    - Maintain remote cache functionality (ADR-0007, standards/testing-standards.md#remote-caching)
+  prohibited:
+    - Do not break existing pnpm workspace configuration (standards/global.md#org-wide-guardrails)
+    - Do not remove turbo.json or switch build systems without evaluation
+    - Do not modify individual package scripts as workaround
+    - Do not disable remote caching without ADR and rollback plan
+    - Do not break Husky pre-commit/pre-push hooks that depend on turbo
+    - Do not compromise parallel execution capabilities for fitness functions
+  architecture:
+    - Monorepo managed by pnpm workspaces (standards/global.md#org-wide-guardrails)
+    - Build orchestration via Turborepo (standards/global.md#org-wide-guardrails)
+    - Remote caching configured (ADR-0007, standards/testing-standards.md#remote-caching)
+    - Parallel execution for fitness functions (standards/testing-standards.md#qa-suite)
+    - QA suite orchestrated via pnpm turbo run qa --parallel (standards/testing-standards.md#entry-points)
+
+plan:
+  - id: 1
+    title: Investigate Turborepo version compatibility
+    details: Research known issues with Turborepo 1.13.4 and Node 22.x/pnpm 8.x. Check Turborepo GitHub issues and changelog.
+    commands:
+      - pnpm turbo --version
+      - node --version
+      - pnpm --version
+    expected_files_touched: []
+  - id: 2
+    title: Evaluate upgrade to Turborepo 2.x
+    details: >-
+      Turborepo 2.x has significant changes including daemon improvements and better pnpm support.
+      Test upgrade path, check breaking changes, and validate turbo.json compatibility.
+      Verify remote cache functionality (ADR-0007) and parallel execution remain intact.
+    commands:
+      - pnpm add -D turbo@latest
+      - pnpm turbo run lint --filter=@photoeditor/shared
+      - pnpm turbo run qa:static --parallel
+      - pnpm turbo run build --dry-run # Verify remote cache configuration
+    expected_files_touched:
+      - package.json
+      - package-lock.json
+      - turbo.json (if schema changes required)
+  - id: 3
+    title: Test alternative workarounds
+    details: >-
+      If upgrade is not viable, test alternative solutions:
+      - Downgrade Node to LTS (20.x)
+      - Configure turbo to use different execution mode
+      - Add explicit shell wrapper for commands
+      - Check pnpm linking configuration
+    commands:
+      - pnpm turbo run qa --parallel
+    expected_files_touched:
+      - .npmrc (if pnpm config changes needed)
+      - turbo.json (if execution config changes needed)
+  - id: 4
+    title: Update CI/CD pipelines
+    details: Apply the working solution to GitHub Actions workflows and update documentation.
+    commands:
+      - pnpm turbo run qa --parallel
+      - pnpm turbo run build --parallel
+    expected_files_touched:
+      - .github/workflows/ci-cd.yml
+      - .github/workflows/mobile-ci-cd.yml
+      - standards/testing-standards.md
+      - CLAUDE.md
+  - id: 5
+    title: Validate full fitness function suite
+    details: >-
+      Run complete QA suite to ensure all tasks execute successfully via turbo.
+      Verify Husky hooks still execute correctly (pre-commit qa:static, pre-push qa).
+      Test affected package filtering and remote cache hit/miss reporting.
+    commands:
+      - pnpm turbo run qa:static --parallel
+      - pnpm turbo run qa --parallel
+      - pnpm turbo run build --parallel
+      - pnpm turbo run test --filter=@photoeditor/shared # Test filtering
+      - pnpm turbo run build --dry-run # Verify remote cache status
+      - "git add -A && git commit -m \"test: validate husky hooks\" --no-verify # Then test hooks separately"
+    expected_files_touched: []
+
+acceptance_criteria:
+  # Core functionality (standards/testing-standards.md#qa-suite)
+  - "`pnpm turbo run qa --parallel` executes without spawn errors"
+  - "`pnpm turbo run qa:static --parallel` succeeds (QA-A stage)"
+  - "`pnpm turbo run lint` succeeds for all packages"
+  - "`pnpm turbo run typecheck` succeeds for all packages"
+  - "`pnpm turbo run test` executes (integration tests may require LocalStack)"
+  - "`pnpm turbo run build --parallel` succeeds for all packages"
+
+  # CI/CD integration (standards/cross-cutting.md#developer-experience)
+  - "CI/CD workflows execute turbo commands successfully"
+  - "Husky pre-commit hook executes qa:static via turbo (standards/testing-standards.md#entry-points)"
+  - "Husky pre-push hook executes full qa suite via turbo (standards/testing-standards.md#entry-points)"
+
+  # Remote caching (ADR-0007, standards/testing-standards.md#remote-caching)
+  - "Remote caching (ADR-0007) continues to work after fix"
+  - "`pnpm turbo run build --dry-run` shows remote cache configuration"
+  - "Cache hits/misses display correctly in turbo output"
+
+  # Performance (standards/cross-cutting.md#developer-experience)
+  - "No regression in build times or caching behavior"
+  - "Build time remains <3min for full build (standards/cross-cutting.md#developer-experience)"
+  - "Unit tests complete <2min (standards/cross-cutting.md#developer-experience)"
+
+  # Filtering and parallel execution (standards/testing-standards.md#skip-controls-and-filtering)
+  - "Package filtering works: `pnpm turbo run test --filter=@photoeditor/shared`"
+  - "Affected package filtering works: `pnpm turbo run lint --filter=...`"
+  - "Parallel execution maintains correctness across all packages"
+
+  # Documentation and evidence (standards/global.md#governance--evidence)
+  - "Documentation updated with any configuration changes"
+  - "Evidence captured: before/after turbo run logs showing successful execution"
+  - "turbo.json remains valid and matches pipeline requirements (standards/testing-standards.md#adding-new-fitness-functions)"
+
+validation:
+  commands:
+    # Core QA suite execution (standards/testing-standards.md#qa-suite)
+    - pnpm turbo run qa:static --parallel
+    - pnpm turbo run qa --parallel --filter=@photoeditor/shared
+    - pnpm turbo run build --parallel
+    - pnpm turbo run lint --filter=@photoeditor/backend
+
+    # Remote cache validation (ADR-0007, standards/testing-standards.md#remote-caching)
+    - pnpm turbo run build --dry-run
+
+    # Filtering validation (standards/testing-standards.md#skip-controls-and-filtering)
+    - pnpm turbo run test --filter=@photoeditor/shared
+    - pnpm turbo run typecheck --filter=...
+
+    # Husky hook validation (standards/testing-standards.md#entry-points)
+    - cat .husky/pre-commit | grep "turbo run qa:static"
+    - cat .husky/pre-push | grep "turbo run qa"
+
+    # Performance validation (standards/cross-cutting.md#developer-experience)
+    - time pnpm turbo run build --parallel # Should complete <3min
+    - time pnpm turbo run test:unit --parallel # Should complete <2min
+
+  evidence_paths:
+    - docs/evidence/turbo-run-success.log
+    - docs/evidence/qa/turbo-parallel-execution.log
+    - docs/evidence/turbo-remote-cache-status.log
+    - docs/evidence/turbo-build-timings.log
+  acceptance_format: |
+    All validation commands must:
+    - Exit with code 0
+    - Show no "unable to spawn child process" errors
+    - Display task execution progress and cache hits/misses
+    - Complete in reasonable time (<5min for qa:static, <10min for full qa with tests)
+    - Remote cache configuration visible in --dry-run output
+    - Package filtering correctly limits execution scope
+    - Build times meet performance budgets (build <3min, unit tests <2min per standards/cross-cutting.md#developer-experience)
+
+deliverables:
+  - Working turbo configuration (turbo.json if changes needed)
+  - Updated package.json with correct turbo version
+  - Updated CI/CD workflows if needed
+  - Documentation of solution in changelog
+  - Evidence logs showing successful execution:
+    - docs/evidence/turbo-run-success.log (before/after spawn error resolution)
+    - docs/evidence/turbo-remote-cache-status.log (remote cache verification per ADR-0007)
+    - docs/evidence/turbo-build-timings.log (performance budget compliance per standards/cross-cutting.md#developer-experience)
+    - docs/evidence/qa/turbo-parallel-execution.log (full QA suite execution)
+  - ADR if significant architectural change (e.g., switching from turbo to nx)
+  - Verification that turbo.json pipeline remains aligned with standards/testing-standards.md#adding-new-fitness-functions
+
+complexity: M
+estimated_effort: 4h
+blocked_by: []
+tags:
+  - tooling
+  - monorepo
+  - turborepo
+  - ci-cd
+  - build-system

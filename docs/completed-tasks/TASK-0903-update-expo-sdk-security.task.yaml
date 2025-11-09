@@ -1,0 +1,246 @@
+# Task: Update Expo SDK to resolve HIGH severity CVEs
+# Area: mobile (React Native framework)
+# Priority: P0 (multiple security vulnerabilities)
+
+schema_version: "1.1"
+id: TASK-0903
+title: "Update Expo SDK to ~51.0.0 to fix semver/ip/webpack CVEs and Babel deprecations"
+status: completed
+blocked_reason:
+priority: P0
+area: mobile
+unblocker: true  # Unblocks safe mobile development and blocks Powertools migration
+order:
+blocked_by: []
+depends_on: []
+agent_completion_state:
+  task-implementer:
+    status: completed
+    summary_path: ".agent-output/task-implementer-summary-TASK-0903.md"
+    timestamp: "2025-11-05T02:51:00Z"
+  implementation-reviewer:
+    status: completed
+    summary_path: ".agent-output/implementation-reviewer-summary-TASK-0903.md"
+    timestamp: "2025-11-05T02:52:00Z"
+    recommendation: proceed
+  test-validation-mobile:
+    status: pass
+    report_path: "docs/tests/reports/2025-11-05-validation-mobile.md"
+    timestamp: "2025-11-05T02:53:00Z"
+    tests_passed: 428
+    tests_total: 428
+    coverage: "67%/57%"
+
+clarifications:
+  outstanding: []
+  evidence_path: "docs/evidence/tasks/TASK-0903-clarifications.md"
+
+description: >-
+  The mobile package currently uses Expo SDK 50, which transitively depends on packages
+  with HIGH severity CVEs: semver (ReDoS CVE-2022-25883 via 56 paths), ip (SSRF
+  improper categorization via 118 paths through React Native 0.73.4), and webpack-dev-server
+  (source code leakage). Additionally, all Babel proposal plugins show deprecation
+  warnings
+  (cosmetic, features now in Babel core). Update to Expo SDK 51 (stable, bundles React
+  Native 0.74+) to resolve all CVEs and deprecation warnings. This requires compatibility
+  testing across iOS/Android builds and Expo plugins.
+
+outcome: >-
+  Mobile package.json updated to expo@~51.0.0 with compatible dependencies, lockfile
+  regenerated, iOS/Android builds verified on simulators/emulators, Expo doctor passes,
+  and pnpm audit shows no HIGH CVEs. All Babel deprecation warnings resolved.
+
+scope:
+  in:
+  - mobile/package.json expo and Expo plugin versions
+  - Compatibility verification via expo-doctor
+  - iOS simulator and Android emulator build testing
+  - Babel proposal plugin warnings (auto-resolved by Expo update)
+  out:
+  - Backend esbuild (TASK-0902)
+  - Lambda Powertools update (TASK-0904, blocked until Expo stable)
+  - ESLint 9 migration (TASK-0905, separate concern)
+  - Functional feature changes (SDK update only)
+
+context:
+  affected_packages: [mobile]
+  standards_tier: mobile
+  related_docs:
+  - standards/global.md
+  - standards/frontend-tier.md
+  - standards/testing-standards.md
+  repo_paths:
+  - mobile/package.json
+  - mobile/app.json
+  - pnpm-lock.yaml
+  dependencies:
+  - Expo SDK 51 (framework)
+  - React Native 0.74+ (bundled with Expo 51)
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+  - name: pnpm
+    version: "8.x"
+  - name: expo-cli
+    version: "bundled with expo@51"
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+  - Research Expo 50 → 51 breaking changes before updating.
+  - Run npx expo-doctor for compatibility verification.
+  - Test iOS/Android builds on simulators/emulators.
+  - Keep functional code changes minimal (SDK update only).
+  prohibited:
+  - No feature additions during SDK update.
+  - No breaking API changes without documentation.
+
+plan:
+- id: 1
+  title: Research Expo 51 breaking changes and compatibility
+  details: >-
+    Review Expo 51 changelog, breaking changes documentation, and run npx expo-doctor
+    to identify incompatible dependencies. Document CVEs being fixed (semver, ip,
+    webpack-dev-server) and Babel deprecation resolution. Satisfies standards/global.md
+    evidence requirement for major dependency updates.
+  actor: agent
+  inputs:
+  - mobile/package.json
+  - Expo 51 changelog (web research)
+  - Expo 51 breaking changes guide
+  outputs:
+  - docs/evidence/tasks/TASK-0903-clarifications.md (breaking changes analysis, 
+    CVE details)
+  definition_of_done:
+  - Expo 50 → 51 breaking changes documented
+  - Incompatible dependencies identified via expo-doctor
+  - CVE resolution paths confirmed (semver, ip, webpack-dev-server)
+  - Babel deprecation resolution confirmed
+  estimate: M
+  expected_files_touched: []
+- id: 2
+  title: Update Expo SDK and dependencies in mobile package.json
+  details: >-
+    Update expo to ~51.0.0, update incompatible Expo plugins to compatible versions
+    (per expo-doctor output), run pnpm install to regenerate lockfile. Address any
+    peer dependency warnings. Aligns with standards/frontend-tier.md dependency
+    management practices.
+  actor: agent
+  inputs:
+  - mobile/package.json
+  - docs/evidence/tasks/TASK-0903-clarifications.md (compatibility analysis)
+  outputs:
+  - mobile/package.json (updated expo@~51.0.0 and plugins)
+  - pnpm-lock.yaml (regenerated)
+  definition_of_done:
+  - mobile/package.json shows expo@~51.0.0
+  - All Expo plugins updated to compatible versions
+  - pnpm install completes without peer dependency errors
+  - npx expo-doctor reports no critical issues
+  estimate: M
+  expected_files_touched:
+  - mobile/package.json
+  - pnpm-lock.yaml
+- id: 3
+  title: Verify iOS and Android builds
+  details: >-
+    Run iOS simulator build via pnpm turbo run ios --filter=photoeditor-mobile and
+    Android emulator build via pnpm turbo run android --filter=photoeditor-mobile.
+    Verify app launches, navigation works, and no runtime errors. Per standards/testing-standards.md,
+    platform builds are required validation for mobile framework updates.
+  actor: agent
+  inputs:
+  - Updated mobile package
+  outputs:
+  - docs/evidence/tasks/TASK-0903-clarifications.md (build logs, 
+    simulator/emulator screenshots)
+  definition_of_done:
+  - iOS build succeeds on simulator
+  - Android build succeeds on emulator
+  - App launches without crashes
+  - Basic navigation functional (Home → Settings → Camera)
+  - No console errors during app initialization
+  estimate: M
+  expected_files_touched: []
+- id: 4
+  title: Run mobile QA suite and verify CVE resolution
+  details: >-
+    Run qa:static and test suite for mobile package. Run pnpm audit to verify HIGH
+    CVEs resolved. Capture evidence per standards/testing-standards.md coverage
+    requirements.
+  actor: agent
+  inputs:
+  - Updated mobile package
+  outputs:
+  - docs/evidence/tasks/TASK-0903-clarifications.md (QA results, audit output)
+  definition_of_done:
+  - qa:static passes (typecheck + lint)
+  - All unit tests pass
+  - pnpm audit shows no HIGH severity CVEs (semver, ip, webpack-dev-server 
+    resolved)
+  - Babel deprecation warnings eliminated (verified via pnpm install output)
+  estimate: S
+  expected_files_touched: []
+
+validation:
+  pipeline:
+  - command: npx expo-doctor
+    description: Verify Expo SDK 51 compatibility and identify issues
+  - command: pnpm turbo run qa:static --filter=photoeditor-mobile
+    description: Run static analysis (typecheck + lint) on mobile
+  - command: pnpm turbo run test --filter=photoeditor-mobile
+    description: Run unit tests for mobile package
+  - command: pnpm audit --filter=photoeditor-mobile
+    description: Verify HIGH CVEs resolved (semver, ip, webpack-dev-server)
+  manual_checks:
+  - Build and launch iOS app on simulator (verify no crashes, navigation works)
+  - Build and launch Android app on emulator (verify no crashes, navigation 
+    works)
+  - Verify Babel deprecation warnings eliminated (check pnpm install output)
+
+acceptance_criteria:
+  must:
+  - mobile/package.json lists expo@~51.0.0
+  - pnpm-lock.yaml updated with Expo 51 dependency tree
+  - npx expo-doctor reports no critical issues
+  - iOS build succeeds on simulator and app launches
+  - Android build succeeds on emulator and app launches
+  - pnpm audit shows no HIGH CVEs for semver, ip, or webpack-dev-server
+  - Babel plugin-proposal deprecation warnings eliminated
+  - All mobile unit tests pass
+  quality_gates:
+  - standards/global.md security requirements satisfied (HIGH CVEs resolved 
+    within 48-72h)
+  - standards/frontend-tier.md mobile platform compatibility verified
+  - No build or runtime regressions
+
+artifacts:
+- path: docs/evidence/tasks/TASK-0903-clarifications.md
+  description: Breaking changes analysis, CVE resolution verification, build 
+    logs, QA results
+
+deliverables:
+- mobile/package.json (expo@~51.0.0 and updated plugins)
+- pnpm-lock.yaml (regenerated)
+- docs/evidence/tasks/TASK-0903-clarifications.md
+
+risks:
+- description: Expo SDK breaking changes break mobile app functionality
+  mitigation: Run expo-doctor before update, test iOS/Android builds on 
+    simulators/emulators, review changelog for breaking changes
+- description: Expo plugin incompatibilities cause build failures
+  mitigation: Update plugins to Expo 51-compatible versions per expo-doctor 
+    recommendations, test builds incrementally
+- description: React Native 0.74 (bundled) introduces breaking changes
+  mitigation: Review React Native 0.74 changelog, test navigation and core 
+    features on both platforms
+- description: Lockfile changes affect other packages
+  mitigation: Review pnpm-lock.yaml diff, use --filter=photoeditor-mobile to 
+    isolate changes where possible

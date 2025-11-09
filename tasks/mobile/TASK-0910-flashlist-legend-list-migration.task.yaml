@@ -1,0 +1,315 @@
+# Task: Replace FlatList with FlashList v2 and Legend List
+
+schema_version: "1.1"
+id: TASK-0910
+title: "Replace FlatList with FlashList v2 and Legend List"
+status: todo
+blocked_reason:
+priority: P2
+area: mobile
+unblocker: false
+order:
+blocked_by: [TASK-0907]
+depends_on: [TASK-0906]
+agent_completion_state: {}
+
+clarifications:
+  outstanding: []
+  resolved: true
+  evidence_path: "docs/evidence/tasks/TASK-0910-clarifications.md"
+
+description: >-
+  Replace FlatList implementations with FlashList v2 (Fabric-only, pixel-perfect scrollToIndex,
+  built-in masonry layouts, adaptive render windows) for gallery, job history, and
+  notification
+  surfaces where Fabric is fully deployed. Use Legend List (100% TypeScript, bridge-compatible,
+  dynamic item sizes, bidirectional infinite scroll) as fallback for surfaces where
+  Fabric is
+  not yet stable. FlashList v2 drops legacy-architecture support, requiring TASK-0907
+  (Expo SDK 53)
+  completion. Legend List's recycling features can leak per-item state if usage patterns
+  are not
+  codified. This migration addresses scroll jank and feed performance issues.
+
+outcome: >-
+  FlatList replaced with FlashList v2 on Fabric-enabled surfaces (gallery, job history,
+  notifications).
+  Legend List implemented on bridge-compatible surfaces (if any). Scroll/jank metrics
+  meet baseline
+  (<16ms frame budget) in profiling traces. Masonry layout working for gallery surface.
+  Usage
+  patterns codified to prevent Legend List state leaks.
+
+scope:
+  in:
+  - Auditing FlatList usage in mobile/src/screens/ and mobile/src/components/
+  - Installing FlashList v2 and Legend List dependencies in mobile/package.json
+  - Migrating gallery surface to FlashList v2 with masonry layout
+  - Migrating job history and notification feed to FlashList v2 or Legend List
+  - Profiling scroll jank and frame times before/after migration
+  - Codifying Legend List recycling patterns and unit tests to guard against 
+    state leaks
+  - Documenting migration outcomes and usage patterns
+  out:
+  - Removing FlatList entirely (legacy fallback may be retained during migration
+    period)
+  - Migrating surfaces outside gallery/job history/notification feed scope
+  - Styling system changes (deferred to TASK-0909)
+  - VisionCamera overlay integration (deferred to TASK-0911)
+
+context:
+  affected_packages: [mobile]
+  standards_tier: mobile
+  related_docs:
+  - standards/global.md
+  - standards/AGENTS.md
+  - standards/frontend-tier.md
+  - standards/typescript.md
+  - standards/testing-standards.md
+  - docs/proposals/mobile-stack-modernization.md
+  - FlashList v2 announcement
+  - Legend List README
+  repo_paths:
+  - mobile/package.json
+  - mobile/src/screens/
+  - mobile/src/components/
+  - docs/mobile/
+  dependencies:
+  - "@shopify/flash-list v2"
+  - "@legendapp/list"
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+  - name: pnpm
+    version: "8.x"
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+  - Follow FlashList v2 and Legend List usage patterns per official docs
+  - Codify Legend List recycling patterns to prevent per-item state leaks
+  - Profile scroll jank before/after migration (<16ms frame budget)
+  - Use FlashList v2 for Fabric-enabled surfaces, Legend List for 
+    bridge-compatible fallback
+  prohibited:
+  - Do not remove FlatList entirely (legacy fallback may be needed during 
+    migration)
+  - Do not migrate surfaces outside defined scope
+
+plan:
+- id: 1
+  title: Audit FlatList usage and clarify migration strategy
+  details: >-
+    Search mobile/src/screens/ and mobile/src/components/ for FlatList usage. Identify
+    surfaces (gallery, job history, notification feed) and determine Fabric readiness.
+    Clarify jank metrics baseline, masonry requirements, and Legend List recycling
+    patterns.
+    Document findings in clarifications file. Reference standards/frontend-tier.md
+    for
+    component organization.
+  actor: agent
+  inputs:
+  - mobile/src/screens/
+  - mobile/src/components/
+  - docs/proposals/mobile-stack-modernization.md
+  - FlashList v2 announcement
+  - Legend List README
+  outputs:
+  - docs/evidence/tasks/TASK-0910-clarifications.md (FlatList audit, migration 
+    strategy)
+  definition_of_done:
+  - Clarifications file documents FlatList surfaces, Fabric readiness, migration
+    strategy
+  - Jank metrics baseline and masonry requirements defined
+  estimate: M
+  expected_files_touched:
+  - docs/evidence/tasks/TASK-0910-clarifications.md
+- id: 2
+  title: Install FlashList v2 and Legend List dependencies
+  details: >-
+    Add @shopify/flash-list v2 and @legendapp/list to mobile/package.json. Run pnpm
+    install.
+    Verify standards/typescript.md strict config remains satisfied.
+  actor: agent
+  inputs:
+  - mobile/package.json
+  - FlashList v2 installation guide
+  - Legend List installation guide
+  outputs:
+  - mobile/package.json (FlashList v2, Legend List dependencies)
+  - pnpm-lock.yaml
+  definition_of_done:
+  - FlashList v2 and Legend List installed in mobile/package.json
+  - pnpm install completes successfully
+  estimate: S
+  expected_files_touched:
+  - mobile/package.json
+  - pnpm-lock.yaml
+- id: 3
+  title: Migrate gallery surface to FlashList v2 with masonry layout
+  details: >-
+    Replace FlatList in gallery surface with FlashList v2. Implement masonry layout
+    for
+    gallery grid. Verify Fabric compatibility. Follow standards/frontend-tier.md component
+    organization. Test on iOS simulator and Android emulator.
+  actor: agent
+  inputs:
+  - mobile/src/screens/Gallery/ (existing FlatList implementation)
+  - FlashList v2 masonry layout docs
+  outputs:
+  - mobile/src/screens/Gallery/ (FlashList v2 implementation with masonry)
+  definition_of_done:
+  - Gallery surface uses FlashList v2 with masonry layout
+  - Renders correctly on iOS simulator and Android emulator
+  estimate: M
+  expected_files_touched:
+  - mobile/src/screens/Gallery/
+- id: 4
+  title: Migrate job history and notification feed to FlashList v2 or Legend 
+    List
+  details: >-
+    Migrate job history and notification feed surfaces from FlatList to FlashList
+    v2 (if
+    Fabric-enabled) or Legend List (if bridge-compatible). Codify Legend List recycling
+    patterns in usage docs. Add unit tests to guard against per-item state leaks.
+    Reference
+    standards/testing-standards.md for test coverage expectations.
+  actor: agent
+  inputs:
+  - mobile/src/screens/JobHistory/ (existing FlatList)
+  - mobile/src/screens/Notifications/ (existing FlatList)
+  - Legend List recycling patterns docs
+  outputs:
+  - mobile/src/screens/JobHistory/ (FlashList v2 or Legend List implementation)
+  - mobile/src/screens/Notifications/ (FlashList v2 or Legend List 
+    implementation)
+  - mobile/src/__tests__/list-recycling.test.ts (unit tests for Legend List 
+    patterns)
+  definition_of_done:
+  - Job history and notification feed migrated to FlashList v2 or Legend List
+  - Legend List recycling patterns codified
+  - Unit tests added to guard against state leaks
+  estimate: L
+  expected_files_touched:
+  - mobile/src/screens/JobHistory/
+  - mobile/src/screens/Notifications/
+  - mobile/src/__tests__/list-recycling.test.ts
+- id: 5
+  title: Profile scroll jank and frame times before/after migration
+  details: >-
+    Capture scroll jank and frame time metrics before and after FlashList v2/Legend
+    List
+    migration. Verify metrics meet baseline (<16ms frame budget). Profile on iOS and
+    Android.
+    Document profiling procedures and results. Reference standards/frontend-tier.md
+    for
+    performance thresholds if applicable.
+  actor: agent
+  inputs:
+  - mobile/ (FlashList v2/Legend List implementation)
+  outputs:
+  - docs/evidence/tasks/TASK-0910-scroll-jank-metrics.md
+  definition_of_done:
+  - Scroll jank and frame time metrics captured before/after migration
+  - Metrics meet baseline (<16ms frame budget)
+  - Profiling procedures documented
+  estimate: M
+  expected_files_touched:
+  - docs/evidence/tasks/TASK-0910-scroll-jank-metrics.md
+- id: 6
+  title: Document migration outcomes and usage patterns
+  details: >-
+    Document FlashList v2 and Legend List migration outcomes, usage patterns, and
+    recycling
+    safeguards in docs/mobile/. Include masonry layout implementation notes. Ensure
+    standards/global.md evidence bundle requirements are met.
+  actor: agent
+  inputs:
+  - docs/evidence/tasks/TASK-0910-clarifications.md
+  - docs/evidence/tasks/TASK-0910-scroll-jank-metrics.md
+  outputs:
+  - docs/mobile/flashlist-legend-list-migration.md
+  definition_of_done:
+  - Migration outcomes and usage patterns documented in docs/mobile/
+  - Masonry layout implementation notes included
+  estimate: S
+  expected_files_touched:
+  - docs/mobile/flashlist-legend-list-migration.md
+
+validation:
+  pipeline:
+  - command: pnpm turbo run lint:fix --filter=photoeditor-mobile
+    description: Auto-fix linting issues in mobile package
+  - command: pnpm turbo run qa:static --filter=photoeditor-mobile
+    description: Run static analysis (typecheck + lint) on mobile
+  - command: pnpm turbo run test --filter=photoeditor-mobile
+    description: Run unit tests for mobile package
+  - command: pnpm turbo run test:coverage --filter=photoeditor-mobile
+    description: Run tests with coverage reporting to verify thresholds (≥70% 
+      lines, ≥60% branches per standards/testing-standards.md)
+  manual_checks:
+  - Verify gallery surface renders correctly with FlashList v2 masonry layout on
+    iOS simulator
+  - Verify gallery surface renders correctly with FlashList v2 masonry layout on
+    Android emulator
+  - Test job history and notification feed scrolling performance on both 
+    platforms
+  - Profile frame times to confirm <16ms frame budget compliance
+  - Verify Legend List recycling does not leak per-item state
+
+acceptance_criteria:
+  must:
+  - FlashList v2 and Legend List installed in mobile/package.json
+  - Gallery surface migrated to FlashList v2 with masonry layout
+  - Job history and notification feed migrated to FlashList v2 or Legend List
+  - Legend List recycling patterns codified and tested
+  - Scroll/jank metrics meet baseline (<16ms frame budget)
+  - pnpm turbo run qa:static --filter=photoeditor-mobile passes
+  - Unit tests added to guard against Legend List state leaks
+  - Migration outcomes and usage patterns documented
+  quality_gates:
+  - All tests pass with FlashList v2 and Legend List enabled
+  - No regressions in existing list functionality
+  - Frame budget compliance verified in profiling traces
+
+artifacts:
+- path: docs/evidence/tasks/TASK-0910-clarifications.md
+  description: FlatList audit, migration strategy, jank metrics baseline
+- path: docs/evidence/tasks/TASK-0910-scroll-jank-metrics.md
+  description: Scroll jank and frame time profiling before/after migration
+- path: docs/mobile/flashlist-legend-list-migration.md
+  description: Migration outcomes, usage patterns, masonry layout notes
+
+deliverables:
+- mobile/package.json (FlashList v2, Legend List dependencies)
+- mobile/src/screens/Gallery/ (FlashList v2 with masonry)
+- mobile/src/screens/JobHistory/ (FlashList v2 or Legend List)
+- mobile/src/screens/Notifications/ (FlashList v2 or Legend List)
+- mobile/src/__tests__/list-recycling.test.ts
+- pnpm-lock.yaml
+- docs/evidence/tasks/TASK-0910-clarifications.md
+- docs/evidence/tasks/TASK-0910-scroll-jank-metrics.md
+- docs/mobile/flashlist-legend-list-migration.md
+
+risks:
+- description: FlashList v2 Fabric-only requirement may block adoption on 
+    surfaces not yet Fabric-ready
+  mitigation: Use Legend List as bridge-compatible fallback, document Fabric 
+    readiness per surface
+- description: Legend List recycling can leak per-item state if patterns are not
+    followed
+  mitigation: Codify usage patterns, add unit tests, reference official docs
+- description: Masonry layout may have edge cases or performance issues on 
+    lower-end devices
+  mitigation: Profile thoroughly, test on lower-end emulators, provide fallback 
+    layout if needed
+- description: Frame budget may not be met on all devices after migration
+  mitigation: Profile on representative device range, optimize render logic, add
+    performance monitoring

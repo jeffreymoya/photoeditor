@@ -1,0 +1,79 @@
+schema_version: "1.0"
+id: TASK-0007
+title: "CI: add tfsec and gitleaks security scanners"
+status: completed
+priority: P0
+complexity: S
+area: ci
+
+description: >-
+  Add infrastructure security scanning (tfsec) and secret scanning (gitleaks)
+  to the CI pipeline. Provide local scripts for developers and fail CI on high
+  severity findings with an allowlist mechanism for justified exceptions.
+
+outcome: >-
+  CI workflow runs tfsec on `infrastructure/` and gitleaks on the repository.
+  Local commands exist to reproduce results. CI fails on high severity issues.
+
+scope:
+  in:
+    - .github/workflows/**
+    - .gitleaks.toml
+  out:
+    - Application code changes
+
+context:
+  issues: []
+  related_docs:
+    - rubric.md
+  repo_paths:
+    - .github/workflows
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  tools:
+    - name: bash
+      version: any
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep CI changes minimal and readable.
+
+plan:
+  - id: 1
+    title: Add CI jobs
+    details: Create/extend workflow to run tfsec and gitleaks.
+    commands: []
+  - id: 2
+    title: Add local scripts
+    details: Document or script local invocations.
+    commands: []
+
+acceptance_criteria:
+  - CI runs tfsec and gitleaks on pushes/PRs.
+  - Local commands `npx tfsec .` and `npx gitleaks detect` produce results.
+  - CI fails on high severity issues; allowlist respected where needed.
+
+validation:
+  commands:
+    - echo "CI-only validation; run locally if tools installed."
+  manual_checks:
+    - Inspect CI logs for tfsec/gitleaks job results.
+  artifacts:
+    - screenshots: []
+
+deliverables:
+  - .github/workflows/ci-security.yml
+  - .gitleaks.toml
+
+risks:
+  - description: False positives may block PRs.
+    mitigation: Provide allowlist and clear contribution guide updates.
+
+order: 7
+

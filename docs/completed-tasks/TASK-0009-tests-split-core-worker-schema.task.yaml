@@ -1,0 +1,80 @@
+schema_version: "1.0"
+id: TASK-0009
+title: "Tests: split core-flow, worker-flow, schema-diff"
+status: completed
+priority: P1
+complexity: S
+area: backend
+
+description: >-
+  Add npm scripts to filter and run tests for core API contracts, worker flow,
+  and schema diffs. This improves analysability and speeds feedback loops.
+
+outcome: >-
+  `npm run test:core-flow`, `npm run test:worker-flow`, and
+  `npm run test:schema-diff` exist and run a sensible subset of tests.
+
+scope:
+  in:
+    - backend/package.json
+    - backend/tests/**
+  out:
+    - Application code
+
+context:
+  issues: []
+  related_docs:
+    - changelog/2025-10-02-fitness-functions.md
+  repo_paths:
+    - backend/package.json
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: npm
+      version: "9.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+
+plan:
+  - id: 1
+    title: Add scripts
+    details: Use jest path patterns or tags to filter suites.
+    commands: []
+  - id: 2
+    title: Validate
+    details: Run the new scripts.
+    commands:
+      - cd backend && npm run test:core-flow --silent || true
+      - cd backend && npm run test:worker-flow --silent || true
+      - cd backend && npm run test:schema-diff --silent || true
+
+acceptance_criteria:
+  - Three scripts exist and execute matching subsets without erroring out.
+
+validation:
+  commands:
+    - cd backend && npm run test:core-flow --silent || true
+    - cd backend && npm run test:worker-flow --silent || true
+    - cd backend && npm run test:schema-diff --silent || true
+  manual_checks:
+    - Confirm test selection is appropriate.
+  artifacts:
+    - screenshots: []
+
+deliverables:
+  - backend/package.json
+
+risks:
+  - description: Overlapping patterns select unintended tests.
+    mitigation: Iterate patterns and add directory-level conventions.
+
+order: 1
+

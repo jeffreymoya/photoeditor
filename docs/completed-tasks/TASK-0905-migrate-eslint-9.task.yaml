@@ -1,0 +1,291 @@
+# Task: Migrate ESLint from v8 to v9 (EOL October 2024)
+# Area: ops (developer tooling)
+# Priority: P2 (technical debt, no CVEs)
+
+schema_version: "1.1"
+id: TASK-0905
+title: "Migrate ESLint from v8.57.1 to v9 with flat config"
+status: completed
+blocked_reason:
+priority: P2
+area: ops
+unblocker: false
+order:
+blocked_by: [TASK-0904]  # Wait for backend Powertools migration to complete before tooling changes
+depends_on: []
+agent_completion_state:
+  task_implementer:
+    completed: true
+    timestamp: "2025-11-06T01:17:00Z"
+    output_path: ".agent-output/task-implementer-summary-TASK-0905.md"
+  implementation_reviewer:
+    completed: true
+    timestamp: "2025-11-08T07:08:00Z"
+    output_path: ".agent-output/implementation-reviewer-summary-TASK-0905.md"
+  validation_shared:
+    completed: true
+    timestamp: "2025-11-08T07:13:00Z"
+    output_path: "docs/tests/reports/2025-11-08-validation-shared.md"
+  validation_backend:
+    completed: true
+    timestamp: "2025-11-08T07:15:00Z"
+    output_path: "docs/tests/reports/2025-11-08-validation-backend-TASK-0905.md"
+  validation_mobile:
+    completed: true
+    timestamp: "2025-11-08T07:17:00Z"
+    output_path: "docs/tests/reports/TASK-0905-mobile-validation-2025-11-08.md"
+
+clarifications:
+  outstanding: []
+  evidence_path: "docs/evidence/tasks/TASK-0905-clarifications.md"
+
+description: >-
+  The monorepo currently uses ESLint v8.57.1, which reached EOL in October 2024.
+  ESLint 8 shows deprecation warnings for @humanwhocodes/config-array and
+  @humanwhocodes/object-schema (internal dependencies). ESLint 9 is the current
+  stable version but introduces breaking changes requiring flat config migration
+  (no legacy .eslintrc.* support). All ESLint plugins must support v9. Migrating
+  resolves deprecation warnings for humanwhocodes packages, glob, rimraf, and
+  inflight (all transitive via ESLint 8). This is a complex, high-effort migration
+  affecting all workspaces (backend, mobile, shared, tooling).
+
+outcome: >-
+  All workspaces migrated to ESLint v9 with flat config (eslint.config.js), all
+  plugins updated to v9-compatible versions, lint commands pass across all packages,
+  and deprecation warnings for humanwhocodes/glob/rimraf/inflight eliminated.
+
+scope:
+  in:
+  - ESLint version in all package.json files (root, backend, mobile, shared, 
+    tooling)
+  - ESLint plugin compatibility verification
+  - Migration from .eslintrc.* to eslint.config.js flat config
+  - Lint command validation across all workspaces
+  out:
+  - Security CVE fixes (TASK-0902, TASK-0903)
+  - Backend Powertools migration (TASK-0904)
+  - Functional code changes (linting config only)
+  - Prettier or other tooling (separate concerns)
+
+context:
+  affected_packages: [backend, mobile, shared, tooling]
+  standards_tier: ops
+  related_docs:
+  - standards/global.md
+  - standards/typescript.md
+  - ESLint v9 migration guide 
+    (https://eslint.org/docs/latest/use/migrate-to-9.0.0)
+  - ESLint flat config guide 
+    (https://eslint.org/docs/latest/use/configure/configuration-files)
+  repo_paths:
+  - ".eslintrc.* (root and all workspaces)"
+  - "eslint.config.js (new flat config files)"
+  - "*/package.json (ESLint dependencies)"
+  - pnpm-lock.yaml
+  dependencies:
+  - "eslint@^9.0.0"
+  - "@typescript-eslint/eslint-plugin@^8.0.0+ (v9 compatible)"
+  - "@typescript-eslint/parser@^8.0.0+ (v9 compatible)"
+  - All other ESLint plugins (compatibility TBD)
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+  - name: pnpm
+    version: "8.x"
+  - name: eslint
+    version: "9.x"
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+  - Research all ESLint plugin v9 compatibility before migration.
+  - Convert .eslintrc.* to flat config incrementally per workspace.
+  - Preserve existing lint rules (no rule changes during migration).
+  - Test lint commands after each workspace migration.
+  prohibited:
+  - No lint rule changes (config migration only).
+  - No code style changes (preserve existing standards).
+
+plan:
+- id: 1
+  title: Research ESLint 9 and plugin compatibility
+  details: >-
+    Review ESLint v9 migration guide and flat config documentation. Verify all
+    current ESLint plugins support v9 (check npm registry and plugin docs). Document
+    breaking changes and incompatible plugins. Satisfies standards/global.md
+    requirement for evidence-based major tool updates.
+  actor: agent
+  inputs:
+  - Root and workspace package.json files (ESLint plugin versions)
+  - ESLint v9 migration guide (web)
+  - ESLint flat config guide (web)
+  - Plugin compatibility research (npm registry, GitHub)
+  outputs:
+  - docs/evidence/tasks/TASK-0905-clarifications.md (plugin compatibility 
+    matrix, breaking changes)
+  definition_of_done:
+  - All current ESLint plugins compatibility verified (v9 support or 
+    alternatives identified)
+  - ESLint 9 breaking changes documented
+  - Flat config migration strategy documented
+  - Incompatible plugins identified with replacement options
+  estimate: M
+  expected_files_touched: []
+- id: 2
+  title: Update ESLint and plugins to v9-compatible versions
+  details: >-
+    Update eslint to ^9.0.0 in all package.json files. Update all plugins to
+    v9-compatible versions per compatibility research. Run pnpm install to
+    regenerate lockfile. Address peer dependency warnings. Aligns with
+    standards/global.md dependency update practices.
+  actor: agent
+  inputs:
+  - Root and workspace package.json files
+  - docs/evidence/tasks/TASK-0905-clarifications.md (compatibility matrix)
+  outputs:
+  - "*/package.json (updated ESLint and plugins)"
+  - pnpm-lock.yaml (regenerated)
+  definition_of_done:
+  - All package.json files show eslint@^9.0.0
+  - All ESLint plugins updated to v9-compatible versions
+  - pnpm install completes without peer dependency errors
+  - No incompatible plugins remaining
+  estimate: M
+  expected_files_touched:
+  - package.json (root)
+  - backend/package.json
+  - mobile/package.json
+  - shared/package.json
+  - tooling/package.json (if exists)
+  - pnpm-lock.yaml
+- id: 3
+  title: Migrate .eslintrc.* to flat config (eslint.config.js)
+  details: >-
+    Convert all .eslintrc.* files to eslint.config.js flat config format per
+    ESLint v9 migration guide. Preserve existing lint rules and configurations.
+    Migrate incrementally per workspace (root → shared → backend → mobile → tooling).
+    Verify lint commands pass after each migration. Per standards/typescript.md,
+    maintain strict linting standards during migration.
+  actor: agent
+  inputs:
+  - .eslintrc.* (all workspaces)
+  - ESLint flat config guide
+  - docs/evidence/tasks/TASK-0905-clarifications.md (migration strategy)
+  outputs:
+  - eslint.config.js (root and all workspaces)
+  - .eslintrc.* files deleted after migration
+  definition_of_done:
+  - All .eslintrc.* files converted to eslint.config.js
+  - Lint rules preserved (no rule changes)
+  - Flat config syntax correct per ESLint v9 spec
+  - Legacy .eslintrc.* files removed
+  estimate: L
+  expected_files_touched:
+  - eslint.config.js (root)
+  - backend/eslint.config.js
+  - mobile/eslint.config.js
+  - shared/eslint.config.js
+  - tooling/eslint.config.js (if exists)
+  - .eslintrc.* (deleted)
+- id: 4
+  title: Validate lint commands across all workspaces
+  details: >-
+    Run lint:fix and qa:static (includes lint check) for all workspaces. Verify
+    no new lint errors introduced. Capture output for evidence. Per standards/testing-standards.md,
+    static analysis must pass for all packages.
+  actor: agent
+  inputs:
+  - All workspace eslint.config.js files
+  outputs:
+  - docs/evidence/tasks/TASK-0905-clarifications.md (lint validation results)
+  definition_of_done:
+  - lint:fix passes for all workspaces (backend, mobile, shared, tooling)
+  - qa:static passes for all workspaces
+  - No new lint errors introduced
+  - Existing lint errors (if any) preserved (no regression)
+  estimate: M
+  expected_files_touched: []
+- id: 5
+  title: Verify deprecation warnings eliminated
+  details: >-
+    Run pnpm install and verify deprecation warnings for @humanwhocodes/config-array,
+    @humanwhocodes/object-schema, glob, rimraf, and inflight are eliminated.
+    Capture pnpm install output as evidence. Per standards/global.md, dependency
+    updates must resolve stated issues.
+  actor: agent
+  inputs:
+  - Updated ESLint 9 configuration
+  outputs:
+  - docs/evidence/tasks/TASK-0905-clarifications.md (pnpm install output, 
+    deprecation resolution)
+  definition_of_done:
+  - pnpm install shows no deprecation warnings for humanwhocodes packages
+  - pnpm install shows no deprecation warnings for glob/rimraf/inflight
+  - ESLint 9 confirmed via eslint --version
+  estimate: S
+  expected_files_touched: []
+
+validation:
+  pipeline:
+  - command: pnpm turbo run lint:fix --parallel
+    description: Auto-fix linting issues across all workspaces
+  - command: pnpm turbo run qa:static --parallel
+    description: Run static analysis (typecheck + lint) across all workspaces
+  - command: pnpm install
+    description: Verify deprecation warnings eliminated (humanwhocodes, glob, 
+      rimraf, inflight)
+  manual_checks:
+  - Manually verify eslint.config.js flat config syntax is correct per ESLint v9
+    spec
+  - Review pnpm install output to confirm deprecation warnings eliminated
+  - Spot-check lint rules preserved (compare before/after lint output for sample
+    files)
+
+acceptance_criteria:
+  must:
+  - All package.json files list eslint@^9.0.0
+  - All ESLint plugins updated to v9-compatible versions
+  - All .eslintrc.* files converted to eslint.config.js flat config
+  - Legacy .eslintrc.* files removed
+  - Lint rules preserved (no rule changes during migration)
+  - lint:fix passes for all workspaces
+  - qa:static passes for all workspaces
+  - pnpm install shows no deprecation warnings for 
+    humanwhocodes/glob/rimraf/inflight
+  - No new lint errors introduced
+  quality_gates:
+  - standards/global.md dependency update requirements satisfied
+  - standards/typescript.md strict linting maintained
+  - No lint regressions across any workspace
+
+artifacts:
+- path: docs/evidence/tasks/TASK-0905-clarifications.md
+  description: Plugin compatibility matrix, migration strategy, lint validation 
+    results, deprecation resolution
+
+deliverables:
+- "*/package.json (eslint@^9.0.0 and updated plugins)"
+- eslint.config.js (root and all workspaces)
+- pnpm-lock.yaml (regenerated)
+- docs/evidence/tasks/TASK-0905-clarifications.md
+
+risks:
+- description: ESLint plugin incompatibilities block migration
+  mitigation: Research plugin compatibility before updating, identify 
+    alternatives for incompatible plugins, test incrementally per workspace
+- description: Flat config migration introduces new lint errors
+  mitigation: Preserve existing lint rules during migration, test lint commands 
+    after each workspace conversion
+- description: Breaking changes in ESLint 9 affect custom rules
+  mitigation: Review ESLint v9 breaking changes guide, test custom rules (if 
+    any) with v9 API
+- description: Monorepo-wide change increases merge conflict risk
+  mitigation: Complete migration in single focused PR, coordinate with other 
+    work to avoid parallel changes to lint config

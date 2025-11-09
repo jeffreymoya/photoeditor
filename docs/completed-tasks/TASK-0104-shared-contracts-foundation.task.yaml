@@ -1,0 +1,243 @@
+schema_version: "1.0"
+id: TASK-0104
+title: "Establish shared contracts workspace and drift gate"
+status: completed
+priority: P0
+complexity: M
+area: backend
+
+description: >-
+  Phase 0 of docs/architecure-refactor-plan.md calls for extracting `@photoeditor/shared` as a
+  workspace and wiring both the Nest BFF and React Native client to consume the same schema package,
+  while docs/rubric.md makes zero contract drift a Stage 1 gate. Today the repo treats `shared/`
+  as an ad-hoc folder with file: dependencies and the mobile app ships its own Zod schemas, so
+  backend and mobile types diverge silently. Convert the repo into an npm workspaces monorepo,
+  publish `@photoeditor/shared` as a build artifact, and add a `contracts:check` CI script that fails
+  when the generated contracts mismatch to lock in maintainability.
+
+outcome: >-
+  `@photoeditor/shared` builds once, is consumed via workspace dependency by backend and mobile,
+  and a deterministic `npm run contracts:check` command verifies generated API contracts in CI so any
+  incompatible change is caught before merge.
+
+scope:
+  in:
+    - package.json (workspace configuration)
+    - package-lock.json
+    - shared/package.json
+    - backend/package.json
+    - mobile/package.json
+    - tooling/dependency-rules.json
+    - .github/workflows
+  out:
+    - Runtime logic inside backend lambdas beyond import path adjustments
+    - Mobile UI components that do not touch API contracts
+    - Breaking API changes without version bump (STANDARDS.md line 40)
+    - Dependency cycles anywhere in the monorepo (STANDARDS.md line 24)
+    - Deep imports into mobile features (STANDARDS.md line 26)
+    - Publishing @photoeditor/shared outside the workspace (local-only)
+
+context:
+  issues: []
+  related_docs:
+    - docs/architecure-refactor-plan.md
+    - docs/rubric.md
+    - docs/requirements.md
+    - STANDARDS.md (lines 24, 40, 52, 56, 63-66, 71, 101, 218, 227-228, 238-243)
+    - docs/testing-standards.md (contract tests, evidence requirements)
+  repo_paths:
+    - package.json
+    - backend/package.json
+    - mobile/package.json
+    - shared/package.json
+    - tooling/dependency-rules.json
+    - .github/workflows
+  dependencies:
+    - type: tool
+      name: npm
+      version: ">=9"
+    - type: tool
+      name: node
+      version: "20.x"
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: npm
+      version: "9.x"
+    - name: bash
+      version: any
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep the workspace layout compatible with existing lint/typecheck scripts in package.json.
+    - Follow docs/rubric.md contract drift requirements when naming commands and CI jobs.
+    - No dependency cycles anywhere in the monorepo (STANDARDS.md line 24 hard fail).
+    - shared package must be framework-agnostic and SemVered (STANDARDS.md line 64).
+    - API Extractor + changesets required for all shared libs (STANDARDS.md line 65).
+    - Contract tests must validate old↔new client/server compatibility (STANDARDS.md line 101).
+    - Structured logs must include correlationId, traceId, requestId (STANDARDS.md line 71).
+  prohibited:
+    - Do not publish the package outside the repo; stay on local workspace linking.
+    - Do not break existing build scripts without providing updated equivalents.
+    - No breaking API changes without /v{n} versioning (STANDARDS.md line 40).
+    - No cross-feature imports in mobile (STANDARDS.md line 52).
+    - No lateral imports between layers (STANDARDS.md line 24).
+
+plan:
+  - id: 1
+    title: Audit existing dependency wiring
+    details: Review how backend and mobile currently import schema/types and confirm gaps.
+    commands:
+      - npm pkg get workspaces
+      - rg -n "@photoeditor/shared" -g '*.ts' backend mobile || true
+    expected_files_touched: []
+  - id: 2
+    title: Enable npm workspaces
+    details: Configure root package.json workspaces and ensure package-lock regeneration keeps consistent versions.
+    commands:
+      - npm install
+    expected_files_touched:
+      - package.json
+      - package-lock.json
+  - id: 3
+    title: Wire shared contracts into clients
+    details: Update backend and mobile package manifests/imports to source DTOs and Zod schemas from the shared package.
+    commands: []
+    expected_files_touched:
+      - backend/package.json
+      - mobile/package.json
+      - backend/src/**/*
+      - mobile/src/**/*
+  - id: 4
+    title: Add contracts:check guard
+    details: Implement build artifact comparison script and hook it into CI per rubric maintainability gating.
+    commands: []
+    expected_files_touched:
+      - package.json
+      - shared/package.json
+      - .github/workflows/*.yml
+  - id: 5
+    title: Configure API Extractor and dependency-cruiser
+    details: Set up API Extractor for shared package to track API surface changes (STANDARDS.md line 65, 228) and update dependency-cruiser rules to enforce workspace boundaries (STANDARDS.md line 24, 218).
+    commands:
+      - npm install --save-dev @microsoft/api-extractor dependency-cruiser
+    expected_files_touched:
+      - shared/api-extractor.json
+      - tooling/dependency-rules.json
+      - package.json
+  - id: 6
+    title: Generate evidence artifacts
+    details: Create import graphs, dependency reports, and contract compatibility matrix per STANDARDS.md evidence requirements (line 238-243).
+    commands:
+      - npm run analyze:deps
+      - npm run validate:deps
+      - npm run test:contracts
+    expected_files_touched:
+      - docs/evidence/import-graph.png
+      - docs/evidence/dependency-cruiser-report.html
+      - docs/evidence/contract-compatibility-matrix.md
+
+acceptance_criteria:
+  - Root package.json declares npm workspaces for backend, mobile, and shared; lockfile is regenerated cleanly.
+  - Backend lambdas and React Native code import DTOs/Zod schemas from `@photoeditor/shared` with no residual duplicated definitions.
+  - "`npm run contracts:check` (or equivalent) runs without manual setup and fails when contracts diverge from generated snapshots."
+  - CI workflow executes the contract check gate on every PR.
+
+  # STANDARDS.md Maintainability (Reusability - line 63-66)
+  - "@photoeditor/shared is framework-agnostic (no React/Nest dependencies)."
+  - API Extractor configured for shared package with changesets for semver enforcement.
+  - Shared package has SemVer in package.json; changelog generated on version bump.
+
+  # STANDARDS.md Maintainability (Modularity - line 24, 56)
+  - dependency-cruiser validates no cycles, no lateral imports, max fan-in ≤15 / fan-out ≤12.
+  - Import graph artifact generated showing clean layer separation (handlers → services → adapters).
+
+  # STANDARDS.md Maintainability (Analysability - line 71)
+  - Structured JSON logs with correlationId, traceId, requestId propagated in all touched code.
+
+  # STANDARDS.md Hard Fails (line 40, 101)
+  - Contract compatibility matrix tests pass (old client ↔ new server, new client ↔ old server).
+  - OpenAPI semantic diff shows no breaking changes without /v{n} versioning.
+
+  # STANDARDS.md Testability (line 97-104)
+  - Contract tests for DTOs/schemas validate backward compatibility.
+  - Dead code detection (knip) passes with no circular exports.
+
+validation:
+  commands:
+    # Build and typecheck
+    - npm run build --prefix shared
+    - npm run typecheck --prefix backend
+    - npm run typecheck --prefix mobile
+    - npm run contracts:check
+
+    # STANDARDS.md Hard Fail Prevention (line 24, 218)
+    - npm run validate:deps || dependency-cruiser --validate tooling/dependency-rules.json
+    - "! grep -r 'import.*from.*\\.\\./\\.\\./' backend/src/lambdas/ || echo 'No lateral imports in handlers'"
+
+    # STANDARDS.md Maintainability (Modularity - line 56, 227)
+    - npm run analyze:deps || echo "Generate import graph and fan-in/out metrics"
+
+    # STANDARDS.md Testability (line 227)
+    - npm run knip || echo "Dead code and circular export detection"
+
+    # STANDARDS.md Hard Fail (line 40, 228)
+    - npm run test:contracts || echo "Contract compatibility matrix validation"
+
+    # STANDARDS.md Reusability (line 228)
+    - cd shared && npm run api-extractor || echo "API surface change detection"
+
+  manual_checks:
+    - Inspect git diff to ensure no duplicate schema definitions remain in backend or mobile.
+    - Verify workspace dependency resolution shows @photoeditor/shared as workspace link.
+    - Confirm no transitive dependencies leak framework-specific types into shared package.
+
+  artifacts:
+    - shared/dist
+    - docs/evidence/import-graph.png
+    - docs/evidence/dependency-cruiser-report.html
+    - shared/api-extractor-report.json
+
+deliverables:
+  - package.json (workspaces + scripts)
+  - package-lock.json
+  - backend/package.json
+  - mobile/package.json
+  - shared/scripts/contract-check.ts (or similar)
+  - .github/workflows/ci.yml
+
+  # STANDARDS.md Evidence Requirements (line 238-243)
+  - docs/evidence/import-graph.png (architecture visualization)
+  - docs/evidence/dependency-cruiser-report.html (layer validation)
+  - docs/evidence/contract-compatibility-matrix.md (old↔new validation)
+  - shared/api-extractor-report.json (API surface tracking)
+  - shared/CHANGELOG.md (SemVer history)
+  - tooling/dependency-rules.json (updated with workspace patterns)
+
+risks:
+  - description: Enabling npm workspaces could surface transitive dependency mismatches or break local tooling.
+    mitigation: Validate existing lint/typecheck scripts and update documentation if new bootstrap steps are required.
+
+  # STANDARDS.md Hard Fail Risks (line 24, 32, 40)
+  - description: "Risk: Introducing dependency cycles during workspace refactor (STANDARDS.md line 24 hard fail)."
+    mitigation: Run dependency-cruiser validation after each step; fail fast on cycle detection.
+
+  - description: "Risk: Breaking API contracts when consolidating schemas without versioning (STANDARDS.md line 40 hard fail)."
+    mitigation: Generate contract compatibility matrix before/after; require /v{n} for breaking changes.
+
+  - description: "Risk: Framework-specific dependencies leaking into @photoeditor/shared breaks reusability (STANDARDS.md line 64)."
+    mitigation: Configure API Extractor to detect type leakage; use dependency-cruiser rules to ban React/Nest imports in shared.
+
+  - description: "Risk: Missing structured logging after import path changes reduces analysability (STANDARDS.md line 71)."
+    mitigation: Verify correlationId/traceId propagation in contract tests; add log sample to evidence bundle.
+
+  - description: "Risk: Fan-in/fan-out metrics degrade during consolidation (STANDARDS.md line 56 warn threshold)."
+    mitigation: Baseline current metrics; alert on Δ>10%; require ADR if Δ>20%.

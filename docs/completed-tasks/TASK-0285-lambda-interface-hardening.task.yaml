@@ -1,0 +1,107 @@
+schema_version: "1.0"
+id: TASK-0285
+title: "Wrap Lambda handlers with Middy + injected services"
+status: completed
+priority: P0
+area: backend
+
+description: >-
+  backend/src/lambdas/{presign,status,worker,download}.ts construct services, AWS clients, and providers inline.
+  This violates standards/backend-tier.md (controllers must depend on injected ports, Middy wrapper required for
+  Edge & Interface layer fitness gates). We need to refactor the Lambdas to use Middy middleware stacks, inject
+  prebuilt services/adapters from the shared core, and eliminate in-handler bootstrapping.
+
+outcome: >-
+  All Lambda handlers consume dependencies via Middy context (or Nest bridge) with zero direct new Service()
+  calls inside handlers; initialization happens in dedicated bootstrap modules that respect controller→service→port.
+
+scope:
+  in:
+    - backend/src/lambdas/**/*.ts
+    - backend/libs/core/providers/*.ts
+    - backend/tests/unit/lambdas/**/*.test.ts
+    - backend/.dependency-cruiser.js
+  out:
+    - Provider implementations themselves (beyond wiring)
+    - Non-backend packages
+    - Infra IaC definitions
+
+context:
+  issues: []
+  related_docs:
+    - standards/global.md
+    - standards/AGENTS.md
+    - standards/backend-tier.md
+    - standards/testing-standards.md
+    - TURBO_ISSUES.md
+  repo_paths:
+    - backend/src/lambdas/presign.ts
+    - backend/src/lambdas/status.ts
+    - backend/src/lambdas/worker.ts
+    - backend/src/lambdas/download.ts
+    - backend/tests/unit/lambdas
+  dependencies:
+    - type: package
+      name: middy
+      requirement: new_dependency
+    - type: package
+      name: "@aws-lambda-powertools"
+      requirement: keep
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: pnpm
+      version: "8.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep handlers ≤75 LOC, complexity ≤10.
+    - Inject services via Middy middleware container.
+  prohibited:
+    - In-handler `new Service()` calls.
+    - Direct AWS SDK imports in handlers.
+  architecture:
+    - "Controller → UseCase(Service) → Port layering"
+    - "Powertools middleware for tracing/logging"
+
+implementation_plan:
+  - step: Introduce a Middy bootstrap module per handler
+    detail: Extract initializeServices into provider/service factories and wrap handler in Middy.
+  - step: Replace manual tracing with Middy Powertools plugins
+    detail: Use @aws-lambda-powertools/commons middlewares for metrics/logger/tracer.
+  - step: Update tests and dep-cruiser rules
+    detail: Add unit coverage for Middy-wrapped handlers; tighten dep-cruiser to forbid direct service instantiation.
+
+validation:
+  commands:
+    - pnpm --filter @photoeditor/backend lint
+    - pnpm --filter @photoeditor/backend test:unit
+    - pnpm --filter @photoeditor/backend dep:validate
+  manual_checks:
+    - Confirm cold-start logs show Middy initialization once.
+    - Verify Powertools tracer spans exist in CloudWatch for handler invocations.
+  artifacts:
+    - screenshots: []
+
+deliverables:
+  - backend/src/lambdas/**/*.ts
+  - backend/tests/unit/lambdas/**/*.test.ts
+  - backend/.dependency-cruiser.js
+
+evidence:
+  quality:
+    - path: logs/middy-handler-run.txt
+      description: "Invocation logs showing Middy middleware pipeline"
+
+risks:
+  - description: Middy bundling increases cold start.
+    mitigation: Measure bundle size and use ESBuild tree-shaking; add Powertools logger only once.
+  - description: Refactor breaks existing handler contracts.
+    mitigation: Keep current signatures intact; expand unit tests and contract tests.

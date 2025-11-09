@@ -14,7 +14,7 @@ type SchemaInfer<TSchema extends ZodTypeAny> = z.infer<TSchema>;
 
 export async function flushMicrotasks(iterations = 2): Promise<void> {
   for (let i = 0; i < iterations; i += 1) {
-    // eslint-disable-next-line no-await-in-loop
+     
     await Promise.resolve();
   }
 }
@@ -48,9 +48,9 @@ export async function advanceTimersUntilSettled<T>(
   await flushMicrotasks();
 
   for (let cycle = 0; cycle < maxCycles && !settled; cycle += 1) {
-    // eslint-disable-next-line no-await-in-loop
+     
     await jest.advanceTimersByTimeAsync(stepMs);
-    // eslint-disable-next-line no-await-in-loop
+     
     await flushMicrotasks();
   }
 

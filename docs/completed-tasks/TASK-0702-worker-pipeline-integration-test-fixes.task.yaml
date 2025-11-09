@@ -1,0 +1,342 @@
+schema_version: "1.0"
+id: TASK-0702
+title: "Fix worker-pipeline integration test failures"
+status: completed
+priority: P0
+complexity: M
+area: backend
+
+description: >-
+  Six tests in worker-pipeline.integration.test.ts are failing despite the test
+  suite now running without circular structure errors. The failures indicate
+  issues with provider mock wiring, S3 operation tracking, batch job progress
+  updates, and error handling assertions. These tests verify critical end-to-end
+  worker behavior per STANDARDS.md lines 98-100 (service/adapter coverage ≥80%
+  lines, ≥70% branches) and docs/testing-standards.md integration test requirements.
+
+outcome: >-
+  All 9 worker-pipeline integration tests pass. Provider invocations are tracked,
+  S3 fallback operations are recorded, batch job progress increments correctly,
+  and error handling behaves as expected. Test output shows 30/30 tests passing
+  across all three integration test suites.
+
+scope:
+  in:
+    - backend/tests/integration/worker-pipeline.integration.test.ts
+    - backend/tests/helpers/provider-stubs.ts (TestProviderFactory tracking)
+    - backend/tests/helpers/s3-spy.ts (S3 operation tracking)
+    - backend/src/lambdas/worker.ts (error handling and batch progress logic)
+    - backend/src/services/job.service.ts (batch job progress methods)
+    - Integration test validation per testing-standards.md lines 130-163
+    - Evidence artifacts per backend-tier.md lines 106-111
+  out:
+    - Changes to presign-status or shared-core integration tests (already passing)
+    - Production code refactoring beyond test fixes
+    - Adding new test cases (focus on fixing existing 6 failures)
+    - Changes to test setup infrastructure (already fixed)
+    - Mock/spy implementation changes that affect other test files
+    - Handler imports of @aws-sdk/* (backend-tier.md line 20)
+    - Breaking handler → service → adapter layering (backend-tier.md lines 20-23)
+    - Skipping hard fail prevention checks (global.md lines 21-28)
+    - Manual-only test validation (testing-standards.md line 420)
+    - Real AWS calls in integration tests (use LocalStack only, testing-standards.md lines 139-148)
+
+context:
+  issues: []
+  related_docs:
+    - standards/global.md
+    - standards/backend-tier.md
+    - docs/testing-standards.md
+    - CLAUDE.md
+  repo_paths:
+    - backend/tests/integration/worker-pipeline.integration.test.ts
+    - backend/tests/helpers/provider-stubs.ts
+    - backend/tests/helpers/s3-spy.ts
+    - backend/src/lambdas/worker.ts
+    - backend/src/services/job.service.ts
+  dependencies:
+    - type: service
+      name: localstack
+      requirement: required
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: npm
+      version: "9.x"
+    - name: bash
+      version: any
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep diffs minimal and focused on fixing test failures.
+    - Do not modify production code unless absolutely necessary.
+    - Preserve existing test structure and patterns.
+  prohibited:
+    - Do not change unrelated test files.
+    - Do not skip or disable failing tests.
+    - Do not modify STANDARDS.md thresholds.
+    - Do not introduce handler imports of @aws-sdk/* (backend-tier.md line 20)
+    - Do not skip hard fail prevention checks (global.md lines 21-28)
+  architecture:
+    - Integration tests per docs/testing-standards.md lines 130-163
+    - Service coverage ≥80% lines, ≥70% branches (backend-tier.md line 108)
+    - Mutation score ≥60% (backend-tier.md line 108, global.md line 23)
+    - No handler AWS SDK imports (backend-tier.md line 20)
+    - Handler → Service → Adapter layering enforced (backend-tier.md lines 20-23)
+    - Handlers ≤75 LOC, CC ≤10 (backend-tier.md line 110)
+    - Services/Adapters ≤200 LOC, CC ≤15 (backend-tier.md line 110)
+    - LocalStack required for integration tests (testing-standards.md lines 139-148)
+    - Idempotency validation for SQS worker (testing-standards.md line 134)
+    - DLQ redrive tests automated (testing-standards.md line 135)
+
+plan:
+  - id: 1
+    title: Investigate provider mock wiring
+    details: >-
+      Tests 2 & 3 fail because analysisInvocations[0] is undefined, meaning the
+      TestProviderFactory isn't recording calls. Check if the bootstrapSpy mock
+      is correctly applied before worker import and if the worker handler uses
+      the mocked factory.
+    commands:
+      - rg -n "bootstrapSpy|TestProviderFactory" backend/tests/integration/worker-pipeline.integration.test.ts
+      - rg -n "initializeProviders|providerFactory" backend/src/lambdas/worker.ts
+    expected_files_touched: []
+
+  - id: 2
+    title: Fix provider invocation tracking
+    details: >-
+      Ensure the TestProviderFactory is properly wired and invocations are
+      recorded. Verify the mock is applied before the worker handler import
+      and that the factory's getAnalysisProvider() returns the stub.
+    commands: []
+    expected_files_touched:
+      - backend/tests/integration/worker-pipeline.integration.test.ts
+      - backend/tests/helpers/provider-stubs.ts
+    architecture_checklist:
+      - Worker handler uses mocked BootstrapService
+      - TestProviderFactory records all provider method calls
+      - Stubs return deterministic responses for testing
+
+  - id: 3
+    title: Investigate S3 copy operation tracking
+    details: >-
+      Test 4 expects S3Spy to record copy operations during fallback but gets
+      zero operations. Check if S3Spy wraps the S3 client used by S3Service
+      and if copyObject calls are properly intercepted.
+    commands:
+      - rg -n "S3Spy|copyObject" backend/tests/integration/worker-pipeline.integration.test.ts
+      - rg -n "copyObject" backend/src/services/s3.service.ts
+    expected_files_touched: []
+
+  - id: 4
+    title: Fix S3 copy operation recording
+    details: >-
+      Ensure S3Spy intercepts S3Service copyObject calls. May need to adjust
+      spy setup timing or ensure S3Service uses the wrapped client.
+    commands: []
+    expected_files_touched:
+      - backend/tests/integration/worker-pipeline.integration.test.ts
+      - backend/tests/helpers/s3-spy.ts
+
+  - id: 5
+    title: Investigate batch job progress tracking
+    details: >-
+      Tests 5 & 6 show batch job completedCount stays at 0 and status remains
+      QUEUED. Check if JobService.incrementBatchJobProgress is called in worker
+      handler and if DynamoDB updates are committed correctly.
+    commands:
+      - rg -n "incrementBatchJobProgress|batchJobId" backend/src/lambdas/worker.ts
+      - rg -n "incrementBatchJobProgress" backend/src/services/job.service.ts
+    expected_files_touched: []
+
+  - id: 6
+    title: Fix batch job progress updates
+    details: >-
+      Debug and fix batch job progress tracking. Verify JobService methods are
+      called correctly and DynamoDB updates persist. May need to add logging
+      or verify test setup creates batch jobs properly.
+    commands: []
+    expected_files_touched:
+      - backend/tests/integration/worker-pipeline.integration.test.ts
+      - backend/src/lambdas/worker.ts
+      - backend/src/services/job.service.ts
+
+  - id: 7
+    title: Fix error handling test expectations
+    details: >-
+      Test 7 expects handler to reject/throw on invalid S3 key but it resolves.
+      Check worker error handling at worker.ts:181-193 and verify invalid keys
+      are detected and re-thrown.
+    commands:
+      - rg -n "processS3Event|parseTempKey" backend/src/lambdas/worker.ts
+    expected_files_touched:
+      - backend/tests/integration/worker-pipeline.integration.test.ts
+      - backend/src/lambdas/worker.ts
+
+  - id: 8
+    title: Run integration tests and verify all fixes
+    details: >-
+      Execute full integration test suite to confirm all 30 tests pass across
+      the three test files.
+    commands:
+      - npm run test:integration --prefix backend
+    expected_files_touched: []
+
+  - id: 9
+    title: Verify standards compliance and generate evidence artifacts
+    details: >-
+      Run all validation commands to ensure alignment with backend-tier.md and
+      global.md requirements. Generate evidence artifacts for mutation testing,
+      coverage reports, dependency graph, and structured logs. This step ensures
+      hard fail prevention, complexity budgets, and testability requirements are met.
+    commands:
+      - "! grep -r '@aws-sdk' backend/src/lambdas/"
+      - npm run typecheck --prefix backend
+      - npm run lint --prefix backend -- --max-warnings=0
+      - npm run test:mutation --prefix backend -- --threshold 60
+      - npm run depcruise --prefix backend
+      - npm run ts-prune --prefix backend
+      - npm run test:integration --prefix backend -- --coverage
+    expected_files_touched:
+      - docs/evidence/integration-tests/worker-pipeline.log
+      - docs/evidence/coverage-reports/integration-coverage.json
+      - docs/evidence/mutation-reports/services-mutation.html
+      - docs/evidence/dependency-graph/backend-depcruise.svg
+      - docs/evidence/logs/worker-structured-logs.json
+    architecture_checklist:
+      - No handler imports @aws-sdk/* (backend-tier.md line 20)
+      - Worker handler ≤75 LOC and CC ≤10 (backend-tier.md line 110)
+      - Service methods ≤200 LOC and CC ≤15 (backend-tier.md line 110)
+      - Mutation score ≥60% (backend-tier.md line 108)
+      - Integration coverage ≥60% (backend-tier.md line 108)
+      - Handler → Service → Adapter layering enforced, no cycles (backend-tier.md lines 20-23)
+      - Structured logs contain correlationId, jobId, requestId (global.md line 39)
+      - LocalStack used for all integration tests (testing-standards.md lines 139-148)
+
+acceptance_criteria:
+  # Test Fixes (Core Objective)
+  - All 9 worker-pipeline tests pass (3 currently passing + 6 fixed).
+  - Provider invocations are tracked correctly in tests 2 & 3 (analysisInvocations[0].request is defined).
+  - S3 copy operations are recorded in test 4 (copyOps.length > 0).
+  - Batch job progress increments in test 5 (completedCount === 1).
+  - Batch job status updates to COMPLETED in test 6.
+  - Error handling test 7 correctly expects and receives thrown error.
+  - Integration test suite reports 30/30 tests passing with exit code 0.
+  - No changes to presign-status or shared-core tests (remain passing).
+
+  # Testability (backend-tier.md lines 106-111, testing-standards.md lines 130-163)
+  - Integration tests validate SQS worker idempotency (duplicate message handling).
+  - Integration tests validate DLQ behavior and redrive automation.
+  - Integration tests validate end-to-end job lifecycle (API → S3 → Queue → Worker → DynamoDB).
+  - Service layer mutation score ≥60% (verified by StrykerJS).
+  - Integration test coverage ≥60% lines.
+
+  # Hard Fail Prevention (backend-tier.md line 20, testing-standards.md lines 240-249)
+  - No handler imports @aws-sdk/* (verified by grep).
+  - Worker handler uses dependency injection for AWS clients (backend-tier.md line 16).
+  - Structured JSON logs emit correlationId, jobId, requestId (global.md line 39).
+
+  # Modularity (backend-tier.md lines 106-111)
+  - Worker handler ≤75 LOC and CC ≤10 (verified by eslint).
+  - Service methods ≤200 LOC and CC ≤15.
+  - Handler → Service → Adapter layering verified (no cycles, no cross-layer violations).
+
+  # Analysability (testing-standards.md lines 313-322)
+  - Test output includes structured logs with correlationId for debugging.
+  - LocalStack health check passes before test execution.
+
+validation:
+  commands:
+    # Hard fail prevention (backend-tier.md line 20, testing-standards.md lines 240-249)
+    - "! grep -r '@aws-sdk' backend/src/lambdas/"
+
+    # Integration tests (testing-standards.md lines 150-155)
+    - npm run test:integration --prefix backend
+
+    # Type safety
+    - npm run typecheck --prefix backend
+
+    # Complexity checks (backend-tier.md line 110)
+    - npm run lint --prefix backend -- --max-warnings=0
+
+    # Mutation testing (backend-tier.md line 108, global.md line 23)
+    - npm run test:mutation --prefix backend -- --threshold 60
+
+    # Dependency graph validation (backend-tier.md lines 20-23, global.md line 24)
+    - npm run depcruise --prefix backend
+
+    # Dead code detection (global.md line 21)
+    - npm run ts-prune --prefix backend
+
+    # Coverage thresholds (backend-tier.md line 108)
+    - npm run test:integration --prefix backend -- --coverage --coverageThreshold='{"global":{"lines":60,"branches":60}}'
+
+  manual_checks:
+    - Review test output for 30/30 passing tests
+    - Verify LocalStack is running during test execution (testing-standards.md lines 139-148)
+    - Check structured logs contain correlationId, jobId, requestId (global.md line 39)
+    - Confirm no circular dependencies in depcruise report (global.md line 24)
+
+  artifacts:
+    - screenshots: []
+
+deliverables:
+  # Code Changes
+  - backend/tests/integration/worker-pipeline.integration.test.ts (fixed test logic)
+  - backend/tests/helpers/provider-stubs.ts (if invocation tracking needs fixes)
+  - backend/tests/helpers/s3-spy.ts (if copy operation tracking needs fixes)
+  - backend/src/lambdas/worker.ts (if error handling or batch logic needs fixes)
+  - backend/src/services/job.service.ts (if batch progress methods need fixes)
+
+  # Evidence Artifacts (backend-tier.md lines 106-111, testing-standards.md lines 156-163)
+  - path: docs/evidence/integration-tests/worker-pipeline.log
+    description: Integration test output showing 30/30 tests passing
+  - path: docs/evidence/coverage-reports/integration-coverage.json
+    description: Integration test coverage report (≥60% lines)
+  - path: docs/evidence/mutation-reports/services-mutation.html
+    description: StrykerJS mutation dashboard for service layer (≥60% score)
+  - path: docs/evidence/dependency-graph/backend-depcruise.svg
+    description: Dependency cruiser import graph showing handler → service → adapter layering
+  - path: docs/evidence/logs/worker-structured-logs.json
+    description: Sample structured logs with correlationId, jobId, requestId
+
+risks:
+  - description: Fixes may reveal deeper issues with worker Lambda implementation
+    mitigation: Focus on test wiring first; only modify production code if test setup is confirmed correct
+    severity: medium
+
+  - description: Mock/spy changes might affect other integration tests
+    mitigation: Run full integration suite after each change; verify presign-status and shared-core remain passing
+    severity: medium
+
+  - description: Batch job progress may require DynamoDB eventual consistency handling
+    mitigation: Add explicit waits or retry logic in tests if necessary
+    severity: low
+
+  - description: Handler complexity or LOC violations (backend-tier.md line 110)
+    mitigation: Worker handler must stay ≤75 LOC and CC ≤10; refactor to service layer if exceeded
+    severity: high
+
+  - description: Circular dependencies introduced during fixes (global.md line 24)
+    mitigation: Run depcruise after changes; handler → service → adapter flow must remain one-way
+    severity: high
+
+  - description: Missing DLQ configuration or idempotency checks (testing-standards.md lines 134-135)
+    mitigation: Integration tests must validate DLQ redrive and duplicate message handling explicitly
+    severity: high
+
+  - description: Mutation score falls below 60% threshold (backend-tier.md line 108)
+    mitigation: Ensure service layer has comprehensive edge case and error path tests
+    severity: medium
+
+  - description: Structured logging missing required fields (global.md line 39)
+    mitigation: Worker logs must emit correlationId, jobId, requestId; verify in test output
+    severity: medium

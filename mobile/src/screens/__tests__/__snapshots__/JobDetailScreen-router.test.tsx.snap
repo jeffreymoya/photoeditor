@@ -1,0 +1,110 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`JobDetailScreen should apply correct styling 1`] = `
+<RNCSafeAreaView
+  edges={
+    {
+      "bottom": "additive",
+      "left": "additive",
+      "right": "additive",
+      "top": "additive",
+    }
+  }
+  style={
+    {
+      "backgroundColor": "#F8F9FA",
+      "flex": 1,
+      "padding": 16,
+    }
+  }
+>
+  <Text
+    style={
+      {
+        "color": "#1D1D1F",
+        "fontSize": 24,
+        "fontWeight": "600",
+        "marginBottom": 24,
+      }
+    }
+  >
+    Job Details
+  </Text>
+  <View
+    style={
+      {
+        "backgroundColor": "#FFFFFF",
+        "borderRadius": 8,
+        "marginBottom": 16,
+        "padding": 16,
+      }
+    }
+  >
+    <Text
+      style={
+        {
+          "color": "#86868B",
+          "fontSize": 14,
+          "marginBottom": 4,
+        }
+      }
+    >
+      Job ID:
+    </Text>
+    <Text
+      style={
+        {
+          "color": "#1D1D1F",
+          "fontSize": 16,
+          "fontWeight": "500",
+        }
+      }
+    >
+      test-job-123
+    </Text>
+  </View>
+  <View
+    style={
+      {
+        "backgroundColor": "#FFFFFF",
+        "borderRadius": 8,
+        "marginBottom": 16,
+        "padding": 16,
+      }
+    }
+  >
+    <Text
+      style={
+        {
+          "color": "#86868B",
+          "fontSize": 14,
+          "marginBottom": 4,
+        }
+      }
+    >
+      Status:
+    </Text>
+    <Text
+      style={
+        {
+          "color": "#1D1D1F",
+          "fontSize": 16,
+          "fontWeight": "500",
+        }
+      }
+    >
+      Processing...
+    </Text>
+  </View>
+  <Text
+    style={
+      {
+        "color": "#007AFF",
+        "fontSize": 16,
+      }
+    }
+  >
+    ← Back to Jobs
+  </Text>
+</RNCSafeAreaView>
+`;

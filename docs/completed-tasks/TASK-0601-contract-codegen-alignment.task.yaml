@@ -1,0 +1,118 @@
+schema_version: "1.0"
+id: TASK-0601
+title: "Fix shared contract codegen gaps"
+status: completed
+priority: P1
+area: shared
+
+description: >-
+  Address the contract generation regressions uncovered during the 2025-10-11 alignment review.
+  Replace the current zod-to-json-schema workaround so the generated OpenAPI file is valid OpenAPI 3,
+  emit an rtk-query compatible client bundle, and ensure generated TypeScript exports are syntactically
+  correct. Capture the work in tooling/contracts/generate.js and related docs so downstream consumers
+  and CI get deterministic artifacts per standards/shared-contracts-tier.md.
+
+outcome: >-
+  Running `npm run contracts:generate` produces an OpenAPI 3.0 document without `#/definitions` refs,
+  writes an rtk-query client (or ADR-backed alternative) into docs/contracts/clients/, and generates
+  TypeScript exports that compile under `tsc --noEmit`. CI drift checks and contract compatibility tests
+  pass using the new artifacts.
+
+scope:
+  in:
+    - tooling/contracts/generate.js
+    - docs/contracts/clients/
+    - docs/openapi/openapi-generated.yaml
+    - shared/scripts or docs needed for regeneration guidance
+  out:
+    - Backend Lambda handlers (handled in separate task)
+    - Mobile runtime wiring beyond consuming regenerated client
+    - Publishing packages to npm registry
+    - Infra changes unrelated to contract generation
+    - Updating CI workflows beyond contract tooling hooks
+    - Device token or worker schemas not touched by generation
+    - Manual-only testing artifacts
+
+context:
+  issues: ["QA-2025-10-11"]
+  related_docs:
+    - standards/global.md
+    - standards/AGENTS.md
+    - standards/shared-contracts-tier.md
+    - docs/testing-standards.md
+    - docs/contracts/changeset-governance.md
+    - adr/0005-npm-workspaces-contract-drift-prevention.md
+  repo_paths:
+    - tooling/contracts/generate.js
+    - docs/contracts/clients/types.ts
+    - docs/contracts/clients/checksums.json
+    - docs/openapi/openapi-generated.yaml
+  dependencies:
+    - type: package
+      name: "@asteasolutions/zod-to-openapi"
+      version: ">=7.3"
+    - type: package
+      name: zod-to-ts
+      version: ">=1.2"
+    - type: package
+      name: "@rtk-query/codegen-openapi"
+      version: latest
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: npm
+      version: "10.x"
+    - name: bash
+      version: any
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep diffs minimal and adhere to shared package lint rules.
+  prohibited:
+    - Do not remove contract snapshot enforcement or API extractor gates.
+    - Do not bypass changeset governance.
+  architecture:
+    - "Zod schemas remain the SSOT; codegen consumes compiled dist output."
+    - "All generated artifacts committed with updated checksum per standards/shared-contracts-tier.md."
+    - "No React/React Native/AWS SDK imports inside shared package."
+    - "Deterministic generation (no local timestamps except documented metadata)."
+
+plan:
+  - id: 1
+    title: Audit current generation gaps
+    details: Inspect generated OpenAPI and client artifacts, validate syntax, and confirm CI scripts that consume them.
+    commands:
+      - npm run contracts:generate --dry-run 2>/dev/null || true
+    expected_files_touched: []
+  - id: 2
+    title: Update codegen pipeline
+    details: Swap in zod-to-openapi, wire rtk-query client generation, and fix TypeScript emit; regenerate artifacts.
+    commands:
+      - npm run contracts:generate
+    expected_files_touched:
+      - tooling/contracts/generate.js
+      - docs/contracts/clients/**
+      - docs/openapi/openapi-generated.yaml
+  - id: 3
+    title: Validate outputs and document usage
+    details: Run `npm run contracts:check`, shared typecheck, and update README/docs with new workflow notes.
+    commands:
+      - npm run contracts:check
+      - npm run typecheck --prefix shared
+    expected_files_touched:
+      - shared/README.md
+      - docs/contracts/clients/README.md
+
+acceptance_criteria:
+  - OpenAPI file validates via `npx @redocly/cli lint docs/openapi/openapi-generated.yaml` with zero errors.
+  - Generated TypeScript client compiles with `tsc --project shared/tsconfig.json`.
+  - Checksums updated and recorded in `docs/contracts/clients/checksums.json` and `shared/contract-snapshot.json`.
+  - CI command `npm run contracts:check` passes locally after regeneration.

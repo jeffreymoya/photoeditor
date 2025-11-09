@@ -1,0 +1,71 @@
+schema_version: "1.0"
+id: TASK-0103
+title: Expose /download/{jobId} via API Gateway
+status: completed
+priority: P0
+area: infra
+
+description: >-
+  The mobile client expects GET /download/{jobId} to obtain a presigned
+  URL for the final image. The download lambda exists but isn’t wired in
+  Terraform. Add API Gateway resource, method, integration, permission,
+  and redeploy.
+
+outcome: >-
+  GET /download/{jobId} returns 200 with JSON { downloadUrl, expiresAt }
+  for COMPLETED jobs in LocalStack.
+
+scope:
+  in:
+    - infrastructure/main.tf (API resources/methods/integration/permission)
+    - backend/src/lambdas/download.ts (already implemented)
+  out:
+    - AuthN/Z (NONE OK for UAT)
+
+context:
+  issues: []
+  related_docs: []
+  repo_paths:
+    - infrastructure/main.tf:295-400
+    - backend/src/lambdas/download.ts
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "18.x"
+  tools:
+    - name: terraform
+      version: ">=1.6.0"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+
+plan:
+  - id: 1
+    title: Add API resources
+    details: Create /download and /download/{jobId} resources, GET method, AWS_PROXY integration to download lambda.
+  - id: 2
+    title: Add lambda permission
+    details: Allow API Gateway to invoke the download function.
+  - id: 3
+    title: Redeploy
+    details: Update aws_api_gateway_deployment depends_on, apply plan.
+
+acceptance_criteria:
+  - curl to the deployed /download/{jobId} returns 200 and JSON with downloadUrl for a completed job.
+
+validation:
+  commands:
+    - cd infrastructure && terraform plan -var-file=terraform.tfvars.localstack -out=localstack.tfplan && terraform apply localstack.tfplan
+    - "echo \"Use a known COMPLETED jobId then test: curl $APIGW_URL/download/{jobId}\""
+
+deliverables:
+  - infrastructure/main.tf (new resources and permissions)
+
+risks:
+  - description: Route path conflicts or missing lambda artifact.
+    mitigation: Ensure TASK-0105 packaging is complete before deploy.
+

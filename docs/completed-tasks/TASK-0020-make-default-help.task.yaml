@@ -1,0 +1,83 @@
+schema_version: "1.0"
+id: TASK-0020
+title: "Show help when make runs bare"
+status: completed
+priority: P2
+complexity: XS
+area: ops
+
+description: >-
+  New contributors often type `make` expecting guidance, but the command does
+  nothing by default. Set `.DEFAULT_GOAL := help` (or equivalent) so the target
+  list appears automatically, improving discoverability of workflows.
+
+outcome: >-
+  Running `make` with no arguments prints the curated help banner and exits with
+  success, matching the documented target list.
+
+scope:
+  in:
+    - Makefile
+  out:
+    - Help text content itself
+
+context:
+  issues: []
+  related_docs:
+    - README.md
+  repo_paths:
+    - Makefile
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  tools:
+    - name: make
+      version: any
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+
+plan:
+  - id: 1
+    title: Confirm current default behavior
+    details: Run `make` to see existing output (likely noop).
+    commands:
+      - make
+    expected_files_touched: []
+  - id: 2
+    title: Set default goal
+    details: Add `.DEFAULT_GOAL := help` near top of Makefile.
+    commands: []
+    expected_files_touched:
+      - Makefile
+  - id: 3
+    title: Verify new behavior
+    details: Run `make` and ensure help text prints once.
+    commands:
+      - make
+
+acceptance_criteria:
+  - "`make` with no args prints the help banner defined in the Makefile."
+  - Explicit targets (e.g., `make infra-up`) still work unchanged.
+
+validation:
+  commands:
+    - make
+  manual_checks:
+    - Confirm exit code is zero and no extra blank output appears.
+  artifacts:
+    - screenshots: []
+
+deliverables:
+  - Makefile
+
+risks:
+  - description: If help target changes to interactive behavior, default goal
+      may surprise automation.
+    mitigation: Document expectation and keep help target non-destructive.
+
+order: 12

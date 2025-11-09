@@ -1,0 +1,201 @@
+schema_version: "1.0"
+id: TASK-0901
+title: "Refactor job domain purity and Result-based orchestration"
+status: completed
+blocked_reason:
+priority: P1
+area: backend
+unblocker: false
+order:
+blocked_by: []
+depends_on: []
+agent_completion_state:
+  task-implementer: complete
+  implementation-reviewer: complete
+  test-validation-backend: complete
+
+clarifications:
+  outstanding: []
+  evidence_path: "docs/evidence/tasks/TASK-0901-clarifications.md"
+
+description: >-
+  Domain factories and transition helpers in backend/src/domain/job.domain.ts call
+  Date.now() and uuidv4(),
+  which violates the purity requirements in standards/typescript.md#analyzability.
+  PresignService still calls
+  the legacy JobService methods that throw for control flow, breaching standards/backend-tier.md#domain-service-layer.
+  This task injects deterministic id/time providers, updates JobService to consume
+  them, and reworks PresignService
+  plus the associated tests so job orchestration relies on neverthrow Result flows
+  end-to-end.
+
+outcome: >-
+  Job domain modules become pure by relying on injected id/time providers, JobService
+  and PresignService exclusively
+  use neverthrow Result/ResultAsync APIs, and backend unit tests assert the new deterministic
+  and typed-error behaviour.
+
+scope:
+  in:
+  - backend/src/domain/job.domain.ts purity refactor
+  - backend/src/services/job.service.ts provider injection and Result adoption
+  - backend/src/services/presign.service.ts migration to Result APIs
+  - Backend unit tests and helpers that cover these flows
+  out:
+  - Mobile upload clients and RTK Query adapters
+  - Infrastructure provisioning or repository factory refactors beyond 
+    JobService dependencies
+
+context:
+  affected_packages: [backend]
+  standards_tier: backend
+  related_docs:
+  - standards/global.md
+  - standards/AGENTS.md
+  - standards/testing-standards.md
+  - standards/typescript.md
+  - standards/backend-tier.md
+  - standards/cross-cutting.md
+  repo_paths:
+  - backend/src/domain/job.domain.ts
+  - backend/src/services/job.service.ts
+  - backend/src/services/presign.service.ts
+  - backend/libs/core/container/service-container.ts
+  - backend/tests/unit/domain/job.domain.test.ts
+  - backend/tests/unit/services/job.service.test.ts
+  - backend/tests/unit/services/presign.service.test.ts
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+  - name: pnpm
+    version: "8.x"
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+  - Keep diffs minimal and focused on the described scope.
+  - Follow repository standards referenced above.
+  prohibited:
+  - No secrets or credentials in source control.
+
+plan:
+- id: 1
+  title: Understand baseline and standards
+  details: >-
+    Audit job domain factories/transitions and JobService orchestration, comparing
+    against
+    standards/typescript.md#analyzability and standards/backend-tier.md#domain-service-layer
+    to
+    catalogue impurity and exception-driven flows that must be remediated.
+  actor: agent
+  inputs:
+  - backend/src/domain/job.domain.ts
+  - backend/src/services/job.service.ts
+  - backend/src/services/presign.service.ts
+  outputs:
+  - docs/evidence/tasks/TASK-0901-clarifications.md
+  definition_of_done:
+  - Findings cite standards/typescript.md#analyzability and 
+    standards/backend-tier.md#domain-service-layer with concrete gaps and 
+    remediation notes.
+  estimate: S
+  expected_files_touched: []
+- id: 2
+  title: Implement change
+  details: >-
+    Introduce injectable time/id providers, refactor JobService to consume them, and
+    update PresignService plus
+    dependent tests to rely on Result-based flows per standards/typescript.md#neverthrow-result-pattern
+    and standards/backend-tier.md#domain-service-layer.
+  actor: agent
+  inputs: []
+  outputs:
+  - backend/src/domain/job.domain.ts
+  - backend/src/services/job.service.ts
+  - backend/src/services/presign.service.ts
+  - backend/libs/core/container/service-container.ts
+  - backend/tests/unit/domain/job.domain.test.ts
+  - backend/tests/unit/services/job.service.test.ts
+  - backend/tests/unit/services/presign.service.test.ts
+  - docs/evidence/tasks/TASK-0901-clarifications.md
+  definition_of_done:
+  - Domain/service code eliminates direct Date.now/uuid usage, propagates 
+    injected providers, and uses Result/ResultAsync without thrown control flow,
+    documented in docs/evidence/tasks/TASK-0901-clarifications.md.
+  estimate: M
+  expected_files_touched:
+  - backend/src/domain/job.domain.ts
+  - backend/src/services/job.service.ts
+  - backend/src/services/presign.service.ts
+  - backend/libs/core/container/service-container.ts
+  - backend/tests/unit/**/*.ts
+- id: 3
+  title: Validate and document
+  details: >-
+    Execute affected backend unit suites and capture evidence that standards/testing-standards.md#coverage-expectations
+    remain satisfied.
+  actor: agent
+  inputs: []
+  outputs:
+  - docs/evidence/tasks/TASK-0901-clarifications.md
+  definition_of_done:
+  - Validation notes in docs/evidence/tasks/TASK-0901-clarifications.md 
+    reference test runs and coverage expectations from 
+    standards/testing-standards.md#coverage-expectations.
+  estimate: S
+  expected_files_touched:
+  - docs/evidence/tasks/TASK-0901-clarifications.md
+
+validation:
+  pipeline:
+  - command: pnpm turbo run lint:fix --filter=@photoeditor/backend
+    description: Auto-fix linting issues in backend package
+  - command: pnpm turbo run qa:static --filter=@photoeditor/backend
+    description: Run static analysis (typecheck + lint) on backend
+  - command: pnpm turbo run test --filter=@photoeditor/backend
+    description: Run unit tests for backend package
+  - command: pnpm turbo run test:coverage --filter=@photoeditor/backend
+    description: Run tests with coverage reporting to verify thresholds
+
+acceptance_criteria:
+  must:
+  - Job domain factories and transitions do not call Date constructors, 
+    Date.now, or uuid directly; they accept injected providers and unit tests 
+    assert deterministic behaviour.
+  - JobService and PresignService expose only neverthrow Result/ResultAsync APIs
+    for job creation, updates, and presign orchestration; consumers/tests assert
+    typed error results instead of relying on thrown exceptions.
+  - Test coverage meets standards/backend-tier.md thresholds - minimum 80% line 
+    coverage and 70% branch coverage for affected services and domain modules.
+  quality_gates:
+  - Affected standards references remain satisfied; note any deviations and link
+    the follow-up standards change request.
+  - No lint/type errors in affected packages.
+
+artifacts:
+- path: docs/evidence/tasks/TASK-0901-clarifications.md
+  description: Clarifications, standards citations, and validation notes for the
+    refactor
+
+deliverables:
+- backend/src/domain/job.domain.ts
+- backend/src/services/job.service.ts
+- backend/src/services/presign.service.ts
+- backend/tests/unit/domain/job.domain.test.ts
+- backend/tests/unit/services/job.service.test.ts
+- backend/tests/unit/services/presign.service.test.ts
+- docs/evidence/tasks/TASK-0901-clarifications.md
+
+risks:
+- description: Behavioural regressions in job TTL or presign orchestration 
+    caused by refactoring injected providers.
+  mitigation: Strengthen and execute unit tests covering job TTL calculations 
+    and presign Result flows before merging.

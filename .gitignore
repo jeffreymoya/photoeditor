@@ -41,6 +41,7 @@ coverage-final.json
 
 # React Native / Expo artifacts
 mobile/.expo/
+mobile/.expo-router/
 mobile/.expo-shared/
 mobile/web-build/
 mobile/ios/

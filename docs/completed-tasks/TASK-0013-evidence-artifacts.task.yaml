@@ -1,0 +1,76 @@
+schema_version: "1.0"
+id: TASK-0013
+title: "Docs: evidence artifacts pack"
+status: completed
+priority: P1
+complexity: S
+area: docs
+
+description: >-
+  Create an evidence pack directory and templates to capture artifacts required
+  by the rubric: import graph, contract test logs, DLQ redrive screenshots,
+  tfsec report, KMS proof, and cost/alarms dashboards. Provide a short README
+  describing how to update artifacts.
+
+outcome: >-
+  `docs/evidence/` contains structured placeholders and README with instructions;
+  initial artifacts added where feasible.
+
+scope:
+  in:
+    - docs/evidence/**
+  out:
+    - App/infrastructure code
+
+context:
+  issues: []
+  related_docs:
+    - rubric.md
+  repo_paths:
+    - docs/evidence/
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  tools:
+    - name: bash
+      version: any
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+
+plan:
+  - id: 1
+    title: Scaffold directories
+    details: Create folders for each evidence category.
+    commands: []
+  - id: 2
+    title: Add README
+    details: Document required artifacts and update cadence.
+    commands: []
+
+acceptance_criteria:
+  - "`docs/evidence/README.md` exists and lists required artifacts."
+
+validation:
+  commands:
+    - rg --files docs/evidence || true
+  manual_checks:
+    - Review README content.
+  artifacts:
+    - screenshots: []
+
+deliverables:
+  - docs/evidence/README.md
+
+risks:
+  - description: Stale artifacts reduce value.
+    mitigation: Tie updates to `make stage1-verify` or release cadence.
+
+blocked_by:
+  - TASK-0012
+order: 5
+

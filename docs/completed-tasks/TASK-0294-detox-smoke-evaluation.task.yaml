@@ -1,0 +1,114 @@
+schema_version: "1.0"
+id: TASK-0294
+title: "Evaluate Detox Mobile Smoke"
+status: completed
+priority: P2
+complexity: M
+area: frontend
+
+description: >-
+  Prototype a minimal Detox-based smoke that opens the Expo dev client, runs through the photo upload
+  happy path, and asserts the status badge updates. Determine runtime impact and whether it belongs in
+  PR gating or scheduled CI, documenting setup so future maintenance stays low for a solo developer.
+
+outcome: >-
+  A draft Detox spec lives under `mobile/src/__e2e__/`, runs via `pnpm --filter photoeditor-mobile detox:smoke`,
+  and captures logs/artifacts. Documentation clarifies when to run the smoke (nightly vs PR) and the
+  infrastructure prerequisites.
+
+scope:
+  in:
+    - mobile/src/__e2e__/**
+    - mobile/package.json scripts and Detox config
+    - docs/notes covering execution instructions
+  out:
+    - Expanding beyond a single happy-path smoke
+    - Playwright backend automation (handled elsewhere)
+    - Refactoring production mobile features
+
+context:
+  issues: []
+  related_docs:
+    - standards/global.md
+    - standards/AGENTS.md
+    - standards/frontend-tier.md
+    - standards/testing-standards.md
+  repo_paths:
+    - mobile/
+    - docs/
+  dependencies:
+    - type: package
+      name: detox
+      version: latest
+
+environment:
+  os: macos-13
+  runtimes:
+    node: "18.x"
+  tools:
+    - name: pnpm
+      version: "8.x"
+    - name: detox
+      version: latest
+    - name: Xcode Simulator
+      version: current stable
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep smoke under 3 minutes on modern hardware.
+    - Prefer declarative screen objects/hooks to imperative locators.
+  prohibited:
+    - Do not gate PRs on Detox until runtime impact is measured.
+    - Do not commit emulator images or large binary assets.
+  architecture:
+    - Maintain feature-layer boundaries (screen → feature → shared UI).
+    - Avoid cross-feature imports forbidden by ESLint boundaries rule.
+
+plan:
+  - id: 1
+    title: Prototype Detox smoke locally
+    details: Scaffold Detox configuration, create initial smoke spec, and ensure it exercises the upload happy path end-to-end.
+    commands:
+      - pnpm --filter photoeditor-mobile detox:smoke --device "iPhone 15"
+  - id: 2
+    title: Integrate smoke into tooling
+    details: Wire scripts into package.json and turbo pipelines without impacting existing PR gates.
+    commands:
+      - pnpm turbo run qa --dry-run
+  - id: 3
+    title: Document execution guidance and runtime impact
+    details: Capture runtime metrics, prerequisites, and recommended CI schedule in docs evidence.
+    commands: []
+
+acceptance_criteria:
+  - Detox smoke spec lives under `mobile/src/__e2e__/` and runs via `pnpm --filter photoeditor-mobile detox:smoke` without manual intervention beyond documented prerequisites.
+  - Smoke covers the upload happy path, capturing artifacts/logs for review.
+  - Tooling updates isolate the smoke from PR gating until runtime impact is assessed, aligning with standards/frontend-tier.md and standards/testing-standards.md.
+  - Documentation records runtime measurements, execution steps, and recommended schedule.
+
+deliverables:
+  - mobile/src/__e2e__/**
+  - mobile/package.json
+  - turbo.json
+  - docs/evidence/detox-smoke-report.md
+
+success_metrics:
+  automated_checks:
+    - pnpm --filter photoeditor-mobile detox:smoke --device "iPhone 15"
+    - pnpm turbo run qa --dry-run (ensure Detox task isolated)
+  manual_checks:
+    - Document setup/teardown steps in docs/evidence/detox-notes.md.
+    - Record runtime and recommended CI schedule.
+  artifacts:
+    - docs/evidence/detox-smoke-report.md
+
+risks:
+  - description: Detox setup on CI macOS runners may be flaky.
+    mitigation: Start with local-only workflow and document required brew dependencies before scaling.
+  - description: Expo updates could break the smoke frequently.
+    mitigation: Pin Expo SDK versions and add smoke maintenance checklist to release process.

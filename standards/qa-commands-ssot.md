@@ -14,6 +14,13 @@ Repo‑wide Baseline (humans)
 
 - Use for quick pre‑PR hygiene across the monorepo:
   - `pnpm turbo run qa:static --parallel`
+  - `pnpm run analyze:deps` (exports depcruise metrics + import graph)
+  - `pnpm run analyze:deps > docs/evidence/structure-metrics.json` (capture the metrics JSON for the evidence bundle)
+
+Structure & Reuse Evidence
+
+- Generate or update `docs/evidence/reuse-ratio.json` whenever shared/mobile/backend public APIs change. Include the computation or justification pulled from the structure metrics report.
+- Store both `docs/evidence/structure-metrics.json` and the updated reuse ratio file with the task/PR so reviewers can verify fan-in/out, instability, and cohesion targets defined in `standards/cross-cutting.md`.
 
 Package‑Scoped (preferred for agents and focused work)
 
@@ -48,6 +55,7 @@ When to Use What
 - Implementer agent: run package-scoped commands only (per affected package). Execute `lint:fix` first, then `qa:static` so lint/typecheck output is clean before handoff. Save the logs to `.agent-output/` and capture notable fixes in the task summary.
 - Implementation reviewer: consume the implementer’s evidence first. Re-run package-scoped commands only when logs are missing, stale, or expose unresolved issues.
 - Validation agents: assume lint/typecheck already pass. Run the remaining static/fitness commands (dependency graph, dead exports, duplication, contracts, etc.) plus the relevant unit suites. Backend validation may include the fitness functions listed above.
+- All roles: reject PRs missing the structure metrics and reuse evidence; they are now hard requirements per `standards/cross-cutting.md`.
 
 Evidence & Artifacts
 

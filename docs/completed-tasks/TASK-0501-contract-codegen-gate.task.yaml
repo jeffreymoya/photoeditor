@@ -1,0 +1,95 @@
+schema_version: "1.0"
+id: TASK-0501
+title: "Automate shared contract code generation"
+status: completed
+priority: P0
+area: shared
+
+description: >-
+  The shared contracts tier currently stops at TypeScript builds; there is no automation to emit
+  OpenAPI specs, TypeScript consumers, or regenerated client SDKs. This violates
+  standards/shared-contracts-tier.md requirements and leaves downstream apps without a governed SSOT.
+  Add codegen tooling around the Zod schemas to produce OpenAPI, shared types, and RTK Query clients
+  on every change, ensuring artefacts are committed and diffs reviewed during CI.
+
+outcome: >-
+  Running `npm run contracts:generate` produces OpenAPI, zod-to-ts type output, and RTK Query client
+  artefacts stored under docs/contracts/clients with checksum evidence; CI regenerates and verifies
+  these assets via stage jobs, blocking merges when drift occurs.
+
+scope:
+  in:
+    - shared/package.json
+    - shared/schemas/**/*.ts
+    - tooling/**/*contracts*
+    - docs/contracts/clients/**/*
+    - docs/openapi/openapi.yaml
+  out:
+    - Backend Lambda logic beyond updating schema exports
+    - Mobile UI components or navigation flows
+    - Publishing packages to external registries
+    - Infra IaC definitions
+
+context:
+  issues: []
+  related_docs:
+    - standards/global.md
+    - standards/AGENTS.md
+    - standards/shared-contracts-tier.md
+    - docs/testing-standards.md
+    - docs/compatibility/versioning.md
+    - docs/openapi/openapi.yaml
+  repo_paths:
+    - shared/package.json
+    - shared/schemas/api.schema.ts
+    - docs/openapi/openapi.yaml
+    - tooling/contract-check.js
+    - docs/contracts
+  dependencies:
+    - type: package
+      name: zod-to-openapi
+      version: ">=6.0.0"
+    - type: package
+      name: zod-to-ts
+      version: ">=1.2.0"
+    - type: package
+      name: "@rtk-query/codegen-openapi"
+      version: ">=1.1.0"
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: npm
+      version: "9.x"
+    - name: bash
+      version: any
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep codegen scripts idempotent and deterministic for CI reproducibility.
+    - Document new commands in README or docs/contracts guide.
+  prohibited:
+    - Do not check in generated artefacts without updating snapshot hashes.
+    - Do not introduce breaking schema changes without versioned endpoints.
+  architecture:
+    - "Zod schema remains the SSOT; codegen consumes existing schema exports."
+    - "Contract drift gate must compare generated artefacts against committed baselines."
+    - "Downstream client generation pipelines publish checksums per standards/shared-contracts-tier.md."
+
+plan:
+  - id: 1
+    title: Research and configure contract codegen tooling
+    details: Evaluate zod-to-openapi, zod-to-ts, and RTK Query codegen options; add npm scripts and configs.
+    commands:
+      - npm pkg set scripts.contracts:generate="npm run build --prefix shared && node tooling/contracts/generate.js"
+  - id: 2
+    title: Implement CI enforcement and artefact storage
+    details: Wire generation into contracts:check/stage jobs, commit baseline clients, and update documentation.
+    commands: []

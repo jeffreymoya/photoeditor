@@ -1,0 +1,163 @@
+schema_version: "1.0"
+id: TASK-0814
+title: "Enforce backend domain Result purity gate"
+status: completed
+priority: P1
+area: backend
+blocked_by: []
+depends_on: []
+
+description: >-
+  Build an automated fitness function that scans backend domain modules to ensure exported
+  functions return neverthrow Result/ResultAsync types, avoid throwing exceptions, and do
+  not import infrastructure libraries. Surface violations during QA and emit an evidence
+  report for the bundle so domain purity regressions fail fast per backend standards.
+
+outcome: >-
+  `pnpm --filter @photoeditor/backend run qa:static` fails when domain modules violate purity
+  rules, and `docs/evidence/domain-purity.json` captures pass/fail details for the release
+  evidence bundle.
+
+scope:
+  in:
+    - scripts/ci/check-domain-purity.mjs
+    - backend/package.json (qa:static hook)
+    - scripts/evidence-bundle (run check during evidence collection)
+    - docs/evidence/domain-purity.json
+  out:
+    - Non-backend domain directories (mobile/shared)
+    - Broader dependency graph enforcement beyond specified purity rules
+
+context:
+  standards_tier: backend
+  issues: []
+  related_docs:
+    - standards/backend-tier.md#domain-service-layer
+    - standards/typescript.md#maintainability-pillars--concrete-heuristics
+    - standards/global.md#example-quality-gate
+  repo_paths:
+    - scripts/ci/check-domain-purity.mjs
+    - backend/package.json
+    - scripts/evidence-bundle
+    - docs/evidence/domain-purity.json
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: pnpm
+      version: "8.x"
+    - name: typescript
+      version: "5.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep diffs minimal and focused
+    - Respect repository conventions
+  prohibited:
+    - No secrets or tokens in code
+    - No unrelated file changes
+
+plan:
+  - id: 1
+    title: Catalogue domain purity heuristics
+    details: >-
+      Inspect backend/src/domain exports against standards/backend-tier.md#domain-service-layer purity
+      rules and standards/typescript.md#3-analyzability guidance on `Result`/`ResultAsync` usage;
+      record enforced heuristics in docs/evidence/domain-purity.md for reviewer traceability.
+    actor: agent
+    inputs:
+      - backend/src/domain
+      - standards/backend-tier.md
+      - standards/typescript.md
+    outputs:
+      - docs/evidence/domain-purity.md
+    definition_of_done:
+      - docs/evidence/domain-purity.md lists target modules and purity checks with citations to standards/backend-tier.md#domain-service-layer and standards/typescript.md#3-analyzability.
+    estimate: S
+    expected_files_touched:
+      - docs/evidence/domain-purity.md
+  - id: 2
+    title: Implement AST-based purity checker
+    details: >-
+      Build scripts/ci/check-domain-purity.mjs to fail when domain exports violate standards/backend-tier.md#domain-service-layer
+      purity boundaries or standards/typescript.md#language--api-surface-rules ban on exception control flow; ensure the tool emits
+      machine-readable findings per docs/evidence/domain-purity.md.
+    actor: agent
+    inputs:
+      - docs/evidence/domain-purity.md
+    outputs:
+      - scripts/ci/check-domain-purity.mjs
+    definition_of_done:
+      - scripts/ci/check-domain-purity.mjs flags non-Result returns and forbidden imports per standards/backend-tier.md#domain-service-layer, with unit fixtures documented in docs/evidence/domain-purity.md.
+    estimate: M
+    expected_files_touched:
+      - scripts/ci/check-domain-purity.mjs
+  - id: 3
+    title: Wire checker into QA and evidence bundle
+    details: >-
+      Integrate the checker into backend/package.json and scripts/evidence-bundle so `qa:static` enforces standards/testing-standards.md#required-commands-before-pr
+      and evidence capture satisfies standards/testing-standards.md#evidence-expectations.
+    actor: agent
+    inputs:
+      - scripts/ci/check-domain-purity.mjs
+      - docs/evidence/domain-purity.md
+    outputs:
+      - backend/package.json
+      - scripts/evidence-bundle
+    definition_of_done:
+      - backend/package.json invokes the checker inside `qa:static`, and scripts/evidence-bundle copies docs/evidence/domain-purity.json, aligning with standards/testing-standards.md#required-commands-before-pr and standards/testing-standards.md#evidence-expectations.
+    estimate: S
+    expected_files_touched:
+      - backend/package.json
+      - scripts/evidence-bundle
+  - id: 4
+    title: Validate failure/success scenarios
+    details: >-
+      Exercise the checker on clean and intentionally broken samples, capturing artefacts required by standards/testing-standards.md#evidence-expectations
+      and cross-cutting hard-fail controls in standards/cross-cutting.md#hard-fail-controls.
+    actor: agent
+    inputs:
+      - scripts/ci/check-domain-purity.mjs
+    outputs:
+      - docs/evidence/domain-purity.json
+    definition_of_done:
+      - docs/evidence/domain-purity.json records both passing and failing runs with references to standards/testing-standards.md#evidence-expectations, and the checker exit code proves compliance with standards/cross-cutting.md#hard-fail-controls.
+    estimate: S
+    expected_files_touched:
+      - docs/evidence/domain-purity.json
+
+acceptance_criteria:
+  must:
+    - Checker fails with actionable output when an exported domain function lacks Result/ResultAsync return type.
+    - Checker fails when domain files import @aws-sdk/* or contain throw statements.
+    - Successful run writes docs/evidence/domain-purity.json summarizing results and passes in CI.
+    - Evidence bundle script invokes the checker and includes the JSON artifact.
+  quality_gates:
+    - "Handler LOC/complexity within budgets per standards/cross-cutting.md"
+    - "Service/Adapter LOC/complexity within budgets per standards/cross-cutting.md"
+    - "No cross-layer imports (dependency-cruiser enforced)"
+    - "Coverage thresholds per standards/testing-standards.md"
+    - "Contract tests pass for all routes"
+
+validation:
+  manual_checks:
+    - Open docs/evidence/domain-purity.json and confirm summary + zero violations when code is clean.
+  artifacts:
+    - docs/evidence/domain-purity.json
+
+deliverables:
+  - scripts/ci/check-domain-purity.mjs
+  - backend/package.json
+  - scripts/evidence-bundle
+  - docs/evidence/domain-purity.json
+
+risks:
+  - description: False positives if domain modules intentionally expose non-Result helpers.
+    mitigation: Allow opt-out by limiting scan to backend/src/domain and documenting helper relocation needs.

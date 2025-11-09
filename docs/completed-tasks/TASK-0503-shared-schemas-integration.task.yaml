@@ -1,0 +1,84 @@
+schema_version: "1.0"
+id: TASK-0503
+title: "Refactor mobile API service to consume shared contracts"
+status: completed
+priority: P0
+area: frontend
+
+description: >-
+  Mobile `ApiService` duplicates Zod schemas that already exist in `@photoeditor/shared`, leaving the
+  client at risk for drift and violating the shared contracts SSOT policy. Replace the local schema
+  copies with imports from the shared package, adjust types, and add regression tests to prove the
+  Expo client aligns with backend contracts.
+
+outcome: >-
+  Mobile services import request/response schemas and types from `@photoeditor/shared`, existing unit
+  tests pass, and new contract-focused tests guard against reintroducing local copies.
+
+scope:
+  in:
+    - mobile/src/services/ApiService.ts
+    - mobile/src/services/**/*.test.ts?
+    - mobile/package.json (dependency cleanup)
+  out:
+    - UI components and navigation flows unrelated to API consumption
+    - Backend or shared schema definitions (read-only usage only)
+    - Non-API services (notifications, analytics)
+
+context:
+  issues: []
+  related_docs:
+    - standards/global.md
+    - standards/AGENTS.md
+    - standards/frontend-tier.md
+    - standards/shared-contracts-tier.md
+    - docs/testing-standards.md
+    - docs/openapi/openapi.yaml
+  repo_paths:
+    - mobile/src/services/ApiService.ts
+    - mobile/src/__tests__
+    - shared/index.ts
+  dependencies:
+    - type: package
+      name: "@photoeditor/shared"
+      version: workspace
+    - type: service
+      name: Expo CLI
+      requirement: optional
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: npm
+      version: "9.x"
+    - name: bash
+      version: any
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - "Preserve layer boundaries: screens \u2192 features \u2192 shared UI \u2192 services."
+    - Ensure ESLint boundaries stay green after imports change.
+  prohibited:
+    - Do not re-export shared schemas from mobile-specific modules.
+    - Do not introduce dynamic requires that bypass type safety.
+  architecture:
+    - "All network-bound DTOs must originate from shared schemas."
+    - "Add unit tests verifying parse/validation uses shared schemas directly."
+    - "Maintain deterministic contract drift behaviour alongside shared package snapshots."
+
+plan:
+  - id: 1
+    title: Remove duplicate schema definitions
+    details: Replace local Zod objects with imports; update typings and usage paths.
+    commands: []
+  - id: 2
+    title: Strengthen validation coverage
+    details: Add or update tests ensuring shared schemas catch invalid payloads in the mobile client.
+    commands: []

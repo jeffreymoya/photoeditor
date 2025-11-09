@@ -1,0 +1,103 @@
+schema_version: "1.0"
+id: TASK-0001
+title: "Mobile deps install + enable typecheck/lint"
+status: completed
+priority: P0
+complexity: S
+area: mobile
+
+description: >-
+  Install missing dependencies for the mobile package and ensure the static
+  safety nets run locally. Unblocks Stage A/C fitness functions by enabling
+  `npm run typecheck` and `npm run lint` in `mobile/`. If issues are found,
+  document them and create follow-up tasks rather than fixing everything here.
+
+outcome: >-
+  The mobile workspace has node_modules installed and both `npm run typecheck`
+  and `npm run lint` execute successfully (they may report findings, but the
+  commands must complete). A concise summary of errors/warnings is captured in
+  the changelog and follow-up tasks are filed if needed.
+
+scope:
+  in:
+    - mobile/package.json
+    - mobile/tsconfig.json
+    - mobile/.eslintrc.*
+  out:
+    - App feature changes or refactors
+
+context:
+  issues: []
+  related_docs:
+    - changelog/2025-10-02-fitness-functions.md
+    - tasks/AGENTS.md
+  repo_paths:
+    - mobile/package.json
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: npm
+      version: "9.x"
+    - name: bash
+      version: any
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep diffs minimal and focused on enabling the commands.
+  prohibited:
+    - Do not modify unrelated files.
+
+plan:
+  - id: 1
+    title: Install dependencies
+    details: Run installation and confirm node_modules presence.
+    commands:
+      - cd mobile && npm install --no-audit --no-fund
+  - id: 2
+    title: Run typecheck
+    details: Ensure typecheck runs to completion.
+    commands:
+      - cd mobile && npm run typecheck --silent || true
+  - id: 3
+    title: Run lint
+    details: Ensure lint runs to completion.
+    commands:
+      - cd mobile && npm run lint --silent || true
+  - id: 4
+    title: Summarize findings
+    details: Capture errors/warnings in changelog and file follow-up tasks.
+    commands: []
+
+acceptance_criteria:
+  - "`cd mobile && npm install` completes without fatal errors."
+  - "`cd mobile && npm run typecheck` executes (may report errors)."
+  - "`cd mobile && npm run lint` executes (may report findings)."
+  - Changelog includes a summary of issues and next steps.
+
+validation:
+  commands:
+    - cd mobile && npm ci || npm install
+    - cd mobile && npm run typecheck --silent || true
+    - cd mobile && npm run lint --silent || true
+  manual_checks:
+    - Review output to ensure commands ran to completion.
+  artifacts:
+    - screenshots: []
+
+deliverables:
+  - changelog/YYYY-MM-DD-mobile-deps-and-fitness.md
+
+risks:
+  - description: Native dependencies or Expo plugins may require platform SDKs.
+    mitigation: Limit this task to JS/TS checks and document any native blockers.
+
+order: 1
+

@@ -1,0 +1,76 @@
+schema_version: "1.0"
+id: TASK-0101
+title: Fix DynamoDB jobs PK (id -> jobId)
+status: completed
+priority: P0
+area: infra
+
+description: >-
+  The DynamoDB jobs table in Terraform uses hash_key "id" but the
+  backend reads/writes using "jobId" as the primary key. This causes
+  runtime failures for PutItem/GetItem in UAT. Align the table schema
+  with the code expectations.
+
+outcome: >-
+  Terraform defines the jobs table with hash_key "jobId" and tests
+  confirm backend JobService can create and fetch jobs successfully
+  against LocalStack.
+
+scope:
+  in:
+    - infrastructure/main.tf:85-104
+  out:
+    - Adding GSIs for batch queries (not needed for UAT)
+
+context:
+  issues: []
+  related_docs: []
+  repo_paths:
+    - infrastructure/main.tf:85
+    - backend/src/services/job.service.ts
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "18.x"
+  tools:
+    - name: terraform
+      version: ">=1.6.0"
+    - name: docker
+      version: any
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep infra change minimal and localized.
+
+plan:
+  - id: 1
+    title: Update hash key
+    details: Change hash_key to "jobId" and attribute name to "jobId".
+  - id: 2
+    title: Apply Terraform
+    details: Recreate table if required in LocalStack environment.
+    commands:
+      - cd infrastructure && terraform init -reconfigure
+      - terraform plan -var-file=terraform.tfvars.localstack -out=localstack.tfplan
+      - terraform apply localstack.tfplan
+
+acceptance_criteria:
+  - Terraform state shows jobs table with primary key attribute "jobId".
+  - Backend can Put/Get a job in LocalStack without key errors.
+
+validation:
+  commands:
+    - aws --endpoint-url=http://localhost:4566 dynamodb describe-table --table-name $(terraform -chdir=infrastructure output -raw jobs_table_name || echo "photoeditor-dev-jobs") | jq '.Table.KeySchema'
+
+deliverables:
+  - infrastructure/main.tf (updated pk)
+
+risks:
+  - description: Existing LocalStack table must be replaced.
+    mitigation: Safe to destroy/recreate in dev; no prod impact.
+

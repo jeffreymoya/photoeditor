@@ -1,0 +1,117 @@
+schema_version: "1.0"
+id: TASK-0293
+title: "Retire Broken Cucumber Harness"
+status: completed
+priority: P1
+complexity: M
+area: ops
+
+description: >-
+  Remove the unused Cucumber-based E2E framework that requires missing dependencies (`ts-node`,
+  `@types/cucumber`) and stalls the smoke pipeline. Delete feature files, step definitions, and scripts,
+  and strip related dependencies from backend tooling so CI relies solely on the automated Playwright
+  smoke.
+
+outcome: >-
+  Backend package.json no longer references cucumber-js, chai, or ts-node; `backend/tests/e2e/**` is
+  either deleted or migrated; Turbo tasks and make targets stop invoking Cucumber scripts; QA pipeline
+  docs point to the new Playwright smoke. `pnpm install` shrinks by removing redundant deps.
+
+scope:
+  in:
+    - backend/tests/e2e/**
+    - backend/package.json
+    - turbo.json (task dependency cleanup)
+    - docs/evidence/ related to Cucumber
+  out:
+    - Adding new smoke coverage (handled in TASK-0292)
+    - Detox automation
+    - Backend handler logic changes unrelated to test harness removal
+
+context:
+  issues: []
+  related_docs:
+    - standards/global.md
+    - standards/AGENTS.md
+    - standards/cross-cutting.md
+    - standards/testing-standards.md
+  repo_paths:
+    - backend/tests/e2e/
+    - backend/package.json
+    - turbo.json
+    - docs/
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "18.x"
+  tools:
+    - name: pnpm
+      version: "8.x"
+    - name: bash
+      version: any
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep deletions targeted; avoid altering lambda code.
+    - Update docs to reflect new smoke tooling.
+  prohibited:
+    - Do not leave orphaned scripts referencing removed deps.
+    - Do not drop QA evidence requirements from standards.
+  architecture:
+    - Ensure remaining test scripts still respect Ports & Adapters layering.
+    - Maintain dependency-cruiser guardrails.
+
+plan:
+  - id: 1
+    title: Catalogue cucumber harness usage
+    details: Locate feature files, step definitions, scripts, and dependencies tied to the deprecated harness.
+    commands:
+      - rg "cucumber" backend
+  - id: 2
+    title: Remove harness and update tooling
+    details: Delete or migrate Cucumber assets, strip related dependencies from package and turbo configs, and align docs.
+    commands:
+      - pnpm install
+      - pnpm turbo run qa --dry-run
+  - id: 3
+    title: Validate pipeline and update evidence
+    details: Run backend tests and QA flows to confirm no dangling references, and capture documentation updates.
+    commands:
+      - pnpm --filter @photoeditor/backend test
+      - pnpm turbo run qa --dry-run
+
+acceptance_criteria:
+  - Backend package manifests and scripts no longer reference cucumber-js, chai, or ts-node.
+  - Cucumber feature files and step definitions are removed or migrated with no orphaned scripts.
+  - QA pipeline runs (`pnpm turbo run qa --dry-run`) succeed without cucumber tasks, aligning with standards/cross-cutting.md and standards/testing-standards.md.
+  - Docs reference Playwright smoke as the supported harness and capture cleanup evidence.
+
+deliverables:
+  - backend/package.json
+  - backend/tests/e2e/** (removed or archived)
+  - turbo.json
+  - docs/evidence/cucumber-retrospective.md
+
+success_metrics:
+  automated_checks:
+    - pnpm install
+    - pnpm --filter @photoeditor/backend test
+    - pnpm turbo run qa --dry-run
+  manual_checks:
+    - Confirm docs no longer reference cucumber-js commands.
+    - Verify CI config uses Playwright smoke instead of Cucumber.
+  artifacts:
+    - docs/evidence/cucumber-retrospective.md
+
+risks:
+  - description: Deleting fixtures might remove useful sample payloads.
+    mitigation: Migrate any reusable data builders into shared test utilities before removal.
+  - description: Turbo graph may retain dangling task references.
+    mitigation: Run `pnpm turbo run qa --dry-run` and fix any missing tasks.

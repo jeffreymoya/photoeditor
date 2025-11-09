@@ -1,0 +1,348 @@
+# Task: Implement NativeWind v5 + Tamagui with supply-chain scanning
+
+schema_version: "1.1"
+id: TASK-0909
+title: "Implement NativeWind v5 + Tamagui with supply-chain scanning"
+status: in_progress
+blocked_reason:
+priority: P1
+area: mobile
+unblocker: false
+order:
+blocked_by: [TASK-0907]
+depends_on: [TASK-0906]
+agent_completion_state: {}
+
+clarifications:
+  outstanding: []
+  resolved: true
+  evidence_path: "docs/evidence/tasks/TASK-0909-clarifications.md"
+
+description: >-
+  Adopt NativeWind v5 (Tailwind v4 utility tokens with zero runtime class parsing)
+  and curated
+  Tamagui primitives for at least one mobile surface, while hardening supply-chain
+  intake via
+  SBOM validation and provenance scanning. NativeWind v5 requires New Architecture
+  (TASK-0907)
+  and unlocks compiler-backed design tokens for concurrent rendering. Tamagui (Thoughtworks
+  Technology Radar "Assess") provides cross-platform component primitives but has
+  documentation
+  gaps and steeper learning curve, so only a curated subset is adopted. The June 2025
+  Gluestack/@react-native-aria compromise (17 packages, >1M weekly downloads) demonstrated
+  UI
+  kit supply-chain risk, so this task bakes dependency allowlists, npm provenance
+  checks, and
+  SBOM scans into CI to reduce exposure when adopting new design system kits.
+
+outcome: >-
+  NativeWind v5 tokens and curated Tamagui primitives successfully integrated for
+  selected surface.
+  Themed components render identically on iOS and Android. SBOM pipeline passes with
+  provenance
+  validation. Dependency allowlist and scanning tooling documented. Design token system
+  validated
+  for reuse across Expo Router, VisionCamera overlays, and future surfaces.
+
+scope:
+  in:
+  - Installing NativeWind v5 and curated Tamagui primitives in 
+    mobile/package.json
+  - Configuring NativeWind v5 compiler and Tailwind v4 tokens
+  - Implementing themed components for one surface (Jobs, Settings, or Gallery)
+  - Setting up SBOM generation and provenance scanning in CI pipeline
+  - Creating dependency allowlist and scanning procedures
+  - Verifying themed components render identically on iOS/Android
+  - Documenting design token system and supply-chain guardrails
+  out:
+  - Full Tamagui adoption (curated subset only to limit learning curve)
+  - Migrating all surfaces to new design system (incremental pilot approach)
+  - VisionCamera overlay integration (deferred to TASK-0911)
+  - List virtualization styling (deferred to TASK-0910)
+
+context:
+  affected_packages: [mobile]
+  standards_tier: mobile
+  related_docs:
+  - standards/global.md
+  - standards/AGENTS.md
+  - standards/frontend-tier.md
+  - standards/typescript.md
+  - standards/testing-standards.md
+  - standards/security.md
+  - docs/proposals/mobile-stack-modernization.md
+  - NativeWind v5 migration guide
+  - Tamagui documentation
+  repo_paths:
+  - mobile/package.json
+  - mobile/nativewind.config.js
+  - mobile/tamagui.config.ts
+  - mobile/src/components/
+  - .github/workflows/
+  - docs/mobile/
+  - docs/security/
+  dependencies:
+  - nativewind v5
+  - tamagui
+  - SBOM tooling (Chainloop, Dependency Track, or equivalent)
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+  - name: pnpm
+    version: "8.x"
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+  - Follow NativeWind v5 and Tailwind v4 token conventions
+  - Curate Tamagui primitives subset (document rationale for 
+    inclusions/exclusions)
+  - Implement dependency allowlist and provenance checks before adopting new UI 
+    kits
+  - Validate themed components render identically on iOS and Android
+  prohibited:
+  - Do not adopt full Tamagui kit (curated subset only)
+  - Do not bypass SBOM/provenance scanning for UI dependencies
+
+plan:
+- id: 1
+  title: Review NativeWind v5 and Tamagui docs, clarify pilot scope
+  details: >-
+    Read NativeWind v5 migration guide and Tamagui documentation. Clarify pilot surface
+    selection, curated primitives subset, SBOM tooling options, and allowlist criteria.
+    Document findings in clarifications file. Reference standards/frontend-tier.md
+    for
+    component organization and standards/security.md for supply-chain guidance.
+  actor: agent
+  inputs:
+  - docs/proposals/mobile-stack-modernization.md
+  - NativeWind v5 migration guide
+  - Tamagui documentation
+  - Gluestack supply-chain attack report
+  outputs:
+  - docs/evidence/tasks/TASK-0909-clarifications.md
+  definition_of_done:
+  - Clarifications file documents pilot surface, curated primitives, SBOM 
+    tooling, allowlist criteria
+  - Open questions resolved
+  estimate: M
+  expected_files_touched:
+  - docs/evidence/tasks/TASK-0909-clarifications.md
+- id: 2
+  title: Install NativeWind v5 and curated Tamagui primitives
+  details: >-
+    Add nativewind v5 and curated Tamagui packages to mobile/package.json. Configure
+    NativeWind v5 compiler (nativewind.config.js) and Tailwind v4 tokens. Configure
+    Tamagui (tamagui.config.ts) with curated primitives subset. Run pnpm install.
+    Verify standards/typescript.md strict config remains satisfied.
+  actor: agent
+  inputs:
+  - mobile/package.json
+  - NativeWind v5 installation guide
+  - Tamagui setup docs
+  outputs:
+  - mobile/package.json (NativeWind v5, Tamagui dependencies)
+  - mobile/nativewind.config.js
+  - mobile/tamagui.config.ts
+  - pnpm-lock.yaml
+  definition_of_done:
+  - NativeWind v5 and Tamagui installed in mobile/package.json
+  - NativeWind compiler configured with Tailwind v4 tokens
+  - Tamagui configured with curated primitives subset
+  - pnpm install completes successfully
+  estimate: M
+  expected_files_touched:
+  - mobile/package.json
+  - mobile/nativewind.config.js
+  - mobile/tamagui.config.ts
+  - pnpm-lock.yaml
+- id: 3
+  title: Implement themed components for pilot surface
+  details: >-
+    Create themed components using NativeWind v5 tokens and Tamagui primitives for
+    selected
+    surface (Jobs, Settings, or Gallery). Follow standards/frontend-tier.md component
+    organization. Ensure compiler-backed tokens work correctly. Verify components
+    render
+    identically on iOS and Android.
+  actor: agent
+  inputs:
+  - mobile/nativewind.config.js
+  - mobile/tamagui.config.ts
+  - mobile/src/screens/ (existing surface for reference)
+  outputs:
+  - mobile/src/components/<surface>/ (themed components)
+  definition_of_done:
+  - Themed components created for pilot surface
+  - Components use NativeWind v5 tokens and Tamagui primitives
+  - Components render identically on iOS and Android (manual verification)
+  estimate: L
+  expected_files_touched:
+  - mobile/src/components/<surface>/
+- id: 4
+  title: Set up SBOM generation and provenance scanning in CI
+  details: >-
+    Integrate SBOM generation (npm provenance, Sigstore) and dependency scanning tooling
+    (Chainloop, Dependency Track, or equivalent) into CI pipeline (.github/workflows/).
+    Create dependency allowlist for UI kits. Configure provenance checks before approving
+    new UI dependencies. Reference standards/security.md for supply-chain requirements.
+  actor: agent
+  inputs:
+  - .github/workflows/
+  - standards/security.md
+  - Chainloop/Dependency Track documentation (or selected tooling)
+  outputs:
+  - .github/workflows/sbom-scan.yml (or integrated into existing CI)
+  - docs/security/dependency-allowlist.md
+  - docs/security/sbom-scanning-procedures.md
+  definition_of_done:
+  - SBOM generation configured in CI
+  - Provenance scanning runs on UI dependencies
+  - Dependency allowlist created
+  - Scanning procedures documented
+  estimate: M
+  expected_files_touched:
+  - .github/workflows/sbom-scan.yml
+  - docs/security/dependency-allowlist.md
+  - docs/security/sbom-scanning-procedures.md
+- id: 5
+  title: Verify themed components and SBOM pipeline
+  details: >-
+    Test themed components on iOS simulator and Android emulator. Verify identical
+    rendering
+    across platforms. Run SBOM pipeline and confirm provenance validation passes.
+    Document
+    any false positives or scanning issues. Reference standards/testing-standards.md
+    for
+    test expectations.
+  actor: agent
+  inputs:
+  - mobile/ (updated codebase with NativeWind v5 + Tamagui)
+  - .github/workflows/sbom-scan.yml
+  outputs:
+  - docs/evidence/tasks/TASK-0909-themed-component-test-results.md
+  - docs/evidence/tasks/TASK-0909-sbom-scan-results.md
+  definition_of_done:
+  - Themed components verified on iOS and Android
+  - SBOM pipeline passes with provenance validation
+  - False positives or issues documented
+  estimate: M
+  expected_files_touched:
+  - docs/evidence/tasks/TASK-0909-themed-component-test-results.md
+  - docs/evidence/tasks/TASK-0909-sbom-scan-results.md
+- id: 6
+  title: Document design token system and supply-chain guardrails
+  details: >-
+    Document NativeWind v5 token system, Tamagui curated primitives, and usage patterns
+    in docs/mobile/. Document supply-chain scanning procedures, dependency allowlist,
+    and provenance validation workflow in docs/security/. Ensure standards/global.md
+    evidence bundle requirements are met.
+  actor: agent
+  inputs:
+  - docs/evidence/tasks/TASK-0909-clarifications.md
+  - docs/evidence/tasks/TASK-0909-themed-component-test-results.md
+  - docs/evidence/tasks/TASK-0909-sbom-scan-results.md
+  outputs:
+  - docs/mobile/design-token-system.md
+  - docs/security/ui-kit-supply-chain-guardrails.md
+  definition_of_done:
+  - Design token system documented in docs/mobile/
+  - Supply-chain guardrails documented in docs/security/
+  estimate: S
+  expected_files_touched:
+  - docs/mobile/design-token-system.md
+  - docs/security/ui-kit-supply-chain-guardrails.md
+
+validation:
+  pipeline:
+  - command: pnpm turbo run lint:fix --filter=photoeditor-mobile
+    description: Auto-fix linting issues in mobile package
+  - command: pnpm turbo run qa:static --filter=photoeditor-mobile
+    description: Run static analysis (typecheck + lint) on mobile
+  - command: pnpm turbo run test --filter=photoeditor-mobile
+    description: Run unit tests for mobile package
+  - command: pnpm turbo run test:coverage --filter=photoeditor-mobile
+    description: Run tests with coverage reporting to verify thresholds (≥70% 
+      lines, ≥60% branches per standards/testing-standards.md)
+  manual_checks:
+  - Verify themed components render identically on iOS simulator and Android 
+    emulator
+  - Confirm NativeWind v5 compiler-backed tokens work without runtime class 
+    parsing
+  - Test SBOM pipeline and provenance scanning in CI
+  - Review dependency allowlist for completeness
+  - Validate design token reusability for future surfaces (Expo Router, 
+    VisionCamera overlays)
+
+acceptance_criteria:
+  must:
+  - NativeWind v5 and curated Tamagui primitives installed and configured
+  - Themed components created for pilot surface (Jobs, Settings, or Gallery)
+  - Components use NativeWind v5 tokens and Tamagui primitives
+  - Themed components render identically on iOS and Android
+  - SBOM generation and provenance scanning configured in CI
+  - Dependency allowlist created and documented
+  - pnpm turbo run qa:static --filter=photoeditor-mobile passes
+  - SBOM pipeline passes with provenance validation
+  - Design token system documented for reuse
+  - Supply-chain guardrails documented
+  quality_gates:
+  - All tests pass with NativeWind v5 and Tamagui enabled
+  - No regressions in existing component functionality
+  - SBOM scanning identifies dependencies correctly
+  - Provenance validation passes for UI kits
+
+artifacts:
+- path: docs/evidence/tasks/TASK-0909-clarifications.md
+  description: Pilot surface selection, curated primitives, SBOM tooling, 
+    allowlist criteria
+- path: docs/evidence/tasks/TASK-0909-themed-component-test-results.md
+  description: Themed component cross-platform rendering verification
+- path: docs/evidence/tasks/TASK-0909-sbom-scan-results.md
+  description: SBOM pipeline and provenance scanning results
+- path: docs/mobile/design-token-system.md
+  description: NativeWind v5 token system and Tamagui curated primitives 
+    documentation
+- path: docs/security/ui-kit-supply-chain-guardrails.md
+  description: Supply-chain scanning procedures, allowlist, provenance 
+    validation workflow
+
+deliverables:
+- mobile/package.json (NativeWind v5, Tamagui dependencies)
+- mobile/nativewind.config.js
+- mobile/tamagui.config.ts
+- mobile/src/components/<surface>/ (themed components)
+- .github/workflows/sbom-scan.yml
+- docs/security/dependency-allowlist.md
+- docs/security/sbom-scanning-procedures.md
+- pnpm-lock.yaml
+- docs/evidence/tasks/TASK-0909-clarifications.md
+- docs/evidence/tasks/TASK-0909-themed-component-test-results.md
+- docs/evidence/tasks/TASK-0909-sbom-scan-results.md
+- docs/mobile/design-token-system.md
+- docs/security/ui-kit-supply-chain-guardrails.md
+
+risks:
+- description: Tamagui documentation gaps may slow adoption and increase 
+    learning curve
+  mitigation: Curate primitives subset, budget onboarding time, reference 
+    Thoughtworks Radar feedback
+- description: SBOM tooling (Chainloop, Dependency Track) may add maintenance 
+    and false-positive triage overhead
+  mitigation: Start with minimal scanning scope, iterate based on false-positive
+    rate, document triage procedures
+- description: NativeWind v5 compiler may have edge cases or bugs with Tailwind 
+    v4 tokens
+  mitigation: Test thoroughly on both platforms, file upstream issues, provide 
+    fallback patterns
+- description: Supply-chain scanning may slow dependency intake for urgent 
+    feature timelines
+  mitigation: Pre-approve common UI libraries, fast-track critical deps with 
+    manual review

@@ -1,0 +1,387 @@
+schema_version: "1.0"
+id: TASK-0427
+title: "Close Cross-Cutting Compliance Gaps"
+status: completed
+priority: P0
+area: ops
+
+description: >-
+  Address the release-blocking gaps discovered during the cross-cutting standards audit.
+  Enforcement for complexity budgets is currently warn-only, trace context propagation stops at
+  the backend, API routes remain unversioned, required observability stacks are absent, and
+  documentation evidence (TSDoc, knip, governance artifacts) is incomplete. Without remediation,
+  we cannot ship against the hard-fail controls in standards/cross-cutting.md.
+
+outcome: >-
+  Complexity budgets fail builds per tier, end-to-end requests propagate W3C traceparent from mobile
+  through workers with structured logs, public HTTP APIs adopt /v{n} routing with compatibility tests,
+  required observability tooling (OpenTelemetry, Sentry, pino-http) is active, TSDoc + knip gates run
+  in CI at 70%/0 thresholds, and storage/API infrastructure meets encryption and alarm guardrails.
+
+scope:
+  in:
+    - backend/.eslintrc.cjs
+    - mobile/.eslintrc.js
+    - backend/src/**/*
+    - mobile/src/**/*
+    - infra/sst/stacks/api.ts
+    - infra/sst/stacks/storage.ts
+    - package.json
+    - backend/package.json
+    - mobile/package.json
+    - standards/testing-standards.md
+    - docs/evidence/** (trace propagation, complexity reports, alarm configs, mutation dashboards)
+  out:
+    - Experimental features unrelated to tracing or observability
+    - Legacy Terraform modules outside infra/sst/stacks
+    - Contract schema changes not driven by versioned API routing
+    - Non-production infra environments beyond dev/staging tagging updates
+    - UI redesign or visual changes in mobile/screens
+    - Build system refactors outside lint/test tooling configuration
+    - Authentication/authorization flows beyond header propagation
+    - Provider integrations unless needed for tracing context
+    - Manual operations runbooks (update evidence bundle only)
+    - Dependency cycles or lateral imports (hard fail per cross-cutting.md L5)
+    - Handler SDK imports or handlers in VPC (hard fails per backend-tier.md)
+    - Breaking API changes without /v{n} versioning (hard fail per cross-cutting.md L8)
+    - Secrets in code or CI (hard fail per cross-cutting.md L9)
+    - Public S3 buckets or non-KMS encryption (hard fail per cross-cutting.md L10)
+
+context:
+  issues: []
+  related_docs:
+    - standards/global.md
+    - standards/AGENTS.md
+    - standards/backend-tier.md
+    - standards/frontend-tier.md
+    - standards/cross-cutting.md
+    - standards/testing-standards.md
+    - docs/templates/TASK-0000-template.task.yaml
+  repo_paths:
+    - backend/.eslintrc.cjs
+    - mobile/.eslintrc.js
+    - backend/src/lambdas/presign.ts
+    - backend/src/lambdas/worker.ts
+    - backend/src/utils/logger.ts
+    - mobile/src/services/ApiService.ts
+    - infra/sst/stacks/api.ts
+    - infra/sst/stacks/storage.ts
+    - package.json
+    - backend/package.json
+    - mobile/package.json
+  dependencies:
+    - type: package
+      name: '@opentelemetry/api'
+      version: ">=1.9.0"
+    - type: package
+      name: '@sentry/node'
+      version: ">=7.94.0"
+    - type: package
+      name: 'pino-http'
+      version: ">=9.0.0"
+    - type: service
+      name: AWS CloudWatch Alarms
+      requirement: required
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: pnpm
+      version: "8.x"
+    - name: bash
+      version: any
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep diffs minimal and scoped to compliance gaps.
+    - Follow repository formatting and linting conventions.
+  prohibited:
+    - Do not introduce breaking API changes without version bump + compatibility matrix.
+    - Do not hardcode secrets or tracing tokens.
+    - No secrets stored outside SSM SecureString or Secrets Manager (cross-cutting.md L9).
+    - No dependency cycles at any depth or lateral imports (cross-cutting.md L5).
+    - No production buckets without KMS encryption or block-public-access (cross-cutting.md L10).
+    - No missing W3C traceparent propagation or trace export (cross-cutting.md L7).
+  architecture:
+    - "Ports & Adapters pattern between handlers, services, providers"
+    - "neverthrow Result/Either for domain flows"
+    - "No dependency cycles (dependency-cruiser enforced) - hard fail per cross-cutting.md L5"
+    - "Cyclomatic complexity budgets enforced per tier: handlers fail >10 or >75 LOC; services/adapters fail >15 or >200 LOC; module complexity fails >50 (cross-cutting.md L6)"
+    - "Trace context propagated end-to-end with W3C traceparent from mobile through workers (cross-cutting.md L7, L38)"
+    - "Structured logs emit correlationId, traceId, requestId, jobId, userId, function, env, version (cross-cutting.md L40)"
+    - "API versioning via /v{n} with compatibility matrix - breaking changes rejected without semantic diff (cross-cutting.md L8)"
+    - "Storage buckets blocked from public access with SSE-KMS customer-managed keys (cross-cutting.md L10, L52)"
+    - "API Gateway alarms for 5XX > 1% for 5 minutes (cross-cutting.md L47)"
+    - "Cloud resources must carry Project, Env, Owner, CostCenter tags (cross-cutting.md L11)"
+    - "Fan-in capped at 15, fan-out at 12 (warn at 80%) per cross-cutting.md L15"
+    - "TSDoc coverage ≥70% for exported APIs (warn 60%, fail 50%) per cross-cutting.md L17"
+
+plan:
+  - id: 1
+    title: Enforce tiered complexity budgets and static gates
+    details: Promote ESLint complexity rules to error with layer-specific limits (handlers >10, services >15, module >50 per cross-cutting.md L6) and wire knip/TSDoc into CI at 70%/0 thresholds (cross-cutting.md L16-17).
+    commands:
+      - pnpm --filter @photoeditor/backend lint
+      - pnpm --filter photoeditor-mobile lint
+      - pnpm run qa:dead-exports
+      - pnpm turbo run qa:static --parallel
+    expected_files_touched:
+      - backend/.eslintrc.cjs
+      - mobile/.eslintrc.js
+      - package.json
+      - docs/evidence/complexity-report.json
+      - docs/evidence/tsdoc-coverage.json
+      - docs/evidence/knip-report.json
+  - id: 2
+    title: Complete trace propagation across clients and workers
+    details: Add Expo networking middleware to inject W3C traceparent (cross-cutting.md L38), include correlationId/traceId/requestId/jobId/userId/function/env/version in lambda logs (cross-cutting.md L40), and validate trace coverage ≥95% for multi-hop routes with integration tests (cross-cutting.md L45).
+    commands:
+      - pnpm --filter photoeditor-mobile test
+      - pnpm --filter @photoeditor/backend test:integration
+      - pnpm --filter @photoeditor/backend test:contract
+    expected_files_touched:
+      - mobile/src/services/ApiService.ts
+      - backend/src/lambdas/worker.ts
+      - backend/src/utils/logger.ts
+      - docs/evidence/trace-propagation-example.json
+      - docs/evidence/trace-coverage-report.json
+      - docs/evidence/mobile-instrumentation-checklist.md
+  - id: 3
+    title: Introduce mandated observability tooling and API versioning
+    details: Integrate OpenTelemetry Node SDK with XRay/OTLP exporters, Sentry with release artifacts, and pino-http on BFF (cross-cutting.md L32-34). Shift routes to /v1 with semantic diff approval (cross-cutting.md L8) and contract compatibility matrix (cross-cutting.md L23, testing-standards.md L121-144).
+    commands:
+      - pnpm --filter @photoeditor/backend build
+      - pnpm --filter @photoeditor/backend test:contract
+      - pnpm --filter @photoeditor/shared contracts:check
+      - scripts/ci/check-route-alignment.sh
+    expected_files_touched:
+      - backend/src/lambdas/presign.ts
+      - backend/bff/src/**/*
+      - backend/package.json
+      - standards/testing-standards.md
+      - docs/evidence/contract-compatibility-matrix.log
+      - docs/openapi/openapi-generated.yaml
+      - docs/contracts/clients/photoeditor-api.ts
+  - id: 4
+    title: Harden infrastructure guardrails
+    details: Add S3 block-public-access config with SSE-KMS customer-managed keys (cross-cutting.md L10, L52). Configure API Gateway 5XX alarms for >1% over 5 min, Lambda errors >0 for 5 min, SQS age >120 sec, DynamoDB UserErrors >10/min, and DLQ inflow >0 for 5 min (cross-cutting.md L47). Ensure Project/Env/Owner/CostCenter tags on all resources (cross-cutting.md L11).
+    commands:
+      - make qa-infra
+      - terraform -chdir=infrastructure fmt -check
+      - terraform -chdir=infrastructure validate
+    expected_files_touched:
+      - infra/sst/stacks/api.ts
+      - infra/sst/stacks/storage.ts
+      - docs/evidence/alarms/lambda-errors.yaml
+      - docs/evidence/alarms/api-5xx.yaml
+      - docs/evidence/alarms/sqs-age.yaml
+      - docs/evidence/alarms/dynamodb-user-errors.yaml
+      - docs/evidence/alarms/dlq-inflow.yaml
+  - id: 5
+    title: Update evidence bundle and governance docs
+    details: Refresh testing standards citations with cross-cutting.md references. Generate evidence bundle with import graphs (fan-in/out), trace coverage %, MTTP P95, mutation reports, alarm configs, and CI dashboard export (global.md L56, cross-cutting.md L48, L83). Update docs/ops/dx with CI duration dashboard per cross-cutting.md L83.
+    commands:
+      - pnpm turbo run qa:static --parallel
+      - pnpm turbo run qa --parallel
+      - scripts/evidence-bundle
+    expected_files_touched:
+      - standards/testing-standards.md
+      - docs/evidence/trace-propagation-example.json
+      - docs/evidence/trace-coverage-report.json
+      - docs/evidence/import-graph.png
+      - docs/evidence/mutation-reports/services.html
+      - docs/evidence/mttp-p95-report.json
+      - docs/ops/dx/ci-dashboard-export.json
+      - docs/ops/dx/task-time-budgets.md
+
+validation:
+  commands:
+    # Hard fail prevention (cross-cutting.md L5-11)
+    - pnpm depcruise --validate .dependency-cruiser.cjs backend/src mobile/src
+    - pnpm --filter @photoeditor/backend lint -- --max-complexity=10
+    - pnpm --filter photoeditor-mobile lint -- --max-complexity=10
+    - "! grep -r 'password\\|secret\\|key\\|token' --include='*.ts' --include='*.js' backend/src mobile/src | grep -v 'SecureString\\|SecretsManager'"
+    - grep -q 'block_public_access' infra/sst/stacks/storage.ts
+    - grep -q 'SSE-KMS' infra/sst/stacks/storage.ts
+    - grep -q 'customer_managed_key' infra/sst/stacks/storage.ts
+
+    # Maintainability & change impact (cross-cutting.md L14-27)
+    - pnpm run qa:dead-exports
+    - pnpm --filter @photoeditor/backend test:mutation -- --threshold 60
+    - pnpm --filter @photoeditor/shared contracts:check
+    - scripts/ci/check-route-alignment.sh
+
+    # Observability & operations (cross-cutting.md L29-49)
+    - pnpm --filter @photoeditor/backend test:integration
+    - pnpm --filter @photoeditor/backend test:contract
+    - pnpm --filter photoeditor-mobile test
+    - grep -q 'correlationId.*traceId.*requestId' backend/src/utils/logger.ts
+
+    # Infrastructure validation
+    - cd infra && terraform fmt -check
+    - cd infra && terraform validate
+    - grep -q 'aws_cloudwatch_metric_alarm' infra/sst/stacks/api.ts
+
+    # Full QA suite (global.md L43-51)
+    - pnpm turbo run qa:static --parallel
+    - pnpm turbo run qa --parallel
+
+acceptance_criteria:
+  # Hard fail prevention (cross-cutting.md L5-11)
+  - No dependency cycles at any depth or lateral imports (verified by dependency-cruiser).
+  - Handlers cyclomatic complexity ≤10 and ≤75 LOC; services/adapters ≤15 and ≤200 LOC; module complexity ≤50 (ESLint fails above thresholds per cross-cutting.md L6).
+  - W3C traceparent propagation verified from mobile through workers in integration tests (cross-cutting.md L7).
+  - All API routes use /v1 versioning with semantic diff approval and compatibility matrix (cross-cutting.md L8).
+  - No secrets in code/CI; all secrets stored in SSM SecureString or Secrets Manager (verified by grep, cross-cutting.md L9).
+  - Production S3 buckets have block-public-access and SSE-KMS customer-managed keys (cross-cutting.md L10, L52).
+  - All cloud resources carry Project, Env, Owner, CostCenter tags (cross-cutting.md L11).
+
+  # Maintainability & change impact (cross-cutting.md L14-27)
+  - Fan-in ≤15 and fan-out ≤12 (warn at 80%) verified in import graph (cross-cutting.md L15).
+  - TSDoc coverage ≥70% for exported APIs (warn 60%, fail 50%) per cross-cutting.md L17.
+  - knip reports zero dead code (cross-cutting.md L16).
+  - Services and adapters maintain ≥80% line, ≥70% branch, ≥60% mutation coverage (cross-cutting.md L24, testing-standards.md L104).
+  - Contract compatibility matrix (old↔new) passes before merge (cross-cutting.md L23).
+
+  # Observability & operations (cross-cutting.md L29-49)
+  - OpenTelemetry Node SDK, AWS Powertools, Sentry, and pino-http installed and initialized (cross-cutting.md L32-34).
+  - Mobile requests include W3C traceparent via Expo networking middleware (cross-cutting.md L38).
+  - Structured logs emit correlationId, traceId, requestId, jobId, userId, function, env, version (cross-cutting.md L40).
+  - 100% of incoming requests carry a correlation id (cross-cutting.md L44).
+  - Trace coverage ≥95% for multi-hop routes (cross-cutting.md L45).
+  - "CloudWatch alarms configured: Lambda errors >0 for 5 min, API 5XX >1% for 5 min, SQS age >120 sec, DynamoDB UserErrors >10/min, DLQ inflow >0 for 5 min (cross-cutting.md L47)."
+
+  # Developer experience (cross-cutting.md L66-84)
+  - "Task time budgets: build <3 min, unit tests <2 min (monitored via CI duration dashboard, cross-cutting.md L81)."
+  - CI dashboard export attached to docs/ops/dx each release (cross-cutting.md L83).
+
+  # Governance & evidence (cross-cutting.md L86-98, global.md L56)
+  - "Evidence bundle includes: import graph with fan-in/out, trace coverage %, MTTP P95, contract diff, mutation reports, alarm configs, CI dashboard export (cross-cutting.md L96, global.md L56)."
+  - standards/testing-standards.md updated with cross-cutting.md references and acceptance criteria format.
+  - No new dependency-cruiser or ESLint violations introduced.
+
+risks:
+  - id: 1
+    description: Enforcing complexity budgets may expose widespread violations in existing code
+    impact: high
+    probability: medium
+    mitigation: Start with warn-only mode, generate complexity report, remediate top violators incrementally
+    references:
+      - cross-cutting.md L6
+
+  - id: 2
+    description: Missing traceparent propagation blocks release until mobile/backend instrumentation complete
+    impact: high
+    probability: medium
+    mitigation: Implement trace context in priority order (API→Worker→Mobile), validate with integration tests at each stage
+    references:
+      - cross-cutting.md L7
+      - cross-cutting.md L38
+
+  - id: 3
+    description: API versioning migration requires coordination across backend and mobile clients
+    impact: medium
+    probability: high
+    mitigation: Maintain backward compatibility during transition, generate compatibility matrix, test old/new client combinations
+    references:
+      - cross-cutting.md L8
+      - cross-cutting.md L23
+
+  - id: 4
+    description: OpenTelemetry/Sentry integration adds runtime overhead and increases Lambda cold-start time
+    impact: medium
+    probability: low
+    mitigation: Monitor cold-start P50, optimize instrumentation, use Lambda layers for shared dependencies
+    references:
+      - cross-cutting.md L32-34
+
+  - id: 5
+    description: S3 KMS encryption increases costs and adds key management complexity
+    impact: low
+    probability: high
+    mitigation: Document key rotation cadence, use separate keys per environment, monitor KMS costs in monthly FinOps review
+    references:
+      - cross-cutting.md L52
+      - cross-cutting.md L64
+
+  - id: 6
+    description: TSDoc coverage target may require extensive documentation effort across services
+    impact: medium
+    probability: high
+    mitigation: Focus on public APIs first, generate coverage baseline, remediate incrementally by module
+    references:
+      - cross-cutting.md L17
+
+deliverables:
+  # Complexity budgets and static gates
+  - path: backend/.eslintrc.cjs
+    description: ESLint rules updated with tiered complexity budgets (handlers ≤10, services ≤15)
+  - path: mobile/.eslintrc.js
+    description: ESLint rules updated with complexity budgets
+  - path: docs/evidence/complexity-report.json
+    description: Baseline complexity metrics per module
+  - path: docs/evidence/tsdoc-coverage.json
+    description: TSDoc coverage report (≥70% target)
+  - path: docs/evidence/knip-report.json
+    description: Dead code analysis (zero unused exports/deps)
+
+  # Trace propagation
+  - path: mobile/src/services/ApiService.ts
+    description: Expo networking middleware injecting W3C traceparent
+  - path: backend/src/lambdas/worker.ts
+    description: Lambda extracting/propagating trace context
+  - path: backend/src/utils/logger.ts
+    description: Structured logger emitting correlationId, traceId, requestId, jobId, userId, function, env, version
+  - path: docs/evidence/trace-propagation-example.json
+    description: Sample trace showing end-to-end correlation
+  - path: docs/evidence/trace-coverage-report.json
+    description: Multi-hop route trace coverage (≥95% target)
+  - path: docs/evidence/mobile-instrumentation-checklist.md
+    description: Mobile correlation guidance checklist
+
+  # API versioning and observability
+  - path: backend/package.json
+    description: OpenTelemetry, Sentry, pino-http dependencies added
+  - path: docs/evidence/contract-compatibility-matrix.log
+    description: Old↔new client compatibility test results
+  - path: docs/openapi/openapi-generated.yaml
+    description: OpenAPI spec with /v1 routes
+  - path: docs/contracts/clients/photoeditor-api.ts
+    description: Generated client updated with versioned routes
+
+  # Infrastructure hardening
+  - path: infra/sst/stacks/storage.ts
+    description: S3 buckets with block-public-access and SSE-KMS
+  - path: infra/sst/stacks/api.ts
+    description: CloudWatch alarms for API 5XX, Lambda errors
+  - path: docs/evidence/alarms/lambda-errors.yaml
+    description: Lambda error alarm configuration
+  - path: docs/evidence/alarms/api-5xx.yaml
+    description: API Gateway 5XX alarm configuration
+  - path: docs/evidence/alarms/sqs-age.yaml
+    description: SQS ApproximateAgeOfOldestMessage alarm configuration
+  - path: docs/evidence/alarms/dynamodb-user-errors.yaml
+    description: DynamoDB UserErrors alarm configuration
+  - path: docs/evidence/alarms/dlq-inflow.yaml
+    description: DLQ inflow alarm configuration
+
+  # Evidence bundle and governance
+  - path: standards/testing-standards.md
+    description: Updated with cross-cutting.md references and acceptance criteria format
+  - path: docs/evidence/import-graph.png
+    description: Import graph showing fan-in/fan-out metrics
+  - path: docs/evidence/mutation-reports/services.html
+    description: Mutation test report (≥60% threshold)
+  - path: docs/evidence/mttp-p95-report.json
+    description: Mean Time To Proficiency P95 from synthetic fault drills
+  - path: docs/ops/dx/ci-dashboard-export.json
+    description: CI duration dashboard showing build/test time budgets
+  - path: docs/ops/dx/task-time-budgets.md
+    description: Task time budget monitoring (build <3 min, unit <2 min)

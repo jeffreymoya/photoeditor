@@ -1,0 +1,238 @@
+schema_version: "1.0"
+id: TASK-0100
+title: "Complete Phase 0 foundations gates"
+status: completed
+priority: P0
+complexity: M
+area: backend
+
+description: >-
+  Phase 0 of docs/architecure-refactor-plan.md requires an endpoint-aware `aws-clients.ts`
+  factory, repo-wide strict TypeScript/ESLint enforcement, backend coverage gates, and
+  CODEOWNERS protections on the shared contract surfaces. These are Stage 1 hard
+  requirements in docs/rubric.md for Maintainability/Analyzability, yet the current
+  tasks list does not scope this work. Implement the missing foundations so later
+  phases inherit consistent AWS client wiring, strict typing, CI coverage thresholds,
+  and protected review paths.
+
+outcome: >-
+  A shared `backend/libs/aws-clients.ts` factory exists and is consumed by both BFF and
+  worker code paths, strict TypeScript + ESLint settings are enabled across backend and
+  mobile with a ≥60% changed-lines coverage gate baked into CI, and CODEOWNERS enforces
+  required reviewers for `shared/`, `backend/libs/core`, and the mobile upload kit.
+
+scope:
+  in:
+    - backend/libs/aws-clients.ts
+    - backend/tsconfig.json
+    - backend/.eslintrc.js
+    - mobile/tsconfig.json
+    - mobile/.eslintrc.js
+    - .github/workflows/**
+    - tooling/coverage-check/**
+    - CODEOWNERS
+    - dependency-cruiser config
+    - complexity/mutation test configuration
+  out:
+    - Runtime refactors unrelated to AWS client configuration
+    - Feature-level mobile UI changes beyond lint/tsconfig updates
+    - Direct SDK usage in handlers (violates STANDARDS.md hard fail)
+    - VPC attachment for API Lambdas (violates STANDARDS.md hard fail)
+    - Breaking API changes without /v{n} versioning
+    - Circular dependencies or layer violations
+    - Manual-only tests (all tests must run in CI)
+
+context:
+  issues: []
+  related_docs:
+    - docs/architecure-refactor-plan.md
+    - docs/rubric.md
+    - docs/testing-standards.md
+  repo_paths:
+    - backend/src
+    - backend/workers
+    - shared/
+    - mobile/app
+    - .github/workflows/ci.yml
+  dependencies:
+    - type: tool
+      name: npm
+      version: ">=9"
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: npm
+      version: "9.x"
+    - name: bash
+      version: any
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep changes additive; reuse existing lint/typecheck scripts where possible.
+    - Ensure CI updates remain deterministic per docs/testing-standards.md.
+    - Follow STANDARDS.md dependency policy (hard)—handlers → services → adapters; no lateral imports; no cycles anywhere.
+    - All AWS client construction must use adapter factories (no `new S3Client()` in services/handlers).
+  prohibited:
+    - Do not weaken existing lint or test coverage thresholds.
+    - Do not modify unrelated CODEOWNERS sections.
+    - No handler imports @aws-sdk/* or DB clients (adapters only)—STANDARDS.md hard fail.
+    - No circular dependencies or layer violations (enforced by dependency-cruiser).
+    - No API Lambda VPC attachments without ADR (increases cold start)—STANDARDS.md hard fail.
+
+plan:
+  - id: 1
+    title: Audit current configuration gaps and hard fail violations
+    details: Inspect existing AWS client usage, tsconfig settings, eslint configs, CI coverage handling, and scan for STANDARDS.md hard fail violations (handler SDK imports, circular deps, complexity).
+    commands:
+      - rg -n "new S3Client\\|new DynamoDBClient\\|new SQSClient\\|new SNSClient" backend -g '*.ts'
+      - rg -n "@aws-sdk" backend/src/lambdas -g '*.ts'
+      - cat backend/tsconfig.json
+      - cat mobile/tsconfig.json
+      - rg -n "coverage" .github/workflows -g '*.yml'
+      - npx madge --circular backend/src || echo "Checking for circular dependencies"
+    expected_files_touched: []
+
+  - id: 2
+    title: Implement shared AWS clients factory (Adapter layer)
+    details: Create `backend/libs/aws-clients.ts` with endpoint-aware client builders (S3, DynamoDB, SQS, SNS) following DI/factory pattern per STANDARDS.md. Add unit tests covering endpoint selection logic.
+    commands: []
+    expected_files_touched:
+      - backend/libs/aws-clients.ts
+      - backend/libs/aws-clients.test.ts
+      - backend/src/** (refactor existing SDK usage to use factory)
+      - backend/workers/** (refactor existing SDK usage to use factory)
+
+  - id: 3
+    title: Configure dependency-cruiser for layer enforcement
+    details: Set up .dependency-cruiser.js to enforce handlers → services → adapters layering, ban cycles, validate fan-in/fan-out metrics per STANDARDS.md lines 24, 56.
+    commands: []
+    expected_files_touched:
+      - .dependency-cruiser.js
+      - package.json (add dependency-cruiser scripts)
+      - docs/evidence/import-graph.png (generate initial graph)
+
+  - id: 4
+    title: Enforce strict TypeScript, ESLint, complexity, and coverage gates
+    details: Enable strict compiler options, configure ESLint with no-implicit-any and cycle detection, add complexity budgets (handlers ≤5, services ≤8, module ≤50), mutation testing ≥60%, and wire deterministic coverage gates into CI per STANDARDS.md lines 34-39, 96-100.
+    commands: []
+    expected_files_touched:
+      - backend/tsconfig.json
+      - backend/.eslintrc.js
+      - mobile/tsconfig.json
+      - mobile/.eslintrc.js
+      - tooling/coverage-check/**
+      - .github/workflows/ci.yml
+      - package.json (add mutation/complexity scripts)
+
+  - id: 5
+    title: Protect critical surfaces with CODEOWNERS
+    details: Update CODEOWNERS to require reviews for `shared/`, `backend/libs/core`, and `mobile/app/features/upload` per STANDARDS.md modularity requirements (lines 57-58).
+    commands: []
+    expected_files_touched:
+      - CODEOWNERS
+
+acceptance_criteria:
+  # AWS Client Factory (Reusability - STANDARDS.md lines 62-67)
+  - "`backend/libs/aws-clients.ts` exposes reusable builders for S3, DynamoDB, SQS, and SNS that honor custom endpoints (LocalStack) and production defaults, and unit tests cover the endpoint selection logic."
+  - No handlers or services import @aws-sdk/* directly (verified by grep and dependency-cruiser)—STANDARDS.md hard fail.
+
+  # Strict TypeScript/ESLint (Analysability - STANDARDS.md lines 82-83)
+  - "Backend and mobile `tsconfig.json` files enable strict mode (`strict: true`, `noImplicitAny`, `strictNullChecks`)."
+  - ESLint configs enforce no-implicit-any, block import cycles, and ban default exports in domain code.
+  - dependency-cruiser configured to enforce handlers → services → adapters layering with zero cycles.
+
+  # Coverage & Quality Gates (Testability - STANDARDS.md lines 96-100)
+  - CI enforces ≥60% changed-lines coverage via automated script (deterministic per testing-standards.md).
+  - Mutation testing configured with ≥60% threshold for services and adapters.
+  - "Complexity checks configured: handlers \u22645 (warn \u22658, fail >10), services/adapters \u22648 (warn \u226512, fail >15)."
+  - Module-level complexity budget enforced (fail >50).
+
+  # CI Pipeline Integration (PR Gates - STANDARDS.md lines 217-232)
+  - CI workflow adds deterministic coverage gate (failing when thresholds missed).
+  - CI includes dependency-cruiser validation (fails on cycles/layer violations).
+  - CI includes complexity checks (per-function and module-level).
+  - CI includes knip dead-code detection.
+
+  # CODEOWNERS Protection (Modularity - STANDARDS.md lines 57-58)
+  - CODEOWNERS lists required reviewers for `shared/`, `backend/libs/core`, and `mobile/app/features/upload`, preventing unreviewed contract or core changes.
+
+validation:
+  commands:
+    # Hard fail prevention (STANDARDS.md lines 30-43)
+    - "! grep -r '@aws-sdk' backend/src/lambdas/ || echo 'Hard fail: handlers must not import @aws-sdk'"
+    - "! grep -r 'new S3Client\\|new DynamoDBClient\\|new SQSClient' backend/src/services/ || echo 'Hard fail: services must use adapter factories'"
+
+    # Linting & Typechecking (STANDARDS.md line 82)
+    - npm run lint --prefix backend
+    - npm run lint --prefix mobile
+    - npm run typecheck --prefix backend
+    - npm run typecheck --prefix mobile
+
+    # Dependency & Layer Enforcement (STANDARDS.md lines 24, 218)
+    - npx dependency-cruiser --validate .dependency-cruiser.js backend/src
+    - npx dependency-cruiser --validate .dependency-cruiser.js mobile/app
+
+    # Complexity Checks (STANDARDS.md lines 34-39)
+    - npm run lint -- --max-warnings=0 --rule 'complexity:[error,{max:10}]'
+    - npx es6-plato -r -d reports/complexity backend/src
+
+    # Dead Code Detection (STANDARDS.md line 227)
+    - npx knip --no-exit-code
+
+    # Coverage & Mutation (STANDARDS.md lines 96-100, 224)
+    - npm run test:unit --prefix backend -- --coverage --coverageThreshold='{"global":{"lines":80,"branches":70}}'
+    - npm run test:mutation --prefix backend -- --threshold 60
+
+  manual_checks:
+    - Trigger the coverage gate script locally with an intentional threshold breach to confirm failure behaviour.
+    - Review dependency-cruiser graph artifact for layering violations.
+
+  artifacts:
+    - tooling/coverage-check/report.txt
+    - docs/evidence/import-graph.png (dependency-cruiser output)
+    - reports/complexity/index.html (complexity analysis)
+
+deliverables:
+  # Code & Configuration
+  - backend/libs/aws-clients.ts
+  - backend/tsconfig.json (updated)
+  - backend/.eslintrc.js (updated)
+  - mobile/tsconfig.json (updated)
+  - mobile/.eslintrc.js (updated)
+  - .dependency-cruiser.js (layer enforcement config)
+  - tooling/coverage-check/**
+  - .github/workflows/ci.yml (updated)
+  - CODEOWNERS (updated)
+
+  # Evidence (STANDARDS.md lines 237-244)
+  - docs/evidence/import-graph.png (dependency-cruiser visualization)
+  - tooling/coverage-check/report.txt (coverage gate results)
+  - reports/complexity/index.html (complexity analysis)
+  - backend/libs/aws-clients.test.ts (unit tests for factory)
+
+risks:
+  # Build & Configuration Risks
+  - description: Stricter compiler/lint settings could break existing builds until fixes land.
+    mitigation: Roll out strict mode with targeted suppressions documented in follow-up tasks if required.
+  - description: Coverage gate might introduce flakiness if thresholds rely on non-deterministic metrics.
+    mitigation: Use changed-lines coverage tooling and deterministic reporters per testing standards.
+
+  # Hard Fail Risks (STANDARDS.md lines 30-43)
+  - description: Existing handlers may import @aws-sdk/* directly, violating hard fail constraint.
+    mitigation: Audit all handler files with grep before enabling strict dependency-cruiser rules; refactor violations to use aws-clients.ts factory.
+  - description: dependency-cruiser may detect circular dependencies or layer violations in existing code.
+    mitigation: Generate initial dependency graph, document violations, and create follow-up tasks to remediate; consider temporary exceptions with ADR for <90 days.
+  - description: Handler complexity >10 or module complexity >50 may fail builds for existing code.
+    mitigation: Run complexity analysis first, identify violations, add targeted // eslint-disable comments with justification and follow-up task references.
+
+  # CI/CD Risks
+  - description: New CI gates (dependency-cruiser, mutation, complexity) could slow PR feedback loops.
+    mitigation: Run gates in parallel where possible; cache node_modules and dependency graphs; provide clear error messages with remediation guidance.

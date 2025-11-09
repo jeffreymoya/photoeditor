@@ -1,0 +1,217 @@
+# Task: Refactor upload library to meet complexity thresholds
+
+schema_version: "1.1"
+id: TASK-0912
+title: "Refactor upload library functions to meet complexity thresholds"
+status: completed
+blocked_reason:
+priority: P1
+area: mobile
+unblocker: true
+order:
+blocked_by: []
+depends_on: []
+agent_completion_state: {}
+
+clarifications:
+  outstanding: []
+  resolved: true
+  evidence_path:
+
+description: >-
+  Refactor two functions in mobile upload library (preprocessing.ts and retry.ts)
+  that exceed the complexity threshold of 10. These violations are blocking the
+  pre-commit hook and preventing TASK-0908 from being committed. The refactoring
+  must maintain existing functionality and test coverage while reducing cyclomatic
+  complexity through function decomposition.
+
+outcome: >-
+  Upload library functions meet complexity threshold (≤10). All existing tests
+  pass without modification. Pre-commit hook passes for mobile package. TASK-0908
+  can be committed successfully.
+
+scope:
+  in:
+  - Refactoring preprocessImage function in 
+    mobile/src/lib/upload/preprocessing.ts (complexity 14 → ≤10)
+  - Refactoring withRetry function in mobile/src/lib/upload/retry.ts (complexity
+    11 → ≤10)
+  - Extracting helper functions to reduce complexity
+  - Verifying all existing tests pass without modification
+  - Running pnpm turbo run qa:static --filter=photoeditor-mobile to confirm 
+    compliance
+  out:
+  - Changing function signatures or public APIs
+  - Modifying test behavior or expectations
+  - Refactoring other files in upload library (unless necessary)
+  - Adding new features or functionality
+
+context:
+  affected_packages: [mobile]
+  standards_tier: mobile
+  related_docs:
+  - standards/frontend-tier.md
+  - standards/cross-cutting.md
+  - standards/typescript.md
+  - standards/testing-standards.md
+  repo_paths:
+  - mobile/src/lib/upload/preprocessing.ts
+  - mobile/src/lib/upload/retry.ts
+  - mobile/src/lib/upload/__tests__/
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+  - name: pnpm
+    version: "8.x"
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+  - Extract helper functions to reduce complexity
+  - Maintain existing function signatures and APIs
+  - Preserve all existing test coverage
+  - Follow standards/typescript.md for function decomposition
+  prohibited:
+  - Do not change public function signatures
+  - Do not modify test expectations or behavior
+  - Do not suppress complexity checks with eslint-disable
+
+plan:
+- id: 1
+  title: Analyze complexity violations and plan refactoring
+  details: >-
+    Read preprocessing.ts:76 and retry.ts:140 to understand the complexity
+    violations. Identify logical sections that can be extracted as helper
+    functions. Document refactoring strategy per standards/cross-cutting.md
+    complexity budgets.
+  actor: agent
+  inputs:
+  - mobile/src/lib/upload/preprocessing.ts
+  - mobile/src/lib/upload/retry.ts
+  - ESLint complexity reports
+  outputs:
+  - Refactoring strategy (inline in implementation summary)
+  definition_of_done:
+  - Complexity violations identified and understood
+  - Helper function extraction points identified
+  - Strategy documented
+  estimate: S
+  expected_files_touched:
+  - mobile/src/lib/upload/preprocessing.ts
+  - mobile/src/lib/upload/retry.ts
+- id: 2
+  title: Refactor preprocessImage function
+  details: >-
+    Extract logical sections from preprocessImage (complexity 14) into helper
+    functions to reduce complexity to ≤10. Maintain existing function signature
+    and behavior. Follow standards/typescript.md for function decomposition
+    patterns.
+  actor: agent
+  inputs:
+  - mobile/src/lib/upload/preprocessing.ts
+  - mobile/src/lib/upload/__tests__/preprocessing.test.ts
+  outputs:
+  - mobile/src/lib/upload/preprocessing.ts (refactored)
+  definition_of_done:
+  - preprocessImage complexity ≤10
+  - All existing tests pass without modification
+  - Function signature unchanged
+  estimate: M
+  expected_files_touched:
+  - mobile/src/lib/upload/preprocessing.ts
+- id: 3
+  title: Refactor withRetry function
+  details: >-
+    Extract logical sections from withRetry (complexity 11) into helper functions
+    to reduce complexity to ≤10. Maintain existing function signature and behavior.
+    Follow standards/typescript.md for function decomposition patterns.
+  actor: agent
+  inputs:
+  - mobile/src/lib/upload/retry.ts
+  - mobile/src/lib/upload/__tests__/retry.test.ts
+  outputs:
+  - mobile/src/lib/upload/retry.ts (refactored)
+  definition_of_done:
+  - withRetry complexity ≤10
+  - All existing tests pass without modification
+  - Function signature unchanged
+  estimate: M
+  expected_files_touched:
+  - mobile/src/lib/upload/retry.ts
+- id: 4
+  title: Verify compliance and test coverage
+  details: >-
+    Run full QA suite to verify complexity compliance and test coverage. Ensure
+    pnpm turbo run qa:static --filter=photoeditor-mobile passes with 0 complexity
+    errors. Verify all tests pass and coverage thresholds are maintained.
+  actor: agent
+  inputs:
+  - mobile/src/lib/upload/ (refactored)
+  outputs:
+  - QA command outputs
+  definition_of_done:
+  - pnpm turbo run qa:static --filter=photoeditor-mobile passes
+  - pnpm turbo run test --filter=photoeditor-mobile passes
+  - Coverage thresholds maintained (≥70% lines, ≥60% branches)
+  estimate: S
+  expected_files_touched: []
+
+validation:
+  pipeline:
+  - command: pnpm turbo run lint:fix --filter=photoeditor-mobile
+    description: Auto-fix linting issues in mobile package
+  - command: pnpm turbo run qa:static --filter=photoeditor-mobile
+    description: Run static analysis (typecheck + lint) - must pass with 0 
+      complexity errors
+  - command: pnpm turbo run test --filter=photoeditor-mobile
+    description: Run unit tests - all existing tests must pass
+  - command: pnpm turbo run test:coverage --filter=photoeditor-mobile
+    description: Verify coverage thresholds maintained
+  manual_checks: []
+
+acceptance_criteria:
+  must:
+  - preprocessImage function complexity ≤10
+  - withRetry function complexity ≤10
+  - All existing tests pass without modification
+  - pnpm turbo run qa:static --filter=photoeditor-mobile passes with 0 errors
+  - Function signatures unchanged (public API preserved)
+  - Coverage thresholds maintained (≥70% lines, ≥60% branches)
+  quality_gates:
+  - No new complexity violations introduced
+  - No test behavior changes required
+  - Pre-commit hook passes for mobile package
+
+artifacts:
+- path: docs/evidence/tasks/TASK-0912-implementation-summary.md
+  description: Implementation summary with refactoring strategy
+- path: docs/evidence/tasks/TASK-0912-review-summary.md
+  description: Review summary with complexity verification
+- path: docs/evidence/tasks/TASK-0912-validation-mobile-report.md
+  description: Validation report with QA suite results
+
+deliverables:
+- mobile/src/lib/upload/preprocessing.ts (refactored, complexity ≤10)
+- mobile/src/lib/upload/retry.ts (refactored, complexity ≤10)
+- docs/evidence/tasks/TASK-0912-implementation-summary.md
+- docs/evidence/tasks/TASK-0912-review-summary.md
+- docs/evidence/tasks/TASK-0912-validation-mobile-report.md
+
+risks:
+- description: Refactoring may introduce subtle behavior changes
+  mitigation: Run full test suite, verify tests pass without modification, add 
+    regression tests if needed
+- description: Helper function extraction may reduce readability
+  mitigation: Use descriptive function names, add TSDoc comments, follow 
+    standards/typescript.md decomposition patterns
+- description: Complexity reduction may require significant restructuring
+  mitigation: Start with minimal extraction, iterate if needed, preserve 
+    original logic flow

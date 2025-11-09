@@ -1,0 +1,258 @@
+schema_version: "1.0"
+id: TASK-0105
+title: "Scaffold NestJS BFF skeleton with logging and contracts"
+status: completed
+priority: P1
+complexity: M
+area: backend
+
+description: >-
+  Phase 1 of docs/architecure-refactor-plan.md introduces a NestJS Fastify BFF that fronts `/presign`,
+  `/status`, and `/download`, while docs/rubric.md stresses maintainable layering, analyzability, and
+  consistent error handling. The backend currently ships standalone Lambda handlers without the Nest
+  runtime, so we need to scaffold the BFF project, implement the initial modules, wire the
+  observability interceptor, and codify the error taxonomy plus AWS endpoint fallbacks before
+  building higher-level tests.
+
+outcome: >-
+  A bootable NestJS application under `backend/bff` exposes the initial routes, validates payloads
+  with shared schemas, delegates to domain services via dependency injection, emits structured logs
+  through a global interceptor, and applies the documented error taxonomy while defaulting to real
+  AWS endpoints when `AWS_ENDPOINT` is unset.
+
+scope:
+  in:
+    - backend/bff/package.json
+    - backend/bff/src/app.module.ts
+    - backend/bff/src/main.ts
+    - backend/bff/src/modules/presign
+    - backend/bff/src/modules/job
+    - backend/bff/src/observability
+    - backend/bff/src/common/errors
+    - backend/tsconfig.json
+    - backend/jest.config.js
+    - docs/evidence/** (coverage, mutation, contract tests, import graphs)
+  out:
+    - Worker Lambda implementations (stay standalone for now)
+    - API Gateway/Terraform infrastructure changes
+    - Direct AWS SDK imports in controllers (violates STANDARDS.md line 32)
+    - Default exports in domain logic (violates STANDARDS.md line 82)
+    - Breaking API changes without `/v{n}` versioning (violates STANDARDS.md line 40)
+    - Placing API Lambdas in VPC (violates STANDARDS.md line 127)
+    - Manual-only tests (all tests must run in CI per testing-standards.md)
+
+context:
+  issues: []
+  related_docs:
+    - docs/architecure-refactor-plan.md
+    - docs/rubric.md
+    - docs/requirements.md
+    - STANDARDS.md (architecture constraints, hard fails, maintainability criteria)
+    - docs/testing-standards.md (test coverage expectations)
+  repo_paths:
+    - backend/src/lambdas/presign.ts
+    - backend/src/lambdas/status.ts
+    - shared/schemas/**
+  dependencies:
+    - type: package
+      name: "@nestjs/core"
+      version: "^10"
+    - type: package
+      name: "@nestjs/platform-fastify"
+      version: "^10"
+    - type: package
+      name: aws-lambda-fastify
+      version: latest compatible
+    - type: package
+      name: "@aws-lambda-powertools/logger"
+      version: latest (for structured logging per STANDARDS.md line 71)
+    - type: package
+      name: dependency-cruiser
+      version: latest (for layer validation per STANDARDS.md line 56)
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: npm
+      version: "9.x"
+    - name: bash
+      version: any
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Follow layering from docs/rubric.md so controllers stay thin and delegate to services.
+    - Use shared DTOs from `@photoeditor/shared` for request/response schemas.
+    - Controllers (handlers) must stay ≤75 LOC and cyclomatic complexity ≤10 (hard fail per STANDARDS.md line 36).
+    - Services/Adapters must stay ≤200 LOC and cyclomatic complexity ≤15 (hard fail per STANDARDS.md line 37).
+    - Module complexity sum must stay ≤50 (hard fail per STANDARDS.md line 38).
+    - No `new` of SDK/DB clients in services/controllers; obtain via DI container or adapter factories (hard fail per STANDARDS.md line 25).
+    - "Structured logs must include: correlationId, traceId, requestId, jobId, userId, function, env, version (STANDARDS.md line 71)."
+    - W3C traceparent propagation required end-to-end (STANDARDS.md line 39).
+    - dependency-cruiser must validate layers, no cycles allowed (STANDARDS.md lines 24, 56).
+  prohibited:
+    - Do not access AWS SDK directly from controllers; rely on injected services (hard fail per STANDARDS.md line 32).
+    - Do not add provisional routes beyond the documented scope.
+    - No breaking API changes without `/v{n}` versioning (STANDARDS.md line 40).
+    - No default exports in domain logic (STANDARDS.md line 82).
+    - API Lambdas must not be placed in VPC (STANDARDS.md line 127).
+
+plan:
+  - id: 1
+    title: Review existing lambda handlers and shared services
+    details: Identify functionality that must move behind Nest providers and what remains in workers.
+    commands:
+      - rg -n "presign" backend/src/lambdas -g '*.ts'
+      - rg -n "status" backend/src/lambdas -g '*.ts'
+    expected_files_touched: []
+  - id: 2
+    title: Initialize Nest project structure
+    details: Add package manifest, tsconfig references, bootstrap entrypoints, and handler wiring for Lambda (aws-lambda-fastify).
+    commands: []
+    expected_files_touched:
+      - backend/bff/package.json
+      - backend/bff/tsconfig.json
+      - backend/bff/src/main.ts
+      - backend/bff/src/handler.ts
+  - id: 3
+    title: Implement initial modules and controllers
+    details: Create PresignModule and JobModule controllers/services using shared DTOs and injected adapters, ensuring AWS endpoint selection is configurable via environment.
+    commands: []
+    expected_files_touched:
+      - backend/bff/src/modules/presign/**
+      - backend/bff/src/modules/job/**
+  - id: 4
+    title: Add observability and error handling layers
+    details: Introduce logging interceptor with Powertools (correlationId, traceId, requestId, jobId, userId, function, env, version per STANDARDS.md line 71), W3C traceparent propagation (STANDARDS.md line 39), error taxonomy mapping (HTTP ↔ Dynamo job statuses), unit tests, and update lint/test configs.
+    commands: []
+    expected_files_touched:
+      - backend/bff/src/observability/**
+      - backend/bff/src/common/errors/**
+      - backend/jest.config.js
+      - backend/tsconfig.json
+  - id: 5
+    title: Implement contract tests and evidence generation
+    details: Create contract tests for /presign, /status, /download routes; generate import graph with dependency-cruiser; run coverage and mutation tests; capture sample structured logs; generate all evidence artifacts per STANDARDS.md lines 236-243.
+    commands:
+      - npx dependency-cruiser --validate --output-type dot backend/bff/src > docs/evidence/import-graph-bff.dot
+      - dot -Tpng docs/evidence/import-graph-bff.dot -o docs/evidence/import-graph-bff.png
+    expected_files_touched:
+      - backend/bff/src/**/*.spec.ts
+      - backend/bff/src/**/*.contract.spec.ts
+      - docs/evidence/**
+
+acceptance_criteria:
+  # Build & Deployment
+  - "`npm run build:bff --prefix backend` (to be added) successfully bundles the Nest app for Lambda using Fastify adapter."
+  - "`/presign`, `/status`, and `/download` controllers validate payloads with shared schemas, delegate via injectable services, and default to production AWS endpoints whenever `AWS_ENDPOINT` is not provided."
+
+  # Modularity (STANDARDS.md lines 49-60)
+  - Controllers (handlers) stay ≤75 LOC and cyclomatic complexity ≤10 (builds fail at violations per STANDARDS.md line 36).
+  - Services/Adapters stay ≤200 LOC and cyclomatic complexity ≤15 (STANDARDS.md line 37).
+  - Module complexity sum ≤50 (STANDARDS.md line 38).
+  - Controllers only call one service method (thin glue layer per STANDARDS.md line 54).
+  - No SDK/DB client construction via `new` in services/controllers; all obtained via DI (STANDARDS.md line 25).
+  - dependency-cruiser validates layering (handlers → services → adapters) with no cycles (STANDARDS.md lines 24, 56).
+
+  # Analysability (STANDARDS.md lines 70-83)
+  - "Global logging interceptor enriches responses with structured JSON logs including: correlationId, traceId, requestId, jobId, userId, function, env, version (STANDARDS.md line 71)."
+  - W3C traceparent propagation configured end-to-end (STANDARDS.md line 39).
+  - TSDoc coverage ≥50% for exported APIs (fail threshold per STANDARDS.md line 83).
+  - Error taxonomy module maps domain errors to HTTP responses and Dynamo job status transitions, with unit tests covering expected/unknown cases.
+
+  # Testability (STANDARDS.md lines 95-104)
+  - Services: Line coverage ≥80%, Branch coverage ≥70% (STANDARDS.md lines 98-99).
+  - Mutation score ≥60% for service layer (STANDARDS.md line 100).
+  - Contract tests pass for `/presign`, `/status`, and `/download` routes (STANDARDS.md line 101).
+  - Unit tests cover controller/service wiring and interceptors.
+
+  # Hard Fail Prevention
+  - No controller imports `@aws-sdk/*` (verified by grep; STANDARDS.md line 32).
+  - No default exports in domain logic (STANDARDS.md line 82).
+  - Lint and typecheck pass with strict mode enabled.
+
+validation:
+  commands:
+    # Dependencies
+    - npm install --prefix backend/bff
+
+    # Hard Fail Prevention (STANDARDS.md lines 30-43)
+    - "! grep -r '@aws-sdk' backend/bff/src/modules --include='*.ts' || echo 'FAIL: Controllers must not import @aws-sdk (STANDARDS.md line 32)'"
+    - "! grep -r 'export default' backend/bff/src/modules backend/bff/src/common --include='*.ts' || echo 'FAIL: No default exports in domain logic (STANDARDS.md line 82)'"
+
+    # Complexity Checks (STANDARDS.md lines 34-38)
+    - npm run lint --prefix backend -- --max-complexity=10
+    - npm run complexity:check --prefix backend || echo 'Module complexity must be ≤50 (STANDARDS.md line 38)'
+
+    # Dependency Graph & Layering (STANDARDS.md lines 24, 56, 218)
+    - "npx dependency-cruiser --validate --output-type err backend/bff/src || echo 'FAIL: Layering or cycle violations (STANDARDS.md lines 24, 56)'"
+    - npx dependency-cruiser --validate --output-type dot backend/bff/src > docs/evidence/import-graph-bff.dot
+
+    # Test Execution (STANDARDS.md lines 95-104)
+    - npm run test --prefix backend -- bff --coverage --coverageThreshold='{"global":{"lines":80,"branches":70}}'
+    - npm run test:mutation --prefix backend -- --threshold 60 || echo 'Mutation score must be ≥60% (STANDARDS.md line 100)'
+    - npm run test:contract --prefix backend -- bff || echo 'Contract tests required for API routes (STANDARDS.md line 101)'
+
+    # TSDoc Coverage (STANDARDS.md line 83)
+    - npm run docs:coverage --prefix backend -- --threshold 50 || echo 'TSDoc coverage must be ≥50% (STANDARDS.md line 83)'
+
+    # Build
+    - npm run build:bff --prefix backend
+
+  manual_checks:
+    - Invoke the Lambda handler locally (e.g., via ts-node) to confirm routes resolve expected DTOs.
+    - Verify structured logs contain correlationId, traceId, requestId fields in output.
+    - Confirm W3C traceparent header is propagated to downstream service calls.
+
+  artifacts:
+    - backend/bff/dist
+    - docs/evidence/import-graph-bff.dot
+    - docs/evidence/coverage-bff.json
+    - docs/evidence/mutation-report-bff.html
+
+deliverables:
+  # Code
+  - backend/bff/package.json
+  - backend/bff/tsconfig.json
+  - backend/bff/src/**
+  - backend/jest.config.js (updated)
+  - backend/package.json (new scripts)
+
+  # Evidence (STANDARDS.md lines 236-243)
+  - docs/evidence/import-graph-bff.dot
+  - docs/evidence/import-graph-bff.png
+  - docs/evidence/coverage-bff.json
+  - docs/evidence/mutation-report-bff.html
+  - docs/evidence/contract-tests/presign.log
+  - docs/evidence/contract-tests/status.log
+  - docs/evidence/contract-tests/download.log
+  - docs/evidence/logs/powertools-sample.json
+  - docs/evidence/dependency-cruiser-report.txt
+
+risks:
+  - description: Introducing Nest dependencies could bloat Lambda bundle size and cold start times.
+    mitigation: Use Fastify adapter, esbuild bundling, and tree-shake unused providers; monitor bundle size as part of build output. Target <5MB artifact per STANDARDS.md line 128.
+
+  - description: Controllers might directly import AWS SDK or DB clients (hard fail per STANDARDS.md line 32).
+    mitigation: Enforce via grep validation in CI; ensure all SDK interactions happen through injected adapter services obtained via DI.
+
+  - description: Cyclomatic complexity could exceed thresholds (controllers >10, services >15, module >50 are hard fails per STANDARDS.md lines 36-38).
+    mitigation: Add ESLint complexity rule with max=10; run complexity checks in validation; refactor early if approaching limits.
+
+  - description: Missing W3C traceparent propagation could fail observability requirements (hard fail per STANDARDS.md line 39).
+    mitigation: Configure Powertools or custom interceptor to propagate traceparent header; validate in manual checks and integration tests.
+
+  - description: "Test coverage or mutation scores might fall below thresholds (Services: 80/70, Mutation: 60% per STANDARDS.md lines 98-100)."
+    mitigation: Write unit tests alongside implementation; use test data builders; run coverage checks in CI with --coverageThreshold flag.
+
+  - description: Breaking API changes without versioning would violate STANDARDS.md line 40.
+    mitigation: Use OpenAPI semantic diff in CI; any breaking change requires new `/v{n}` route and migration guide.
+
+  - description: TSDoc coverage might fall below 50% fail threshold (STANDARDS.md line 83).
+    mitigation: Document exported APIs inline as code is written; run docs:coverage script in validation.

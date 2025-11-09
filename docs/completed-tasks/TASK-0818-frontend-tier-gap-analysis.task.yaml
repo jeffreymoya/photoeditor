@@ -1,0 +1,164 @@
+# Lean template for LLM-executable tasks (token-optimized for solo developer)
+# Copy to: tasks/<area>/TASK-<id>-<short-slug>.task.yaml
+# See tasks/README.md for authoring guide
+
+schema_version: "1.0"
+id: TASK-0818
+title: "Document frontend-tier compliance gaps and remediation design"
+status: completed
+blocked_reason:
+priority: P1
+area: mobile
+unblocker: false
+order: 1
+blocked_by: []
+depends_on: []
+
+description: >-
+  Audit current mobile implementation against standards/frontend-tier.md to identify
+  specific
+  violations in feature layering, UI tokens, state management, and services. Document
+  findings
+  with direct citations to standards sections and create a remediation design that
+  guides
+  subsequent implementation tasks.
+
+outcome: >-
+  Gap analysis document exists at docs/ui/2025-frontend-tier-gap-analysis.md with
+  specific
+  violations cited, remediation approach defined, and links to follow-up tasks for
+  each area.
+
+scope:
+  in:
+  - mobile/src/screens/**/*
+  - mobile/src/features/upload/**/*
+  - mobile/src/store/**/*
+  - mobile/src/services/**/*
+  - mobile/src/lib/ui-tokens.ts
+  - docs/ui/2025-frontend-tier-gap-analysis.md
+  out:
+  - Implementation changes (deferred to follow-up tasks)
+  - Backend/shared contract changes
+  - Infrastructure automation
+
+context:
+  affected_packages: [mobile]
+  standards_tier: mobile
+  issues: []
+  related_docs:
+  - standards/AGENTS.md
+  - standards/frontend-tier.md
+  - standards/typescript.md
+  - standards/testing-standards.md
+  - standards/standards-governance-ssot.md
+  repo_paths:
+  - mobile/src
+  - docs/ui
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "18.x"
+  tools:
+  - name: pnpm
+    version: "8.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+  - Keep analysis focused on standards compliance
+  - Cite specific standards sections with file#heading format
+  prohibited:
+  - No implementation changes in this task
+  - No secrets or tokens in code
+
+plan:
+  - id: 1
+    title: Audit feature layering and UI components
+    details: >-
+      Review mobile/src/screens and mobile/src/features against standards/frontend-tier.md#feature-guardrails
+      and standards/frontend-tier.md#ui-components-layer. Document violations of feature/public exports,
+      cross-feature imports, and ad-hoc style usage.
+    actor: agent
+    inputs:
+      - standards/frontend-tier.md
+      - mobile/src/screens/**/*
+      - mobile/src/features/upload/**/*
+      - mobile/src/lib/ui-tokens.ts
+    outputs:
+      - "docs/ui/2025-frontend-tier-gap-analysis.md (section: Feature & UI Gaps)"
+    definition_of_done:
+      - Document lists specific files violating feature layering with citations to standards/frontend-tier.md#feature-guardrails.
+      - UI token violations documented with citations to standards/frontend-tier.md#ui-components-layer.
+    estimate: S
+    expected_files_touched:
+      - docs/ui/2025-frontend-tier-gap-analysis.md
+  - id: 2
+    title: Audit state and services layers
+    details: >-
+      Review mobile/src/store and mobile/src/services against standards/frontend-tier.md#state--logic-layer
+      and standards/frontend-tier.md#services--integration-layer. Document missing RTK Query usage, XState charts,
+      port/adapter patterns, and fitness evidence gaps.
+    actor: agent
+    inputs:
+      - standards/frontend-tier.md
+      - mobile/src/store/**/*
+      - mobile/src/services/**/*
+    outputs:
+      - "docs/ui/2025-frontend-tier-gap-analysis.md (sections: State Gaps, Services Gaps)"
+    definition_of_done:
+      - State management gaps documented with citations to standards/frontend-tier.md#state--logic-layer.
+      - Services layer gaps documented with citations to standards/frontend-tier.md#services--integration-layer.
+      - Missing fitness evidence identified per standards/testing-standards.md.
+    estimate: S
+    expected_files_touched:
+      - docs/ui/2025-frontend-tier-gap-analysis.md
+  - id: 3
+    title: Define remediation approach and sequencing
+    details: >-
+      Based on identified gaps, propose remediation strategy aligned with task-breakdown-canon.md. Define which changes
+      can be parallel vs sequential, identify any standards CR needs, and outline the subtasks required.
+    actor: agent
+    inputs:
+      - docs/ui/2025-frontend-tier-gap-analysis.md (draft)
+      - standards/task-breakdown-canon.md
+      - standards/standards-governance-ssot.md
+    outputs:
+      - "docs/ui/2025-frontend-tier-gap-analysis.md (section: Remediation Approach)"
+    definition_of_done:
+      - Remediation approach defines task boundaries aligned with task-breakdown-canon.md.
+      - Standards CR needs identified if any rules are ambiguous or missing.
+      - Estimated effort and risk assessment per area captured in the document.
+    estimate: M
+    expected_files_touched:
+      - docs/ui/2025-frontend-tier-gap-analysis.md
+
+acceptance_criteria:
+  - "docs/ui/2025-frontend-tier-gap-analysis.md exists with sections: Feature & UI Gaps, State Gaps, Services Gaps, Remediation Approach."
+  - Every gap cites specific standards/frontend-tier.md sections (e.g., #feature-guardrails, #ui-components-layer).
+  - Remediation approach identifies follow-up task boundaries and sequencing.
+  - Document identifies any needed standards CRs or ADRs.
+  - No implementation changes made (analysis only).
+
+validation:
+  static_checks: []
+  unit_tests: {}
+  contract_tests: []
+  manual_checks:
+    - Review gap analysis document for completeness and standards citations.
+
+deliverables:
+  - docs/ui/2025-frontend-tier-gap-analysis.md
+
+risks:
+  - description: Analysis may reveal more gaps than originally scoped in parent task.
+    mitigation: Document all gaps but scope remediation to critical P1 items only and defer P2 items to future tasks.
+
+agent_completion_state:
+  task_implementer: completed
+  implementation_reviewer: completed

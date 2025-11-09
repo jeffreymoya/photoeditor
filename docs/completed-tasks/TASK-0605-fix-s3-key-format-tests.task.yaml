@@ -1,0 +1,193 @@
+schema_version: "1.0"
+id: TASK-0605
+title: Fix S3 key format mismatch in tests
+status: completed
+priority: P1
+complexity: S
+area: backend
+
+description: >-
+  Tests in backend/tests/unit/services/s3.service.test.ts expect S3 keys to use
+  "temp/" prefix but the actual implementation generates keys with "uploads/"
+  prefix. This mismatch causes test failures in generateTempKey, parseTempKey,
+  and generatePresignedUpload tests. Either update the tests to match the actual
+  implementation or update the implementation if "temp/" is the correct prefix.
+
+outcome: >-
+  All S3 service tests pass. S3 key generation and parsing tests validate the
+  actual key format used by the implementation, ensuring consistency between
+  code and tests.
+
+scope:
+  in:
+    - backend/tests/unit/services/s3.service.test.ts
+    - backend/src/services/s3.service.ts (key generation logic)
+  out:
+    - Integration tests (separate validation)
+    - Lambda handlers (no changes expected)
+    - Breaking changes to S3 bucket structure without migration path
+    - Changing actual implementation if tests document correct behavior
+    - Manual-only tests (all tests must run in CI per standards/global.md:45)
+
+context:
+  issues: []
+  related_docs:
+    - "docs/testing-standards.md (lines 78-93: service test requirements)"
+    - "standards/backend-tier.md (lines 47-64: Domain Service Layer patterns)"
+    - "standards/backend-tier.md (lines 106-111: Platform & Quality fitness gates)"
+    - "standards/global.md (lines 18-28: org-wide guardrails)"
+  repo_paths:
+    - backend/tests/unit/services/s3.service.test.ts:35,41,61,123
+    - backend/src/services/s3.service.ts:11,20 (S3KeyStrategyImpl implementation)
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: npm
+      version: "10.x"
+    - name: jest
+      version: "29.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Maintain backward compatibility with existing S3 bucket structure
+    - Ensure key parsing logic matches key generation logic
+    - Follow standards/backend-tier.md:108 coverage requirements (80% lines unit, 60% integration)
+    - Follow standards/backend-tier.md:108 mutation score ≥60%
+    - Follow standards/backend-tier.md:110 complexity budgets (services fail above CC 15 or 200 LOC)
+    - Service layer must not import handlers (standards/backend-tier.md:22 layer enforcement)
+    - S3Service uses factory-created client per standards/backend-tier.md:16 (no SDK in controllers)
+
+plan:
+  - id: 1
+    title: Analyze current S3 key implementation
+    details: >-
+      Read backend/src/services/s3.service.ts to understand the actual key
+      format being generated. Determine if "uploads/" or "temp/" is the
+      correct prefix and why.
+    commands:
+      - rg -A 10 "generateTempKey|uploads|temp" backend/src/services/s3.service.ts
+    expected_files_touched: []
+
+  - id: 2
+    title: Determine correct key format
+    details: >-
+      Review S3 bucket configuration, ADRs, and existing implementation to
+      determine the intended key format. Check if "uploads/" is correct or
+      if implementation should use "temp/".
+    commands:
+      - rg -i "temp.*bucket|upload.*bucket" infrastructure/ docs/
+    expected_files_touched: []
+
+  - id: 3
+    title: Update tests or implementation
+    details: >-
+      Based on findings, either update tests to expect "uploads/" prefix or
+      update implementation to use "temp/" prefix. Ensure consistency between
+      generateTempKey and parseTempKey logic. Follow standards/backend-tier.md:47-64
+      domain service patterns and ensure changes maintain testability per
+      standards/backend-tier.md:106-111.
+    commands: []
+    expected_files_touched:
+      - backend/tests/unit/services/s3.service.test.ts
+      - backend/src/services/s3.service.ts (if implementation needs fixing)
+
+  - id: 4
+    title: Run S3 service tests with coverage
+    details: >-
+      Verify all S3 service tests pass after changes. Ensure coverage meets
+      standards/backend-tier.md:108 requirements (≥80% lines for unit tests).
+      Generate coverage report per docs/testing-standards.md:78-93.
+    commands:
+      - npm test --prefix backend -- s3.service.test.ts --coverage
+      - npm run lint --prefix backend -- --max-complexity=15
+    expected_files_touched: []
+
+  - id: 5
+    title: Verify integration tests
+    details: >-
+      Run integration tests to ensure S3 key format changes don't break
+      end-to-end flows. Requires LocalStack per docs/testing-standards.md:139-148.
+      Integration tests validate presign → upload → S3 flows with actual AWS
+      service mocks.
+    commands:
+      - npm run test:integration --prefix backend
+    expected_files_touched: []
+
+acceptance_criteria:
+  # Testability (standards/backend-tier.md:106-111)
+  - All S3KeyStrategyImpl tests pass (generateTempKey, parseTempKey, generateFinalKey, parseFinalKey)
+  - All S3Service tests pass (generatePresignedUpload)
+  - Key generation and parsing logic are consistent
+  - Integration tests continue to pass
+  - Unit test coverage ≥80% lines per standards/backend-tier.md:108
+  - Mutation score ≥60% for service layer per standards/backend-tier.md:108
+  - Service complexity remains below CC 15 per standards/backend-tier.md:110
+
+  # Modifiability (standards/global.md:18-28)
+  - S3 bucket structure remains compatible with existing data (no breaking changes)
+  - Tests validate actual implementation behavior (no test implementation details)
+
+  # Analysability (standards/backend-tier.md:106-111)
+  - Test names clearly describe behavior being validated
+  - Error cases explicitly tested (invalid key formats)
+
+validation:
+  commands:
+    # Unit test validation (docs/testing-standards.md:78-93)
+    - npm test --prefix backend -- s3.service.test.ts --coverage
+
+    # Integration test validation (docs/testing-standards.md:130-163)
+    - npm run test:integration --prefix backend
+
+    # Complexity budget enforcement (standards/backend-tier.md:110)
+    - npm run lint --prefix backend -- --max-complexity=15
+
+    # Mutation testing (standards/backend-tier.md:108)
+    - "npm run test:mutation --prefix backend -- --threshold 60 || echo \"WARN: mutation threshold not met\""
+
+    # Dependency layer enforcement (standards/backend-tier.md:22)
+    - "npm run depcruise --prefix backend || echo \"INFO: depcruise check\""
+
+  manual_checks:
+    - Verify S3 key format matches documentation in ADRs if present
+    - Confirm no breaking changes to existing S3 bucket structure
+    - Review test assertions validate behavior, not implementation details
+
+deliverables:
+  # Primary changes
+  - backend/tests/unit/services/s3.service.test.ts
+  - backend/src/services/s3.service.ts (if implementation needs fixing)
+
+  # Evidence per standards/global.md:52-57
+  - path: backend/tmp/test-results/s3-service-coverage.json
+    description: Unit test coverage report for S3Service
+  - path: backend/tmp/test-results/s3-service-mutation.html
+    description: Mutation test report (if available)
+
+risks:
+  - description: Changing S3 key format could break existing data access
+    mitigation: Ensure backward compatibility; only update if "temp/" is documented requirement
+    severity: high
+    related_standards: standards/global.md:14-16 (release governance)
+
+  - description: Integration tests may fail if LocalStack isn't running
+    mitigation: Document LocalStack requirement and provide skip option per docs/testing-standards.md:139-148
+    severity: low
+    related_standards: docs/testing-standards.md:139-148 (LocalStack requirements)
+
+  - description: Test coverage could drop below 80% threshold
+    mitigation: Run coverage report and verify thresholds before completion
+    severity: medium
+    related_standards: standards/backend-tier.md:108 (coverage requirements)
+
+  - description: Service complexity could exceed CC 15 budget
+    mitigation: Run lint with complexity checks; refactor if needed
+    severity: low
+    related_standards: standards/backend-tier.md:110 (complexity budgets)

@@ -1,0 +1,153 @@
+schema_version: "1.0"
+id: TASK-0702
+title: "Resolve contract client drift"
+status: completed
+priority: P0
+area: shared
+
+description: >-
+  Reconcile the generated contract clients with the authoritative shared schemas and snapshot. The
+  2025-10-21 contract validation report flagged `docs/contracts/clients/photoeditor-api.ts` and
+  `docs/contracts/clients/types.ts` as divergent from `shared/contract-snapshot.json`, blocking a full
+  contract pass.
+
+outcome: >-
+  Generated clients, OpenAPI artifacts, and the contract snapshot align with the current schemas and
+  `pnpm --filter @photoeditor/shared contracts:check` exits cleanly.
+
+scope:
+  in:
+    - shared/schemas/
+    - shared/contract-snapshot.json
+    - docs/contracts/clients/
+    - docs/openapi/
+    - package.json scripts for contract generation
+  out:
+    - Backend or mobile handler logic
+    - Non-contract shared modules
+    - Introducing breaking API changes without version bump
+    - Direct SDK usage in handlers (use adapters)
+    - Handler code exceeding 75 LOC or complexity >10
+    - VPC configuration for API Lambdas
+    - Inline secrets or hardcoded credentials
+    - SQS queues without DLQ configuration
+    - Cross-feature imports in mobile (violates modularity)
+    - Dependency cycles between modules
+    - Manual-only tests (all tests must run in CI)
+
+context:
+  issues: ["DOC-2025-10-21-contract-tests"]
+  related_docs:
+    - standards/global.md
+    - standards/AGENTS.md
+    - standards/shared-contracts-tier.md
+    - standards/testing-standards.md
+    - docs/tests/reports/2025-10-21-contract-tests.md
+    - contract-remediation-guide.md
+  repo_paths:
+    - shared/schemas/
+    - docs/contracts/clients/
+    - shared/contract-snapshot.json
+    - docs/openapi/openapi-generated.yaml
+  dependencies:
+    - type: package
+      name: "@photoeditor/shared"
+      version: "workspace:*"
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: pnpm
+      version: "8.x"
+    - name: bash
+      version: any
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Treat shared schemas as single source of truth.
+    - Avoid manual edits to generated clients.
+  prohibited:
+    - Do not commit secrets or tokens.
+    - Do not change unrelated files.
+  architecture:
+    - "Zod schemas drive OpenAPI and client generation"
+    - "OpenAPI spec generated from routes.manifest"
+    - "No dependency cycles"
+
+plan:
+  - id: 1
+    title: Inspect current schema vs snapshot diff
+    details: Review contract-diff.json and git changes to understand the drift source.
+    commands:
+      - cat contract-diff.json
+      - git diff shared/schemas/
+    expected_files_touched: []
+  - id: 2
+    title: Regenerate shared artifacts
+    details: Build shared package, regenerate clients, and update OpenAPI spec.
+    commands:
+      - pnpm --filter @photoeditor/shared build
+      - pnpm --filter @photoeditor/shared contracts:generate
+    expected_files_touched:
+      - docs/contracts/clients/photoeditor-api.ts
+      - docs/contracts/clients/types.ts
+      - docs/openapi/openapi-generated.yaml
+  - id: 3
+    title: Update snapshot and verify checks
+    details: Run `contracts:check` to refresh the snapshot and ensure no drift remains.
+    commands:
+      - pnpm --filter @photoeditor/shared contracts:check -- --update
+      - pnpm --filter @photoeditor/shared contracts:check
+    expected_files_touched:
+      - shared/contract-snapshot.json
+  - id: 4
+    title: Document evidence
+    details: Update contract report notes and archive the diff summary for audit trail.
+    commands: []
+    expected_files_touched:
+      - docs/tests/reports/YYYY-MM-DD-contract-tests.md
+      - docs/evidence/contract-tests/clients-diff.log
+
+acceptance_criteria:
+  - "`pnpm --filter @photoeditor/shared contracts:generate` followed by `contracts:check` reports success."
+  - Regenerated clients match the snapshot with zero git diff.
+  - Contract validation report reflects no drift-related deferrals.
+  - OpenAPI spec updated if schemas changed, with semantic diff recorded.
+
+validation:
+  commands:
+    - pnpm --filter @photoeditor/shared build
+    - pnpm --filter @photoeditor/shared contracts:generate
+    - pnpm --filter @photoeditor/shared contracts:check
+    - pnpm turbo run qa:static --parallel
+  manual_checks:
+    - Review `git status` to confirm only expected contract artifacts changed.
+  artifacts:
+    - screenshots: []
+
+deliverables:
+  - docs/contracts/clients/photoeditor-api.ts
+  - docs/contracts/clients/types.ts
+  - shared/contract-snapshot.json
+
+evidence:
+  api:
+    - path: docs/evidence/contract-tests/clients-diff.log
+      description: "Machine-readable diff output after regeneration"
+    - path: docs/tests/reports/YYYY-MM-DD-contract-tests.md
+      description: "Updated contract report showing no drift"
+
+risks:
+  - description: Regeneration introduces breaking schema changes unintentionally.
+    mitigation: Run semantic diff on OpenAPI and create ADR if breaking changes are required.
+  - description: Local environment uses stale build artifacts.
+    mitigation: Clean shared/dist before regeneration or use `pnpm clean`.
+  - description: Client regeneration fails due to unmet dependencies.
+    mitigation: Ensure pnpm workspace dependencies are installed via `make deps` before running scripts.

@@ -1,0 +1,121 @@
+schema_version: "1.0"
+id: TASK-0290
+title: "Harden Turbo QA Pipeline for Mobile and Shared"
+status: completed
+priority: P1
+complexity: M
+area: ops
+
+description: >-
+  Decouple mobile and shared QA flows from brittle build/test scripts so `pnpm turbo run qa --parallel`
+  no longer fails on missing EAS tooling or empty test suites. Align package scripts with Turbo task
+  definitions, ensure overrides protect CI from release-only commands, and document remote cache
+  expectations for the team.
+
+outcome: >-
+  Running `pnpm turbo run qa --parallel` completes locally without invoking EAS builds; shared package
+  tests no longer fail due to the absence of specs; Turbo task graph reflects explicit overrides for the
+  mobile workspace; team guidance on supplying Turbo remote cache credentials is published.
+
+scope:
+  in:
+    - turbo.json
+    - mobile/package.json
+    - shared/package.json
+    - docs/ or standards/ updates referencing Turbo cache usage
+  out:
+    - Backend Lambda build optimizations beyond task wiring
+    - Introducing new mobile features or backend handlers
+    - Publishing EAS release builds from CI
+    - Modifying SST or Terraform infrastructure
+    - Changing QA evidence artifact formats beyond task definitions
+    - Altering dependency versions unrelated to QA scripts
+
+context:
+  issues: []
+  related_docs:
+    - standards/global.md
+    - standards/AGENTS.md
+    - standards/cross-cutting.md
+    - standards/testing-standards.md
+  repo_paths:
+    - turbo.json
+    - mobile/package.json
+    - shared/package.json
+    - docs/
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "18.x"
+  tools:
+    - name: pnpm
+      version: "8.x"
+    - name: bash
+      version: any
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep diffs minimal and tied to QA pipeline stability.
+    - Follow repository formatting and lint rules.
+  prohibited:
+    - Do not introduce release-only build commands into CI scripts.
+    - Do not modify backend code paths outside QA scripts.
+  architecture:
+    - Ports & Adapters pattern for backend remains unchanged.
+    - No new dependency cycles introduced when editing scripts.
+    - Cyclomatic complexity budgets enforced via ESLint stay intact.
+
+plan:
+  - id: 1
+    title: Assess current QA task graph issues
+    details: Run Turbo QA commands to identify failing tasks, missing dependencies, and EAS coupling points.
+    commands:
+      - pnpm turbo run qa --dry-run
+  - id: 2
+    title: Refactor scripts and turbo configuration
+    details: Update package scripts and turbo.json to decouple mobile/shared flows from release-only tooling and align with standards/cross-cutting.md.
+    commands:
+      - pnpm turbo run qa --parallel
+      - pnpm --filter photoeditor-mobile run test
+      - pnpm --filter @photoeditor/shared test --passWithNoTests
+  - id: 3
+    title: Document remote cache guidance and validation
+    details: Record new expectations for the solo developer, including remote cache setup and QA evidence notes.
+    commands: []
+
+acceptance_criteria:
+  - "`pnpm turbo run qa --parallel` completes locally without invoking EAS builds or failing due to empty test suites."
+  - Mobile and shared package scripts align with Turbo tasks and pass required checks (`pnpm --filter photoeditor-mobile run test`, `pnpm --filter @photoeditor/shared test --passWithNoTests`).
+  - Documentation captures Turbo remote cache expectations and references standards/testing-standards.md.
+  - No release-only commands remain in CI-bound scripts.
+
+deliverables:
+  - turbo.json
+  - mobile/package.json
+  - shared/package.json
+  - docs/evidence/qa-pipeline-notes.md
+
+success_metrics:
+  automated_checks:
+    - pnpm turbo run qa --dry-run
+    - pnpm --filter photoeditor-mobile run test
+    - pnpm --filter @photoeditor/shared test --passWithNoTests
+    - pnpm turbo run qa:static --parallel
+  manual_checks:
+    - Document remote cache env var expectations for developers.
+    - Validate task card links in PR template reference this task.
+  artifacts:
+    - docs/evidence/qa-pipeline-notes.md
+
+risks:
+  - description: Misconfigured Turbo overrides could skip required quality gates.
+    mitigation: Cross-check final task graph with `pnpm turbo run qa --dry-run` and review outputs.
+  - description: Allowing tests to pass with `--passWithNoTests` may hide missing coverage long term.
+    mitigation: Create follow-up backlog item to add shared package contract tests before removing flag.

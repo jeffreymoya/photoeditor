@@ -1,0 +1,19 @@
+{
+  "timestamp": "2025-11-08T07:11:32.975Z",
+  "previousSnapshot": "2025-10-21T23:59:35.142Z",
+  "currentSnapshot": "2025-11-08T07:11:32.971Z",
+  "differences": {
+    "added": [],
+    "removed": [],
+    "modified": [
+      "shared/dist/routes.manifest.d.ts",
+      "shared/dist/routes.manifest.js",
+      "shared/dist/statecharts/jobLifecycle.machine.d.ts",
+      "contracts/clients/checksums.json",
+      "contracts/clients/photoeditor-api.ts",
+      "contracts/clients/types.ts",
+      "openapi/openapi-generated.yaml"
+    ]
+  },
+  "requiresChangeset": true
+}

@@ -143,7 +143,7 @@ const buildBatchStages = ({
  * and reduce clarity. The 305-line suite provides complete coverage of mobile-backend contract
  * alignment (TASK-0606 acceptance criteria).
  */
-// eslint-disable-next-line max-lines-per-function
+ 
 describe('ApiService - Shared Schema Integration', () => {
   beforeEach(() => {
     jest.clearAllMocks();

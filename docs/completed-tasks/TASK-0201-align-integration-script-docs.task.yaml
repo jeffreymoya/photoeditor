@@ -1,0 +1,165 @@
+schema_version: "1.0"
+id: TASK-0201
+title: "Align integration command naming across docs"
+status: completed
+priority: P1
+area: docs
+
+description: >-
+  `docs/testing-standards.md` still instructs engineers to run backend integration tests via
+  `npm run test --prefix backend tests/integration`, but the maintained script and recent backend
+  tasks rely on `npm run test:integration --prefix backend`. This mismatch causes confusion and
+  slow onboarding. Update the testing standards (and any linked runbooks) to point to the supported
+  script and document why the alias exists.
+
+outcome: >-
+  All published docs consistently reference `npm run test:integration --prefix backend` for backend
+  integration suites, highlighting any legacy command if it must remain for compatibility.
+
+scope:
+  in:
+    - docs/testing-standards.md
+    - docs/e2e-tests.md
+    - Cross-referencing STANDARDS.md hard fails and testability requirements
+    - Aligning terminology with maintainability pillars (Modularity, Reusability, Analysability, Modifiability, Testability)
+  out:
+    - Changes to backend test scripts beyond minor doc updates
+    - Documenting patterns that violate STANDARDS.md (handler SDK imports, API Lambda in VPC, missing DLQ)
+    - Removing STANDARDS.md references or architectural terminology without replacement
+    - Documentation that contradicts PR gates or hard fail controls
+    - Breaking changes to existing test command interfaces
+
+context:
+  issues: []
+  related_docs:
+    - docs/testing-standards.md
+    - STANDARDS.md
+  repo_paths:
+    - docs/testing-standards.md
+    - docs/e2e-tests.md
+    - STANDARDS.md
+    - tasks/backend/TASK-0101-presign-status-integration.task.yaml
+    - tasks/backend/TASK-0102-worker-pipeline-integration.task.yaml
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: npm
+      version: "9.x"
+    - name: bash
+      version: any
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep diffs minimal and focused on doc clarity.
+    - Preserve existing formatting and headings.
+    - All documentation must align with STANDARDS.md terminology and requirements.
+    - Testing documentation must reflect STANDARDS.md hard fails and PR gates.
+    - Preserve references to maintainability pillars (Modularity, Reusability, Analysability, Modifiability, Testability).
+  prohibited:
+    - Do not modify package scripts without coordination.
+    - Do not remove legacy command references without noting migration path.
+    - Do not introduce documentation that contradicts STANDARDS.md architectural patterns.
+    - Do not document commands or practices that would trigger hard fails.
+
+plan:
+  - id: 1
+    title: Audit docs referencing integration commands
+    details: Identify every mention of backend integration commands and note discrepancies.
+    commands:
+      - rg -n "test:integration" docs
+      - rg -n "tests/integration" docs/testing-standards.md
+    expected_files_touched: []
+  - id: 2
+    title: Verify STANDARDS.md alignment
+    details: Review STANDARDS.md hard fails, testability requirements, and PR gates to ensure testing docs reference them correctly.
+    commands:
+      - rg -n "hard.?fail|Hard.?Fail" STANDARDS.md
+      - rg -n "Testability|testability" STANDARDS.md
+      - rg -n "PR Gates|PR.?gate" STANDARDS.md
+    expected_files_touched: []
+  - id: 3
+    title: Update testing standards wording
+    details: Replace outdated command examples and add rationale for script usage. Cross-reference STANDARDS.md requirements (hard fails, testability, evidence).
+    commands: []
+    expected_files_touched:
+      - docs/testing-standards.md
+  - id: 4
+    title: Review related docs
+    details: Ensure supporting docs such as e2e guidance or onboarding link to the corrected command and align with STANDARDS.md.
+    commands: []
+    expected_files_touched:
+      - docs/e2e-tests.md
+
+acceptance_criteria:
+  # Command alignment
+  - "`docs/testing-standards.md` references `npm run test:integration --prefix backend` as the canonical command."
+  - Any other doc references to backend integration runs are updated or explicitly note legacy usage.
+  - No conflicting instructions remain in repo docs.
+
+  # STANDARDS.md alignment (Analysability - documentation)
+  - Testing docs cross-reference STANDARDS.md hard fails that tests must prevent (handler SDK imports, missing DLQ, VPC for API Lambdas).
+  - Testing docs reference STANDARDS.md testability requirements (coverage thresholds, mutation scores, contract compatibility).
+  - Documentation aligns with STANDARDS.md evidence requirements (contract test logs, mutation reports, DLQ runbooks).
+  - Terminology consistent with STANDARDS.md maintainability pillars (Modularity, Reusability, Analysability, Modifiability, Testability).
+
+  # Documentation quality
+  - Updated sections preserve existing formatting and heading structure.
+  - Migration rationale documented for command naming change.
+
+validation:
+  commands:
+    # Verify old command pattern removed
+    - rg -n "npm run test --prefix backend tests/integration" -g '*.md' docs || true
+
+    # Verify STANDARDS.md references present
+    - rg -q "STANDARDS.md" docs/testing-standards.md
+    - rg -q "hard.?fail|Hard.?Fail" docs/testing-standards.md
+
+    # Verify maintainability terminology present
+    - rg -q "Modularity|Reusability|Analysability|Modifiability|Testability" docs/testing-standards.md
+
+    # Verify no contradictions with architectural patterns
+    - "! rg 'handler.*import.*@aws-sdk' docs/testing-standards.md"
+    - "! rg 'API.*VPC.*Lambda' docs/testing-standards.md || rg 'API.*outside.*VPC' docs/testing-standards.md"
+
+  manual_checks:
+    - Proofread updated sections for clarity and consistency.
+    - Verify testing examples align with STANDARDS.md layer patterns (handlers → services → adapters).
+    - Confirm hard fail prevention examples are accurate and testable.
+  artifacts:
+    - path: docs/evidence/doc-alignment/testing-standards-diff.patch
+      description: Git diff showing documentation updates
+
+deliverables:
+  - path: docs/testing-standards.md
+    description: Updated integration command references and STANDARDS.md cross-references
+  - path: docs/e2e-tests.md
+    description: Updated integration command references aligned with testing-standards.md
+  - path: docs/evidence/doc-alignment/testing-standards-diff.patch
+    description: Patch file showing all documentation changes for review
+
+risks:
+  - description: Stray references in lesser-known docs could persist.
+    mitigation: Run repo-wide search for outdated command patterns and flag follow-up if discovered.
+    severity: low
+
+  - description: Documentation drift - testing docs may contradict STANDARDS.md hard fails or testability requirements.
+    mitigation: Added validation commands to verify STANDARDS.md references and terminology alignment. Plan step 2 explicitly audits STANDARDS.md for hard fails and testability requirements.
+    severity: medium
+
+  - description: Engineers may continue using legacy command from muscle memory despite doc updates.
+    mitigation: Document migration rationale clearly. Consider adding deprecation notice in backend README if command alias still exists.
+    severity: low
+
+  - description: Testing examples in docs may reference patterns that violate architectural constraints (e.g., handler SDK imports, API Lambda in VPC).
+    mitigation: Validation commands include grep checks to prevent documenting anti-patterns. Manual checks verify layer pattern alignment.
+    severity: medium

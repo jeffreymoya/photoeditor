@@ -1,0 +1,152 @@
+schema_version: "1.0"
+id: TASK-0302
+title: "Extend Terraform with BFF resources and observability"
+status: completed
+priority: P1
+complexity: M
+area: infra
+
+description: >-
+  Phase 4 of docs/architecure-refactor-plan.md adds the Nest BFF Lambda, API Gateway routing, and
+  CloudWatch observability to the Terraform stack. docs/rubric.md requires maintainable IaC with
+  module reuse, least privilege IAM, lifecycle policies, DLQ safeguards, KMS rotation, and static
+  analysis gates as Stage 1 requirements. Update Terraform modules to provision the new Lambda,
+  connect it to existing buckets/queues, configure lifecycle/security policies, and define
+  latency/error/queue depth alarms along with dashboards and budgets.
+
+outcome: >-
+  Terraform plans create the BFF Lambda, HTTP API routes, IAM roles, lifecycle/DLQ/KMS policies, and
+  CloudWatch metrics/alarms without drift, and documentation outlines how the Terraform stack maps to
+  SST dev resources while recording `tfsec`/`checkov` evidence.
+
+scope:
+  in:
+    - infrastructure/modules/**
+    - infrastructure/environments/**
+    - infrastructure/variables.tf / outputs.tf
+    - infrastructure/scripts/**
+    - docs/architecure-refactor-plan.md (cross-references)
+    - docs/infra/README.md (if exists)
+    - docs/evidence/observability/**
+  out:
+    - SST dev stack configuration (handled by TASK-0301)
+    - Mobile configuration changes
+
+context:
+  issues: []
+  related_docs:
+    - docs/architecure-refactor-plan.md
+    - docs/rubric.md
+    - docs/requirements.md
+    - docs/testing-standards.md
+  repo_paths:
+    - infrastructure/main.tf
+    - infrastructure/modules/lambda/**
+    - infrastructure/modules/api-gateway/**
+    - infrastructure/modules/cloudwatch/**
+    - docs/evidence/**
+  dependencies:
+    - type: tool
+      name: terraform
+      version: ">=1.6"
+    - type: service
+      name: aws
+      requirement: staging/prod accounts
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    terraform: ">=1.6"
+  tools:
+    - name: terraform
+      version: ">=1.6"
+    - name: aws-cli
+      version: "2.x"
+    - name: bash
+      version: any
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Reuse existing Terraform modules; avoid inline resource duplication.
+    - Tag resources per repo standards and document budgets/alarms.
+    - All resources must have Cost Tags (Project, Env, Owner, CostCenter) per STANDARDS.md (hard fail).
+    - BFF Lambda must NOT be attached to VPC (API Lambdas outside VPC per STANDARDS.md for cold start).
+    - KMS key rotation must be enabled for all production buckets.
+    - S3 Block Public Access must be enabled on all buckets.
+    - All SQS queues must have DLQ configured with redrive policy after 3 retries.
+    - CloudWatch log retention must be 90d (prod), 30d (staging), 14d (dev) per STANDARDS.md.
+    - Lambda reserved concurrency must be configured to prevent account-level throttling.
+  prohibited:
+    - Do not modify prod state files directly; rely on Terraform plan/apply.
+    - Do not relax IAM least privilege policies.
+    - No wildcard IAM permissions (resource-scoped policies only per STANDARDS.md).
+    - No API Lambdas in VPC (hard fail - breaks cold start performance).
+    - No long-lived keys in code/CI (use OIDC per STANDARDS.md hard fail).
+    - No resources without Cost Tags (Project, Env, Owner, CostCenter).
+
+plan:
+  - id: 1
+    title: Review current Terraform topology
+    details: Understand existing modules and identify integration points for the BFF Lambda and API Gateway.
+    commands:
+      - terraform -chdir=infrastructure fmt
+      - terraform -chdir=infrastructure state list || true
+    expected_files_touched: []
+  - id: 2
+    title: Add BFF Lambda, API Gateway, and lifecycle/security policies
+    details: Define new module instances/resources for the Lambda package, HTTP API routes, environment wiring, S3 lifecycle rules, S3 public access blocks, SQS DLQ policies, KMS key rotation, and Lambda reserved concurrency.
+    commands: []
+    expected_files_touched:
+      - infrastructure/main.tf
+      - infrastructure/modules/lambda/**
+      - infrastructure/modules/api-gateway/**
+      - infrastructure/modules/s3/**
+      - infrastructure/modules/sqs/**
+      - infrastructure/modules/kms/**
+  - id: 3
+    title: Configure CloudWatch dashboards and alarms
+    details: Add metrics/alarms for latency, error rates, queue depth, DLQ age per plan §5.2.
+    commands: []
+    expected_files_touched:
+      - infrastructure/modules/cloudwatch/**
+      - infrastructure/variables.tf
+  - id: 4
+    title: Document deployment mapping and static analysis evidence
+    details: Update docs to explain how Terraform aligns with SST resources and alarm response runbooks, and capture `tfsec`/`checkov` reports plus dashboard snapshots in docs/evidence/observability/.
+    commands: []
+    expected_files_touched:
+      - docs/infra/**
+      - docs/evidence/**
+
+acceptance_criteria:
+  - Terraform plan includes BFF Lambda, API Gateway routes, IAM roles, S3 lifecycle policies (temp 48h, final tiering), S3 block public access, SQS DLQ redrive, Lambda reserved concurrency, and KMS key rotation without errors.
+  - CloudWatch alarms exist for P95 latency, error rates, DLQ depth, and queue age; dashboards group key metrics with evidence stored in docs/evidence/observability/.
+  - Documentation references alarm thresholds, runbooks, mapping to SST dev resources, and includes `tfsec`/`checkov` findings (clean) linked for review.
+  - "`terraform fmt`, `terraform validate`, `tfsec`, and `checkov` pass; plan output recorded for review."
+
+validation:
+  commands:
+    - terraform -chdir=infrastructure fmt
+    - terraform -chdir=infrastructure validate
+    - terraform -chdir=infrastructure plan -out=tfplan
+    - tfsec infrastructure
+    - checkov -d infrastructure
+  manual_checks:
+    - Review plan diff to ensure IAM policies follow least privilege.
+  artifacts:
+    - infrastructure/tfplan
+
+deliverables:
+  - infrastructure/main.tf (updated)
+  - infrastructure/modules/** (new/updated)
+  - infrastructure/variables.tf / outputs.tf
+  - docs/infra/README.md or equivalent (updated)
+
+risks:
+  - description: Adding alarms without coordination could trigger noisy alerts or exceed budgets.
+    mitigation: Align thresholds with acceptance criteria and coordinate with ops before enabling in prod.

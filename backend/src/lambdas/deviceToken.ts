@@ -5,6 +5,7 @@ import { DeviceTokenRegistrationSchema } from '@photoeditor/shared';
 import { APIGatewayProxyEventV2, APIGatewayProxyResultV2, Context } from 'aws-lambda';
 
 import { DeviceTokenService } from '../services/deviceToken.service';
+import { withSubsegment } from '../utils/tracing';
 
 const logger = new Logger();
 const metrics = new Metrics();
@@ -21,50 +22,51 @@ async function initializeServices(): Promise<void> {
   deviceTokenService = new DeviceTokenService(deviceTokenTableName, region);
 }
 
+async function routeRequest(
+  event: APIGatewayProxyEventV2,
+  userId: string
+): Promise<APIGatewayProxyResultV2> {
+  const httpMethod = event.requestContext.http.method;
+
+  if (httpMethod === 'POST') {
+    return await handleRegisterDeviceToken(event, userId);
+  }
+
+  if (httpMethod === 'DELETE') {
+    return await handleDeactivateDeviceToken(event, userId);
+  }
+
+  return {
+    statusCode: 405,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ error: 'Method not allowed' })
+  };
+}
+
 export const handler = async (
   event: APIGatewayProxyEventV2,
   _context: Context
 ): Promise<APIGatewayProxyResultV2> => {
-  const segment = tracer.getSegment();
-  const subsegment = segment?.addNewSubsegment('device-token-handler');
-  if (subsegment) {
-    tracer.setSegment(subsegment);
-  }
+  return withSubsegment('device-token-handler', tracer, async () => {
+    try {
+      await initializeServices();
 
-  try {
-    await initializeServices();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const userId = (event.requestContext as any).authorizer?.claims?.sub || 'anonymous';
 
-    const httpMethod = event.requestContext.http.method;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const userId = (event.requestContext as any).authorizer?.claims?.sub || 'anonymous';
+      return await routeRequest(event, userId);
 
-    if (httpMethod === 'POST') {
-      return await handleRegisterDeviceToken(event, userId);
-    } else if (httpMethod === 'DELETE') {
-      return await handleDeactivateDeviceToken(event, userId);
-    } else {
+    } catch (error) {
+      logger.error('Error in device token handler', { error: error as Error });
+      metrics.addMetric('DeviceTokenError', MetricUnit.Count, 1);
+
       return {
-        statusCode: 405,
+        statusCode: 500,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ error: 'Method not allowed' })
+        body: JSON.stringify({ error: 'Internal server error' })
       };
     }
-
-  } catch (error) {
-    logger.error('Error in device token handler', { error: error as Error });
-    metrics.addMetric('DeviceTokenError', MetricUnit.Count, 1);
-
-    return {
-      statusCode: 500,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'Internal server error' })
-    };
-  } finally {
-    subsegment?.close();
-    if (segment) {
-      tracer.setSegment(segment);
-    }
-  }
+  });
 };
 
 async function handleRegisterDeviceToken(

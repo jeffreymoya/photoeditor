@@ -1,0 +1,113 @@
+schema_version: "1.0"
+id: TASK-0291
+title: "Reduce Mobile Lint Debt for AppNavigator and Env Declarations"
+status: completed
+priority: P1
+complexity: S
+area: frontend
+
+description: >-
+  Resolve the mobile lint failures blocking `pnpm turbo run qa:static` by replacing `any` usages in
+  Expo environment declarations and restructuring the tab bar icon logic in `AppNavigator` to meet the
+  complexity budget. Ensure fixes align with mobile layering conventions and preserve navigation behavior.
+
+outcome: >-
+  `pnpm --filter photoeditor-mobile lint` passes without eslint errors; Expo environment type declarations
+  no longer rely on `any`; tab navigator icons render identically before and after the change with measured
+  complexity ≤10.
+
+scope:
+  in:
+    - mobile/expo-env.d.ts
+    - mobile/src/navigation/AppNavigator.tsx
+    - Associated mobile tests or stories needed to validate navigation icons
+  out:
+    - Adding new navigation routes or screens
+    - Refactoring unrelated mobile features or hooks
+    - Adjusting backend/shared packages
+    - Modifying lint rule thresholds globally
+
+context:
+  issues: []
+  related_docs:
+    - standards/global.md
+    - standards/AGENTS.md
+    - standards/frontend-tier.md
+    - standards/testing-standards.md
+  repo_paths:
+    - mobile/expo-env.d.ts
+    - mobile/src/navigation/AppNavigator.tsx
+    - mobile/src/__tests__/
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "18.x"
+  tools:
+    - name: pnpm
+      version: "8.x"
+    - name: expo
+      version: "50.x"
+    - name: eslint
+      version: "8.x"
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Maintain two-space indentation and named exports for shared UI components.
+    - Keep navigation logic declarative and layered per mobile standards.
+  prohibited:
+    - Do not introduce `any` types unless explicitly ignored by ESLint.
+    - Do not raise complexity thresholds to bypass the lint failure.
+  architecture:
+    - Preserve screen → feature component → shared UI layering.
+    - Avoid cross-feature imports that violate modular boundaries.
+    - Ensure complexity budgets remain within eslint configuration.
+
+plan:
+  - id: 1
+    title: Reproduce lint failures and map problem areas
+    details: Run the mobile lint task, capture current errors, and document direct causes in env declarations and AppNavigator.
+    commands:
+      - pnpm --filter photoeditor-mobile lint
+  - id: 2
+    title: Replace unsafe types and refactor navigator icons
+    details: Apply precise typings to Expo env declarations and reorganize tab icon logic to meet complexity standards without altering behavior.
+    commands: []
+  - id: 3
+    title: Validate lint, tests, and visual parity
+    details: Execute lint and test suites and gather evidence that icons render correctly.
+    commands:
+      - pnpm --filter photoeditor-mobile lint
+      - pnpm --filter photoeditor-mobile test -- --coverage
+
+acceptance_criteria:
+  - "`pnpm --filter photoeditor-mobile lint` completes with zero errors or warnings tied to the navigator or env declarations."
+  - Expo environment types avoid `any` and align with standards/frontend-tier.md guidance.
+  - Tab icon logic satisfies the documented complexity budget (≤10) and preserves existing icon assignments.
+  - Mobile Jest suite passes with coverage meeting standards/testing-standards.md expectations.
+
+deliverables:
+  - mobile/expo-env.d.ts
+  - mobile/src/navigation/AppNavigator.tsx
+  - docs/evidence/mobile-lint-fix.md (updated with findings)
+
+success_metrics:
+  automated_checks:
+    - pnpm --filter photoeditor-mobile lint
+    - pnpm --filter photoeditor-mobile test -- --coverage
+  manual_checks:
+    - Verify bottom tab icons render correctly in Expo dev client or screenshots.
+  artifacts:
+    - docs/evidence/mobile-lint-fix.md
+
+risks:
+  - description: Refactoring tab icon logic could break icon assignments.
+    mitigation: Add or update tests verifying the icon mapping for each route.
+  - description: Type declaration changes might conflict with Jest environment setup.
+    mitigation: Run mobile Jest suite and adjust globals if new type errors surface.

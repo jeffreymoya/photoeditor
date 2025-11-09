@@ -1,0 +1,159 @@
+schema_version: "1.0"
+id: TASK-0815
+title: "Automate traceparent live drill evidence"
+status: completed
+priority: P1
+area: ops
+blocked_by: []
+depends_on: []
+
+description: >-
+  Add a CI-friendly drill that parses Powertools log samples (from live-dev or fixtures) to
+  prove W3C traceparent propagation and required structured log fields per cross-cutting
+  standards. The script should emit a coverage summary for the evidence bundle and fail when
+  correlation, trace, or request identifiers are missing.
+
+outcome: >-
+  Running `node scripts/ci/traceparent-drill.mjs` validates logs, writes
+  `docs/evidence/trace-drill-report.json`, and exits non-zero if traceparent/correlation
+  coverage falls below standards thresholds so PRs surface observability regressions.
+
+scope:
+  in:
+    - scripts/ci/traceparent-drill.mjs
+    - scripts/evidence-bundle (invoke drill during evidence collection)
+    - docs/evidence/trace-drill-report.json
+    - docs/evidence/logs/powertools-sample.json (baseline fixture)
+  out:
+    - Real AWS log ingestion (script consumes local fixture or exported logs)
+    - Broader observability dashboards beyond trace propagation summary
+
+context:
+  standards_tier: ops
+  issues: []
+  related_docs:
+    - standards/cross-cutting.md#observability--operations
+    - standards/global.md#example-quality-gate
+    - docs/evidence/trace-propagation-example.json
+  repo_paths:
+    - scripts/ci/traceparent-drill.mjs
+    - scripts/evidence-bundle
+    - docs/evidence/trace-drill-report.json
+    - docs/evidence/logs/powertools-sample.json
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: pnpm
+      version: "8.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep diffs minimal and focused
+    - Respect repository conventions
+  prohibited:
+    - No secrets or tokens in code
+    - No unrelated file changes
+
+plan:
+  - id: 1
+    title: Confirm required observability fields
+    details: >-
+      Review the observability requirements in standards/cross-cutting.md#observability--operations and existing fixtures to enumerate mandatory log keys
+      and coverage thresholds; record them in docs/evidence/traceparent-drill-notes.md for traceability.
+    actor: agent
+    inputs:
+      - docs/evidence/logs/powertools-sample.json
+      - standards/cross-cutting.md
+    outputs:
+      - docs/evidence/traceparent-drill-notes.md
+    definition_of_done:
+      - docs/evidence/traceparent-drill-notes.md lists required fields, expected thresholds, and cites standards/cross-cutting.md#observability--operations.
+    estimate: S
+    expected_files_touched:
+      - docs/evidence/traceparent-drill-notes.md
+  - id: 2
+    title: Implement trace drill script
+    details: >-
+      Build scripts/ci/traceparent-drill.mjs that enforces the keys/thresholds from standards/cross-cutting.md#observability--operations and logs evidence expected by standards/testing-standards.md#evidence-expectations.
+    actor: agent
+    inputs:
+      - docs/evidence/traceparent-drill-notes.md
+      - standards/cross-cutting.md
+      - standards/testing-standards.md
+    outputs:
+      - scripts/ci/traceparent-drill.mjs
+    definition_of_done:
+      - scripts/ci/traceparent-drill.mjs validates sample logs, emits structured results detailing compliance with standards/cross-cutting.md#observability--operations, and references docs/evidence/traceparent-drill-notes.md in comments/readme.
+    estimate: M
+    expected_files_touched:
+      - scripts/ci/traceparent-drill.mjs
+  - id: 3
+    title: Integrate drill into evidence bundle
+    details: >-
+      Update scripts/evidence-bundle so the drill runs during evidence collection, satisfying standards/testing-standards.md#required-commands-before-pr and
+      storing output under docs/evidence per standards/testing-standards.md#evidence-expectations.
+    actor: agent
+    inputs:
+      - scripts/ci/traceparent-drill.mjs
+      - standards/testing-standards.md
+    outputs:
+      - scripts/evidence-bundle
+      - docs/evidence/traceparent-drill-notes.md
+    definition_of_done:
+      - scripts/evidence-bundle invokes the drill and records the artifact path, with docs/evidence/traceparent-drill-notes.md updated to cite standards/testing-standards.md#required-commands-before-pr.
+    estimate: S
+    expected_files_touched:
+      - scripts/evidence-bundle
+      - docs/evidence/traceparent-drill-notes.md
+  - id: 4
+    title: Verify success and failure paths
+    details: >-
+      Execute the drill against valid and intentionally corrupted samples, capturing exit codes and reports per standards/testing-standards.md#evidence-expectations
+      and hard-fail controls in standards/cross-cutting.md#hard-fail-controls.
+    actor: agent
+    inputs:
+      - scripts/ci/traceparent-drill.mjs
+    outputs:
+      - docs/evidence/trace-drill-report.json
+      - docs/evidence/traceparent-drill-notes.md
+    definition_of_done:
+      - docs/evidence/trace-drill-report.json includes pass/fail scenarios with citations to standards/testing-standards.md#evidence-expectations, and docs/evidence/traceparent-drill-notes.md documents failure exit codes referencing standards/cross-cutting.md#hard-fail-controls.
+    estimate: S
+    expected_files_touched:
+      - docs/evidence/trace-drill-report.json
+      - docs/evidence/traceparent-drill-notes.md
+
+acceptance_criteria:
+  must:
+    - Drill parses Powertools JSON or JSONL logs and enforces correlationId, traceId, requestId, function, env, and version fields.
+    - Missing required fields or trace coverage below thresholds per `standards/cross-cutting.md` causes non-zero exit code with clear diagnostics.
+    - Successful run saves docs/evidence/trace-drill-report.json summarizing coverage stats and thresholds.
+    - Evidence bundle run includes the drill and captures the artifact for the release bundle.
+  quality_gates:
+    - "Handler and Service/Adapter LOC/complexity within budgets per standards/cross-cutting.md"
+    - "No cross-layer imports (dependency-cruiser enforced)"
+    - "Coverage thresholds per standards/testing-standards.md"
+    - "Contract tests pass for all routes"
+
+validation:
+  manual_checks:
+    - Inspect docs/evidence/trace-drill-report.json to confirm coverage meets thresholds in `standards/cross-cutting.md` and includes required fields.
+  artifacts:
+    - docs/evidence/trace-drill-report.json
+
+deliverables:
+  - scripts/ci/traceparent-drill.mjs
+  - scripts/evidence-bundle
+  - docs/evidence/trace-drill-report.json
+
+risks:
+  - description: Log schemas may evolve, breaking the parser.
+    mitigation: Keep required field list configurable and document fixture update workflow in task notes.

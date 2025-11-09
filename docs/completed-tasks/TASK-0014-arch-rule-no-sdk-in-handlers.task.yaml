@@ -1,0 +1,83 @@
+schema_version: "1.0"
+id: TASK-0014
+title: "Architecture: enforce no @aws-sdk imports in handlers"
+status: completed
+priority: P1
+complexity: S
+area: backend
+
+description: >-
+  Add dependency-cruiser rules to block `@aws-sdk/*` imports in Lambda handler
+  files, enforcing the modularity rule that only adapters/services may touch
+  SDKs. Failing imports should be reported by the analysis command.
+
+outcome: >-
+  Running dependency-cruiser lint reports an error if any handler imports the
+  AWS SDK. Handlers remain thin; services/adapters own I/O.
+
+scope:
+  in:
+    - backend/.dependency-cruiser.js
+    - backend/package.json (scripts)
+    - backend/src/lambdas/**
+  out:
+    - Non-backend packages
+
+context:
+  issues: []
+  related_docs:
+    - rubric.md
+  repo_paths:
+    - backend/src/lambdas/
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: npm
+      version: "9.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+
+plan:
+  - id: 1
+    title: Add rule
+    details: Configure dep-cruiser forbidden rule for handlers importing @aws-sdk.
+    commands: []
+  - id: 2
+    title: Validate
+    details: Run dep-cruiser lint and confirm zero violations.
+    commands:
+      - cd backend && npm run dep:lint || true
+
+acceptance_criteria:
+  - A rule exists preventing `@aws-sdk/*` imports in handlers.
+  - Lint runs and passes (or reports violations to be addressed).
+
+validation:
+  commands:
+    - rg -n "@aws-sdk/" backend/src/lambdas || true
+    - cd backend && npm run dep:lint || true
+  manual_checks:
+    - Review violations (if any) and plan fixes.
+  artifacts:
+    - screenshots: []
+
+deliverables:
+  - backend/.dependency-cruiser.js
+  - backend/package.json
+
+risks:
+  - description: False positives depending on file globs.
+    mitigation: Tune rule to target handler directories only.
+
+blocked_by:
+  - TASK-0010
+order: 6
+

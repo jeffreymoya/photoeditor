@@ -1,0 +1,243 @@
+schema_version: "1.0"
+id: TASK-0606
+title: Fix mobile TypeScript lint errors
+status: completed
+priority: P2
+complexity: S
+area: mobile
+
+description: >-
+  Mobile app has 6 ESLint errors related to TypeScript any types and complexity
+  violations. While mobile lint is marked optional in qa-suite, fixing these
+  issues improves code quality and type safety. Errors are in ErrorBoundary,
+  screen components, NotificationService, and test files.
+
+outcome: >-
+  Mobile lint runs clean with zero errors. All explicit any types are replaced
+  with proper types, and complexity violations are addressed through refactoring
+  or eslint-disable comments with justification.
+
+scope:
+  in:
+    - mobile/src/components/ErrorBoundary.tsx:24 (any type)
+    - mobile/src/screens/CameraScreen.tsx:17 (any type)
+    - mobile/src/screens/HomeScreen.tsx:14 (any type)
+    - mobile/src/screens/EditScreen.tsx:18 (complexity 16, budget ≤10)
+    - mobile/src/services/NotificationService.ts:86,150 (any types)
+    - mobile/src/services/__tests__/ApiService.test.ts:29 (max-lines-per-function)
+    - Complexity report generation (standards/global.md line 22)
+    - Evidence artifacts for static analysis (standards/global.md lines 52-58)
+  out:
+    - Console warning statements (separate P3 cleanup task)
+    - Functional changes to components (behavior must remain identical)
+    - "Storybook stories (standards/frontend-tier.md lines 26-38: separate task)"
+    - "Visual regression tests (standards/frontend-tier.md line 30: separate task)"
+    - Refactoring other components not listed in scope
+    - Changes to Redux state slices or RTK Query endpoints
+    - Cross-feature imports (hard fail per standards/frontend-tier.md line 5)
+
+context:
+  issues: []
+  related_docs:
+    - docs/testing-standards.md
+    - "standards/global.md (lines 22-23: complexity budgets, static rules)"
+    - "standards/frontend-tier.md (lines 61-63: reducer complexity \u226410)"
+    - "standards/frontend-tier.md (lines 18-19: react-error-boundary for error handling)"
+  repo_paths:
+    - mobile/src/components/ErrorBoundary.tsx
+    - mobile/src/screens/CameraScreen.tsx
+    - mobile/src/screens/HomeScreen.tsx
+    - mobile/src/screens/EditScreen.tsx
+    - mobile/src/services/NotificationService.ts
+    - mobile/src/services/__tests__/ApiService.test.ts
+  dependencies:
+    - type: package
+      name: "@types/react"
+      version: "current"
+    - type: package
+      name: "@types/react-native"
+      version: "current"
+    - type: package
+      name: "react-error-boundary"
+      version: "current"
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: npm
+      version: "10.x"
+    - name: eslint
+      version: "8.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Prefer specific types over any
+    - Use TypeScript utility types (Pick, Omit, etc.) when appropriate
+    - Add eslint-disable only as last resort with justification comment
+    - Maintain React Native navigation typing conventions
+  architecture:
+    - No cross-feature imports (standards/frontend-tier.md line 5)
+    - UI primitives must come from ui-tokens package (standards/frontend-tier.md line 7)
+    - ErrorBoundary must use react-error-boundary library (standards/frontend-tier.md line 18)
+    - Component complexity ≤10 cyclomatic complexity (standards/global.md line 22)
+    - Services must follow Ports & Adapters pattern (standards/frontend-tier.md line 75)
+
+plan:
+  - id: 1
+    title: Fix ErrorBoundary any type
+    details: >-
+      Replace any type at line 24 in ErrorBoundary.tsx with proper Error type
+      or React error boundary props. Ensure ErrorBoundary uses react-error-boundary
+      library per standards/frontend-tier.md line 18. Verify componentDidCatch types.
+    commands: []
+    expected_files_touched:
+      - mobile/src/components/ErrorBoundary.tsx
+
+  - id: 2
+    title: Fix screen component any types
+    details: >-
+      Replace any types in CameraScreen.tsx:17 and HomeScreen.tsx:14 with
+      proper navigation prop types from @react-navigation/native.
+    commands: []
+    expected_files_touched:
+      - mobile/src/screens/CameraScreen.tsx
+      - mobile/src/screens/HomeScreen.tsx
+
+  - id: 3
+    title: Fix NotificationService any types
+    details: >-
+      Replace any types at lines 86 and 150 in NotificationService.ts with
+      proper Expo notification types.
+    commands: []
+    expected_files_touched:
+      - mobile/src/services/NotificationService.ts
+
+  - id: 4
+    title: Address EditScreen complexity
+    details: >-
+      Refactor EditScreen component (complexity 16) to meet ≤10 cyclomatic
+      complexity budget (standards/global.md line 22). Extract helper functions
+      or sub-components. If refactoring would harm readability significantly,
+      add justified eslint-disable comment and document rationale.
+    commands: []
+    expected_files_touched:
+      - mobile/src/screens/EditScreen.tsx
+
+  - id: 5
+    title: Address ApiService test line count
+    details: >-
+      Refactor ApiService.test.ts test with 305 lines (limit 200) by splitting
+      into smaller test cases or adding justified eslint-disable.
+    commands: []
+    expected_files_touched:
+      - mobile/src/services/__tests__/ApiService.test.ts
+
+  - id: 6
+    title: Run mobile lint and typecheck
+    details: >-
+      Verify all lint errors are resolved and types remain valid. Run full
+      QA suite static checks per standards/global.md lines 21-22.
+    commands:
+      - npm run lint --prefix mobile
+      - npm run typecheck --prefix mobile
+    expected_files_touched: []
+
+  - id: 7
+    title: Generate complexity report
+    details: >-
+      Run complexity report to verify all components meet ≤10 complexity budget
+      per standards/global.md line 22.
+    commands:
+      - scripts/complexity-report
+    expected_files_touched:
+      - docs/quality/static/complexity-report.json
+
+acceptance_criteria:
+  # Static Analysis (standards/global.md lines 21-22)
+  - Mobile lint runs with zero errors
+  - TypeScript typecheck passes with no errors
+  - All any types replaced with specific types
+
+  # Complexity Budget (standards/global.md line 22, standards/frontend-tier.md line 61)
+  - EditScreen complexity ≤10 (refactored or justified with ADR if >10 required)
+  - All components meet cyclomatic complexity ≤10
+  - Complexity report generated and stored in docs/quality/static/
+
+  # Code Quality
+  - ApiService test line count addressed (split or justified)
+  - No functional regressions in components
+  - Console warnings remain (separate task)
+  - TypeScript types are accurate and maintainable
+
+  # Architecture Alignment (standards/frontend-tier.md)
+  - ErrorBoundary uses react-error-boundary library (line 18)
+  - Navigation types follow React Navigation conventions
+  - NotificationService types align with Expo Notifications (line 70)
+  - No cross-feature imports introduced (line 5)
+
+validation:
+  commands:
+    # Static analysis (standards/global.md lines 21-22)
+    - npm run lint --prefix mobile
+    - npm run typecheck --prefix mobile
+
+    # Complexity budget verification (standards/global.md line 22)
+    - scripts/complexity-report
+
+    # Dead exports check (standards/global.md line 21)
+    - npx ts-prune --project mobile/tsconfig.json
+
+    # Test suite (docs/testing-standards.md lines 203-219)
+    - npm test --prefix mobile
+
+    # QA suite static checks
+    - npm run qa-suite:static
+  manual_checks:
+    - Verify navigation props still work correctly
+    - Confirm error boundary still catches errors
+    - Test notification handling still functions
+    - Verify no cross-feature imports introduced (standards/frontend-tier.md line 5)
+
+deliverables:
+  # Updated source files
+  - mobile/src/components/ErrorBoundary.tsx
+  - mobile/src/screens/CameraScreen.tsx
+  - mobile/src/screens/HomeScreen.tsx
+  - mobile/src/screens/EditScreen.tsx
+  - mobile/src/services/NotificationService.ts
+  - mobile/src/services/__tests__/ApiService.test.ts
+
+  # Evidence (standards/global.md lines 52-58)
+  - path: docs/quality/static/complexity-report.json
+    description: Complexity metrics showing all components ≤10 cyclomatic complexity
+  - path: docs/quality/static/lint-output.log
+    description: Clean lint output with zero errors
+  - path: docs/quality/static/typecheck-output.log
+    description: Clean typecheck output with no errors
+
+risks:
+  - description: Type changes could reveal latent bugs
+    mitigation: Run full test suite and manual testing of affected components
+    severity: medium
+
+  - description: Refactoring EditScreen complexity may introduce regressions
+    mitigation: Keep refactoring minimal; prefer eslint-disable with justification if risky. Extract helper functions to separate concerns. Add unit tests for extracted helpers.
+    severity: medium
+
+  - description: ErrorBoundary refactor could break error handling surface
+    mitigation: Verify react-error-boundary integration, test error scenarios manually. Ensure componentDidCatch and error logging still work as expected (standards/frontend-tier.md line 18).
+    severity: high
+
+  - description: Complexity budget violations may require ADR if ≤10 is not achievable
+    mitigation: Document rationale in ADR if complexity >10 is genuinely necessary. Add to exception registry with expiry ≤90 days (standards/global.md line 27).
+    severity: low
+
+  - description: Cross-feature imports could be introduced inadvertently
+    mitigation: Run depcruise to verify no cross-feature imports (standards/global.md line 21, standards/frontend-tier.md line 5).
+    severity: medium

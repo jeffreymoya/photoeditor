@@ -1,0 +1,97 @@
+schema_version: "1.0"
+id: TASK-0017
+title: "Harden infra targets with prerequisites"
+status: completed
+priority: P1
+complexity: S
+area: infra
+
+description: >-
+  Ensure `infra-apply` cannot run against LocalStack before the environment is
+  ready. Today the target assumes `infra-init` and lambda bundles were run
+  manually; when teammates skip `infra-up`, Terraform fails with confusing
+  errors. Add the missing dependencies so `make infra-apply` performs init and
+  backend builds automatically.
+
+outcome: >-
+  Invoking `make infra-apply` performs (or reuses) `infra-init` and
+  `backend-build` before Terraform apply, eliminating order-dependent failures
+  when engineers run the target directly.
+
+scope:
+  in:
+    - Makefile
+  out:
+    - Terraform module contents
+    - Backend application code
+
+context:
+  issues: []
+  related_docs:
+    - README.md
+  repo_paths:
+    - Makefile
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: make
+      version: any
+    - name: npm
+      version: "9.x"
+
+environment_notes: >-
+  Requires LocalStack docker compose file available locally; real apply not
+  necessary for validation.
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+
+plan:
+  - id: 1
+    title: Review current target linkage
+    details: Inspect Makefile infra targets and confirm missing prerequisites.
+    commands:
+      - rg -n "infra-apply" Makefile
+    expected_files_touched: []
+  - id: 2
+    title: Update dependencies
+    details: Add `infra-init` (and `backend-build`) as prerequisites for
+      `infra-apply`; ensure `infra-up` remains correct.
+    commands: []
+    expected_files_touched:
+      - Makefile
+  - id: 3
+    title: Smoke test make graph
+    details: Use dry-run to verify target order without executing Terraform.
+    commands:
+      - make -n infra-apply
+
+acceptance_criteria:
+  - "`make -n infra-apply` shows `backend-build` and `infra-init` running before Terraform apply."
+  - "`infra-up` still builds and applies without duplication or missing steps."
+  - Docs/help text stays accurate (update if wording changes).
+
+validation:
+  commands:
+    - make -n infra-apply
+  manual_checks:
+    - Review help text output to ensure description matches behavior.
+  artifacts:
+    - screenshots: []
+
+deliverables:
+  - Makefile
+
+risks:
+  - description: Circular dependencies could break `infra-up` if wiring is
+      incorrect.
+    mitigation: Confirm make dry-run order prior to merge.
+
+order: 9

@@ -1,0 +1,134 @@
+schema_version: "1.0"
+id: TASK-0001
+title: Remove legacy unversioned API endpoints
+status: completed
+priority: P1
+complexity: M
+area: backend
+order: 10
+
+description: >-
+  Remove the pre-versioned REST endpoints from the backend and shared contracts so
+  the project launches with `/v1/` paths only. Clean up supporting utilities,
+  update documentation, and ensure generated artifacts reflect the versioned
+  surface without any deprecation messaging for unshipped APIs.
+
+outcome: >-
+  Only `/v1/` routes are exposed by infrastructure, runtime handlers, client
+  contracts, and documentation; no references remain to the legacy unversioned
+  API or its deprecation timeline.
+
+scope:
+  in:
+    - shared/routes.manifest.ts
+    - backend/src/lambdas/presign.ts
+    - backend/src/lambdas/status.ts
+    - backend/src/utils/
+    - mobile/src/features/upload/hooks/useUpload.ts
+    - docs/** (compatibility policy, API contracts, performance/perf evidence, architecture)
+    - infrastructure/modules/api-gateway/main.tf
+  out:
+    - Implementing API v2 functionality
+    - Changing business logic for upload or job processing
+
+context:
+  issues: []
+  related_docs:
+    - standards/global.md
+    - standards/shared-contracts-tier.md
+    - docs/testing-standards.md
+    - docs/compatibility/versioning.md
+  repo_paths:
+    - shared/routes.manifest.ts
+    - backend/src/lambdas/presign.ts
+    - backend/src/lambdas/status.ts
+    - backend/tests/contracts/presign.contract.test.ts
+    - backend/tests/contracts/status.contract.test.ts
+    - docs/openapi/openapi.yaml
+    - docs/compatibility/versioning.md
+    - mobile/src/features/upload/hooks/useUpload.ts
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: npm
+      version: "10.x"
+    - name: bash
+      version: any
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Follow repo standards for versioned contracts (see standards/shared-contracts-tier.md).
+    - Keep documentation aligned with docs/testing-standards.md validation expectations.
+  prohibited:
+    - Do not reintroduce legacy `/upload/presign` or `/jobs/{id}` routes.
+    - Do not modify unrelated service logic.
+
+plan:
+  - id: 1
+    title: Audit legacy surface
+    details: Identify all code, infrastructure, tests, and docs that reference unversioned routes or deprecation utilities.
+    commands:
+      - rg "/upload/presign" -n
+      - rg "/jobs/" -n
+    expected_files_touched: []
+  - id: 2
+    title: Remove legacy routes and utilities
+    details: Delete deprecated route definitions, drop deprecation helper code, and update handlers/tests to rely solely on `/v1/` paths.
+    commands: []
+    expected_files_touched:
+      - shared/routes.manifest.ts
+      - backend/src/lambdas/presign.ts
+      - backend/src/lambdas/status.ts
+      - backend/src/utils/index.ts
+      - backend/tests/contracts
+  - id: 3
+    title: Refresh contracts and docs
+    details: Regenerate OpenAPI/client artifacts, update policy docs, infra, mobile client, and evidence to remove legacy references.
+    commands:
+      - npm run contracts:generate --prefix shared
+    expected_files_touched:
+      - docs/openapi/openapi-generated.yaml
+      - docs/contracts/clients/photoeditor-api.ts
+      - docs/compatibility/versioning.md
+      - infrastructure/modules/api-gateway/main.tf
+      - mobile/src/features/upload/hooks/useUpload.ts
+  - id: 4
+    title: Validate build integrity
+    details: Run type checks and review doctext to confirm no stale references remain.
+    commands:
+      - npm run typecheck --prefix backend
+    expected_files_touched: []
+
+acceptance_criteria:
+  - No source file or documentation references the unversioned `/upload/presign` or `/jobs/{id}` endpoints.
+  - Generated OpenAPI spec and client omit deprecated operations and expose `/v1/` routes only.
+  - Backend type checks succeed with the deprecation utility removed.
+  - Infrastructure Terraform routes only map versioned paths.
+
+validation:
+  commands:
+    - npm run contracts:generate --prefix shared
+    - npm run typecheck --prefix backend
+  manual_checks:
+    - Inspect docs/compatibility/versioning.md to ensure timeline placeholders reference future releases, not shipped dates.
+    - Confirm mobile/src/features/upload/hooks/useUpload.ts posts to `/v1/upload/presign`.
+
+deliverables:
+  - Updated route manifest and Lambda handlers with only `/v1/` entries.
+  - Regenerated OpenAPI spec and client artifacts without legacy operations.
+  - Documentation and infrastructure definitions reflecting `/v1/` as the sole public surface.
+
+risks:
+  - description: Downstream consumers may still target removed endpoints if environment configs lag behind.
+    mitigation: Communicate the change in release notes and verify mobile app uses the versioned path before release.
+  - description: Regeneration of contracts could drift from snapshot if not committed in sync.
+    mitigation: Update shared/contract-snapshot.json and run contract checks during PR review.

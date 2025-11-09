@@ -91,6 +91,14 @@ Services should maximize pure domain logic and isolate I/O to injected ports/ada
 - Orchestration methods: mock ports/adapters with `jest.fn()` or test doubles
 - If ≥70% of domain tests need zero mocks, the purity target is met
 
+### Coupling & Cohesion Evidence
+
+- Every service, adapter, and provider file begins with a doc block listing the module capability, owner, and single reason to change. Mirror that note in the driving `tasks/*.task.yaml` so reviewers can trace the responsibility record.
+- Services never import other services directly. Depcruise edges that show service↔service or adapter↔adapter dependencies fail CI unless an ADR documents the exception and expiry.
+- Limit public exports to ≤5 functions per service/adapter file; extract feature-specific helpers into domain utilities when a file grows beyond that limit.
+- Shared backend modules must keep reuse ratio ≥1.5 (unique importers ÷ exported modules) and log the measurement in `docs/evidence/reuse-ratio.json`. Modules below target either relocate next to their only consumer or ship a remediation task before release.
+- Structure metrics from `pnpm run analyze:deps` (saved to `docs/evidence/structure-metrics.json`) are mandatory evidence for every backend PR. Use the report to prove low fan-in/out and to block new high-coupling edges.
+
 See `standards/typescript.md#analyzability` for core purity definitions and `docs/evidence/purity-immutability-gap-notes.md` for analysis.
 
 **Fitness gates**

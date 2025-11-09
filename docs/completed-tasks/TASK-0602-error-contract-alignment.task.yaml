@@ -1,0 +1,111 @@
+schema_version: "1.0"
+id: TASK-0602
+title: "Align API error responses with contract schema"
+status: completed
+priority: P1
+area: backend
+
+description: >-
+  Bring backend error handling into compliance with standards/shared-contracts-tier.md by adopting the
+  canonical `{code,title,detail,instance}` payload and propagating correlation data. Update shared schemas,
+  Lambda handlers, and tests so presign/status flows stop emitting legacy `{ error: string }` responses,
+  and ensure contract tests enforce the new structure.
+
+outcome: >-
+  Backend Lambdas consistently return the standardized error envelope, including trace headers, and
+  shared ApiError schema matches the markdown reference. Contract tests cover the new payloads and fail if
+  regressions occur.
+
+scope:
+  in:
+    - shared/schemas/api.schema.ts (error schema section)
+    - shared/types/error.types.ts and reexports
+    - backend/src/lambdas/presign.ts and status.ts
+    - backend/tests/contracts/
+    - docs/contracts/errors/index.md
+  out:
+    - Mobile error handling (follow-up task)
+    - Non-contract Lambdas (worker, device token) beyond shared helper usage
+    - Infrastructure or API Gateway config
+    - Deprecation/version headers (covered elsewhere)
+
+context:
+  issues: ["QA-2025-10-11"]
+  related_docs:
+    - standards/global.md
+    - standards/AGENTS.md
+    - standards/backend-tier.md
+    - standards/shared-contracts-tier.md
+    - docs/testing-standards.md
+    - docs/contracts/errors/index.md
+  repo_paths:
+    - shared/schemas/api.schema.ts
+    - shared/types/error.types.ts
+    - backend/src/lambdas/presign.ts
+    - backend/src/lambdas/status.ts
+    - backend/tests/contracts/presign.contract.test.ts
+    - backend/tests/contracts/status.contract.test.ts
+  dependencies:
+    - type: package
+      name: neverthrow
+      version: ">=6"
+    - type: package
+      name: "@aws-lambda-powertools/logger"
+      version: ">=1.16"
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: npm
+      version: "10.x"
+    - name: bash
+      version: any
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep handlers thin; push logic into services or utils when possible.
+  prohibited:
+    - Do not catch errors without logging requestId/traceparent.
+    - Do not bypass shared schema validation.
+  architecture:
+    - "Handlers must return structured error objects referencing shared schema."
+    - "Log entries must include correlation identifiers per standards/backend-tier.md." 
+    - "Tests must assert both HTTP codes and payload shape."
+
+plan:
+  - id: 1
+    title: Model new error schema
+    details: Update shared ApiError schema/types and docs to reflect `{code,title,detail,instance}` plus metadata.
+    commands: []
+    expected_files_touched:
+      - shared/schemas/api.schema.ts
+      - shared/types/error.types.ts
+      - docs/contracts/errors/index.md
+  - id: 2
+    title: Propagate schema into handlers
+    details: Refactor presign/status handlers (and shared helpers if needed) to return the standardized payload and headers.
+    commands: []
+    expected_files_touched:
+      - backend/src/lambdas/presign.ts
+      - backend/src/lambdas/status.ts
+  - id: 3
+    title: Enforce with tests
+    details: Extend contract tests to assert new error shape and correlation headers; update snapshots if necessary.
+    commands:
+      - npm run test:contracts
+    expected_files_touched:
+      - backend/tests/contracts/presign.contract.test.ts
+      - backend/tests/contracts/status.contract.test.ts
+
+acceptance_criteria:
+  - Contract tests fail if error responses omit `title`, `detail`, or `instance` fields.
+  - Shared ApiError schema matches docs/contracts/errors/index.md and exports updated types.
+  - Lambda responses emit `traceparent` and `x-request-id` headers alongside the error envelope.
+  - No ESLint or typecheck regressions in backend and shared packages.

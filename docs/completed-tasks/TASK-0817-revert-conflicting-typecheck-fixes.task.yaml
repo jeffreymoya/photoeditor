@@ -1,0 +1,89 @@
+schema_version: "1.0"
+id: TASK-0817
+title: "Revert conflicting type changes from test-static-fitness agent"
+status: completed
+blocked_reason: null
+priority: P0
+area: mobile
+
+description: >-
+  The test-static-fitness agent introduced conflicting type changes that contradict the task-picker agent's correct implementation for TASK-0816. Need to revert the test-static-fitness changes and preserve only the task-picker implementation which correctly omits optional properties per exactOptionalPropertyTypes enforcement.
+
+outcome: >-
+  Mobile typecheck passes with zero errors. Only the task-picker agent's changes remain (which correctly omit optional properties instead of explicitly setting them to undefined).
+
+scope:
+  in:
+    - mobile/src/components/ErrorBoundary.tsx
+    - mobile/src/lib/upload/retry.ts
+    - mobile/src/lib/upload/__tests__/retry.test.ts
+    - mobile/src/screens/CameraScreen.tsx
+    - mobile/src/services/NotificationService.ts
+    - mobile/src/features/upload/hooks/useUpload.ts
+    - mobile/src/screens/EditScreen.tsx
+  out:
+    - Backend/shared/infra changes
+
+context:
+  affected_packages: [mobile]
+  standards_tier: frontend
+  repo_paths:
+    - mobile/src/components/ErrorBoundary.tsx
+    - mobile/src/lib/upload/retry.ts
+    - mobile/src/lib/upload/__tests__/retry.test.ts
+    - mobile/src/screens/CameraScreen.tsx
+    - mobile/src/services/NotificationService.ts
+    - mobile/src/features/upload/hooks/useUpload.ts
+    - mobile/src/screens/EditScreen.tsx
+
+plan:
+  - id: 1
+    title: Revert test-static-fitness changes to ErrorBoundary.tsx
+    expected_files_touched:
+      - mobile/src/components/ErrorBoundary.tsx
+  - id: 2
+    title: Revert test-static-fitness changes to retry.ts and retry.test.ts
+    expected_files_touched:
+      - mobile/src/lib/upload/retry.ts
+      - mobile/src/lib/upload/__tests__/retry.test.ts
+  - id: 3
+    title: Revert test-static-fitness changes to CameraScreen.tsx
+    expected_files_touched:
+      - mobile/src/screens/CameraScreen.tsx
+  - id: 4
+    title: Revert test-static-fitness changes to NotificationService.ts
+    expected_files_touched:
+      - mobile/src/services/NotificationService.ts
+  - id: 5
+    title: Revert test-static-fitness changes to useUpload.ts
+    expected_files_touched:
+      - mobile/src/features/upload/hooks/useUpload.ts
+  - id: 6
+    title: Revert test-static-fitness changes to EditScreen.tsx
+    expected_files_touched:
+      - mobile/src/screens/EditScreen.tsx
+  - id: 7
+    title: Validate mobile typecheck passes
+    commands:
+      - pnpm turbo run typecheck --filter=photoeditor-mobile
+      - pnpm turbo run qa:static --filter=photoeditor-mobile
+
+acceptance_criteria:
+  - Mobile typecheck completes with zero errors
+  - Mobile qa:static passes without new lint or type regressions
+  - No new eslint-disable or @ts-ignore directives introduced
+  - All task-picker implementation preserved (override modifiers, state omissions)
+
+validation:
+  commands:
+    - pnpm turbo run typecheck --filter=photoeditor-mobile
+    - pnpm turbo run qa:static --filter=photoeditor-mobile
+
+deliverables:
+  - mobile/src/components/ErrorBoundary.tsx
+  - mobile/src/lib/upload/retry.ts
+  - mobile/src/lib/upload/__tests__/retry.test.ts
+  - mobile/src/screens/CameraScreen.tsx
+  - mobile/src/services/NotificationService.ts
+  - mobile/src/features/upload/hooks/useUpload.ts
+  - mobile/src/screens/EditScreen.tsx

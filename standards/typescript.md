@@ -33,6 +33,14 @@
 * Prefer generic helpers with constrained type parameters over `any`; keep generic names descriptive (`TInput`, `TError`, `TResource`).
 * Export narrow interfaces/types; keep implementation details internal. Use `satisfies` for config objects to preserve exactness while inferring constants.
 
+**Reuse Evidence & Cohesion Heuristics**
+
+- Shared or cross-feature modules must document their current and target consumers in `docs/evidence/reuse-ratio.json`. Reuse ratio = `unique importers ÷ exported modules`; target ≥ 1.5 (warn at 1.2). Modules below target either move next to their only consumer or ship a remediation task before merge.
+- Keep module exports focused: >10 named exports or more than 3 top-level responsibilities triggers mandatory extraction into smaller files before approval.
+- All cross-module calls flow through ports; direct adapter↔adapter or service↔service imports are rejected during structure scans.
+- When touching a module, include a "single reason to change" note in the PR/task and ensure every public API aligns with that capability. Mixed concerns require splitting the module the same day.
+- Use `pnpm run analyze:deps` metrics (fan-in/out, instability) to prove low coupling. Attach the resulting `docs/evidence/structure-metrics.json` to the evidence bundle and reference it in the driving task validation.
+
 ### 3) Analyzability
 
 * Strong typing everywhere: avoid `any`; prefer `unknown` + refinements; use `never` to prove exhaustiveness.

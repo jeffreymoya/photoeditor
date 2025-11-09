@@ -1,0 +1,85 @@
+schema_version: "1.0"
+id: TASK-0012
+title: "Makefile: add stage1-verify aggregator"
+status: completed
+priority: P1
+complexity: S
+area: ci
+
+description: >-
+  Add a Makefile with a `stage1-verify` target that runs the Stage A–E fitness
+  functions in sequence, aggregating outputs for quick validation.
+
+outcome: >-
+  `make stage1-verify` runs typecheck/lint/tests/build for backend/shared and
+  infra validations, printing a concise summary.
+
+scope:
+  in:
+    - Makefile
+    - docs/CONTRIBUTING.md (optional updates)
+  out:
+    - App code
+
+context:
+  issues: []
+  related_docs:
+    - changelog/2025-10-02-fitness-functions.md
+  repo_paths:
+    - backend/
+    - shared/
+    - infrastructure/
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  tools:
+    - name: make
+      version: any
+    - name: bash
+      version: any
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+
+plan:
+  - id: 1
+    title: Add Makefile
+    details: Aggregate existing commands; avoid network-only steps if creds missing.
+    commands: []
+  - id: 2
+    title: Validate
+    details: Run `make stage1-verify` locally.
+    commands:
+      - make stage1-verify || true
+
+acceptance_criteria:
+  - "`make stage1-verify` exists and executes multiple fitness checks."
+
+validation:
+  commands:
+    - make stage1-verify || true
+  manual_checks:
+    - Ensure summary communicates pass/skip clearly.
+  artifacts:
+    - screenshots: []
+
+deliverables:
+  - Makefile
+
+risks:
+  - description: Missing tools cause noisy failures.
+    mitigation: Gate steps and print clear SKIPPED messages when unavailable.
+
+blocked_by:
+  - TASK-0005
+  - TASK-0007
+  - TASK-0008
+  - TASK-0009
+  - TASK-0010
+  - TASK-0011
+order: 4
+

@@ -1,0 +1,180 @@
+schema_version: "1.0"
+id: TASK-0608
+title: Fix TypeScript compilation errors in backend tests
+status: completed
+priority: P1
+complexity: S
+area: backend
+
+description: >-
+  Three test files fail to compile due to TypeScript errors: incorrect module
+  paths, incorrect type assignments, and unused imports. These prevent the test
+  suite from running completely. Errors are in aws-clients.test.ts,
+  config.service.test.ts, and presign-status.integration.test.ts.
+
+outcome: >-
+  All backend tests compile without TypeScript errors. Test suite runs to
+  completion, allowing all unit, integration, and contract tests to execute.
+
+scope:
+  in:
+    - backend/tests/libs/aws-clients.test.ts
+    - backend/tests/unit/libs/core/config.service.test.ts
+    - backend/tests/integration/presign-status.integration.test.ts
+  out:
+    - Source code implementation (no changes to backend/src/*)
+    - Other passing tests
+    - Test refactoring beyond type fixes
+    - Adding new test cases or coverage (separate task)
+    - Changes to test infrastructure or tooling configuration
+
+context:
+  issues: []
+  related_docs:
+    - docs/testing-standards.md
+    - "standards/backend-tier.md (lines 98-112: Platform & Quality Layer)"
+    - "standards/global.md (lines 21-24: static analysis gates, complexity budgets)"
+    - "STANDARDS.md (lines 44-51: testability requirements)"
+  repo_paths:
+    - backend/tests/libs/aws-clients.test.ts:13 (TS2307 module not found)
+    - backend/tests/unit/libs/core/config.service.test.ts:87,109 (TS2322 null type)
+    - backend/tests/integration/presign-status.integration.test.ts:11,34,105+ (multiple TS errors)
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: npm
+      version: "10.x"
+    - name: jest
+      version: "29.x"
+    - name: typescript
+      version: "5.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Fix import paths to match actual file structure
+    - Use correct AWS Lambda v2 types
+    - Avoid any type; use proper type assertions
+    - Follow existing test file patterns
+  architecture:
+    - Tests must follow Platform & Quality Layer requirements (backend-tier.md lines 98-112)
+    - Maintain test complexity within budgets (handlers fail >CC 10/75 LOC, services fail >CC 15/200 LOC)
+    - Preserve existing test coverage thresholds (unit ≥80%, integration ≥60%, mutation ≥60%)
+    - Integration tests must use LocalStack patterns per docs/testing-standards.md lines 139-148
+
+plan:
+  - id: 1
+    title: Fix aws-clients.test.ts import path
+    details: >-
+      Module path '../../libs/aws-clients' cannot be found. Determine correct
+      path to aws-clients module (likely should be
+      '../../src/libs/core/aws-clients').
+    commands:
+      - find backend/src -name "aws-clients.ts"
+    expected_files_touched:
+      - backend/tests/libs/aws-clients.test.ts
+
+  - id: 2
+    title: Fix config.service.test.ts null type errors
+    details: >-
+      Lines 87 and 109 assign null to Value field expecting string | undefined.
+      Use undefined instead of null or update type definition.
+    commands: []
+    expected_files_touched:
+      - backend/tests/unit/libs/core/config.service.test.ts
+
+  - id: 3
+    title: Fix presign-status.integration.test.ts type errors
+    details: >-
+      Multiple issues: unused imports (APIGatewayProxyEventV2, JobService),
+      incorrect type usage (APIGatewayProxyResultV2 properties), authorizer
+      field on wrong type. Update to use correct AWS Lambda v2 types and
+      remove unused imports.
+    commands: []
+    expected_files_touched:
+      - backend/tests/integration/presign-status.integration.test.ts
+
+  - id: 4
+    title: Run TypeScript compiler on tests
+    details: >-
+      Verify all test files compile without errors.
+    commands:
+      - npm run typecheck --prefix backend
+    expected_files_touched: []
+
+  - id: 5
+    title: Run affected tests
+    details: >-
+      Run the fixed test suites to ensure they execute properly.
+    commands:
+      - npm test --prefix backend -- aws-clients.test.ts
+      - npm test --prefix backend -- config.service.test.ts
+      - npm test --prefix backend -- presign-status.integration.test.ts
+    expected_files_touched: []
+
+  - id: 6
+    title: Verify static analysis gates
+    details: >-
+      Run static analysis to ensure fixes don't introduce violations of
+      complexity budgets, unused imports, or dead code (global.md lines 21-24).
+    commands:
+      - npm run lint --prefix backend
+      - npm run qa-suite:static
+    expected_files_touched: []
+
+acceptance_criteria:
+  - Backend typecheck passes with zero errors
+  - aws-clients.test.ts compiles and runs
+  - config.service.test.ts compiles and runs
+  - presign-status.integration.test.ts compiles and runs (may fail if LocalStack not running)
+  - No unused imports remain (verified by ESLint)
+  - Type assertions are correct and maintainable
+  - All tests use proper AWS Lambda v2 types
+  - Static analysis gates pass (backend-tier.md line 23, global.md lines 21-24)
+  - Test complexity remains within budgets (handlers ≤CC 10/75 LOC, services ≤CC 15/200 LOC per backend-tier.md line 110)
+  - Existing test coverage thresholds maintained (unit ≥80%, integration ≥60% per backend-tier.md line 108)
+  - Integration test follows LocalStack patterns (docs/testing-standards.md lines 139-148)
+
+validation:
+  commands:
+    - npm run typecheck --prefix backend
+    - npm run lint --prefix backend
+    - npm run qa-suite:static
+    - npm test --prefix backend -- aws-clients.test.ts
+    - npm test --prefix backend -- config.service.test.ts
+    - npm run test:integration --prefix backend
+  manual_checks:
+    - Verify import paths match actual file structure
+    - Confirm AWS Lambda v2 types are used correctly
+    - Review test output for any warnings about deprecated patterns
+
+deliverables:
+  files:
+    - backend/tests/libs/aws-clients.test.ts
+    - backend/tests/unit/libs/core/config.service.test.ts
+    - backend/tests/integration/presign-status.integration.test.ts
+  evidence:
+    - path: backend/tmp/test-results/junit.xml
+      description: Test execution results showing all fixed tests pass
+    - path: backend/tmp/lint-report.txt
+      description: ESLint output confirming no unused imports or violations
+
+risks:
+  - description: Integration tests may fail without LocalStack
+    mitigation: Document LocalStack requirement; tests should compile even if they fail at runtime
+    impact: medium
+  - description: Type fixes may reveal actual bugs in implementation
+    mitigation: Review any test failures to determine if they indicate implementation issues; create follow-up task if bugs found
+    impact: medium
+  - description: Fixing types may reduce test coverage if tests were incorrectly passing
+    mitigation: Verify coverage metrics before/after fixes; document any coverage drops in PR
+    impact: low
+  - description: Static analysis gates may fail if test complexity exceeds budgets
+    mitigation: Keep fixes minimal; if complexity issues found, create separate refactoring task per backend-tier.md line 110
+    impact: low

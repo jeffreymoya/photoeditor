@@ -1,0 +1,190 @@
+# Task: Track mobile stack modernization initiative
+
+schema_version: "1.1"
+id: TASK-0906
+title: "Track mobile stack modernization initiative"
+status: completed
+blocked_reason:
+priority: P0
+area: mobile
+unblocker: false
+order:
+blocked_by: []
+depends_on: []
+agent_completion_state: {}
+
+clarifications:
+  outstanding: []
+  evidence_path: "docs/evidence/tasks/TASK-0906-clarifications.md"
+
+description: >-
+  This tracking task references docs/proposals/mobile-stack-modernization.md and coordinates
+  the phased modernization of the mobile stack from Expo 51 / React Native 0.74.5
+  to Expo SDK 53
+  (React Native 0.79) with New Architecture enabled by default. The proposal outlines
+  six upgrade
+  pillars (platform parity, navigation, styling, list performance, camera/background
+  work, and
+  supply-chain security) delivered across five phases (P0-P4). This task owns the
+  ADR creation,
+  tracks overall initiative progress, and serves as the reference point for downstream
+  implementation tasks.
+
+outcome: >-
+  ADR created in adr/ that documents the mobile stack modernization decision, referencing
+  the proposal
+  and linking to all implementation tasks (TASK-0907 through TASK-0911). Tracking
+  artifacts updated
+  as each phase completes. All phases transition through their lifecycle and reach
+  completed status.
+
+scope:
+  in:
+  - Creating ADR that references docs/proposals/mobile-stack-modernization.md
+  - Tracking completion status of TASK-0907 (SDK 53), TASK-0908 (Expo Router), 
+    TASK-0909 (NativeWind/Tamagui), TASK-0910 (FlashList), TASK-0911 
+    (VisionCamera)
+  - Documenting rollback procedures and success metrics
+  - Updating docs/mobile/ with modernization outcomes
+  out:
+  - Actual implementation work (delegated to phase-specific tasks)
+  - Toolchain installation or CI image changes (owned by TASK-0907)
+  - Component/library migrations (owned by phase tasks)
+
+context:
+  affected_packages: []
+  standards_tier: mobile
+  related_docs:
+  - standards/global.md
+  - standards/AGENTS.md
+  - standards/frontend-tier.md
+  - standards/typescript.md
+  - standards/testing-standards.md
+  - docs/proposals/mobile-stack-modernization.md
+  repo_paths:
+  - adr/
+  - docs/mobile/
+  - docs/proposals/mobile-stack-modernization.md
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+  - name: pnpm
+    version: "8.x"
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+  - Keep ADR concise and focused on decision context, not implementation details
+  - Reference proposal for technical specifics
+  - Link to all phase tasks for traceability
+  prohibited:
+  - No implementation work in this tracking task
+
+plan:
+- id: 1
+  title: Review proposal and clarify open questions
+  details: >-
+    Read docs/proposals/mobile-stack-modernization.md, identify gaps or ambiguities,
+    and document clarifications in evidence file. Confirm timeline, rollback strategy,
+    and success metrics with stakeholder (solo maintainer context).
+  actor: agent
+  inputs:
+  - docs/proposals/mobile-stack-modernization.md
+  - standards/frontend-tier.md
+  outputs:
+  - docs/evidence/tasks/TASK-0906-clarifications.md
+  definition_of_done:
+  - Clarifications file exists and documents resolution of outstanding questions
+  - Timeline and success metrics defined
+  estimate: S
+  expected_files_touched:
+  - docs/evidence/tasks/TASK-0906-clarifications.md
+- id: 2
+  title: Create ADR for mobile stack modernization
+  details: >-
+    Author an ADR following standards/global.md ADR format. Reference the proposal,
+    explain the decision context (ecosystem shift to New Architecture, SDK 53 defaults,
+    security posture), and link to implementation tasks TASK-0907 through TASK-0911.
+  actor: agent
+  inputs:
+  - docs/proposals/mobile-stack-modernization.md
+  - standards/global.md (ADR format guidance)
+  outputs:
+  - adr/YYYY-MM-DD-mobile-stack-modernization.md
+  definition_of_done:
+  - ADR created with context, decision, consequences, and references to all 
+    phase tasks
+  - ADR committed to repository
+  estimate: M
+  expected_files_touched:
+  - adr/YYYY-MM-DD-mobile-stack-modernization.md
+- id: 3
+  title: Document tracking procedures
+  details: >-
+    Update docs/mobile/ with tracking procedures, rollback strategy, and success metrics.
+    Ensure standards/frontend-tier.md alignment for any new conventions introduced
+    by the modernization.
+  actor: agent
+  inputs:
+  - docs/evidence/tasks/TASK-0906-clarifications.md
+  outputs:
+  - docs/mobile/stack-modernization-tracking.md
+  definition_of_done:
+  - Tracking document created with rollback procedures and success metrics
+  - References to phase tasks (TASK-0907 through TASK-0911) included
+  estimate: S
+  expected_files_touched:
+  - docs/mobile/stack-modernization-tracking.md
+
+validation:
+  pipeline:
+  - command: "echo 'Documentation task - no code validation required'"
+    description: "Tracking task validation placeholder"
+  manual_checks:
+  - Verify ADR references all implementation tasks (TASK-0907 through TASK-0911)
+  - Confirm clarifications file resolves all outstanding questions
+  - Ensure tracking document includes rollback procedures and success metrics
+  - Validate all links and references in ADR and docs are correct
+
+acceptance_criteria:
+  must:
+  - ADR exists in adr/ and references 
+    docs/proposals/mobile-stack-modernization.md
+  - ADR links to all five implementation tasks (TASK-0907, TASK-0908, TASK-0909,
+    TASK-0910, TASK-0911)
+  - Clarifications file exists at 
+    docs/evidence/tasks/TASK-0906-clarifications.md
+  - Tracking document exists in docs/mobile/ with rollback strategy and success 
+    metrics
+  quality_gates:
+  - All references and links in ADR are valid
+  - No implementation work performed (delegated to phase tasks)
+
+artifacts:
+- path: docs/evidence/tasks/TASK-0906-clarifications.md
+  description: Resolution of clarification questions (timeline, rollback, 
+    metrics)
+- path: adr/YYYY-MM-DD-mobile-stack-modernization.md
+  description: ADR documenting the modernization decision and linking to 
+    implementation tasks
+
+deliverables:
+- adr/YYYY-MM-DD-mobile-stack-modernization.md
+- docs/evidence/tasks/TASK-0906-clarifications.md
+- docs/mobile/stack-modernization-tracking.md
+
+risks:
+- description: Phase tasks may uncover requirements not captured in proposal
+  mitigation: Iterate ADR and tracking docs as phases progress; update proposal 
+    if needed
+- description: Timeline may shift based on SDK 53 migration complexity
+  mitigation: Track actual vs. estimated timelines; adjust downstream phase 
+    priorities

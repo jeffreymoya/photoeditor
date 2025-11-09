@@ -1,0 +1,117 @@
+schema_version: "1.0"
+id: TASK-0287
+title: "Adopt cockatiel resilience policies for AI providers"
+status: completed
+completed_date: "2025-10-21"
+priority: P1
+complexity: M
+area: backend
+
+description: >-
+  Provider adapters in backend/src/providers use a custom retry/timeout implementation inside BaseProvider. Standards
+  require cockatiel-based policies, hedged requests, and configurable toggles. Replace the home-grown retry logic with
+  cockatiel resilience pipelines, expose policy configuration via shared ProviderConfig, and document toggles for
+  stubbed providers.
+
+outcome: >-
+  Analysis/editing providers wrap outbound calls with cockatiel retry + circuit breaker policies defined in code;
+  configuration lives in shared contracts; tests prove retries, timeouts, and toggle behavior.
+
+scope:
+  in:
+    - backend/src/providers/**/*.ts
+    - backend/libs/core/providers/**/*.ts
+    - shared/schemas/provider.schema.ts
+    - backend/tests/unit/providers/**/*.test.ts
+  out:
+    - Third-party APIs themselves
+
+context:
+  issues: []
+  related_docs:
+    - standards/global.md
+    - standards/AGENTS.md
+    - standards/backend-tier.md
+    - standards/testing-standards.md
+  repo_paths:
+    - backend/src/providers/base.provider.ts
+    - backend/src/providers/gemini.provider.ts
+    - backend/src/providers/seedream.provider.ts
+  dependencies:
+    - type: package
+      name: cockatiel
+      requirement: required
+    - type: package
+      name: opossum
+      requirement: optional
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: pnpm
+      version: "8.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep provider classes under 200 LOC.
+    - Expose circuit breaker metrics for Powertools logging.
+  prohibited:
+    - Custom retry loops.
+    - Hardcoded API keys or endpoints.
+  architecture:
+    - "Strategy + Abstract Factory maintained."
+    - "Resilience policies configured as code."
+
+plan:
+  - id: 1
+    title: Introduce resilience policy builder
+    details: Create helper that composes cockatiel retry, timeout, bulkhead, and fallback policies in core providers.
+    commands: []
+  - id: 2
+    title: Refactor providers to adopt policies
+    details: Replace BaseProvider.makeRequest with policy.execute wrapping fetch and wire configuration.
+    commands: []
+  - id: 3
+    title: Update shared config and tests
+    details: Extend ProviderConfig schema with resilience knobs and cover retry/backoff/hedging in unit tests.
+    commands:
+      - pnpm --filter @photoeditor/backend test:unit -- --testPathPattern=providers
+      - pnpm --filter @photoeditor/backend lint
+
+acceptance_criteria:
+  - Cockatiel-based retry, hedging, and circuit breaker policies wrap provider requests.
+  - ProviderConfig exposes resilience toggles aligned with standards/backend-tier.md.
+  - Updated unit tests cover retries, timeouts, and toggle scenarios and pass locally.
+  - No lint errors for modified backend packages.
+
+deliverables:
+  - backend/src/providers/base.provider.ts
+  - backend/libs/core/providers/**
+  - shared/schemas/provider.schema.ts
+  - backend/tests/unit/providers/**
+
+validation:
+  commands:
+    - pnpm --filter @photoeditor/backend test:unit -- --testPathPattern=providers
+    - pnpm --filter @photoeditor/backend lint
+  manual_checks:
+    - Confirm resilience logs include policy metadata.
+  artifacts:
+    - screenshots: []
+
+evidence:
+  quality:
+    - path: docs/evidence/providers/cockatiel-policy-report.md
+      description: "Policy settings and test output"
+
+risks:
+  - description: cockatiel adds bundle size/cold start.
+    mitigation: Tree-shake unused policies; measure zipped artifact.
+  - description: Misconfigured policies degrade latency.
+    mitigation: Add SLO alerts and run load tests via k6 before rollout.

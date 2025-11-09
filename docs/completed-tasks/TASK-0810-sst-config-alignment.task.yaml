@@ -1,0 +1,156 @@
+schema_version: "1.0"
+id: TASK-0810
+title: "Align SST stacks with backend service container"
+status: completed
+priority: P1
+area: infra
+
+description: >-
+  Update the SST live-dev stacks so Lambda environment variables and DynamoDB resources match the refactored backend services.
+  The current stack omits PROJECT_NAME/SNS_TOPIC_ARN vars and the batch-jobs table + BatchJobIdIndex required by JobRepository,
+  causing runtime failures in SST deployments.
+
+outcome: >-
+  SST deployments provide the env vars and DynamoDB tables/indexes expected by createServiceContainer and JobRepository;
+  presign/status/download/worker/deviceToken Lambdas boot successfully in live-dev with batch workflows intact.
+
+scope:
+  in:
+    - infra/sst/stacks/api.ts
+    - infra/sst/stacks/storage.ts
+    - Related SST config or helper files if needed
+  out:
+    - Backend runtime code (no service changes in this task)
+    - Terraform modules (separate infrastructure definition)
+
+context:
+  standards_tier: infra
+  issues: []
+  related_docs:
+    - standards/infrastructure-tier.md
+    - standards/cross-cutting.md
+    - standards/testing-standards.md
+    - ARCHITECTURE.md
+  repo_paths:
+    - infra/sst/stacks/api.ts
+    - infra/sst/stacks/storage.ts
+dependencies: []
+blocked_by:
+  - TASK-0816
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: pnpm
+      version: "8.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep diffs minimal and focused
+    - Preserve SST tagging and standards comments
+  prohibited:
+    - No changes to Terraform modules unless explicitly needed
+    - Do not edit backend runtime code in this task
+
+plan:
+  - id: 1
+    title: Confirm backend expectations
+    details: >-
+      Trace createServiceContainer and JobRepository to list required env vars/tables, anchoring expectations in standards/infrastructure-tier.md#database and
+      standards/cross-cutting.md#hard-fail-controls; capture the checklist in docs/evidence/sst-config-alignment.md.
+    actor: agent
+    inputs:
+      - backend/libs/core/container/service-container.ts
+      - backend/libs/core/repositories/JobRepository.ts
+      - standards/infrastructure-tier.md
+      - standards/cross-cutting.md
+    outputs:
+      - docs/evidence/sst-config-alignment.md
+    definition_of_done:
+      - docs/evidence/sst-config-alignment.md enumerates env vars and DynamoDB resources with citations to standards/infrastructure-tier.md#database and standards/cross-cutting.md#hard-fail-controls.
+    estimate: S
+    expected_files_touched:
+      - docs/evidence/sst-config-alignment.md
+  - id: 2
+    title: Patch SST API stack
+    details: >-
+      Update infra/sst/stacks/api.ts so each Lambda receives required environment variables, aligning with standards/infrastructure-tier.md#infrastructure-tier guidance on environment registry exports and referencing docs/evidence/sst-config-alignment.md.
+    actor: agent
+    inputs:
+      - infra/sst/stacks/api.ts
+      - docs/evidence/sst-config-alignment.md
+    outputs:
+      - infra/sst/stacks/api.ts
+      - docs/evidence/sst-config-alignment.md
+    definition_of_done:
+      - All functions receive PROJECT_NAME and SNS_TOPIC_ARN (or documented equivalents) with code comments referencing standards/infrastructure-tier.md#infrastructure-tier, and docs/evidence/sst-config-alignment.md updated to reflect the mappings.
+    estimate: M
+    expected_files_touched:
+      - infra/sst/stacks/api.ts
+      - docs/evidence/sst-config-alignment.md
+  - id: 3
+    title: Extend storage stack
+    details: >-
+      Provision the jobs batch table and BatchJobIdIndex to satisfy standards/infrastructure-tier.md#database and backend container expectations, documenting resource names.
+    actor: agent
+    inputs:
+      - infra/sst/stacks/storage.ts
+      - docs/evidence/sst-config-alignment.md
+    outputs:
+      - infra/sst/stacks/storage.ts
+      - docs/evidence/sst-config-alignment.md
+    definition_of_done:
+      - Table and GSI definitions match backend configuration with evidence recorded in docs/evidence/sst-config-alignment.md citing standards/infrastructure-tier.md#database.
+    estimate: M
+    expected_files_touched:
+      - infra/sst/stacks/storage.ts
+      - docs/evidence/sst-config-alignment.md
+  - id: 4
+    title: Validate
+    details: >-
+      Run SST diff/build plus backend static QA to confirm configuration integrity per standards/testing-standards.md#required-commands-before-pr and
+      attach outputs to docs/evidence/sst-config-alignment.md.
+    actor: agent
+    inputs:
+      - infra/sst/stacks/api.ts
+      - infra/sst/stacks/storage.ts
+      - docs/evidence/sst-config-alignment.md
+    outputs:
+      - docs/evidence/sst-config-alignment.md
+    definition_of_done:
+      - docs/evidence/sst-config-alignment.md includes validation notes, SST diff summary, and cites standards/testing-standards.md#required-commands-before-pr confirming green runs.
+    estimate: S
+    expected_files_touched:
+      - docs/evidence/sst-config-alignment.md
+
+acceptance_criteria:
+  functional:
+    - All live-dev Lambdas receive PROJECT_NAME and SNS_TOPIC_ARN (or equivalent variable consumed by NotificationService).
+    - Storage stack provisions the jobs batch table plus BatchJobIdIndex expected by JobRepository.
+    - "`pnpm turbo run qa:static --filter=@photoeditor/backend` passes."
+    - SST diff/build succeeds for the updated stacks.
+  modularity:
+    - "Handler LOC/complexity within budgets per standards/cross-cutting.md; no handler imports @aws-sdk/*"
+    - "SST constructs keep tagging per standards/infrastructure-tier.md"
+  testability:
+    - "Backend static QA pipeline remains green"
+
+validation:
+  manual_checks:
+    - Review SST diff to confirm env vars and table/index names match backend expectations.
+  artifacts:
+    - screenshots: []
+
+deliverables:
+  - infra/sst/stacks/api.ts
+  - infra/sst/stacks/storage.ts
+
+risks:
+  - description: Live-dev deploy may fail if table naming mismatches existing data.
+    mitigation: Run SST diff first; if destructive, plan migration or staged rollout.

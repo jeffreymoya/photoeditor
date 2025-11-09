@@ -1,0 +1,186 @@
+schema_version: "1.0"
+id: TASK-0201
+title: "Retire Legacy QA Suite Scripts after Turborepo Migration"
+status: completed
+priority: P1
+complexity: M
+area: ops
+blocked_by:
+  - TASK-0200
+
+description: >-
+  After Turborepo becomes the single orchestration layer, remove the deprecated
+  Makefile QA targets, Husky hooks, and shell drivers that reference
+  scripts/qa/qa-suite.sh. Replace remaining touchpoints with thin wrappers (if
+  any) that invoke `pnpm turbo run` pipelines, ensuring the standards no longer
+  point to outdated automation.
+
+outcome: >-
+  Legacy QA shell tooling is eliminated, all references to scripts/qa/qa-suite.sh
+  and direct `make qa-*` usage are removed or delegated to turbo, and
+  documentation and hooks reference the Turborepo workflow exclusively.
+
+scope:
+  in:
+    - scripts/qa/qa-suite.sh
+    - scripts/qa/
+    - Makefile (QA sections)
+    - .husky/pre-commit
+    - .husky/pre-push
+    - .github/workflows/ci-cd.yml
+    - .github/workflows/mobile-ci-cd.yml
+    - docs/testing-standards.md
+    - README.md
+    - standards/global.md (tooling references)
+    - standards/backend-tier.md (QA automation references)
+  out:
+    - Introduction of new QA checks or coverage requirements (handled elsewhere)
+    - Changing commands unrelated to QA automation (e.g., infra emulation)
+    - Removal of LocalStack scripts (`scripts/localstack-*`)
+    - Rewriting Makefile targets that already delegate to turbo post-migration
+
+context:
+  issues: []
+  related_docs:
+    - standards/global.md
+    - standards/backend-tier.md
+    - standards/AGENTS.md
+    - standards/cross-cutting.md
+    - docs/testing-standards.md
+    - ARCHITECTURE.md
+    - README.md
+
+  repo_paths:
+    - scripts/qa/qa-suite.sh
+    - Makefile
+    - .husky/pre-commit
+    - .husky/pre-push
+    - .github/workflows/ci-cd.yml
+    - docs/testing-standards.md
+    - standards/global.md
+    - standards/backend-tier.md
+    - README.md
+  dependencies:
+    - type: package
+      name: pnpm
+      version: ">=8.15.0 <9"
+    - type: package
+      name: turbo
+      version: ">=1.13.0 <2"
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "18.x"
+  tools:
+    - name: pnpm
+      version: "8.x"
+    - name: turbo
+      version: "1.x"
+    - name: bash
+      version: any
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Do not remove guardrail documentation; update references instead.
+    - Preserve developer ergonomics by keeping simple entrypoints to turbo (e.g., Make targets delegating to pnpm turbo).
+  prohibited:
+    - Do not reintroduce npm/yarn scripts as primary orchestrators.
+    - Do not delete evidence bundle scripts under tooling/.
+
+plan:
+  - id: 1
+    title: Audit remaining references to legacy QA tooling
+    details: >-
+      Identify every file still invoking scripts/qa/qa-suite.sh or `make qa-*`
+      and capture their intent for replacement with `pnpm turbo` commands.
+    commands:
+      - rg -n "qa-suite" .
+      - rg -n "make qa" .
+    expected_files_touched: []
+  - id: 2
+    title: Remove obsolete shell driver and replace with turbo wrappers
+    details: >-
+      Delete scripts/qa/qa-suite.sh (or reduce to thin compatibility wrapper) and
+      ensure remaining entrypoints call the new turbo pipelines.
+    commands:
+      - rm scripts/qa/qa-suite.sh
+      - pnpm turbo run qa --dry-run || true
+    expected_files_touched:
+      - scripts/qa/qa-suite.sh
+      - Makefile
+  - id: 3
+    title: Update Husky hooks, workflows, standards, and docs
+    details: >-
+      Rewrite Husky hooks, CI workflows, standards entries, and documentation
+      references so they align with the turbo-based QA suite, explain skip
+      controls, and retire legacy command references.
+    commands:
+      - pnpm turbo run lint --filter=tools...
+      - rg -n "qa-suite" docs README.md standards .husky .github
+    expected_files_touched:
+      - .husky/pre-commit
+      - .husky/pre-push
+      - .github/workflows/ci-cd.yml
+      - docs/testing-standards.md
+      - README.md
+      - standards/global.md
+      - standards/backend-tier.md
+  - id: 4
+    title: Verify no legacy references remain
+    details: >-
+      Confirm searches for scripts/qa/qa-suite.sh and legacy Makefile QA targets
+      return nothing and that turbo commands run successfully.
+    commands:
+      - rg -n "qa-suite" .
+      - make qa-suite || true
+    expected_files_touched: []
+
+acceptance_criteria:
+  - scripts/qa/qa-suite.sh is removed (or reduced to a wrapper that delegates immediately to pnpm turbo) with justification documented.
+  - Makefile QA targets either disappear or become thin aliases that call `pnpm turbo run <pipeline>` with no duplicated logic.
+  - Husky hooks and GitHub Actions workflows reference only pnpm/turbo commands; no direct calls to scripts/qa/qa-suite.sh remain.
+  - Docs (README.md, docs/testing-standards.md, standards/global.md, standards/backend-tier.md) no longer instruct developers to run `make qa-suite` or the shell script; they reference the new turbo pipelines and skip flags.
+  - standards/global.md and standards/backend-tier.md explicitly cite the turbo QA pipelines and carry no references to scripts/qa/qa-suite.sh or `npm run qa-suite:static`.
+  - Repository-wide search for `qa-suite.sh` or `make qa-` (outside the task files) returns no matches.
+
+validation:
+  commands:
+    - test ! -f scripts/qa/qa-suite.sh
+    - rg -n "qa-suite" standards && false || true
+    - rg -n "qa-suite" . && false || true
+    - rg -n "make qa-" Makefile && false || true
+    - pnpm turbo run qa --parallel
+  manual_checks:
+    - Confirm READMEs and standards reference pnpm + turbo workflow only.
+    - Verify Husky hooks provide helpful messaging about the new commands.
+    - Validate CI run logs show pnpm/turbo invocation without legacy script references.
+
+deliverables:
+  - Makefile
+  - .husky/pre-commit
+  - .husky/pre-push
+  - .github/workflows/ci-cd.yml
+  - docs/testing-standards.md
+  - README.md
+  - standards/global.md
+  - standards/backend-tier.md
+  - (deleted) scripts/qa/qa-suite.sh
+
+evidence:
+  quality:
+    - path: docs/evidence/qa/turbo-run.log
+      description: "Turbo QA pipeline output confirming replacement of legacy script"
+
+risks:
+  - description: Removing the shell script before all pipelines are stable could leave no fallback for developers.
+    mitigation: Coordinate execution after TASK-0200 validation; leave temporary wrapper if needed.
+  - description: Some documentation or onboarding material might still reference `make qa-suite`.
+    mitigation: Search and update all docs; involve docs owners for review.
+  - description: Downstream tooling (e.g., scripts/pick-task.sh) may expect legacy targets.
+    mitigation: Audit and adjust any tooling dependencies; provide release notes in changelog.

@@ -1,0 +1,69 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`JobsIndexScreen should apply correct styling 1`] = `
+<RNCSafeAreaView
+  edges={
+    {
+      "bottom": "additive",
+      "left": "additive",
+      "right": "additive",
+      "top": "additive",
+    }
+  }
+  style={
+    {
+      "alignItems": "center",
+      "backgroundColor": "#F8F9FA",
+      "flex": 1,
+      "justifyContent": "center",
+      "padding": 16,
+    }
+  }
+>
+  <Text
+    style={
+      {
+        "color": "#1D1D1F",
+        "fontSize": 24,
+        "fontWeight": "600",
+        "marginBottom": 8,
+      }
+    }
+  >
+    Jobs
+  </Text>
+  <Text
+    style={
+      {
+        "color": "#86868B",
+        "fontSize": 16,
+        "marginBottom": 24,
+      }
+    }
+  >
+    Track your photo processing jobs
+  </Text>
+  <Text
+    href="/jobs/example-job-123"
+    onPress={[Function]}
+    role="link"
+    style={
+      {
+        "marginTop": 16,
+      }
+    }
+  >
+    <Text
+      style={
+        {
+          "color": "#007AFF",
+          "fontSize": 16,
+          "textDecorationLine": "underline",
+        }
+      }
+    >
+      View Example Job
+    </Text>
+  </Text>
+</RNCSafeAreaView>
+`;

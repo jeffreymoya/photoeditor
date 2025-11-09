@@ -1,0 +1,247 @@
+schema_version: "1.0"
+id: TASK-0607
+title: Update contract snapshot after API changes
+status: completed
+priority: P1
+complexity: XS
+area: shared
+
+description: >-
+  Contract drift detected in shared package contracts. The API schemas have been
+  modified (routes.manifest.js, api.schema.js, OpenAPI specs, and generated
+  clients) and the contract snapshot needs to be updated to reflect these
+  intentional changes. This is a routine maintenance task after API evolution.
+
+outcome: >-
+  Contract drift check passes. The shared/contract-snapshot.json is updated to
+  match the current state of the API contracts, and contract-diff.json shows
+  no drift.
+
+scope:
+  in:
+    - shared/contract-snapshot.json
+    - contract-diff.json
+    - .changeset/ directory (if changeset required)
+    - docs/contracts/clients/ (regenerated clients with checksums)
+    - docs/openapi/openapi-generated.yaml
+  out:
+    - Actual API implementation (no changes)
+    - Schema definitions (already updated)
+    - Breaking changes without /v{n} versioning (standards/shared-contracts-tier.md:13)
+    - Contract changes without changeset (docs/contracts/changeset-governance.md:20)
+    - Snapshot updates without API diff review (standards/shared-contracts-tier.md:17)
+
+context:
+  issues: []
+  related_docs:
+    - docs/contracts/changeset-governance.md
+    - "standards/shared-contracts-tier.md (lines 10, 17-21: snapshot governance, API diff review, evidence)"
+    - "standards/global.md (lines 46: contract drift detection)"
+    - docs/compatibility/versioning.md (breaking change taxonomy)
+    - "STANDARDS.md (line 40: versioning requirements)"
+  repo_paths:
+    - shared/contract-snapshot.json
+    - contract-diff.json
+    - tooling/contract-check.js
+    - docs/contracts/clients/
+    - .changeset/
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: npm
+      version: "10.x"
+
+constraints:
+  approvals_required: true
+  approval_notes: Contract Steward approval required per standards/shared-contracts-tier.md:21
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Review contract-diff.json before updating to ensure changes are intentional
+    - Verify no breaking changes that require /v{n} versioning per STANDARDS.md:40 and standards/shared-contracts-tier.md:13
+    - Changeset required for public API changes (docs/contracts/changeset-governance.md:20)
+    - API diff review must be recorded in task notes (standards/shared-contracts-tier.md:17)
+    - Downstream clients must be regenerated with checksums (standards/shared-contracts-tier.md:19)
+    - Contract compatibility matrix must pass (standards/shared-contracts-tier.md:20)
+    - "Framework-agnostic contracts only (standards/global.md: no React/AWS imports in shared)"
+
+plan:
+  - id: 1
+    title: Review contract drift
+    details: >-
+      Examine contract-diff.json to understand what contracts have changed.
+      Verify these are intentional changes from recent work (standardized
+      error responses, route manifest updates, etc.).
+    commands:
+      - cat contract-diff.json
+    expected_files_touched: []
+
+  - id: 2
+    title: Verify changeset exists
+    details: >-
+      Check if a changeset was created for these contract changes. If the
+      changes affect public API surface, a changeset is required per
+      changeset-governance.md. Skip if changes are internal-only.
+    commands:
+      - npm run changeset:status
+      - ls -la .changeset/*.md
+    expected_files_touched: []
+
+  - id: 3
+    title: Verify no breaking changes
+    details: >-
+      Ensure contract changes are backward compatible or properly versioned.
+      Check that response schema changes (like standardized errors) are
+      additions not removals. Review docs/compatibility/versioning.md taxonomy.
+    commands:
+      - git diff shared/dist/schemas/api.schema.js
+      - git diff shared/dist/routes.manifest.js
+      - cd shared && npm run api-extractor
+    expected_files_touched: []
+
+  - id: 4
+    title: Regenerate downstream clients
+    details: >-
+      Regenerate TypeScript client from OpenAPI spec. Store checksum in
+      docs/contracts/clients/checksums.json per standards/shared-contracts-tier.md:19.
+    commands:
+      - npm run contracts:generate-client
+      - sha256sum docs/contracts/clients/photoeditor-api.ts >> docs/contracts/clients/checksums.json
+    expected_files_touched:
+      - docs/contracts/clients/photoeditor-api.ts
+      - docs/contracts/clients/checksums.json
+
+  - id: 5
+    title: Update contract snapshot
+    details: >-
+      Run the contract check script with update flag to regenerate the
+      snapshot with current contract state. This clears contract-diff.json.
+    commands:
+      - npm run contracts:check -- --update
+    expected_files_touched:
+      - shared/contract-snapshot.json
+      - contract-diff.json
+
+  - id: 6
+    title: Verify contract check passes
+    details: >-
+      Run contract check again to ensure it now passes with no drift.
+    commands:
+      - npm run contracts:check
+    expected_files_touched: []
+
+acceptance_criteria:
+  # Snapshot governance (standards/shared-contracts-tier.md:10)
+  - Contract drift check passes (npm run contracts:check exits 0)
+  - contract-diff.json shows no modified files
+  - shared/contract-snapshot.json reflects current API state
+
+  # Versioning and compatibility (standards/shared-contracts-tier.md:13,20)
+  - No breaking changes introduced (or properly versioned with /v{n} if present)
+  - Contract compatibility matrix passes (old client ↔ new server tested)
+
+  # Changeset governance (docs/contracts/changeset-governance.md:20)
+  - Changeset exists for public API changes (verified by npm run changeset:status)
+  - Changeset includes semver bump checklist (major/minor/patch justification)
+
+  # API surface review (standards/shared-contracts-tier.md:18)
+  - API extractor report passes without breaking changes (or approved if required)
+  - Breaking changes have matching changeset entries before merge
+
+  # Client regeneration (standards/shared-contracts-tier.md:19)
+  - Downstream TypeScript client regenerated in docs/contracts/clients/
+  - Client checksum recorded in docs/contracts/clients/checksums.json
+
+  # Evidence and approval (standards/shared-contracts-tier.md:21)
+  - Contract Steward approval recorded in task notes
+  - API diff review approval recorded (PR comments or task notes)
+
+validation:
+  commands:
+    # Contract drift detection (standards/global.md:46)
+    - npm run contracts:check
+
+    # Build verification
+    - npm run build --prefix shared
+
+    # API surface review (standards/shared-contracts-tier.md:18)
+    - cd shared && npm run api-extractor
+
+    # Changeset validation (docs/contracts/changeset-governance.md:20)
+    - npm run changeset:status
+
+    # Client regeneration check (standards/shared-contracts-tier.md:19)
+    - test -f docs/contracts/clients/photoeditor-api.ts
+
+    # QA suite integration (docs/testing-standards.md:18-21)
+    - npm run qa-suite:static
+
+  manual_checks:
+    # Snapshot governance (standards/shared-contracts-tier.md:10,17)
+    - Review contract-diff.json to confirm changes are intentional
+    - Verify API diff reviewed and approved by Contract Steward
+    - Confirm changeset semver bump matches breaking change taxonomy (docs/compatibility/versioning.md)
+
+    # Compatibility testing (standards/shared-contracts-tier.md:20)
+    - Verify mobile and backend still compatible with shared contracts
+    - Test contract compatibility matrix (old client ↔ new server)
+
+    # Evidence bundle (standards/shared-contracts-tier.md:21)
+    - Confirm diff report + regeneration log attached to evidence bundle
+
+deliverables:
+  # Core snapshot artifacts
+  - path: shared/contract-snapshot.json
+    description: Updated contract snapshot reflecting current API state
+
+  - path: contract-diff.json
+    description: Cleared diff artifact (no drift after update)
+
+  # Evidence bundle (standards/shared-contracts-tier.md:21)
+  - path: docs/evidence/contracts/api-diff-report.md
+    description: API extractor diff report showing changes reviewed
+
+  - path: docs/evidence/contracts/client-regeneration.log
+    description: Client generation output with timestamps and checksums
+
+  - path: docs/contracts/clients/photoeditor-api.ts
+    description: Regenerated TypeScript client from OpenAPI
+
+  - path: docs/contracts/clients/checksums.json
+    description: Updated client checksums for integrity verification
+
+  # Changeset artifacts (if applicable)
+  - path: .changeset/*.md
+    description: Changeset file documenting semver bump and change summary
+    optional: true
+    condition: Public API surface changes require changeset
+
+risks:
+  - description: Updating snapshot might hide unintentional contract changes
+    mitigation: Review diff carefully before updating; ensure changes match recent PRs; require Contract Steward approval (standards/shared-contracts-tier.md:21)
+    impact: high
+    likelihood: medium
+
+  - description: Breaking changes could affect mobile/backend compatibility
+    mitigation: Verify compatibility with mobile app and backend tests; test contract compatibility matrix (standards/shared-contracts-tier.md:20)
+    impact: critical
+    likelihood: medium
+
+  - description: Missing changeset could block future releases
+    mitigation: Run npm run changeset:status before snapshot update; create changeset for public API changes (docs/contracts/changeset-governance.md:20)
+    impact: medium
+    likelihood: high
+
+  - description: Downstream client drift if regeneration skipped
+    mitigation: Always regenerate TypeScript client with checksums (standards/shared-contracts-tier.md:19); store in docs/contracts/clients/
+    impact: high
+    likelihood: medium
+
+  - description: Breaking changes without /v{n} versioning violate API stability
+    mitigation: Review docs/compatibility/versioning.md taxonomy; publish new /v{n} surface for breaking changes (standards/shared-contracts-tier.md:13)
+    impact: critical
+    likelihood: low

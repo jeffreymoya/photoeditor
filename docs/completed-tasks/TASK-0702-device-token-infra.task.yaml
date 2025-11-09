@@ -1,0 +1,319 @@
+schema_version: "1.0"
+id: TASK-0702
+title: "Provision device token infrastructure and deployments"
+status: completed
+priority: P1
+area: infra
+
+description: >-
+  Stand up the missing infrastructure for Expo device token registration so the
+  backend `deviceToken` Lambda can persist tokens in every environment. Today
+  the Lambda exists but lacks DynamoDB tables, IAM policies, and API Gateway
+  wiring in both Terraform (LocalStack) and SST (cloud) stacks, blocking feature
+  rollout beyond tests.
+
+outcome: >-
+  Device token DynamoDB tables, Lambda deployments, and HTTP routes are defined
+  in Terraform and SST with required tags, encryption, alarms, and IAM policies;
+  LocalStack and cloud environments expose `/v1/device-tokens` POST/DELETE
+  endpoints backed by the provisioned resources, with terraform validate/plan
+  and SST synth succeeding.
+
+scope:
+  in:
+    - infrastructure/main.tf and modules (IAM, DynamoDB, API Gateway)
+    - infra/sst/stacks/api.ts and messaging/storage dependencies
+    - backend deployment packaging references as needed (environment variables)
+    - docs/infra as necessary for runbook updates
+    - Evidence artifacts (terraform plan, SST synth, scan reports)
+  out:
+    - Changes to Lambda handler logic (covered by backend tasks)
+    - Mobile notification UX updates
+    - Secrets management (already governed by standards/infrastructure-tier.md)
+    - Production VPC build-out (tracked separately per ARCHITECTURE.md)
+    - Any manual provisioning; everything must be codified in Terraform/SST (standards/infrastructure-tier.md line 33)
+    - Hardcoded credentials, API keys, or secrets in IaC code
+    - Unencrypted DynamoDB tables (must use KMS CMK per standards/infrastructure-tier.md line 27)
+    - DynamoDB tables without PITR or TTL attributes (standards/infrastructure-tier.md lines 36-38)
+    - IAM policies using wildcard actions (dynamodb:*) or resources (Resource:*)
+    - Terraform modules with implicit provider inheritance (standards/infrastructure-tier.md line 7)
+    - Resources without Project/Env/Owner/CostCenter tags (standards/global.md line 18)
+    - API Gateway routes without throttling, quotas, or access logging
+    - Terraform changes without plan artifacts or policy scan results
+    - Infrastructure tests requiring manual execution (must be CI-automatable per standards/infrastructure-tier.md line 22)
+
+context:
+  issues: ["#device-token-infra-gap"]
+  related_docs:
+    - standards/global.md
+    - standards/AGENTS.md
+    - standards/infrastructure-tier.md
+    - standards/backend-tier.md
+    - docs/testing-standards.md
+    - ARCHITECTURE.md
+  repo_paths:
+    - infrastructure/main.tf
+    - infrastructure/modules
+    - infra/sst/stacks/api.ts
+    - infra/sst/stacks/messaging.ts
+    - backend/src/lambdas/deviceToken.ts
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: npm
+      version: "9.x"
+    - name: terraform
+      version: "1.6.x"
+    - name: bash
+      version: any
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep diffs minimal and focused on the task.
+    - Respect repository conventions and structure.
+  prohibited:
+    - Do not commit secrets or tokens.
+    - Do not change unrelated files.
+    - Manual provisioning; everything must be codified in Terraform/SST (standards/infrastructure-tier.md line 33)
+    - Hardcoded values; use SSM parameters or Terraform variables
+  architecture:
+    - "All resources tagged with Project/Env/Owner/CostCenter (standards/global.md line 18, standards/infrastructure-tier.md)"
+    - "Encryption at rest using KMS for DynamoDB/SNS/SQS (standards/infrastructure-tier.md line 27)"
+    - "API Gateway access logs and alarms enabled (standards/infrastructure-tier.md line 79)"
+    - "Handlers deployed via IaC with least-privilege IAM (standards/backend-tier.md, standards/infrastructure-tier.md)"
+    - "Terraform plans validated and committed evidence-ready (standards/infrastructure-tier.md lines 20-23)"
+    - "DynamoDB tables enable PITR and use on-demand capacity for dev/stage (standards/infrastructure-tier.md lines 36-37)"
+    - "Device token table includes TTL attribute for token expiry management (standards/infrastructure-tier.md line 38)"
+    - "API Gateway throttling and quota limits configured per environment"
+    - "IAM policies follow least-privilege with explicit actions and resource ARNs"
+    - "Module inputs/outputs have contracts; no implicit providers (standards/infrastructure-tier.md line 7)"
+
+plan:
+  - id: 1
+    title: Design device token table schema and IAM needs
+    details: >
+      Confirm attribute keys from `DeviceTokenService`, retention requirements, and IAM actions required for Lambda access.
+      Document access patterns, GSI strategy, and TTL attribute for token expiry (standards/infrastructure-tier.md line 37-38).
+    commands:
+      - rg -n "DeviceTokenService" backend/src
+    expected_files_touched:
+      - docs/infra/device-token-access-patterns.md
+  - id: 2
+    title: Implement Terraform resources for LocalStack
+    details: >
+      Add DynamoDB table with PITR enabled, TTL attribute, on-demand billing mode, and KMS encryption.
+      Add Lambda function packaging, API Gateway routes with throttling/quotas, least-privilege IAM policies, and CloudWatch alarms.
+      Ensure all resources tagged with Project/Env/Owner/CostCenter per standards/global.md line 18.
+      Module inputs/outputs must have explicit contracts (standards/infrastructure-tier.md line 7).
+    commands:
+      - cd infrastructure && terraform fmt
+      - cd infrastructure && terraform validate
+      - cd infrastructure && terraform fmt -check
+    expected_files_touched:
+      - infrastructure/main.tf
+      - infrastructure/modules/api-gateway/main.tf
+      - infrastructure/modules/lambda/*
+      - infrastructure/modules/storage/device-tokens.tf
+  - id: 3
+    title: Run policy-as-code and security scans
+    details: >
+      Validate infrastructure against tfsec and checkov to catch security misconfigurations.
+      Ensure no hard-coded credentials, public access, or unencrypted resources.
+      Document any justified exceptions per standards/infrastructure-tier.md line 22.
+    commands:
+      - tfsec infrastructure/ --soft-fail
+      - checkov -d infrastructure/
+    expected_files_touched: []
+  - id: 4
+    title: Extend SST stacks for cloud environments
+    details: >
+      Update SST storage/messaging/API stacks to provision device token table, permissions, and routes consistent with Terraform.
+      Ensure SST maintains parity with Terraform modules and follows standards/infrastructure-tier.md lines 9-12.
+    commands:
+      - cd infra/sst && npm run build
+      - cd infra/sst && npx sst print
+    expected_files_touched:
+      - infra/sst/stacks/api.ts
+      - infra/sst/stacks/storage.ts
+  - id: 5
+    title: Validate deployments and generate evidence
+    details: >
+      Run terraform plan (LocalStack) and SST synth to confirm clean diffs.
+      Store validate/plan artifacts and drift report in docs/infra per standards/infrastructure-tier.md lines 20-23.
+      Update runbook documentation with new provisioning steps, access patterns, and alarm response procedures.
+    commands:
+      - cd infrastructure && terraform plan -out=device-token.tfplan
+      - terraform show -json device-token.tfplan > docs/evidence/infra/device-token-plan.json
+      - cd infra/sst && npx sst print > docs/evidence/infra/sst-synth-output.txt
+    expected_files_touched:
+      - docs/infra/device-tokens.md
+      - docs/evidence/infra/device-token-plan.json
+      - docs/evidence/infra/sst-synth-output.txt
+
+acceptance_criteria:
+  # Infrastructure validation (standards/infrastructure-tier.md lines 18-23)
+  - Terraform defines device token DynamoDB table, Lambda, IAM, and API routes with successful `terraform validate` and `plan`.
+  - "`terraform fmt -check` passes with no formatting changes needed"
+  - "`tfsec` and `checkov` scans pass or have documented exceptions"
+  - Terraform plan artifact stored in docs/evidence/infra/device-token-plan.json
+
+  # DynamoDB requirements (standards/infrastructure-tier.md lines 36-39)
+  - DynamoDB table enables PITR (Point-In-Time Recovery)
+  - Billing mode set to on-demand for dev/stage environments
+  - Table includes TTL attribute for automatic token expiry management
+  - Access patterns and GSI strategy documented in docs/infra/device-token-access-patterns.md
+  - Table uses KMS CMK encryption (standards/infrastructure-tier.md line 27)
+
+  # IAM and security (standards/infrastructure-tier.md, standards/global.md)
+  - IAM policies use least-privilege with explicit actions (dynamodb:PutItem, GetItem, DeleteItem, UpdateItem)
+  - IAM policy resource ARNs explicitly reference device token table
+  - No hardcoded credentials or secrets in Terraform/SST code
+
+  # Tagging and organization (standards/global.md line 18)
+  - All resources tagged with Project/Env/Owner/CostCenter
+  - Tags consistent across Terraform and SST stacks
+
+  # API Gateway (standards/infrastructure-tier.md line 79)
+  - API Gateway routes include throttling limits and quota configuration
+  - Access logs enabled and sent to CloudWatch
+  - CloudWatch alarms configured for Lambda errors and API 5XX responses
+
+  # Module contracts (standards/infrastructure-tier.md line 7)
+  - Terraform modules have explicit input/output contracts
+  - No implicit provider inheritance
+  - Modules versioned if reusable across stacks
+
+  # SST parity (standards/infrastructure-tier.md lines 9-12)
+  - SST stacks provision equivalent resources with proper tags, alarms, and permissions
+  - SST outputs match Terraform module outputs for cross-stack references
+
+  # Environment configuration
+  - Device token Lambda receives necessary env vars (table name, region, KMS key ID) across IaC definitions
+  - Environment variables set consistently in Terraform and SST
+
+  # Documentation and evidence (standards/infrastructure-tier.md lines 20-23)
+  - Documentation describes enabling the feature in local/cloud environments
+  - Runbook includes alarm response procedures and troubleshooting steps
+  - Evidence bundle includes terraform plan, SST synth output, and drift report placeholders
+
+  # Quality gates
+  - QA/static checks for infrastructure run without errors
+  - No manual provisioning steps; all resources codified in IaC
+
+validation:
+  commands:
+    # Infrastructure fitness gates (standards/infrastructure-tier.md lines 18-23, docs/testing-standards.md lines 222-238)
+    - cd infrastructure && terraform fmt -check
+    - cd infrastructure && terraform validate
+    - cd infrastructure && terraform plan -out=device-token.tfplan
+    - terraform show -json infrastructure/device-token.tfplan > docs/evidence/infra/device-token-plan.json
+
+    # Policy as code and security scans (standards/infrastructure-tier.md line 21)
+    - tfsec infrastructure/ --soft-fail
+    - checkov -d infrastructure/ --framework terraform
+
+    # SST validation
+    - cd infra/sst && npm run build
+    - cd infra/sst && npx sst print > docs/evidence/infra/sst-synth-output.txt
+
+    # Hard fail prevention (docs/testing-standards.md lines 240-289)
+    - "! grep -r 'access_key\\|secret_key' infrastructure/"
+    - grep -q 'point_in_time_recovery.*enabled.*true' infrastructure/modules/storage/device-tokens.tf || echo "PITR must be enabled"
+    - grep -q 'server_side_encryption' infrastructure/modules/storage/device-tokens.tf || echo "KMS encryption required"
+    - grep -q 'Project.*Env.*Owner.*CostCenter' infrastructure/modules/storage/device-tokens.tf || echo "Tags required"
+
+    # Module contract validation (standards/infrastructure-tier.md line 7)
+    - "! grep -r 'provider \"aws\"' infrastructure/modules/ || echo 'Modules must not define providers'"
+
+    # QA suite integration (docs/testing-standards.md lines 12-56)
+    - make qa-suite SKIP_TESTS=1 SKIP_BUILD=1
+
+  evidence_files:
+    - docs/evidence/infra/device-token-plan.json
+    - docs/evidence/infra/sst-synth-output.txt
+    - docs/evidence/infra/tfsec-report.txt
+    - docs/evidence/infra/checkov-report.txt
+
+deliverables:
+  # Infrastructure code
+  - path: infrastructure/main.tf
+    description: Device token table, Lambda, and API Gateway route definitions
+  - path: infrastructure/modules/storage/device-tokens.tf
+    description: DynamoDB table module with PITR, TTL, and KMS encryption
+  - path: infrastructure/modules/api-gateway/main.tf
+    description: API Gateway routes with throttling and access logging
+  - path: infra/sst/stacks/storage.ts
+    description: SST storage stack with device token table
+  - path: infra/sst/stacks/api.ts
+    description: SST API stack with device token routes
+
+  # Documentation (standards/infrastructure-tier.md lines 20-23)
+  - path: docs/infra/device-tokens.md
+    description: Runbook for device token infrastructure provisioning and troubleshooting
+  - path: docs/infra/device-token-access-patterns.md
+    description: DynamoDB access patterns, GSI strategy, and query design
+
+  # Evidence bundle (standards/infrastructure-tier.md line 23, docs/testing-standards.md lines 356-360)
+  - path: docs/evidence/infra/device-token-plan.json
+    description: Terraform plan output showing all resource changes
+  - path: docs/evidence/infra/sst-synth-output.txt
+    description: SST synthesized CloudFormation template
+  - path: docs/evidence/infra/tfsec-report.txt
+    description: Security scan results from tfsec
+  - path: docs/evidence/infra/checkov-report.txt
+    description: Policy compliance scan results from checkov
+  - path: docs/evidence/infra/drift-report.md
+    description: Placeholder for weekly drift check report (standards/infrastructure-tier.md line 20)
+
+risks:
+  - id: R1
+    description: DynamoDB table configuration mismatch between Terraform and SST
+    impact: medium
+    mitigation: >
+      Validate outputs match between stacks using integration tests.
+      Document parity requirements in standards/infrastructure-tier.md lines 9-12.
+  - id: R2
+    description: Missing PITR or KMS encryption in one stack
+    impact: high
+    mitigation: >
+      Add validation commands to grep for required attributes in both Terraform and SST code.
+      Mark as hard fail in acceptance criteria (standards/infrastructure-tier.md lines 27, 36-37).
+  - id: R3
+    description: Hardcoded table name or ARN prevents multi-environment deployment
+    impact: medium
+    mitigation: >
+      Use SSM parameters or Terraform variables for all environment-specific values.
+      Validate no hardcoded values in validation commands.
+  - id: R4
+    description: IAM policies too permissive (dynamodb:* or Resource:*)
+    impact: high
+    mitigation: >
+      Explicitly list actions (PutItem, GetItem, DeleteItem, UpdateItem) and resource ARNs.
+      Validate with tfsec/checkov scans as part of acceptance criteria.
+  - id: R5
+    description: Missing CloudWatch alarms delays incident response
+    impact: medium
+    mitigation: >
+      Include Lambda error rate and API Gateway 5XX alarms in Terraform/SST.
+      Document alarm thresholds and response procedures in runbook.
+  - id: R6
+    description: TTL attribute misconfigured causes token accumulation
+    impact: low
+    mitigation: >
+      Document TTL attribute name and format in access patterns doc.
+      Add integration test to verify TTL enforcement after deployment.
+  - id: R7
+    description: Policy scan exceptions without justification
+    impact: medium
+    mitigation: >
+      Any tfsec/checkov exceptions must be documented per standards/infrastructure-tier.md line 22.
+      Add exception registry entry with expiry date and rollback steps.

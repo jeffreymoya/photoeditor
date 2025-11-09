@@ -1,0 +1,89 @@
+schema_version: "1.0"
+id: TASK-0015
+title: "Compatibility: OpenAPI + contract tests for presign/status"
+status: completed
+priority: P1
+complexity: M
+area: backend
+
+description: >-
+  Introduce an OpenAPI spec for core routes and contract tests for
+  `POST /upload/presign` and `GET /jobs/{id}`. Document versioning policy
+  requiring a route prefix bump on breaking changes.
+
+outcome: >-
+  OpenAPI spec checked in; contract tests validate responses match spec.
+  Versioning policy documented and enforced by CI check (lint step optional).
+
+scope:
+  in:
+    - docs/openapi/openapi.yaml
+    - backend/tests/contracts/**
+    - docs/compatibility/versioning.md
+  out:
+    - Non-core routes
+
+context:
+  issues: []
+  related_docs:
+    - rubric.md
+  repo_paths:
+    - backend/src/lambdas/presign.ts
+    - backend/src/lambdas/status.ts
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: npm
+      version: "9.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+
+plan:
+  - id: 1
+    title: Draft OpenAPI
+    details: Define schemas for presign/status endpoints.
+    commands: []
+  - id: 2
+    title: Add tests
+    details: Implement contract tests checking shape and codes.
+    commands:
+      - cd backend && npm test --silent -- tests/contracts || true
+  - id: 3
+    title: Document policy
+    details: Add versioning policy doc.
+    commands: []
+
+acceptance_criteria:
+  - OpenAPI spec exists and describes core routes.
+  - Contract tests execute and pass locally.
+  - Versioning policy exists in docs.
+
+validation:
+  commands:
+    - rg --files docs/openapi || true
+    - cd backend && npm test --silent -- tests/contracts || true
+  manual_checks:
+    - Compare responses to spec.
+  artifacts:
+    - screenshots: []
+
+deliverables:
+  - docs/openapi/openapi.yaml
+  - backend/tests/contracts/presign.contract.test.ts
+  - backend/tests/contracts/status.contract.test.ts
+  - docs/compatibility/versioning.md
+
+risks:
+  - description: Drift between spec and implementation.
+    mitigation: Add CI step to validate contracts on PRs.
+
+order: 7
+

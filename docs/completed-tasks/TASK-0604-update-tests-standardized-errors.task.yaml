@@ -1,0 +1,240 @@
+schema_version: "1.0"
+id: TASK-0604
+title: Update tests to match standardized error response format
+status: completed
+priority: P1
+complexity: S
+area: backend
+
+description: >-
+  Backend error responses have been updated to use the standardized error format
+  (with code, detail, title, type, instance, timestamp) per the enhanced error
+  handling in backend/src/utils/errors.ts:153. However, unit and contract tests
+  still expect the old format ({error: "..."}) causing test failures. Update all
+  affected tests to validate against the new standardized error schema.
+
+outcome: >-
+  All backend tests pass with the standardized error response format. Tests
+  validate error responses contain code, detail, title, type, instance, and
+  timestamp fields as defined in the AppError.toStandardApiResponse method.
+
+scope:
+  in:
+    - backend/tests/unit/lambdas/presign.test.ts
+    - backend/tests/unit/lambdas/status.test.ts
+    - backend/tests/contracts/presign.contract.test.ts
+    - backend/tests/contracts/status.contract.test.ts (already passing)
+  out:
+    - Lambda implementation code (no changes needed)
+    - Error handling utilities (already correct)
+    - Breaking changes to error schema (would require /v2 per testing-standards.md:109)
+    - Manual-only test steps (all tests must run in CI per testing-standards.md:421)
+    - Real AWS calls in unit tests (use in-memory mocks per testing-standards.md:422)
+
+context:
+  issues: []
+  related_docs:
+    - docs/testing-standards.md (lines 1-10, 60-77, 96-129, 240-365)
+    - standards/backend-tier.md (lines 18-23, 106-111)
+    - standards/global.md (lines 18-28, 39, 52-57)
+    - "shared/types/error.types.ts (lines 66-123: ApiErrorResponse interface, createErrorResponse helper)"
+  repo_paths:
+    - backend/src/utils/errors.ts:153 (AppError.toStandardApiResponse)
+    - backend/tests/unit/lambdas/presign.test.ts:100,117,132,254
+    - backend/tests/unit/lambdas/status.test.ts:63,142,157
+    - backend/tests/contracts/presign.contract.test.ts:119
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: npm
+      version: "10.x"
+    - name: jest
+      version: "29.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Follow existing test patterns in backend/tests/
+    - Maintain test coverage thresholds (80% lines, 70% branches per backend-tier.md:108)
+    - Use consistent error schema validation across all test types
+    - Handlers must stay ≤75 LOC with cyclomatic complexity ≤10 (backend-tier.md:110)
+    - Test assertions validate RFC 7807 error format (code, title, detail, instance, type, timestamp)
+    - Error responses use domain vs infra error taxonomy (backend-tier.md:14)
+    - Correlation IDs propagate through structured logs (global.md:39)
+
+plan:
+  - id: 1
+    title: Review standardized error format
+    details: >-
+      Examine backend/src/utils/errors.ts:153 to understand the complete
+      standardized error response structure (code, detail, title, type,
+      instance, timestamp).
+    commands:
+      - rg -A 20 "toStandardApiResponse" backend/src/utils/errors.ts
+    expected_files_touched: []
+
+  - id: 2
+    title: Update presign lambda unit tests
+    details: >-
+      Update tests in backend/tests/unit/lambdas/presign.test.ts that expect
+      old error format. Replace expectations like {error: "..."} with the full
+      standardized error object structure.
+    commands: []
+    expected_files_touched:
+      - backend/tests/unit/lambdas/presign.test.ts
+
+  - id: 3
+    title: Update status lambda unit tests
+    details: >-
+      Update tests in backend/tests/unit/lambdas/status.test.ts that expect
+      old error format (lines 63, 142, 157).
+    commands: []
+    expected_files_touched:
+      - backend/tests/unit/lambdas/status.test.ts
+
+  - id: 4
+    title: Update presign contract tests
+    details: >-
+      Update contract test in backend/tests/contracts/presign.contract.test.ts
+      that validates single upload response (line 119 fails with 500 instead of 200).
+    commands: []
+    expected_files_touched:
+      - backend/tests/contracts/presign.contract.test.ts
+
+  - id: 5
+    title: Run all backend tests with coverage and mutation
+    details: >-
+      Verify all tests pass, including lambda unit tests and contract tests.
+      Generate coverage and mutation reports for evidence bundle.
+    commands:
+      - npm test --prefix backend -- --coverage
+      - npm run test:mutation --prefix backend -- --threshold 60
+    expected_files_touched:
+      - docs/evidence/coverage-reports/error-tests-coverage.html
+      - docs/evidence/mutation-reports/error-tests-mutation.html
+
+  - id: 6
+    title: Generate evidence bundle
+    details: >-
+      Collect contract test logs, coverage reports, and mutation reports
+      as required by global.md:52-57 and testing-standards.md:121-128.
+    commands:
+      - npm test --prefix backend -- presign.contract.test.ts > docs/evidence/contract-tests/presign.log 2>&1
+      - npm test --prefix backend -- status.contract.test.ts > docs/evidence/contract-tests/status.log 2>&1
+    expected_files_touched:
+      - docs/evidence/contract-tests/presign.log
+      - docs/evidence/contract-tests/status.log
+
+acceptance_criteria:
+  # Testability (backend-tier.md:108, testing-standards.md:79-93)
+  - All presign lambda unit tests pass (backend/tests/unit/lambdas/presign.test.ts)
+  - All status lambda unit tests pass (backend/tests/unit/lambdas/status.test.ts)
+  - All presign contract tests pass (backend/tests/contracts/presign.contract.test.ts)
+  - Status contract tests continue to pass (already aligned)
+  - Test coverage ≥80% lines, ≥70% branches (backend-tier.md:108)
+  - Mutation score ≥60% for modified test files (backend-tier.md:108)
+
+  # Error Schema Validation (RFC 7807 format per shared/types/error.types.ts:66-81)
+  - "Error response assertions validate all standardized fields: code, title, detail, instance, type, timestamp"
+  - Validation errors include optional fieldErrors field
+  - Provider errors include optional provider, providerCode, retryable fields
+  - Internal errors include optional stack field (dev/staging only) and context field
+
+  # Maintainability (backend-tier.md:14, global.md:39)
+  - Error responses use domain vs infra error taxonomy (ErrorType enum discrimination)
+  - Tests verify x-request-id header propagation for correlation
+  - No changes to lambda implementation code or error utilities
+
+  # Fitness Gates (backend-tier.md:110)
+  - Handlers remain ≤75 LOC with cyclomatic complexity ≤10 (no regression)
+  - Contract tests validate error responses for every error scenario
+
+validation:
+  commands:
+    # Unit tests
+    - npm test --prefix backend -- presign.test.ts
+    - npm test --prefix backend -- status.test.ts
+
+    # Contract tests with RFC 7807 validation (testing-standards.md:96-129)
+    - npm test --prefix backend -- presign.contract.test.ts
+    - npm test --prefix backend -- status.contract.test.ts
+
+    # Coverage validation (backend-tier.md:108)
+    - npm test --prefix backend -- --coverage --coverageThreshold='{"global":{"lines":80,"branches":70}}'
+
+    # Mutation testing (backend-tier.md:108, testing-standards.md:79)
+    - npm run test:mutation --prefix backend -- --threshold 60
+
+    # Complexity validation (backend-tier.md:110)
+    - npm run lint --prefix backend -- --max-complexity=10
+
+    # Contract drift detection (testing-standards.md:25-43)
+    - npm run contracts:check --prefix shared
+
+    # QA Suite integration (testing-standards.md:12-56)
+    - npm run qa-suite:static
+
+  manual_checks:
+    - Verify error response objects match RFC 7807 format (code, title, detail, instance, type, timestamp)
+    - Confirm x-request-id header present in error responses
+    - Validate error type discrimination (VALIDATION, PROVIDER_ERROR, INTERNAL_ERROR, etc.)
+
+deliverables:
+  # Modified test files
+  - path: backend/tests/unit/lambdas/presign.test.ts
+    description: Updated unit tests with RFC 7807 error assertions
+  - path: backend/tests/unit/lambdas/status.test.ts
+    description: Updated unit tests with RFC 7807 error assertions
+  - path: backend/tests/contracts/presign.contract.test.ts
+    description: Updated contract tests with standardized error schema validation
+
+  # Evidence bundle (global.md:52-57, testing-standards.md:121-128)
+  - path: docs/evidence/contract-tests/presign.log
+    description: Contract test execution log demonstrating RFC 7807 compliance
+  - path: docs/evidence/contract-tests/status.log
+    description: Contract test execution log demonstrating RFC 7807 compliance
+  - path: docs/evidence/coverage-reports/error-tests-coverage.html
+    description: Coverage report showing ≥80% lines, ≥70% branches
+  - path: docs/evidence/mutation-reports/error-tests-mutation.html
+    description: Mutation test report showing ≥60% mutation score
+
+risks:
+  # Implementation risks
+  - description: Tests may reveal actual bugs in error handling implementation
+    mitigation: Review any unexpected failures to determine if they indicate implementation issues vs test issues
+    impact: medium
+    likelihood: low
+
+  - description: S3 key format changes may cause additional test failures
+    mitigation: Address S3 key format separately in TASK-0605
+    impact: low
+    likelihood: medium
+
+  # Standards compliance risks (backend-tier.md:110, global.md:22-23)
+  - description: Handler complexity may exceed CC=10 budget during test updates
+    mitigation: Keep handlers as thin orchestrators; move logic to services if needed
+    impact: high
+    likelihood: low
+    hard_fail: true
+
+  - description: Test coverage may drop below 80% lines / 70% branches threshold
+    mitigation: Add missing test cases for edge conditions; use coverage reports to identify gaps
+    impact: medium
+    likelihood: low
+
+  - description: Mutation score may fall below 60% threshold
+    mitigation: Strengthen assertions to catch more mutations; add boundary condition tests
+    impact: medium
+    likelihood: low
+
+  # Contract stability risks (testing-standards.md:109, global.md:25)
+  - description: Error schema changes could break API contracts
+    mitigation: Changes are test-only; no schema modifications; version bump to /v2 would be required for breaking changes
+    impact: high
+    likelihood: very-low

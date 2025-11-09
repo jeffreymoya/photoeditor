@@ -1,0 +1,176 @@
+# Lean template for LLM-executable tasks (token-optimized for solo developer)
+# Subtask of TASK-0817: Frontend tier hardening
+# Focus: UI layer - tokens and icon migration
+
+schema_version: "1.0"
+id: TASK-0818
+title: "Migrate mobile UI to use shared tokens and lucide icons"
+status: completed
+blocked_reason: null
+priority: P1
+area: frontend
+
+description: >-
+  Part 1 of TASK-0817 frontend-tier hardening. HomeScreen and other screens violate
+  standards/frontend-tier.md by using inline color/spacing tokens instead of importing
+  from ui-tokens.ts. Icons use @expo/vector-icons directly instead of lucide-react-native.
+  This subtask isolates the UI layer refactoring to establish baseline compliance before
+  tackling state and service architecture in subsequent subtasks.
+
+outcome: >-
+  All screen and component StyleSheet definitions consume colors, spacing, typography, and
+  shadows exclusively from mobile/src/lib/ui-tokens.ts. Icons use lucide-react-native
+  primitives. No inline hex colors or magic numbers remain in style definitions.
+
+scope:
+  in:
+    - mobile/src/screens/**/*.tsx
+    - mobile/src/components/**/*.tsx
+    - mobile/src/features/upload/components/**/*.tsx
+    - mobile/src/lib/ui-tokens.ts
+    - mobile/package.json (lucide-react-native dependency)
+  out:
+    - State management layer (RTK Query, XState) - covered by TASK-0819
+    - Services ports/adapters - covered by TASK-0820
+    - Storybook/Chromatic setup - covered by TASK-0821
+    - Feature orchestration layering - covered by TASK-0819
+
+context:
+  affected_packages: [mobile]
+  standards_tier: frontend
+  issues: []
+  related_docs:
+    - standards/AGENTS.md
+    - standards/frontend-tier.md
+    - standards/typescript.md
+    - standards/testing-standards.md
+  repo_paths:
+    - mobile/src/screens
+    - mobile/src/components
+    - mobile/src/lib/ui-tokens.ts
+  dependencies:
+    - type: package
+      name: lucide-react-native
+      version: ">=0.263.0"
+    - type: package
+      name: react-native-svg
+      version: "14.1.0"
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "18.x"
+  tools:
+    - name: npm
+      version: "9.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep diffs minimal and focused
+    - Respect repository conventions
+  prohibited:
+    - No secrets or tokens in code
+    - No unrelated file changes
+  architecture:
+    - "UI primitives must come from ui-tokens; inline raw tokens not allowed (standards/frontend-tier.md)"
+    - "Icons from lucide-react-native for consistency (standards/frontend-tier.md)"
+    - "No cross-feature imports (standards/frontend-tier.md)"
+
+plan:
+  - id: 1
+    title: Audit current inline style violations
+    details: Scan all screens and components for hardcoded colors, spacing, and @expo/vector-icons usage.
+    commands:
+      - rg -n "#[0-9a-fA-F]{6}" mobile/src/screens mobile/src/components mobile/src/features
+      - rg -n "fontSize.*[0-9]+" mobile/src/screens mobile/src/components
+      - rg -n "@expo/vector-icons" mobile/src/screens mobile/src/components
+    expected_files_touched: []
+  - id: 2
+    title: Install and configure lucide-react-native
+    details: Add lucide-react-native dependency and verify it works with existing react-native-svg.
+    commands:
+      - pnpm add lucide-react-native --filter=photoeditor-mobile
+    expected_files_touched:
+      - mobile/package.json
+  - id: 3
+    title: Refactor screens to use ui-tokens
+    details: Replace all inline colors, spacing, typography with imports from ui-tokens.ts.
+    commands:
+      - pnpm turbo run lint --filter=photoeditor-mobile
+      - pnpm turbo run typecheck --filter=photoeditor-mobile
+    expected_files_touched:
+      - mobile/src/screens/HomeScreen.tsx
+      - mobile/src/screens/GalleryScreen.tsx
+      - mobile/src/screens/EditScreen.tsx
+      - mobile/src/screens/CameraScreen.tsx
+      - mobile/src/screens/PreviewScreen.tsx
+      - mobile/src/screens/SettingsScreen.tsx
+      - mobile/src/screens/JobsScreen.tsx
+  - id: 4
+    title: Refactor components and features to use ui-tokens and lucide
+    details: Update components and feature components to use ui-tokens and replace Ionicons with lucide.
+    commands:
+      - pnpm turbo run lint --filter=photoeditor-mobile
+      - pnpm turbo run typecheck --filter=photoeditor-mobile
+    expected_files_touched:
+      - mobile/src/components/**/*.tsx
+      - mobile/src/features/upload/components/**/*.tsx
+  - id: 5
+    title: Verify no inline tokens remain
+    details: Run grep validation to ensure no hardcoded colors or magic numbers in styles.
+    commands:
+      - "! rg '#[0-9a-fA-F]{6}' mobile/src/screens mobile/src/components mobile/src/features --type tsx || echo 'Inline colors found'"
+    expected_files_touched: []
+
+acceptance_criteria:
+  functional:
+    - All StyleSheet.create() calls use colors.*, spacing.*, typography.*, and shadows.* from ui-tokens.ts.
+    - No hex color literals (#XXXXXX) exist in screen or component files.
+    - All icon references use lucide-react-native instead of @expo/vector-icons Ionicons.
+    - No lint/type/test regressions; mobile tests pass.
+  modularity:
+    - "UI primitives sourced from ui-tokens package (standards/frontend-tier.md)."
+    - "No cross-feature imports (standards/frontend-tier.md)."
+  testability:
+    - "Existing component tests still pass."
+
+validation:
+  static_checks:
+    - pnpm turbo run qa:static --filter=photoeditor-mobile
+    - "! rg '#[0-9a-fA-F]{6}' mobile/src/screens mobile/src/components mobile/src/features --type tsx"
+    - "! rg '@expo/vector-icons' mobile/src/screens mobile/src/components mobile/src/features --type tsx"
+
+  unit_tests:
+    mobile:
+      - pnpm turbo run test --filter=photoeditor-mobile
+
+  contract_tests: []
+
+  manual_checks:
+    - Verify mobile app renders correctly on iOS simulator
+    - Verify mobile app renders correctly on Android emulator
+
+  artifacts:
+    - screenshots: []
+
+deliverables:
+  - mobile/src/screens/HomeScreen.tsx
+  - mobile/src/screens/GalleryScreen.tsx
+  - mobile/src/screens/EditScreen.tsx
+  - mobile/src/screens/CameraScreen.tsx
+  - mobile/src/screens/PreviewScreen.tsx
+  - mobile/src/screens/SettingsScreen.tsx
+  - mobile/src/screens/JobsScreen.tsx
+  - mobile/src/components/**/*.tsx (updated)
+  - mobile/src/features/upload/components/**/*.tsx (updated)
+  - mobile/package.json (lucide-react-native added)
+
+risks:
+  - description: Icon library change may break existing icon references if mapping is incorrect
+    mitigation: Map Ionicons to lucide equivalents carefully; test on both iOS and Android
+  - description: Token migration may introduce visual regressions
+    mitigation: Manual verification on simulators; screenshot comparison if needed

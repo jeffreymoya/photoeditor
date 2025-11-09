@@ -1,0 +1,166 @@
+schema_version: "1.0"
+id: TASK-0701
+title: "Add backend contract test harness"
+status: completed
+priority: P0
+area: backend
+
+description: >-
+  Build the missing backend contract test suite so the `pnpm --filter @photoeditor/backend test:contract`
+  job executes real specs instead of skipping. The 2025-10-21 contract report showed a partial pass with
+  zero tests because `backend/tests/contracts/` does not exist. To satisfy testing standards, we need
+  end-to-end request/response assertions for every versioned route that exercise the Lambda handlers with
+  Zod validation and the generated clients.
+
+outcome: >-
+  Contract tests run in CI and locally, cover each `/v1` route, and produce a green
+  `docs/tests/reports/YYYY-MM-DD-contract-tests.md` with no deferred work.
+
+scope:
+  in:
+    - backend/tests/contracts/
+    - backend/src/lambdas/
+    - turbo.json (test pipeline entries)
+    - package.json scripts related to contract tests
+  out:
+    - Changes to API schemas or shared DTOs (handled separately)
+    - Non-contract test refactors
+    - Mobile or frontend contract clients
+    - Infrastructure or deploy configuration
+    - Direct SDK usage in handlers (use adapters)
+    - Breaking API changes without /v{n} version bump
+    - Handler code exceeding 75 LOC or complexity >10
+    - VPC configuration for API Lambdas
+    - Inline secrets or hardcoded credentials
+    - SQS queues without DLQ configuration
+    - Cross-feature imports in mobile (violates modularity)
+    - Dependency cycles between modules
+    - Manual-only tests (all tests must run in CI)
+
+context:
+  issues: ["DOC-2025-10-21-contract-tests"]
+  related_docs:
+    - standards/global.md
+    - standards/AGENTS.md
+    - standards/backend-tier.md
+    - standards/shared-contracts-tier.md
+    - standards/testing-standards.md
+    - docs/tests/reports/2025-10-21-contract-tests.md
+  repo_paths:
+    - backend/tests/contracts/
+    - backend/jest.config.js
+    - turbo.json
+    - package.json
+  dependencies:
+    - type: package
+      name: "@photoeditor/backend"
+      version: "workspace:*"
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: pnpm
+      version: "8.x"
+    - name: bash
+      version: any
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep diffs minimal and focused on the contract suite addition.
+    - Respect repository layering (handlers → services → providers).
+  prohibited:
+    - Do not commit secrets or tokens.
+    - Do not change unrelated files.
+  architecture:
+    - "Ports & Adapters pattern for backend services"
+    - "neverthrow Result for domain flows"
+    - "Zod-at-boundaries per standards/typescript.md"
+    - "No dependency cycles (dependency-cruiser enforcement)"
+    - "Cyclomatic complexity budgets: handlers ≤10, services ≤15"
+
+plan:
+  - id: 1
+    title: Review standards and existing handler contracts
+    details: Confirm required routes, schemas, and handler entry points before writing tests.
+    commands:
+      - rg -n "export const handler" backend/src/lambdas
+      - rg -n "\.route" shared/routes.manifest.ts
+    expected_files_touched: []
+  - id: 2
+    title: Scaffold contract test directory and utilities
+    details: Create shared helpers for invoking handlers, loading fixtures, and validating schemas.
+    commands:
+      - mkdir -p backend/tests/contracts
+    expected_files_touched:
+      - backend/tests/contracts/presign.contract.test.ts
+      - backend/tests/contracts/status.contract.test.ts
+  - id: 3
+    title: Implement route coverage tests
+    details: Add Jest specs for `/v1/upload/presign`, `/v1/jobs/{id}`, `/v1/jobs/{id}/download`, and `/v1/device-tokens` using shared schemas and generated clients.
+    commands: []
+    expected_files_touched:
+      - backend/tests/contracts/presign.contract.test.ts
+      - backend/tests/contracts/status.contract.test.ts
+      - backend/tests/contracts/download.contract.test.ts
+      - backend/tests/contracts/device-tokens.contract.test.ts
+  - id: 4
+    title: Wire tests into scripts and CI
+    details: Ensure `pnpm --filter @photoeditor/backend test:contract` runs the new suites and add any required turbo pipeline dependencies.
+    commands: []
+    expected_files_touched:
+      - package.json
+      - turbo.json
+  - id: 5
+    title: Validate and document results
+    details: Run the contract suite, update the report, and attach evidence paths referenced by testing standards.
+    commands:
+      - pnpm --filter @photoeditor/backend test:contract
+    expected_files_touched:
+      - docs/tests/reports/YYYY-MM-DD-contract-tests.md
+      - docs/evidence/contract-tests/
+
+acceptance_criteria:
+  - Contract tests exist for all `/v1` routes and pass locally.
+  - "`pnpm --filter @photoeditor/backend test:contract` exits 0 and is referenced in turbo pipeline."
+  - Coverage captures both request validation and response schema assertion per standards/testing-standards.md.
+  - The regenerated contract report shows no deferred issues related to missing tests.
+
+validation:
+  commands:
+    - pnpm --filter @photoeditor/shared build
+    - pnpm --filter @photoeditor/shared contracts:generate
+    - pnpm --filter @photoeditor/shared contracts:check
+    - pnpm --filter @photoeditor/backend test:contract -- --runInBand
+    - pnpm turbo run qa:static --parallel
+  manual_checks:
+    - Review docs/tests/reports/YYYY-MM-DD-contract-tests.md to confirm status PASS and zero deferred issues.
+  artifacts:
+    - screenshots: []
+
+deliverables:
+  - backend/tests/contracts/presign.contract.test.ts
+  - backend/tests/contracts/status.contract.test.ts
+  - backend/tests/contracts/download.contract.test.ts
+  - backend/tests/contracts/device-tokens.contract.test.ts
+
+evidence:
+  quality:
+    - path: docs/tests/reports/YYYY-MM-DD-contract-tests.md
+      description: "Updated contract validation report with PASS status"
+    - path: docs/evidence/contract-tests/presign-contract.log
+      description: "Execution log for presign handler contract tests"
+
+risks:
+  - description: Test harness misconfigures handler imports causing circular dependencies.
+    mitigation: Use existing handler factories and enforce dependency-cruiser before commit.
+  - description: Contract tests introduce slow runtime due to real AWS clients.
+    mitigation: Continue to stub AWS SDK via existing powertools mocks and run tests in-band.
+  - description: Routes added later without contract coverage.
+    mitigation: Add guard in PR template referencing this suite and monitor report diff.

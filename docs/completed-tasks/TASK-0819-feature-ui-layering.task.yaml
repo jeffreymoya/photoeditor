@@ -1,0 +1,228 @@
+# Lean template for LLM-executable tasks (token-optimized for solo developer)
+# Copy to: tasks/<area>/TASK-<id>-<short-slug>.task.yaml
+# See tasks/README.md for authoring guide
+
+schema_version: "1.0"
+id: TASK-0819
+title: "Refactor screens and features to enforce layering boundaries"
+status: completed
+priority: P1
+area: mobile
+unblocker: false
+order: 2
+blocked_by: [TASK-0818]
+depends_on: []
+
+description: >-
+  Implement feature layering fixes identified in gap analysis. Refactor screens to
+  only import
+  from feature /public exports, enforce UI token usage throughout, and eliminate cross-feature
+  imports per standards/frontend-tier.md#feature-guardrails and #ui-components-layer.
+
+outcome: >-
+  Screens import only from feature/*/public exports, all StyleSheet definitions use
+  ui-tokens,
+  no cross-feature imports exist, and dependency-cruiser report confirms layering
+  compliance.
+
+scope:
+  in:
+  - mobile/src/screens/**/*
+  - mobile/src/features/upload/**/*
+  - mobile/src/components/**/*
+  - mobile/src/lib/ui-tokens.ts
+  - mobile/src/features/upload/public/index.ts
+  out:
+  - State management changes (TASK-0822)
+  - Services layer changes (TASK-0820)
+  - Storybook setup (TASK-0821)
+  - Backend/shared contracts
+
+context:
+  affected_packages: [mobile]
+  standards_tier: mobile
+  issues: []
+  related_docs:
+  - standards/frontend-tier.md
+  - standards/typescript.md
+  - standards/testing-standards.md
+  - docs/ui/2025-frontend-tier-gap-analysis.md
+  repo_paths:
+  - mobile/src/screens
+  - mobile/src/features
+  - mobile/src/components
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "18.x"
+  tools:
+  - name: pnpm
+    version: "8.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+  - Keep diffs minimal and focused on layering
+  - Screens only import from feature /public APIs
+  - All colors/spacing from ui-tokens
+  prohibited:
+  - No cross-feature imports
+  - No ad-hoc inline styles
+
+plan:
+- id: 1
+  title: Create feature /public exports
+  details: >-
+    Review each feature module and create or update mobile/src/features/upload/public/index.ts
+    to export named APIs only per standards/frontend-tier.md#feature-guardrails. Ensure
+    no
+    internal implementation details leak.
+  actor: agent
+  inputs:
+  - mobile/src/features/upload/**/*
+  - docs/ui/2025-frontend-tier-gap-analysis.md
+  outputs:
+  - mobile/src/features/upload/public/index.ts
+  definition_of_done:
+  - Public export barrel exists with named exports only (no default exports in 
+    feature domain)
+  - Internal implementation files not exported
+  - Aligns with standards/typescript.md#analyzability (named exports in domain)
+  estimate: S
+  expected_files_touched:
+  - mobile/src/features/upload/public/index.ts
+- id: 2
+  title: Refactor screens to use /public imports
+  details: >-
+    Update all screens to import only from feature/*/public exports. Remove any deep
+    imports
+    into feature internals per standards/frontend-tier.md#feature-guardrails.
+  actor: agent
+  inputs:
+  - mobile/src/screens/**/*
+  - mobile/src/features/upload/public/index.ts
+  outputs:
+  - mobile/src/screens/HomeScreen.tsx
+  - mobile/src/screens/JobsScreen.tsx
+  - mobile/src/screens/CameraScreen.tsx
+  - mobile/src/screens/GalleryScreen.tsx
+  definition_of_done:
+  - All screens import from feature/*/public only
+  - No deep imports like feature/upload/components/Button
+  - Dependency-cruiser confirms no violations
+  estimate: M
+  expected_files_touched:
+  - mobile/src/screens/HomeScreen.tsx
+  - mobile/src/screens/JobsScreen.tsx
+  - mobile/src/screens/CameraScreen.tsx
+  - mobile/src/screens/GalleryScreen.tsx
+- id: 3
+  title: Replace ad-hoc styles with ui-tokens
+  details: >-
+    Replace all inline color/spacing/typography values with references to mobile/src/lib/ui-tokens.ts
+    per standards/frontend-tier.md#ui-components-layer. Ensure lucide-react-native
+    used for icons.
+  actor: agent
+  inputs:
+  - mobile/src/screens/**/*
+  - mobile/src/components/**/*
+  - mobile/src/lib/ui-tokens.ts
+  outputs:
+  - mobile/src/screens/**/* (updated styles)
+  - mobile/src/components/**/* (updated styles)
+  definition_of_done:
+  - All StyleSheet color values come from ui-tokens
+  - All spacing/padding values from ui-tokens
+  - Code review confirms no inline raw color/spacing values
+  - Citations to standards/frontend-tier.md#ui-components-layer in changed files
+  estimate: M
+  expected_files_touched:
+  - mobile/src/screens/**/*
+  - mobile/src/components/**/*
+- id: 4
+  title: Create unit tests for refactored components
+  details: >-
+    Add or update component tests for refactored screens and features per
+    standards/testing-standards.md. Ensure tests verify feature layering boundaries.
+  actor: agent
+  inputs:
+  - mobile/src/screens/**/*
+  - mobile/src/features/upload/public/index.ts
+  outputs:
+  - mobile/src/__tests__/screens/*.test.tsx
+  - mobile/src/features/upload/__tests__/*.test.tsx
+  definition_of_done:
+  - Component tests exist for refactored screens
+  - Tests verify correct import boundaries (mocking feature/*/public)
+  - Coverage meets standards/testing-standards.md thresholds
+  estimate: M
+  expected_files_touched:
+  - mobile/src/__tests__/**/*
+  - mobile/src/features/upload/__tests__/**/*
+
+acceptance_criteria:
+  must:
+  - Screens delegate feature logic to /public exports; no deep feature imports
+  - All React Native StyleSheet definitions use ui-tokens or 
+    lucide/react-native-svg primitives
+  - Dependency-cruiser report shows no cross-feature or layering violations
+  - Component tests verify layering boundaries
+  - pnpm turbo run lint --filter=photoeditor-mobile passes
+  - pnpm turbo run typecheck --filter=photoeditor-mobile passes
+  quality_gates:
+  - "Feature entry points export named APIs only; screens → feature/*/public → shared
+    UI"
+  - "No cross-layer imports (dependency-cruiser enforced)"
+  - "Component tests mock feature/*/public imports"
+  - "Coverage per standards/testing-standards.md"
+
+validation:
+  static_checks:
+  - pnpm turbo run qa:static --parallel
+  - pnpm turbo run lint --filter=photoeditor-mobile
+  - pnpm turbo run typecheck --filter=photoeditor-mobile
+  unit_tests:
+    mobile:
+    - pnpm turbo run test --filter=photoeditor-mobile -- --coverage
+  contract_tests: []
+  manual_checks: []
+
+deliverables:
+- mobile/src/features/upload/public/index.ts
+- mobile/src/screens/HomeScreen.tsx
+- mobile/src/screens/**/* (updated with ui-tokens)
+- mobile/src/__tests__/screens/*.test.tsx
+
+risks:
+- description: Refactoring screens may break existing navigation or state flows
+  mitigation: Maintain feature parity via mobile Test Harness walkthrough; add 
+    regression tests
+
+agent_completion_state:
+  task_implementer:
+    completed: true
+    output_file: .agent-output/TASK-0819-implementer.md
+    timestamp: "2025-11-02T06:27:45Z"
+  implementation_reviewer:
+    completed: true
+    output_file: .agent-output/TASK-0819-reviewer.md
+    timestamp: "2025-11-02T06:28:15Z"
+    status: APPROVED
+  test_validation_mobile:
+    completed: true
+    output_file: docs/tests/reports/2025-11-02-validation-mobile.md
+    timestamp: "2025-11-02T06:29:30Z"
+    status: PASS
+    tests: 304/304
+    coverage: 57.1%/52.14%
+    fixes_applied: 2
+  test_static_fitness:
+    completed: true
+    output_file: docs/tests/reports/TASK-0819-validation-2025-11-02.md
+    timestamp: "2025-11-02T06:29:45Z"
+    status: PASS

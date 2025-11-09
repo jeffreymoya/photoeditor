@@ -1,0 +1,240 @@
+schema_version: "1.0"
+id: TASK-0200
+title: "Adopt Turborepo Pipelines with pnpm"
+status: completed
+priority: P0
+complexity: L
+area: ops
+
+description: >-
+  Replace the current ad-hoc npm/Makefile orchestration with a pnpm + Turborepo
+  workflow so the monorepo matches the guardrails in standards/global.md and
+  eliminates duplicated build logic. Map every existing static analysis, test,
+  build, and contract stage into Turborepo pipelines with deterministic caching
+  and affected-target execution across backend, mobile, and shared packages.
+  Update CI, Husky hooks, and developer scripts to rely exclusively on the new
+  Turborepo tasks.
+
+outcome: >-
+  Turborepo, backed by pnpm workspaces, orchestrates 100% of the repository
+  fitness functions with cache-aware pipelines; CI and local automation invoke
+  `pnpm turbo run ...` targets, documentation reflects the new workflow, and no
+  legacy npm aggregate scripts remain the source of truth.
+
+scope:
+  in:
+    - package.json
+    - pnpm-workspace.yaml
+    - turbo.json
+    - tooling/ (dependency-rules, qa evidence scripts)
+    - .github/workflows/ci-cd.yml
+    - .github/workflows/mobile-ci-cd.yml
+    - .husky/pre-commit
+    - .husky/pre-push
+    - Makefile (only to delegate to turbo)
+    - docs/testing-standards.md
+    - README.md
+    - standards/global.md (tooling references)
+    - standards/backend-tier.md (automation references)
+  out:
+    - Feature code changes in backend/src, mobile/src, or shared/* unrelated to build orchestration
+    - Changes to Terraform or SST stacks unrelated to CI tooling
+    - Removal of LocalStack tooling (tracked separately)
+    - Altering code coverage thresholds or guardrail definitions
+    - Introducing new runtime dependencies beyond pnpm/turbo unless required by task
+
+context:
+  issues: []
+  related_docs:
+    - standards/global.md
+    - standards/AGENTS.md
+    - standards/cross-cutting.md
+    - standards/backend-tier.md
+    - standards/frontend-tier.md
+    - standards/shared-contracts-tier.md
+    - docs/testing-standards.md
+    - ARCHITECTURE.md
+    - README.md
+  repo_paths:
+    - package.json
+    - backend/package.json
+    - mobile/package.json
+    - shared/package.json
+    - tooling/dependency-rules.json
+    - scripts/qa/qa-suite.sh
+    - Makefile
+    - .github/workflows/ci-cd.yml
+    - .github/workflows/mobile-ci-cd.yml
+    - .husky/pre-commit
+    - .husky/pre-push
+    - scripts/evidence-bundle
+  dependencies:
+    - type: package
+      name: pnpm
+      version: ">=8.15.0 <9"
+    - type: package
+      name: turbo
+      version: ">=1.13.0 <2"
+    - type: service
+      name: GitHub Actions cache
+      requirement: required
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "18.x"
+  tools:
+    - name: pnpm
+      version: "8.x"
+    - name: turbo
+      version: "1.x"
+    - name: bash
+      version: any
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep diffs focused on build and automation orchestration.
+    - Preserve existing lint/test/build command semantics while moving them into turbo.
+    - Cite applicable standards in docs updates when deviating from prior workflow.
+  prohibited:
+    - Do not leave stale npm/yarn references in docs or scripts.
+    - Do not downgrade Node or TypeScript versions.
+    - Do not break existing QA guardrails or coverage thresholds.
+
+plan:
+  - id: 1
+    title: Inventory existing automation entrypoints
+    details: >-
+      Catalogue Makefile targets, npm scripts, Husky hooks, and CI steps to map
+      them onto Turborepo pipelines; capture required stage ordering and skip
+      controls from docs/testing-standards.md.
+    commands:
+      - rg -n "qa-suite" -g"*" .
+      - rg -n "npm run" Makefile .github .husky
+      - make help || true
+    expected_files_touched: []
+  - id: 2
+    title: Introduce pnpm + Turborepo configuration
+    details: >-
+      Add pnpm workspace manifest and turbo.json pipeline definitions that cover
+      typecheck, lint, contracts, unit/integration tests, infra validation, and
+      bundle builds with appropriate dependencies and caching options.
+    commands:
+      - pnpm init || true
+      - pnpm dlx turbo --version
+    expected_files_touched:
+      - pnpm-workspace.yaml
+      - turbo.json
+      - package.json
+  - id: 3
+    title: Migrate automation clients to turbo pipelines
+    details: >-
+      Update npm scripts, Makefile targets, Husky hooks, and GitHub Actions
+      workflows to call `pnpm turbo run <pipeline>` instead of bespoke scripts;
+      ensure skip flags and affected-target execution are supported.
+    commands:
+      - pnpm turbo run lint --dry-run || true
+      - pnpm turbo run typecheck --dry-run || true
+    expected_files_touched:
+      - .github/workflows/ci-cd.yml
+      - .github/workflows/mobile-ci-cd.yml
+      - .husky/pre-commit
+      - .husky/pre-push
+      - Makefile
+      - package.json
+  - id: 4
+    title: Align evidence bundle orchestration with turbo
+    details: >-
+      Update scripts/evidence-bundle and related tooling so evidence collection
+      invokes the new turbo pipelines and no longer shells out to
+      scripts/qa/qa-suite.sh.
+    commands:
+      - ./scripts/evidence-bundle --help || true
+      - pnpm turbo run qa --dry-run || true
+    expected_files_touched:
+      - scripts/evidence-bundle
+  - id: 5
+    title: Update documentation and standards references
+    details: >-
+      Refresh README, docs/testing-standards.md, and the relevant standards so
+      they describe the pnpm + Turborepo workflow, cache usage, and skip
+      controls; cite standards/global.md guardrail compliance and update
+      standards/backend-tier.md automation references.
+    commands:
+      - rg -n "qa-suite" docs README.md standards
+    expected_files_touched:
+      - docs/testing-standards.md
+      - README.md
+      - standards/global.md
+      - standards/backend-tier.md
+  - id: 6
+    title: Validate turbo pipelines end-to-end
+    details: >-
+      Execute the turbo tasks locally (or in CI) to prove parity with the prior
+      QA suite, including static checks, contracts, tests, infra validation, and
+      bundle builds; capture evidence artifacts if required by standards.
+    commands:
+      - pnpm install
+      - pnpm turbo run lint typecheck test contracts build --continue
+      - pnpm turbo run qa --filter=...
+    expected_files_touched: []
+
+acceptance_criteria:
+  - pnpm-workspace.yaml and turbo.json exist with pipelines covering lint, typecheck, contracts, tests, infra validation, and builds across backend/mobile/shared.
+  - Root package.json uses pnpm (packageManager field) and delegates npm scripts to `pnpm turbo run ...` without duplicating stage logic.
+  - GitHub Actions workflows invoke Turborepo pipelines with remote caching enabled and no longer shell out to scripts/qa/qa-suite.sh.
+  - scripts/evidence-bundle orchestrates evidence collection via turbo pipelines without relying on scripts/qa/qa-suite.sh.
+  - Husky hooks run the appropriate turbo targets with documented skip controls aligned to docs/testing-standards.md.
+  - README.md and docs/testing-standards.md describe pnpm + turbo as the single source of truth; references to legacy npm/make orchestration are removed or marked deprecated.
+  - standards/global.md and standards/backend-tier.md document the turbo QA commands and contain no references to `npm run qa-suite:static` or scripts/qa/qa-suite.sh.
+
+validation:
+  commands:
+    - pnpm install
+    - pnpm turbo run lint typecheck --continue
+    - pnpm turbo run contracts
+    - pnpm turbo run test --filter=backend...
+    - pnpm turbo run build --filter=backend...
+    - pnpm turbo run qa --parallel
+    - rg -n "qa-suite" scripts/evidence-bundle && false || true
+    - rg -n "qa-suite.sh" . || true
+  manual_checks:
+    - Verify GitHub Actions cache is configured for turbo (CI run screenshot or log excerpt).
+    - Confirm turbo pipeline graph shows correct task dependencies for backend, mobile, and shared packages.
+    - Confirm developers can run `pnpm turbo run lint --filter=... --dry-run` to scope work.
+
+deliverables:
+  - pnpm-workspace.yaml
+  - turbo.json
+  - package.json
+  - Makefile
+  - .github/workflows/ci-cd.yml
+  - .github/workflows/mobile-ci-cd.yml
+  - .husky/pre-commit
+  - .husky/pre-push
+  - docs/testing-standards.md
+  - README.md
+  - scripts/evidence-bundle
+
+evidence:
+  architecture:
+    - path: docs/evidence/import-graph.png
+      description: "Updated dependency graph generated via turbo pipeline"
+  quality:
+    - path: docs/evidence/qa/turbo-run.log
+      description: "Aggregated turbo run output covering all stages"
+
+risks:
+  - description: Turborepo cache misconfiguration slows CI instead of speeding it up.
+    mitigation: Validate cache keys locally and in CI; document fallback commands.
+  - description: Developers without pnpm installed experience onboarding friction.
+    mitigation: Add pnpm installation instructions and ensure packageManager field triggers `corepack` enablement.
+  - description: Some Makefile-based scripts embed environment setup that is lost in migration.
+    mitigation: Port environment variables into turbo task `env` declarations or wrapper scripts with explicit checks.
+  - description: GitHub Actions runners lack pnpm/turbo binaries by default.
+    mitigation: Install via `pnpm/action-setup` and `actions/setup-node` with corepack enablement in workflow.

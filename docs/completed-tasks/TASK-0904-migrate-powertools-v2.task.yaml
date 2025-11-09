@@ -1,0 +1,269 @@
+# Task: Migrate AWS Lambda Powertools from v1 to v2
+# Area: backend (observability tooling)
+# Priority: P1 (technical debt, no active CVEs)
+
+schema_version: "1.1"
+id: TASK-0904
+title: "Migrate AWS Lambda Powertools from v1.17.0 to v2.28.1"
+status: completed
+blocked_reason:
+priority: P1
+area: backend
+unblocker: false
+order:
+blocked_by: []
+depends_on: []
+agent_completion_state: {}
+
+clarifications:
+  outstanding: []
+  evidence_path: "docs/evidence/tasks/TASK-0904-clarifications.md"
+
+description: >-
+  The backend package currently uses AWS Lambda Powertools v1.17.0 (June 2023), which
+  shows deprecation warnings for @aws-lambda-powertools/commons@1.18.1. The latest
+  stable version is v2.28.1 (Nov 2024). Version 2 is a major rewrite with breaking
+  API changes for logger, metrics, and tracer. Update all Lambda handlers to use
+  Powertools v2 API and upgrade package.json dependencies. This improves maintainability
+  and keeps observability tooling current with AWS best practices.
+
+outcome: >-
+  Backend package.json updated to @aws-lambda-powertools/*@^2.28.1, all Lambda handlers
+  migrated to v2 API (logger, metrics, tracer), unit/contract tests pass, builds succeed,
+  and deprecation warnings eliminated.
+
+scope:
+  in:
+  - backend/package.json Powertools dependencies
+  - All Lambda handler imports and usage of logger/metrics/tracer
+  - Powertools initialization in handler entry points
+  - Unit tests for handlers using Powertools
+  out:
+  - Mobile Expo SDK (TASK-0903)
+  - ESLint 9 migration (TASK-0905)
+  - Business logic changes (API-only migration)
+  - Infrastructure/deployment config (runtime-only changes)
+
+context:
+  affected_packages: [backend]
+  standards_tier: backend
+  related_docs:
+  - standards/global.md
+  - standards/backend-tier.md
+  - standards/cross-cutting.md
+  - standards/testing-standards.md
+  - AWS Powertools v2 migration guide 
+    (https://docs.powertools.aws.dev/lambda/typescript/latest/upgrade/)
+  repo_paths:
+  - backend/package.json
+  - backend/src/lambdas/**/*.ts (handler entry points)
+  - backend/libs/core/aws/* (if Powertools factory exists)
+  - backend/src/**/*.test.ts (handler tests)
+  dependencies:
+  - "@aws-lambda-powertools/logger@^2.28.1"
+  - "@aws-lambda-powertools/metrics@^2.28.1"
+  - "@aws-lambda-powertools/tracer@^2.28.1"
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+  - name: pnpm
+    version: "8.x"
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+  - Follow Powertools v2 migration guide exactly.
+  - Preserve existing log structure and metric names (no observability 
+    breakage).
+  - Update handler tests to match new API.
+  - Verify compliance with standards/backend-tier.md handler complexity 
+    constraints.
+  prohibited:
+  - No functional business logic changes (API migration only).
+  - No metric/log schema changes (preserve continuity).
+
+plan:
+- id: 1
+  title: Audit current Powertools usage and review v2 migration guide
+  details: >-
+    Search backend codebase for all @aws-lambda-powertools imports (logger, metrics,
+    tracer). Document current usage patterns (initialization, context injection,
+    decorators). Review official v2 migration guide to identify breaking changes.
+    Satisfies standards/backend-tier.md requirement for evidence-based refactoring.
+  actor: agent
+  inputs:
+  - backend/src/lambdas/**/*.ts
+  - backend/libs/core/**/*.ts
+  - AWS Powertools v2 migration guide (web)
+  outputs:
+  - docs/evidence/tasks/TASK-0904-clarifications.md (usage audit, breaking 
+    changes summary)
+  definition_of_done:
+  - All Powertools import locations documented
+  - Current v1 API patterns identified (logger, metrics, tracer)
+  - v2 breaking changes documented with migration steps
+  - Handler complexity constraints verified 
+    (standards/backend-tier.md#handler-constraints)
+  estimate: M
+  expected_files_touched: []
+- id: 2
+  title: Update Powertools dependencies in backend package.json
+  details: >-
+    Update @aws-lambda-powertools/logger, metrics, and tracer to ^2.28.1 in
+    backend/package.json. Run pnpm install to regenerate lockfile. Verify no
+    peer dependency conflicts. Aligns with standards/global.md dependency update
+    practices.
+  actor: agent
+  inputs:
+  - backend/package.json
+  outputs:
+  - backend/package.json (updated Powertools versions)
+  - pnpm-lock.yaml (regenerated)
+  definition_of_done:
+  - backend/package.json shows @aws-lambda-powertools/*@^2.28.1
+  - pnpm install completes without peer dependency errors
+  - No unrelated dependency changes
+  estimate: S
+  expected_files_touched:
+  - backend/package.json
+  - pnpm-lock.yaml
+- id: 3
+  title: Migrate Lambda handlers to Powertools v2 API
+  details: >-
+    Update all Lambda handler files to use Powertools v2 API per migration guide.
+    Key changes likely include: logger context injection, metrics decorator syntax,
+    tracer API updates. Preserve log structure and metric names to maintain observability
+    continuity. Verify handlers stay within complexity constraints (≤10 cyclomatic,
+    ≤75 LOC per standards/backend-tier.md#handler-constraints).
+  actor: agent
+  inputs:
+  - backend/src/lambdas/**/*.ts
+  - docs/evidence/tasks/TASK-0904-clarifications.md (migration steps)
+  outputs:
+  - backend/src/lambdas/**/*.ts (updated to v2 API)
+  - backend/libs/core/aws/* (if factory changes needed)
+  definition_of_done:
+  - All handlers use Powertools v2 API
+  - Logger context injection updated
+  - Metrics decorator syntax updated
+  - Tracer API updated
+  - Log structure and metric names preserved
+  - Handler complexity constraints satisfied (≤10 cyclomatic, ≤75 LOC)
+  estimate: L
+  expected_files_touched:
+  - backend/src/lambdas/presign.ts
+  - backend/src/lambdas/analyze.ts
+  - backend/src/lambdas/worker.ts
+  - backend/libs/core/aws/* (if applicable)
+- id: 4
+  title: Update handler tests for Powertools v2
+  details: >-
+    Update handler unit tests to mock/stub Powertools v2 API. Verify tests pass
+    and coverage thresholds maintained (≥80% lines, ≥70% branches per standards/backend-tier.md
+    and standards/testing-standards.md). Update contract tests if handler signatures
+    changed.
+  actor: agent
+  inputs:
+  - backend/src/**/*.test.ts
+  - Updated handler files
+  outputs:
+  - backend/src/**/*.test.ts (updated test mocks)
+  definition_of_done:
+  - All handler tests pass
+  - Test mocks updated for v2 API
+  - Coverage thresholds maintained (≥80% lines, ≥70% branches)
+  - Contract tests pass (if applicable)
+  estimate: M
+  expected_files_touched:
+  - backend/src/**/*.test.ts
+- id: 5
+  title: Validate builds, tests, and deprecation resolution
+  details: >-
+    Run full backend QA suite (qa:static, test, test:contract, build:lambdas).
+    Verify Powertools commons deprecation warnings eliminated via pnpm install output.
+    Capture evidence per standards/testing-standards.md requirements.
+  actor: agent
+  inputs:
+  - Updated backend package
+  outputs:
+  - docs/evidence/tasks/TASK-0904-clarifications.md (QA results, build logs)
+  definition_of_done:
+  - qa:static passes (typecheck + lint)
+  - All unit tests pass with coverage thresholds met
+  - Contract tests pass
+  - Lambda builds succeed
+  - Powertools commons deprecation warnings eliminated
+  - No runtime errors in handler initialization
+  estimate: S
+  expected_files_touched: []
+
+validation:
+  pipeline:
+  - command: pnpm turbo run lint:fix --filter=@photoeditor/backend
+    description: Auto-fix linting issues in backend package
+  - command: pnpm turbo run qa:static --filter=@photoeditor/backend
+    description: Run static analysis (typecheck + lint) on backend
+  - command: pnpm turbo run test --filter=@photoeditor/backend
+    description: Run unit tests for backend package
+  - command: pnpm turbo run test:coverage --filter=@photoeditor/backend
+    description: Run tests with coverage reporting (≥80% lines, ≥70% branches)
+  - command: pnpm turbo run test:contract --filter=@photoeditor/backend
+    description: Run contract tests
+  - command: pnpm turbo run build:lambdas --filter=@photoeditor/backend
+    description: Build all Lambda bundles
+  manual_checks:
+  - Verify Powertools commons deprecation warnings eliminated (check pnpm 
+    install output)
+  - Review handler complexity metrics (ensure ≤10 cyclomatic, ≤75 LOC)
+
+acceptance_criteria:
+  must:
+  - backend/package.json lists @aws-lambda-powertools/*@^2.28.1
+  - All Lambda handlers use Powertools v2 API
+  - Logger context injection updated to v2 syntax
+  - Metrics decorator syntax updated to v2
+  - Tracer API updated to v2
+  - Log structure and metric names preserved (no observability breakage)
+  - All unit tests pass with coverage ≥80% lines, ≥70% branches
+  - Contract tests pass
+  - Lambda builds succeed
+  - Powertools commons deprecation warnings eliminated
+  - Handler complexity constraints satisfied (≤10 cyclomatic, ≤75 LOC)
+  quality_gates:
+  - standards/backend-tier.md handler constraints satisfied
+  - standards/testing-standards.md coverage thresholds met
+  - standards/cross-cutting.md observability patterns maintained
+  - No observability data loss (logs, metrics, traces preserved)
+
+artifacts:
+- path: docs/evidence/tasks/TASK-0904-clarifications.md
+  description: Powertools usage audit, v2 migration steps, QA results, build 
+    logs
+
+deliverables:
+- backend/package.json (@aws-lambda-powertools/*@^2.28.1)
+- backend/src/lambdas/**/*.ts (migrated to v2 API)
+- backend/src/**/*.test.ts (updated test mocks)
+- pnpm-lock.yaml (regenerated)
+- docs/evidence/tasks/TASK-0904-clarifications.md
+
+risks:
+- description: v2 API breaking changes break handler initialization
+  mitigation: Follow migration guide exactly, test handlers incrementally, 
+    verify logs/metrics/traces in local Lambda invocations
+- description: Log/metric schema changes break observability dashboards
+  mitigation: Preserve existing log structure and metric names, document any 
+    unavoidable schema changes
+- description: Handler complexity increases during migration
+  mitigation: Monitor complexity metrics during refactoring, keep handlers ≤10 
+    cyclomatic and ≤75 LOC per standards
+- description: Test coverage drops during test mock updates
+  mitigation: Update test mocks incrementally, run coverage checks after each 
+    handler migration

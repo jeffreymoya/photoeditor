@@ -1,0 +1,103 @@
+schema_version: "1.0"
+id: TASK-0002
+title: "Terraform: refactor main.tf to use modules"
+status: completed
+priority: P0
+complexity: M
+area: infra
+
+description: >-
+  Replace inline AWS resources in `infrastructure/main.tf` with invocations of
+  the existing module set under `infrastructure/modules/` (s3, dynamodb, sqs,
+  lambda, api-gateway, kms, budgets, monitoring). This reduces duplication,
+  improves maintainability, and aligns with rubric modularity requirements.
+  Preserve the simplified LocalStack setup if truly needed by moving it behind
+  a conditional or dedicated localstack file.
+
+outcome: >-
+  `infrastructure/main.tf` primarily wires modules rather than declaring raw
+  resources. Terraform validates and formats cleanly. Inline `resource "aws_*"`
+  in main.tf are reduced to minimal glue (or moved appropriately).
+
+scope:
+  in:
+    - infrastructure/main.tf
+    - infrastructure/modules/**
+  out:
+    - Non-infra application code
+
+context:
+  issues: []
+  related_docs:
+    - rubric.md
+    - changelog/2025-10-02-fitness-functions.md
+  repo_paths:
+    - infrastructure/main.tf
+    - infrastructure/modules/**
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  tools:
+    - name: terraform
+      version: ">=1.6"
+    - name: bash
+      version: any
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep changes incremental; validate after each module is wired.
+    - Retain LocalStack flow if needed via separate tfvars or file.
+
+plan:
+  - id: 1
+    title: Audit current resources
+    details: List raw resources declared in main.tf.
+    commands:
+      - rg -n '^resource "aws_' infrastructure/main.tf
+  - id: 2
+    title: Wire core modules
+    details: Replace S3/DDB/SQS/Lambda/API with modules using existing vars.
+    commands: []
+  - id: 3
+    title: Wire KMS/Budgets/Monitoring
+    details: Add remaining modules; ensure tags and retention align with rubric.
+    commands: []
+  - id: 4
+    title: Validate and fmt
+    details: Ensure Terraform is valid and formatted.
+    commands:
+      - cd infrastructure && terraform fmt -recursive
+      - cd infrastructure && terraform validate
+
+acceptance_criteria:
+  - "`rg -n '^resource \"aws_' infrastructure/main.tf` shows only minimal glue or none."
+  - "`terraform validate` passes locally."
+  - Modules reflect required concerns (s3, ddb, sqs, lambda, api, kms, budgets, monitoring).
+
+validation:
+  commands:
+    - rg -n '^resource "aws_' infrastructure/main.tf || true
+    - cd infrastructure && terraform fmt -recursive
+    - cd infrastructure && terraform validate
+  manual_checks:
+    - Confirm variables/outputs alignment across modules.
+  artifacts:
+    - screenshots: []
+
+deliverables:
+  - infrastructure/main.tf
+  - infrastructure/modules/* (if touched)
+
+risks:
+  - description: Behavior divergence in LocalStack vs AWS due to module defaults.
+    mitigation: Gate localstack path via tfvars.localstack or separate files.
+
+blocked_by:
+  - TASK-0003
+order: 3
+

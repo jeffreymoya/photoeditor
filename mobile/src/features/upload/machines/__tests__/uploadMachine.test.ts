@@ -3,7 +3,7 @@
  * Per the Testing Standards: Test for each transition
  * Per the Frontend Tier standard: Every critical slice has test for each transition
  */
-/* eslint-disable max-lines-per-function */
+ 
 
 import { interpret } from 'xstate';
 

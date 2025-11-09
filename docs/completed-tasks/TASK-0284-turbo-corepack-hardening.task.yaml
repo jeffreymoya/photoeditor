@@ -1,0 +1,149 @@
+schema_version: "1.0"
+id: TASK-0284
+title: "Harden Turbo parallel execution via Corepack-managed pnpm"
+status: completed
+priority: P1
+area: ops
+
+description: >-
+  Turbo still fails to spawn pnpm binaries when running cold, parallel pipelines (see TURBO_ISSUES.md).
+  We now have upstream guidance that pinning pnpm via the packageManager field and enabling pnpm's
+  managePackageManagerVersions removes the need for fragile per-package symlinks while keeping
+  Turbo's multi-workspace parallelism stable. Capture and implement those changes across developer
+  workstations and CI so runs like `pnpm turbo run qa:static --parallel --force` succeed reliably.
+
+outcome: >-
+  Turbo executes parallel tasks without ENOENT errors on fresh installs because pnpm is provisioned
+  through Corepack and Turbo uses a deterministic configuration (outputs, dependsOn, globalEnv,
+  remote cache) that matches documented best practices.
+
+scope:
+  in:
+    - package.json
+    - turbo.json
+    - scripts/ensure-pnpm-corepack.mjs
+    - docs/ (standards updates or ADR note if needed)
+    - CI workflows invoking Turbo (e.g., .github/workflows/*.yaml, Makefile targets)
+    - TURBO_ISSUES.md (append references to the implemented fix)
+  out:
+    - Switching the monorepo to npm or yarn
+    - Reworking individual package build scripts beyond what Turbo requires
+    - Altering Lambda/mobile source code unrelated to package management
+    - Provisioning new infrastructure resources
+    - Modifying unrelated standards outside DX/Turbo guidance
+
+context:
+  issues: []
+  related_docs:
+    - standards/global.md
+    - standards/AGENTS.md
+    - standards/cross-cutting.md
+    - standards/testing-standards.md
+    - TURBO_ISSUES.md
+    - docs/templates/TASK-0000-template.task.yaml
+  repo_paths:
+    - package.json
+    - turbo.json
+    - scripts/ensure-pnpm-corepack.mjs
+    - .github/workflows/ci.yaml
+  dependencies:
+    - type: package
+      name: pnpm
+      version: ">=8.15.4 <9"
+    - type: package
+      name: turbo
+      version: ">=2.5.8"
+    - type: runtime
+      name: corepack
+      requirement: required
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "22.15.0"
+  tools:
+    - name: pnpm
+      version: "8.15.4"
+    - name: corepack
+      version: enabled
+    - name: turbo
+      version: "2.5.x"
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep diffs focused on pnpm/Turbo configuration and docs.
+    - Follow repository naming (two-space indents, camelCase scripts).
+  prohibited:
+    - Do not introduce per-package pnpm symlinks.
+    - Do not downgrade pnpm or Turbo to versions without upstream fixes.
+  architecture:
+    - "Ports & Adapters (standards/global.md)" 
+    - "neverthrow for domain flow (standards/global.md)"
+    - "No dependency cycles (standards/global.md)"
+  modularity:
+    - "CI helper scripts live under scripts/ and remain idempotent"
+  testability:
+    - "Parallel Turbo runs must be validated in CI and locally"
+
+implementation_plan:
+  - step: Add Corepack bootstrap script and hook
+    detail: >-
+      Create scripts/ensure-pnpm-corepack.mjs that runs `corepack enable` + `corepack prepare` for the
+      pinned pnpm version and guards against missing binaries inside workspace packages.
+  - step: Pin packageManager metadata and postinstall hook
+    detail: >-
+      Update package.json with "packageManager": "pnpm@8.15.4" and `pnpm`.config entries for
+      managePackageManagerVersions=true and packageManagerStrict=true; invoke the Corepack script via
+      postinstall/make targets.
+  - step: Tighten turbo.json per best practices
+    detail: >-
+      Ensure every pipeline task declares outputs/dependsOn/globalEnv, enable the Turbo daemon if
+      stable, and configure remote caching for CI.
+  - step: Update CI and documentation
+    detail: >-
+      Run the Corepack provisioning step in CI before Turbo commands, document the change in
+      TURBO_ISSUES.md and applicable standards, and capture validation artifacts.
+
+validation:
+  commands:
+    - corepack disable pnpm || true
+    - pnpm install
+    - pnpm turbo run qa:static --parallel --force
+    - pnpm turbo run typecheck --parallel --force
+    - pnpm turbo prune --scope @photoeditor/backend --out-dir .turbo-prune-test
+  manual_checks:
+    - Verify fresh clone + pnpm install succeeds without manual symlink workarounds.
+    - Confirm remote cache is hit on second parallel run in CI logs.
+  artifacts:
+    - screenshots: []
+
+deliverables:
+  - scripts/ensure-pnpm-corepack.mjs
+  - package.json
+  - turbo.json
+  - TURBO_ISSUES.md
+  - docs/standards/ (DX addendum or ADR if required)
+
+evidence:
+  quality:
+    - path: logs/turbo-parallel-run.txt
+      description: "Parallel Turbo run succeeding after Corepack provisioning"
+    - path: logs/turbo-remote-cache.txt
+      description: "Proof of remote cache hits in CI"
+  observability:
+    - path: TURBO_ISSUES.md
+      description: "Updated issue doc referencing the fix and process"
+
+risks:
+  - description: Corepack pin fails on older local Node installations.
+    mitigation: Document minimum Node version and add guard in ensure-pnpm-corepack.mjs.
+  - description: Remote cache introduces stale artifacts when env vars change.
+    mitigation: Include globalEnv/inputs in turbo.json and document cache busting steps.
+  - description: CI times out if Corepack download is slow.
+    mitigation: Cache ~/.cache/corepack between runs and fail fast with actionable message.
+

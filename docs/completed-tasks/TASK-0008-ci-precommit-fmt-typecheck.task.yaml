@@ -1,0 +1,84 @@
+schema_version: "1.0"
+id: TASK-0008
+title: "DevX: pre-commit hooks for terraform fmt + typecheck"
+status: completed
+priority: P0
+complexity: S
+area: ci
+
+description: >-
+  Add lightweight pre-commit hooks that enforce `terraform fmt -recursive` and
+  `npm run typecheck` for backend and shared packages. This prevents trivial
+  formatting diffs and type errors from landing.
+
+outcome: >-
+  Pre-commit hooks run locally and block commits on formatting or type errors.
+  Contribution guide updated with setup instructions.
+
+scope:
+  in:
+    - .husky/** (or simple .git/hooks template)
+    - docs/CONTRIBUTING.md
+  out:
+    - Non-DevX application code
+
+context:
+  issues: []
+  related_docs:
+    - rubric.md
+  repo_paths:
+    - backend/package.json
+    - shared/package.json
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  tools:
+    - name: bash
+      version: any
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep hooks fast; avoid network calls.
+
+plan:
+  - id: 1
+    title: Choose hook strategy
+    details: Prefer Husky; fall back to documented .git/hooks template.
+    commands: []
+  - id: 2
+    title: Implement hooks
+    details: Run fmt and typecheck for backend and shared.
+    commands: []
+  - id: 3
+    title: Update contribution guide
+    details: Add setup and troubleshooting steps.
+    commands: []
+
+acceptance_criteria:
+  - Pre-commit runs `terraform fmt -recursive`.
+  - Pre-commit runs `npm run typecheck` in backend and shared.
+  - Docs updated with setup steps.
+
+validation:
+  commands:
+    - "echo \"Manual: commit a change and observe hook execution.\""
+  manual_checks:
+    - Hooks block commits on fmt/typecheck failures.
+  artifacts:
+    - screenshots: []
+
+deliverables:
+  - .husky/pre-commit
+  - docs/CONTRIBUTING.md
+
+risks:
+  - description: Hooks may be slow on large diffs.
+    mitigation: Scope to changed files where possible.
+
+order: 8
+

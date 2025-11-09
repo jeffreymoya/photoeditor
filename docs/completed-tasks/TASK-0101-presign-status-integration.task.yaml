@@ -1,0 +1,206 @@
+schema_version: "1.0"
+id: TASK-0101
+title: "Add presign/status integration coverage"
+status: completed
+priority: P1
+complexity: M
+area: backend
+
+description: >-
+  The NestJS BFF now fronts the `/presign` and `/status` endpoints, but we still lack executable
+  integration coverage that proves those controllers collaborate correctly with the shared domain
+  services and DynamoDB/S3 when running in the Lambda runtime. Build a deterministic
+  LocalStack-backed suite that exercises single and batch upload requests through the BFF layer,
+  validates Dynamo job records, and confirms status transitions without relying on manual scripts.
+  Follow the determinism rules in docs/testing-standards.md so the suite is reliable in CI while
+  keeping the async workers loosely coupled.
+
+outcome: >-
+  Running `npm run test:integration --prefix backend` executes new BFF integration tests that prove
+  job records are created, S3 keys are generated, and status lookups behave per docs/requirements.md
+  for both single-file and batch flows while reusing the shared core services consumed by async
+  Lambdas.
+
+scope:
+  in:
+    - backend/tests/integration
+    - backend/tests/fixtures
+    - backend/bff/src/modules/presign
+    - backend/bff/src/modules/status
+    - backend/libs/core/services/job.service.ts
+    - docs/evidence/* (coverage, mutation, logs, traces, import graphs)
+  out:
+    - Mobile application code
+    - Worker lambda implementation details beyond observable effects
+    - Direct @aws-sdk/* imports in handlers/controllers (STANDARDS.md line 32)
+    - Breaking API changes without /v{n} versioning (STANDARDS.md line 40)
+    - Manual-only tests (all tests must run in CI per testing-standards.md)
+    - Testing implementation details vs. behavior
+    - Real AWS calls in integration tests (LocalStack only per testing-standards.md)
+
+context:
+  issues: []
+  related_docs:
+    - docs/requirements.md
+    - docs/testing-standards.md
+    - docs/e2e-tests.md
+  repo_paths:
+    - backend/bff/src/modules/presign
+    - backend/bff/src/modules/status
+    - backend/tests/setup.js
+    - backend/tests/unit/services/job.service.test.ts
+  dependencies:
+    - type: service
+      name: localstack
+      requirement: required
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: npm
+      version: "9.x"
+    - name: bash
+      version: any
+  data:
+    - sample.jpg
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Follow docs/testing-standards.md for determinism, time control, and network stubbing.
+    - Keep diffs focused on integration harness additions.
+    - Follow handlers → services → adapters layering (STANDARDS.md line 24).
+    - Test harness must obtain clients via adapter factories or DI, no direct SDK construction (STANDARDS.md line 26).
+    - Handlers ≤75 LOC, cyclomatic complexity ≤5 (STANDARDS.md line 36).
+    - Services/Adapters ≤200 LOC, cyclomatic complexity ≤8 (STANDARDS.md line 37).
+    - Module complexity sum ≤50 (STANDARDS.md line 38).
+  prohibited:
+    - Do not hit real AWS endpoints; only LocalStack or mocks are allowed.
+    - Do not alter unrelated backend services.
+    - No handler imports of @aws-sdk/* or DB clients (STANDARDS.md line 32).
+    - No direct SDK/client construction in services or test helpers (use adapters/factories).
+    - No breaking API changes without /v{n} versioning (STANDARDS.md line 40).
+
+plan:
+  - id: 1
+    title: Audit existing flows and requirements
+    details: Review Nest BFF presign/status modules, shared job service interactions, and documented acceptance criteria.
+    commands:
+      - rg -n "PresignModule" backend/bff -g '*.ts'
+      - rg -n "createJob" backend/libs/core -g '*.ts'
+    expected_files_touched: []
+  - id: 2
+    title: Prepare integration harness
+    details: Add shared builders/fixtures for LocalStack resources, mock time/uuid, and ensure tests reset env per standards without coupling to Nest internals. Configure Lambda Powertools for structured logging with correlationId. Obtain DynamoDB/S3 clients via adapter factories (no direct SDK construction per STANDARDS.md line 26).
+    commands:
+      - npm run build:bff --prefix backend
+    expected_files_touched:
+      - backend/tests/integration/setup.ts
+      - backend/tests/fixtures/jobs.ts
+      - backend/tests/integration/adapters/dynamo-test-adapter.ts
+      - backend/tests/integration/adapters/s3-test-adapter.ts
+  - id: 3
+    title: Implement positive flow tests
+    details: Write tests covering single upload and batch payloads, asserting Dynamo job state, S3 key structure, and 200 status responses. Verify W3C traceparent propagation across BFF → service → adapter layers. Capture structured log output with correlationId for evidence.
+    commands: []
+    expected_files_touched:
+      - backend/tests/integration/presign-status.integration.test.ts
+      - docs/evidence/logs/powertools-sample.json
+      - docs/evidence/trace-propagation-example.json
+  - id: 4
+    title: Implement negative and edge cases
+    details: Add tests for invalid content type and missing jobId, verifying 400/404 responses and no stray Dynamo writes.
+    commands: []
+    expected_files_touched:
+      - backend/tests/integration/presign-status.integration.test.ts
+  - id: 5
+    title: Run and document suite
+    details: Execute integration tests with LocalStack, collect evidence (coverage, mutation reports, dependency graph, structured logs), and update docs if needed. Verify all validation commands pass including complexity checks, dependency validation, and hard fail prevention.
+    commands:
+      - npm run test:integration --prefix backend -- --coverage
+      - npm run test:mutation --prefix backend -- --threshold 60
+      - npm run validate:dependencies --prefix backend
+      - npm run lint --prefix backend -- --max-complexity=5
+    expected_files_touched:
+      - docs/e2e-tests.md
+      - docs/evidence/integration-coverage/coverage-summary.json
+      - docs/evidence/mutation-reports/services-mutation.html
+      - docs/evidence/import-graph.png
+
+acceptance_criteria:
+  - New integration tests cover single upload and batch upload flows via the Nest BFF Lambda, asserting Dynamo job records and S3 key outputs match requirements.
+  - Negative integration tests verify unsupported content types and missing jobId scenarios return appropriate HTTP errors without side effects.
+  - Tests stub time/UUID/randomness and clean LocalStack state to remain deterministic across runs per docs/testing-standards.md.
+  - "`npm run test:integration --prefix backend` passes locally and in CI without flakiness notes."
+  - "Test coverage meets thresholds: Services \u226580% lines, \u226570% branch (STANDARDS.md line 99)."
+  - Mutation testing achieves ≥60% score for services under test (STANDARDS.md line 100).
+  - Handlers remain ≤75 LOC with cyclomatic complexity ≤5 (STANDARDS.md line 36).
+  - All Lambda test fixtures emit structured JSON logs with correlationId, traceId, requestId, jobId per Powertools (STANDARDS.md line 71).
+  - W3C traceparent propagation verified across BFF → service → adapter calls (STANDARDS.md line 72).
+  - No handler imports @aws-sdk/* or DB clients; verified by dependency-cruiser (STANDARDS.md line 32).
+  - Module complexity sum ≤50 per file (STANDARDS.md line 38).
+  - Flake rate remains 0% (no quarantine required per STANDARDS.md line 104).
+
+validation:
+  commands:
+    # Build and test execution
+    - npm run build:bff --prefix backend
+    - npm run test:integration --prefix backend -- --coverage
+
+    # Coverage thresholds (STANDARDS.md line 99)
+    - npm run test:integration --prefix backend -- --coverage --coverageThreshold='{"global":{"lines":80,"branches":70}}'
+
+    # Mutation testing (STANDARDS.md line 100)
+    - npm run test:mutation --prefix backend -- --threshold 60
+
+    # Hard fail prevention: no handler SDK imports (STANDARDS.md line 32)
+    - "! grep -r '@aws-sdk' backend/bff/src/modules/presign --include='*.controller.ts'"
+    - "! grep -r '@aws-sdk' backend/bff/src/modules/status --include='*.controller.ts'"
+
+    # Dependency and complexity validation (STANDARDS.md lines 32, 38)
+    - npm run validate:dependencies --prefix backend
+    - npm run lint --prefix backend -- --max-complexity=5
+
+    # Structured logging verification (STANDARDS.md line 71)
+    - grep -q "correlationId" backend/bff/src/modules/presign/*.ts
+    - grep -q "correlationId" backend/bff/src/modules/status/*.ts
+
+  manual_checks:
+    - Inspect LocalStack logs for unexpected network access or retries during tests.
+    - Verify W3C traceparent headers present in test outputs.
+    - Confirm no flakes across 3 consecutive test runs.
+
+  artifacts:
+    - coverage/integration
+    - coverage/mutation-report.html
+    - reports/dependency-graph.png
+
+deliverables:
+  - backend/tests/integration/presign-status.integration.test.ts
+  - backend/tests/integration/setup.ts
+  - backend/tests/fixtures/jobs.ts
+  - docs/e2e-tests.md (notes on automated coverage vs manual steps)
+  - docs/evidence/integration-coverage/coverage-summary.json
+  - docs/evidence/mutation-reports/services-mutation.html
+  - docs/evidence/logs/powertools-sample.json
+  - docs/evidence/import-graph.png
+  - docs/evidence/trace-propagation-example.json
+
+risks:
+  - description: LocalStack startup timing could induce flakes.
+    mitigation: Use explicit health checks and retry helpers as part of the test harness per testing standards.
+  - description: Test flake rate >1% for >7 days would trigger CI failure (STANDARDS.md line 104).
+    mitigation: Stub all time/UUID/randomness; use deterministic LocalStack state resets; implement retry with exponential backoff for setup only.
+  - description: Handler complexity exceeding CC ≤5 or LOC >75 triggers hard fail (STANDARDS.md line 36).
+    mitigation: Keep controllers thin; delegate all logic to services; validate complexity in CI lint step.
+  - description: Missing correlationId in logs fails observability requirements (STANDARDS.md line 71).
+    mitigation: Configure Lambda Powertools in test harness setup; verify correlationId presence in acceptance tests.
+  - description: Accidental handler SDK imports violate layering hard fail (STANDARDS.md line 32).
+    mitigation: Use dependency-cruiser validation in CI; add grep checks in validation commands to catch @aws-sdk imports.
+  - description: Mutation score <60% fails PR gate (STANDARDS.md line 100).
+    mitigation: Write comprehensive service tests covering edge cases; use mutation testing feedback to identify weak assertions.

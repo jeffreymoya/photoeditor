@@ -1,0 +1,95 @@
+schema_version: "1.0"
+id: TASK-0006
+title: "Observability: structured logs + 90-day retention"
+status: completed
+priority: P0
+complexity: S
+area: backend
+
+description: >-
+  Ensure Lambda logs use structured JSON with correlation fields and that
+  CloudWatch log retention is 90 days via IaC. Add a unit test for the logger
+  to verify context formatting.
+
+outcome: >-
+  Logger emits fields: correlationId, requestId, jobId, userId, function,
+  env, version. Terraform sets log group retention to 90 days. A unit test
+  verifies the logger formats context into structured attributes.
+
+scope:
+  in:
+    - backend/src/utils/logger.ts
+    - backend/tests/unit/logger.test.ts
+    - infrastructure/modules/lambda/variables.tf
+    - infrastructure/modules/lambda/main.tf
+  out:
+    - Non-logging application code
+
+context:
+  issues: []
+  related_docs:
+    - rubric.md
+  repo_paths:
+    - backend/src/utils/logger.ts:1
+    - infrastructure/modules/lambda/variables.tf:34
+    - infrastructure/modules/lambda/main.tf:232
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: npm
+      version: "9.x"
+    - name: jest
+      version: "29.x"
+    - name: terraform
+      version: ">=1.6"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep logger API unchanged; add tests and minor tweaks only.
+
+plan:
+  - id: 1
+    title: Verify retention
+    details: Confirm `log_retention_days` default is 90 and used by log groups.
+    commands:
+      - rg -n 'log_retention_days' infrastructure/modules/lambda
+  - id: 2
+    title: Add logger unit test
+    details: Test that formatContext outputs structured fields.
+    commands: []
+  - id: 3
+    title: Validate
+    details: Run tests.
+    commands:
+      - cd backend && npm test --silent -- tests/unit
+
+acceptance_criteria:
+  - Logger unit test passes and validates structured fields presence.
+  - Log groups define 90-day retention in Terraform.
+
+validation:
+  commands:
+    - rg -n 'retention_in_days\s*=\s*90' infrastructure/modules/lambda/main.tf
+    - cd backend && npm test --silent -- tests/unit
+  manual_checks:
+    - Inspect logger to ensure required fields are present in logs.
+  artifacts:
+    - screenshots: []
+
+deliverables:
+  - backend/tests/unit/logger.test.ts
+
+risks:
+  - description: Over-constraining tests to logger internals.
+    mitigation: Assert on public behavior (formatted attributes) only.
+
+order: 6
+

@@ -1,0 +1,158 @@
+schema_version: "1.0"
+id: TASK-0001
+title: Eliminate Turborepo pipeline drift and enable shared cache
+status: completed
+priority: P1
+complexity: M
+area: ops
+
+description: >-
+  Recent QA evidence (`docs/evidence/qa/turbo-run.log`) shows Turborepo runs emit
+  workspace resolution warnings and execute `<NONEXISTENT>` commands for several
+  configured targets. This weakens confidence in CI equivalence, blocks
+  deterministic caching, and risks developers skipping required checks. Align the
+  pipeline definitions with actual package scripts and introduce shared remote
+  caching so local, Husky, and CI executions stay fast and trustworthy.
+
+outcome: >-
+  Turborepo completes `pnpm turbo run qa --parallel` without workspace graph
+  warnings or `<NONEXISTENT>` tasks, and remote caching is configured/documented
+  so teams share artifacts across local and CI environments.
+
+scope:
+  in:
+    - turbo.json
+    - package.json
+    - backend/package.json
+    - shared/package.json
+    - mobile/package.json
+    - scripts/evidence-bundle
+    - docs/testing-standards.md
+    - README.md
+    - .github/workflows/ci-cd.yml
+  out:
+    - Application feature or UI code
+    - Terraform/IaC deployment logic beyond documenting cache secrets
+
+context:
+  issues: []
+  related_docs:
+    - STANDARDS.md
+    - docs/testing-standards.md
+    - standards/global.md
+  repo_paths:
+    - turbo.json
+    - docs/evidence/qa/turbo-run.log
+    - package.json
+    - backend/package.json
+    - shared/package.json
+    - mobile/package.json
+    - scripts/evidence-bundle
+    - .github/workflows/ci-cd.yml
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: pnpm
+      version: "8.15.4"
+    - name: turbo
+      version: "1.13.4"
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Follow repo STANDARDS for tooling changes and evidence updates.
+    - Document any secret usage per Security guidance (SSM/Secrets Manager).
+    - Define SSM/Secrets Manager paths for Turborepo cache tokens following `standards/global.md` tagging rules and document rotation owners/process.
+  prohibited:
+    - Do not remove existing QA targets without replacing them with equivalent
+      coverage.
+
+plan:
+  - id: 1
+    title: Reproduce and diagnose workspace graph failure
+    details: >-
+      Run turbo in dry-run mode to capture the exact workspace resolution error
+      and identify missing workspaces or misconfigured globs.
+    commands:
+      - pnpm turbo run qa --dry-run
+      - pnpm m ls --recursive
+    expected_files_touched: []
+  - id: 2
+    title: Normalize pipeline definitions
+    details: >-
+      Ensure every Turborepo task maps to a real script in each workspace or
+      adjust the pipeline to skip unsupported targets; align Husky scripts and
+      evidence tooling with updated commands.
+    commands: []
+    expected_files_touched:
+      - turbo.json
+      - package.json
+      - backend/package.json
+      - shared/package.json
+      - mobile/package.json
+      - scripts/evidence-bundle
+  - id: 3
+    title: Configure and document remote caching
+    details: >-
+      Select and document a remote cache backend (e.g., Vercel, S3) via a new ADR,
+      integrate cache credentials into CI (.github/workflows/ci-cd.yml) pulling from
+      SSM/Secrets Manager, and update testing standards/README with usage guidance
+      for local developers.
+    commands: []
+    expected_files_touched:
+      - turbo.json
+      - docs/testing-standards.md
+      - README.md
+      - .github/workflows/ci-cd.yml
+      - adr/XXXX-remote-cache-backend.md
+
+acceptance_criteria:
+  - "`pnpm turbo run qa --dry-run` emits no workspace resolution warnings."
+  - "`pnpm turbo run qa --parallel` shows no `<NONEXISTENT>` commands in logs."
+  - Remote cache configuration is active (verified via "Cached (Remote) = true"
+    in a sample run) and documented for local + CI usage.
+  - Updated docs cite STANDARDS sections ensuring cache secrets live in approved
+    managers.
+  - CI workflow exports remote cache credentials from the approved secret store
+    and references the new ADR in comments or documentation.
+
+validation:
+  commands:
+    - pnpm turbo run qa --dry-run
+    - pnpm turbo run qa --parallel
+  manual_checks:
+    - Confirm remote cache analytics or logs show hits from local and CI runs.
+    - Review `.github/workflows/ci-cd.yml` run logs to ensure cache credentials load
+      from SSM/Secrets Manager paths defined in the ADR.
+  artifacts:
+    - Updated docs/testing-standards.md excerpt
+    - Sample turbo run log demonstrating remote cache hits
+    - ADR excerpt capturing the remote cache backend decision and secret paths
+
+deliverables:
+  - turbo.json
+  - package.json
+  - backend/package.json
+  - shared/package.json
+  - mobile/package.json
+  - scripts/evidence-bundle
+  - docs/testing-standards.md
+  - README.md
+  - .github/workflows/ci-cd.yml
+  - docs/evidence/qa/turbo-run.log
+  - adr/XXXX-remote-cache-backend.md
+
+risks:
+  - description: Remote cache requires secure credential distribution.
+    mitigation: Store tokens in SSM/Secrets Manager and reference them from CI
+      only; document rotation process.
+  - description: Adjusting pipeline bindings could hide missing checks.
+    mitigation: Pair with `docs/testing-standards.md` to ensure every removed task
+      is replaced or justified with explicit citations.

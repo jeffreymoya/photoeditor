@@ -1,0 +1,87 @@
+schema_version: "1.0"
+id: TASK-0016
+title: "Reusability: centralize provider selection via SSM + factory"
+status: completed
+priority: P1
+complexity: M
+area: backend
+
+description: >-
+  Consolidate provider selection for analysis/editing behind a single factory
+  using SSM parameters. Ensure swapping providers requires only SSM parameter
+  changes (no code diffs) and add a short demo guide.
+
+outcome: >-
+  Provider selection comes from SSM (e.g., `/PROJECT-ENV/providers/analysis` and
+  `/PROJECT-ENV/providers/editing`) with allowed values referencing available
+  providers. A short guide demonstrates swapping without code changes.
+
+scope:
+  in:
+    - backend/src/providers/factory.ts
+    - backend/src/services/config.service.ts
+    - docs/evidence/provider-swap.md
+  out:
+    - Provider business logic
+
+context:
+  issues: []
+  related_docs:
+    - rubric.md
+  repo_paths:
+    - backend/src/providers/factory.ts
+    - backend/src/services/config.service.ts
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: npm
+      version: "9.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+
+plan:
+  - id: 1
+    title: Read provider selection from SSM
+    details: Extend ConfigService to fetch provider names for analysis/editing.
+    commands: []
+  - id: 2
+    title: Initialize factory from config
+    details: Wire Bootstrap service to call ProviderFactory.initialize with SSM values.
+    commands: []
+  - id: 3
+    title: Demo doc
+    details: Add a short doc describing swap steps.
+    commands: []
+
+acceptance_criteria:
+  - Providers configured via SSM param without code changes.
+  - Demo doc explains swap flow; no code edits required.
+
+validation:
+  commands:
+    - rg -n 'providers/analysis|providers/editing' backend/src
+    - rg -n 'initialize\(' backend/src/providers/factory.ts backend/src/services
+  manual_checks:
+    - Simulate SSM values locally and verify branch selection.
+  artifacts:
+    - screenshots: []
+
+deliverables:
+  - backend/src/services/config.service.ts (updated)
+  - backend/src/providers/factory.ts (updated)
+  - docs/evidence/provider-swap.md
+
+risks:
+  - description: Missing SSM params in dev cause init failures.
+    mitigation: Provide safe defaults and clear errors.
+
+order: 8
+

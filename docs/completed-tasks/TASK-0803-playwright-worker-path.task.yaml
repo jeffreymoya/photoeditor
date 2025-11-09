@@ -1,0 +1,134 @@
+schema_version: "1.0"
+id: TASK-0803
+title: "Extend Playwright smoke test to cover worker completion"
+status: completed
+priority: P1
+area: backend
+
+description: >-
+  Expand the Playwright API smoke suite so it no longer stops at job status polling but also verifies
+  the worker pipeline delivers an edited asset and emits completion notifications. This will bring the
+  automated smoke coverage in line with the full requirements, replacing the stale Cucumber reference
+  in documentation.
+
+outcome: >-
+  Playwright executes a presign→upload→worker→download flow against LocalStack, asserts final S3 objects
+  and SNS notifications, and documentation reflects the broader coverage without mentioning retired suites.
+
+scope:
+  in:
+    - backend/tests/smoke/api-flow.smoke.spec.ts
+    - backend/tests/smoke/fixtures/**
+    - backend/playwright.config.ts (if timing/config tweaks are needed)
+    - docs/evidence/playwright-smoke-notes.md
+  out:
+    - Mobile Detox coverage (handled separately)
+    - Worker Lambda production logic (only test seams allowed)
+    - Contract/schema updates
+
+context:
+  standards_tier: backend
+  issues: []
+  related_docs:
+    - standards/testing-standards.md
+    - standards/backend-tier.md
+    - docs/requirements.md
+    - docs/evidence/playwright-smoke-notes.md
+  repo_paths:
+    - backend/tests/smoke/api-flow.smoke.spec.ts
+    - backend/tests/fixtures/
+    - backend/playwright.config.ts
+    - docs/evidence/playwright-smoke-notes.md
+  dependencies:
+    - type: package
+      name: "@playwright/test"
+      version: ">=1.48 <2"
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: pnpm
+      version: "8.x"
+    - name: docker
+      version: "24.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Keep Playwright tests deterministic; reuse existing TestDataBuilder helpers
+    - Avoid long polling by using bounded retries and LocalStack fixtures
+  prohibited:
+    - No direct mutation of production Lambda code
+    - No reliance on live AWS services
+
+plan:
+  - id: 1
+    title: Investigate worker verification gaps
+    details: Map which pieces (status transitions, final S3 key, SNS notification) are currently only covered by integration tests.
+    commands:
+      - rg -n "TODO.*worker" backend/tests/smoke
+    expected_files_touched: []
+  - id: 2
+    title: Add worker completion assertions
+    details: Extend the smoke suite to wait for job status COMPLETED, fetch final image from LocalStack S3, and assert SNS notification logs.
+    commands:
+      - pnpm --filter @photoeditor/backend run smoke:e2e:run -- --project api
+    expected_files_touched:
+      - backend/tests/smoke/api-flow.smoke.spec.ts
+      - backend/tests/smoke/fixtures/test-data.builder.ts
+  - id: 3
+    title: Harden test harness
+    details: Adjust Playwright config/timeouts and add helpers for polling SQS/SNS via LocalStack if required.
+    commands:
+      - pnpm --filter @photoeditor/backend run smoke:e2e:run -- --headed --debug
+    expected_files_touched:
+      - backend/playwright.config.ts
+      - backend/tests/smoke/helpers/localstack.ts
+  - id: 4
+    title: Update documentation and evidence
+    details: Refresh docs/evidence/playwright-smoke-notes.md to reflect the richer coverage and remove the Cucumber fallback reference.
+    commands:
+      - pnpm --filter @photoeditor/backend run smoke:e2e --reporter=list
+    expected_files_touched:
+      - docs/evidence/playwright-smoke-notes.md
+      - docs/evidence/e2e/latest/
+
+acceptance_criteria:
+  functional:
+    - Smoke test uploads an image, waits for worker to complete, and verifies final S3 object + SNS notification payloads.
+    - Playwright run fails-fast with clear assertions if the worker pipeline/regression breaks.
+    - Documentation no longer references retired Cucumber coverage and captures the updated scenario list.
+  modularity:
+    - "Handlers ≤75 LOC, complexity ≤10"
+    - "Services ≤200 LOC, complexity ≤15"
+    - "No cross-layer imports (dependency-cruiser enforced)"
+  testability:
+    - "Service/Adapter: Line ≥80%, Branch ≥70%, Mutation ≥60%"
+    - "Contract tests pass for all routes"
+
+validation:
+  commands:
+    - pnpm --filter @photoeditor/backend lint -- --max-complexity=10
+    - pnpm --filter @photoeditor/backend run smoke:e2e
+    - pnpm --filter @photoeditor/backend test:unit -- --coverage
+    - pnpm --filter @photoeditor/backend test:mutation -- --threshold 60
+    - pnpm --filter @photoeditor/backend test:integration -- --runInBand
+
+risks:
+  - description: End-to-end worker assertions may introduce flaky timing due to LocalStack latency.
+    mitigation: Implement bounded polling with clear timeouts and diagnostic logging.
+  - description: Additional SNS/S3 checks could require new IAM/localstack setup.
+    mitigation: Reuse integration test helpers and update setup scripts if needed.
+
+deliverables:
+  artifacts:
+    - path: docs/evidence/e2e/latest/playwright-smoke-report.json
+      description: "Latest Playwright smoke JSON output"
+    - path: docs/evidence/playwright-smoke-notes.md
+      description: "Updated documentation for smoke coverage"
+  attachments: []

@@ -1,0 +1,88 @@
+schema_version: "1.0"
+id: TASK-0502
+title: "Adopt changesets for shared contract versioning"
+status: completed
+priority: P0
+area: shared
+
+description: >-
+  The shared workspace lacks a changesets workflow, so contract modifications are merged without a
+  semantic version bump or approval log, contrary to standards/shared-contracts-tier.md and
+  STANDARDS.md line 65. Introduce @changesets tooling, governance docs, and CI checks so every
+  contract change captures intent, version semantics, and owner approval.
+
+outcome: >-
+  Shared contract changes require a recorded changeset, CI enforces `changeset status`, and release
+  notes document semver impact; task notes reference approvals for each tagged release.
+
+scope:
+  in:
+    - package.json
+    - shared/package.json
+    - shared/CHANGELOG.md
+    - .github/workflows
+    - docs/evidence/**
+  out:
+    - Publishing to npm registry
+    - Mobile or backend runtime code beyond dependency updates
+    - Updating non-contract packages' release process
+
+context:
+  issues: []
+  related_docs:
+    - standards/global.md
+    - standards/AGENTS.md
+    - standards/shared-contracts-tier.md
+    - STANDARDS.md
+    - docs/testing-standards.md
+    - adr/0005-npm-workspaces-contract-drift-prevention.md
+  repo_paths:
+    - package.json
+    - shared/package.json
+    - .github/workflows/ci-cd.yml
+    - docs/evidence/contract-compatibility-matrix.md
+  dependencies:
+    - type: package
+      name: "@changesets/cli"
+      version: ">=2.27.0"
+    - type: service
+      name: GitHub Actions
+      requirement: required
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: npm
+      version: "9.x"
+    - name: bash
+      version: any
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Align changeset categories with SemVer (major/minor/patch) explained in docs/compatibility/versioning.md.
+    - Update STANDARDS citations if deviations are necessary.
+  prohibited:
+    - Do not auto-publish releases without stakeholder approval.
+    - Do not bypass CI checks for pending changesets.
+  architecture:
+    - "API diff reviews must link to associated changeset IDs."
+    - "CI fails when changeset metadata is missing for shared package modifications."
+    - "Evidence bundle captures approval details for semantic tags."
+
+plan:
+  - id: 1
+    title: Bootstrap changesets workflow
+    details: Install @changesets/cli, initialize config, and document usage in repo guidelines.
+    commands:
+      - npx changeset init
+  - id: 2
+    title: Integrate checks into CI and governance flow
+    details: Add `changeset status` to pipelines, update documentation, and validate failure scenarios.
+    commands: []

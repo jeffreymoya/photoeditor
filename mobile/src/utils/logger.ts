@@ -22,14 +22,14 @@ class Logger {
 
   warn(...args: unknown[]) {
     if (isDevelopment) {
-      // eslint-disable-next-line no-console
+       
       console.warn(...args);
     }
   }
 
   error(...args: unknown[]) {
     // Always log errors, even in production
-    // eslint-disable-next-line no-console
+     
     console.error(...args);
   }
 

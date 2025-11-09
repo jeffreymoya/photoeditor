@@ -1,0 +1,217 @@
+# Notification adapter test suite
+# Unblocker for TASK-0826 - complete Step 4 of original plan
+
+schema_version: "1.0"
+id: TASK-0828
+title: "Create notification adapter test suite"
+status: completed
+blocked_reason: null
+blocked_by: []
+priority: P0
+area: mobile
+unblocker: true
+order: null
+
+description: >-
+  TASK-0826 deferred notification adapter tests (Step 4 of plan) due to time constraints.
+  Notification adapter currently has 0% test coverage, violating 80%/70% thresholds. This task
+  creates comprehensive test suite (15-25 tests) following same incremental pattern as upload adapter.
+
+outcome: >-
+  Notification adapter has ≥80% line coverage and ≥70% branch coverage with validated test suite.
+  All tests pass. Test infrastructure reuses existing stubs.ts patterns.
+
+scope:
+  in:
+    - mobile/src/services/notification/__tests__/adapter.test.ts (create from scratch)
+    - Test infrastructure (reuse existing stubs.ts createMockResponse)
+    - Incremental development (batches of 5-8 tests with validation)
+  out:
+    - Adapter implementation files (no changes to adapter.ts or port.ts)
+    - Upload adapter tests (already complete per TASK-0827)
+    - Backend notification contracts (no schema changes)
+
+context:
+  affected_packages: [mobile]
+  standards_tier: mobile
+  issues: []
+  related_docs:
+    - standards/AGENTS.md
+    - standards/frontend-tier.md
+    - standards/testing-standards.md
+    - standards/typescript.md
+    - changelog/2025-10-26-TASK-0826-adapter-tests-blocked.md
+    - .agent-output/implementation-reviewer-summary-TASK-0826.md
+  repo_paths:
+    - mobile/src/services/notification/__tests__
+    - mobile/src/services/__tests__ (reuse stubs)
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "18.x"
+  tools:
+    - name: npm
+      version: "9.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Incremental development - write 5-8 tests, validate, continue
+    - Run tests after EVERY batch to catch bugs immediately
+    - Reuse createMockResponse from stubs.ts for fetch mocking
+    - Keep diffs minimal and focused
+  prohibited:
+    - No changes to adapter implementation files
+    - No changes to port interface files
+    - No secrets or tokens in code
+    - No creating 20+ tests without running them first
+  architecture:
+    - "Notification adapter uses Expo Notifications API"
+    - "Backend registration requires device token, platform, deviceId"
+    - "Tests must handle cockatiel retry policies (3 attempts per operation)"
+    - "Mock Expo Notifications module for permissions and local notifications"
+
+plan:
+  - id: 1
+    title: First batch - initialization and permissions (5-8 tests)
+    details: >-
+      Create mobile/src/services/notification/__tests__/adapter.test.ts with:
+      1. Basic initialization tests
+      2. requestPermissions (granted, denied, undetermined)
+      3. scheduleLocalNotification (success, error)
+      Mock Expo Notifications module and fetch API.
+      Run tests, verify all pass. DO NOT proceed to step 2 until these pass.
+    actor: agent
+    inputs:
+      - mobile/src/services/notification/adapter.ts
+      - mobile/src/services/__tests__/stubs.ts
+    outputs:
+      - mobile/src/services/notification/__tests__/adapter.test.ts (5-8 tests)
+    definition_of_done:
+      - All 5-8 tests pass
+      - No timeout errors
+      - Expo Notifications mocked correctly
+    estimate: M
+    expected_files_touched:
+      - mobile/src/services/notification/__tests__/adapter.test.ts
+
+  - id: 2
+    title: Second batch - backend registration (5-8 tests)
+    details: >-
+      Add tests for backend integration:
+      1. registerWithBackend (success, HTTP 4xx, HTTP 5xx)
+      2. unregisterFromBackend (success, error)
+      3. Device token management (iOS, Android)
+      4. Error handling (network failure, malformed response)
+      Run tests after this batch, verify all pass (10-16 total tests).
+    actor: agent
+    inputs:
+      - mobile/src/services/notification/__tests__/adapter.test.ts (existing tests)
+      - mobile/src/services/notification/adapter.ts
+    outputs:
+      - mobile/src/services/notification/__tests__/adapter.test.ts (expanded)
+    definition_of_done:
+      - All 10-16 tests pass
+      - Backend registration paths covered
+      - Coverage report generated
+    estimate: M
+    expected_files_touched:
+      - mobile/src/services/notification/__tests__/adapter.test.ts
+
+  - id: 3
+    title: Third batch - edge cases and platform behavior (5-9 tests)
+    details: >-
+      Add tests for edge cases and platform-specific behavior:
+      1. Token expiry/refresh
+      2. Permission changes (user revokes after granting)
+      3. Platform-specific notification options (iOS vs Android)
+      4. Retry policy behavior (cockatiel exponential backoff)
+      5. Request headers (traceparent, correlation-id)
+      Continue until coverage reaches ≥80% lines, ≥70% branches.
+    actor: agent
+    inputs:
+      - mobile/src/services/notification/__tests__/adapter.test.ts (existing tests)
+      - Coverage report from step 2
+    outputs:
+      - mobile/src/services/notification/__tests__/adapter.test.ts (final)
+    definition_of_done:
+      - "Notification adapter: \u226580% line coverage, \u226570% branch coverage"
+      - All tests pass (0 failures)
+      - 15-25 total tests
+    estimate: M
+    expected_files_touched:
+      - mobile/src/services/notification/__tests__/adapter.test.ts
+
+  - id: 4
+    title: Final validation and documentation
+    details: >-
+      Run full test suite with coverage. Verify thresholds met.
+      Document any uncovered edge cases for future work.
+    actor: agent
+    inputs:
+      - All notification adapter tests
+    outputs:
+      - Coverage report showing ≥80%/70%
+    definition_of_done:
+      - All notification adapter tests pass (0 failures)
+      - "Notification adapter: \u226580% lines, \u226570% branches"
+      - Coverage gaps documented (if any)
+    estimate: S
+    expected_files_touched:
+      - mobile/src/services/notification/__tests__/adapter.test.ts
+
+acceptance_criteria:
+  must:
+    - "All notification adapter tests pass (target: 15-25 tests)"
+    - Notification adapter line coverage ≥80%
+    - Notification adapter branch coverage ≥70%
+    - Expo Notifications module mocked correctly (permissions, local notifications)
+    - Backend registration tested (registerWithBackend, unregisterFromBackend)
+    - Tests handle cockatiel retry policies (no mockResolvedValueOnce for retried operations)
+    - No changes to adapter implementation files (adapter.ts, port.ts)
+    - Tests developed incrementally with validation at each step (not all 25 at once)
+  quality_gates:
+    - "Coverage thresholds per standards/testing-standards.md (80% lines, 70% branches)"
+    - "No lint/type errors in mobile package"
+    - "Tests validate resilience policies (retry, circuit breaker) behavior"
+    - "All tests pass before task marked complete"
+
+validation:
+  static_checks:
+    - pnpm turbo run qa:static --filter=photoeditor-mobile
+
+  unit_tests:
+    mobile:
+      - pnpm turbo run test --filter=photoeditor-mobile -- --coverage --testPathPattern="notification.*adapter.test.ts"
+      - pnpm turbo run test --filter=photoeditor-mobile -- --coverage
+
+  contract_tests: []
+
+  manual_checks:
+    - Verify incremental commits show progressive test additions (not one massive commit)
+    - Review coverage report to confirm thresholds met
+
+  artifacts:
+    - screenshots: []
+
+artifacts:
+  - path: mobile/tmp/test-results/junit.xml
+    description: Test execution results
+  - path: mobile/coverage/coverage-summary.json
+    description: Coverage metrics proving thresholds met
+
+deliverables:
+  - mobile/src/services/notification/__tests__/adapter.test.ts (complete test suite)
+
+risks:
+  - description: Expo Notifications module mocking may be complex
+    mitigation: Mock at module level with jest.mock, provide simple mock implementations; focus on adapter behavior, not Expo internals
+  - description: Coverage thresholds may be difficult to reach
+    mitigation: Focus on error paths and edge cases; if stuck at 75%, assess if remaining uncovered code is dead code or needs implementation fixes
+  - description: Platform-specific behavior (iOS vs Android) may complicate tests
+    mitigation: Use test.each for parameterized tests covering both platforms; mock Platform.OS

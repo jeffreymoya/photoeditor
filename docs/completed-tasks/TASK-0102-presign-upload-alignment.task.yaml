@@ -1,0 +1,76 @@
+schema_version: "1.0"
+id: TASK-0102
+title: Align presigned PUT upload (headers/signature)
+status: completed
+priority: P0
+area: backend
+
+description: >-
+  Presigned PUT is generated with SSE and metadata headers (server),
+  but the mobile client only sends Content-Type. Because presign
+  includes headers, S3 requires the client to send matching headers.
+  For UAT, simplify to avoid header mismatch or return required headers
+  to the client and add them to the PUT.
+
+outcome: >-
+  Client PUT to presigned URL succeeds (200) on LocalStack without
+  signature mismatch, enabling uploads during UAT.
+
+scope:
+  in:
+    - backend/src/services/s3.service.ts:60-71
+    - mobile/src/services/ApiService.ts:137-149 (optional)
+  out:
+    - Production hardening of SSE/metadata policy
+
+context:
+  issues: []
+  related_docs: []
+  repo_paths:
+    - backend/src/services/s3.service.ts:52
+    - mobile/src/services/ApiService.ts:120
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "18.x"
+  tools:
+    - name: npm
+      version: "9.x"
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Prefer server-side simplification for UAT.
+
+plan:
+  - id: 1
+    title: Option A — Simplify server PUT
+    details: Remove ServerSideEncryption and Metadata from PutObjectCommand for UAT env so only Content-Type is required.
+  - id: 2
+    title: Option B — Propagate headers
+    details: Include required headers in presign response (e.g., requiredHeaders) and set them in mobile upload request.
+  - id: 3
+    title: Validate upload
+    details: Upload sample.jpg via app; confirm 200 from PUT and S3 object presence.
+
+acceptance_criteria:
+  - Upload PUT returns 200 for a test image via the app.
+  - Worker receives S3:ObjectCreated event and advances job status.
+
+validation:
+  commands:
+    - tail -f docker compose -f docker-compose.localstack.yml logs | sed -n '1,120p'
+    - echo "Manually verify PUT 200 in app logs and that object appears in temp bucket path."
+
+deliverables:
+  - backend/src/services/s3.service.ts (adjusted signing)
+  - mobile/src/services/ApiService.ts (only if Option B)
+
+risks:
+  - description: Removing SSE/metadata reduces parity with prod.
+    mitigation: Reintroduce SSE/metadata with explicit header propagation in a follow-up hardening task.
+

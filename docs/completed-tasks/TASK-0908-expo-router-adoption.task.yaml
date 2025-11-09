@@ -1,0 +1,310 @@
+# Task: Adopt Expo Router in Jobs surface with file-based routing
+
+schema_version: "1.1"
+id: TASK-0908
+title: "Adopt Expo Router in Jobs surface with file-based routing"
+status: completed
+priority: P1
+area: mobile
+unblocker: false
+order:
+blocked_by: [TASK-0907, TASK-0912]
+depends_on: [TASK-0906]
+agent_completion_state: {}
+
+clarifications:
+  outstanding: []
+  resolved: true
+  evidence_path: "docs/evidence/tasks/TASK-0908-clarifications.md"
+
+description: >-
+  Introduce Expo Router file-based routing in a new feature slice (Jobs surface recommended)
+  while maintaining the existing React Navigation infrastructure. This pilot allows
+  incremental
+  adoption of directory-based navigation conventions (app/(group)/_layout.tsx, +not-found.tsx)
+  and co-located providers/layouts that reduce global re-render costs. The mixed navigation
+  approach (legacy React Navigation + Expo Router) is verified through device tests,
+  and
+  deeplink/auth redirect compatibility is confirmed. This aligns the codebase with
+  Expo's
+  modern documentation and ecosystem patterns (Create Expo Stack, rn.new templates).
+
+outcome: >-
+  Expo Router successfully integrated for Jobs surface with file-based routing. Mixed
+  navigation
+  (legacy + router) verified in device tests. Deeplinking works for routed surfaces.
+  Lint/TS
+  rules updated for generated routes. Documentation updated with migration strategy
+  for remaining
+  surfaces.
+
+scope:
+  in:
+  - Installing expo-router dependency in mobile/package.json
+  - Creating app/(jobs)/ directory structure with _layout.tsx for Jobs surface
+  - Configuring Expo Router in app config (app.json or expo.config.js)
+  - Implementing file-based routes for Jobs feature (e.g., app/(jobs)/index.tsx,
+    app/(jobs)/[id].tsx)
+  - Setting up co-located providers/layouts in app/(jobs)/_layout.tsx
+  - Updating TypeScript config and lint rules for generated route types
+  - Testing mixed navigation (legacy React Navigation + Expo Router)
+  - Verifying deeplink and auth redirect compatibility
+  - Documenting migration strategy for remaining surfaces
+  out:
+  - Full migration of all navigation to Expo Router (incremental approach 
+    deferred)
+  - Removing React Navigation entirely (mixed period documented)
+  - Styling system changes (deferred to TASK-0909)
+  - List virtualization changes (deferred to TASK-0910)
+
+context:
+  affected_packages: [mobile]
+  standards_tier: mobile
+  related_docs:
+  - standards/global.md
+  - standards/AGENTS.md
+  - standards/frontend-tier.md
+  - standards/typescript.md
+  - standards/testing-standards.md
+  - docs/proposals/mobile-stack-modernization.md
+  - Expo Router file-based routing docs
+  repo_paths:
+  - mobile/package.json
+  - mobile/app.json
+  - mobile/app/(jobs)/
+  - mobile/tsconfig.json
+  - mobile/eslint.config.js
+  - docs/mobile/
+  dependencies:
+  - expo-router
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+  - name: pnpm
+    version: "8.x"
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+  - Follow Expo Router directory conventions (app/(group)/_layout.tsx)
+  - Maintain compatibility with existing React Navigation during mixed period
+  - Co-locate providers and layouts to reduce global re-render cost
+  - Update TypeScript and lint rules for generated route types
+  prohibited:
+  - Do not remove React Navigation infrastructure (mixed period required)
+  - Do not migrate surfaces outside Jobs feature scope
+
+plan:
+- id: 1
+  title: Review Expo Router docs and clarify migration strategy
+  details: >-
+    Read Expo Router file-based routing documentation, understand directory conventions,
+    and clarify open questions (feature slice selection, mixed navigation strategy,
+    lint/TS
+    rules, deeplink compatibility). Document findings in clarifications file. Reference
+    standards/frontend-tier.md for navigation guidance.
+  actor: agent
+  inputs:
+  - docs/proposals/mobile-stack-modernization.md
+  - Expo Router file-based routing docs
+  - mobile/ (current navigation structure)
+  outputs:
+  - docs/evidence/tasks/TASK-0908-clarifications.md
+  definition_of_done:
+  - Clarifications file documents migration strategy and open questions resolved
+  - Feature slice (Jobs surface) confirmed
+  estimate: S
+  expected_files_touched:
+  - docs/evidence/tasks/TASK-0908-clarifications.md
+- id: 2
+  title: Install expo-router and configure app
+  details: >-
+    Add expo-router dependency to mobile/package.json. Configure Expo Router in app.json
+    or expo.config.js. Run pnpm install. Verify standards/typescript.md strict config
+    remains satisfied.
+  actor: agent
+  inputs:
+  - mobile/package.json
+  - mobile/app.json
+  - Expo Router installation guide
+  outputs:
+  - mobile/package.json (expo-router dependency)
+  - mobile/app.json (router config)
+  - pnpm-lock.yaml
+  definition_of_done:
+  - expo-router installed in mobile/package.json
+  - Expo Router configured in app.json
+  - pnpm install completes successfully
+  estimate: S
+  expected_files_touched:
+  - mobile/package.json
+  - mobile/app.json
+  - pnpm-lock.yaml
+- id: 3
+  title: Create app/(jobs)/ directory structure with file-based routes
+  details: >-
+    Create app/(jobs)/ directory under mobile/. Implement _layout.tsx for co-located
+    providers. Create index.tsx (Jobs list view) and [id].tsx (Job detail view) as
+    file-based routes. Follow Expo Router conventions per standards/frontend-tier.md
+    component organization.
+  actor: agent
+  inputs:
+  - Expo Router directory conventions
+  - mobile/src/screens/ (existing Jobs screens for reference)
+  outputs:
+  - mobile/app/(jobs)/_layout.tsx
+  - mobile/app/(jobs)/index.tsx
+  - mobile/app/(jobs)/[id].tsx
+  definition_of_done:
+  - app/(jobs)/ directory created with _layout.tsx, index.tsx, [id].tsx
+  - Co-located providers configured in _layout.tsx
+  - File-based routes follow Expo Router conventions
+  estimate: M
+  expected_files_touched:
+  - mobile/app/(jobs)/_layout.tsx
+  - mobile/app/(jobs)/index.tsx
+  - mobile/app/(jobs)/[id].tsx
+- id: 4
+  title: Update TypeScript config and lint rules for generated routes
+  details: >-
+    Update mobile/tsconfig.json to include Expo Router generated types. Update
+    mobile/eslint.config.js to handle directory-based conventions and route type safety.
+    Verify standards/typescript.md strict config compliance.
+  actor: agent
+  inputs:
+  - mobile/tsconfig.json
+  - mobile/eslint.config.js
+  - Expo Router TypeScript integration docs
+  outputs:
+  - mobile/tsconfig.json (updated for generated route types)
+  - mobile/eslint.config.js (updated lint rules)
+  definition_of_done:
+  - TypeScript config includes Expo Router generated types
+  - Lint rules updated for file-based routing conventions
+  - pnpm turbo run qa:static --filter=photoeditor-mobile passes
+  estimate: S
+  expected_files_touched:
+  - mobile/tsconfig.json
+  - mobile/eslint.config.js
+- id: 5
+  title: Test mixed navigation and deeplink compatibility
+  details: >-
+    Verify mixed navigation (legacy React Navigation + Expo Router) works in device
+    tests.
+    Test deeplinking to Jobs routes (e.g., app://photoeditor/jobs/123). Confirm auth
+    redirect
+    compatibility. Document known issues and workarounds. Reference standards/testing-standards.md
+    for test coverage expectations.
+  actor: agent
+  inputs:
+  - mobile/ (updated codebase with Expo Router)
+  outputs:
+  - docs/evidence/tasks/TASK-0908-mixed-navigation-test-results.md
+  definition_of_done:
+  - Mixed navigation verified on iOS simulator and Android emulator
+  - Deeplinking works for Jobs routes
+  - Auth redirects compatible with file-based routing
+  - Known issues documented
+  estimate: M
+  expected_files_touched:
+  - docs/evidence/tasks/TASK-0908-mixed-navigation-test-results.md
+- id: 6
+  title: Document migration strategy and update mobile docs
+  details: >-
+    Document migration strategy for remaining surfaces (incremental approach). Update
+    docs/mobile/ with Expo Router adoption outcomes, directory conventions, and lint/TS
+    rules. Ensure standards/global.md evidence bundle requirements are met.
+  actor: agent
+  inputs:
+  - docs/evidence/tasks/TASK-0908-clarifications.md
+  - docs/evidence/tasks/TASK-0908-mixed-navigation-test-results.md
+  outputs:
+  - docs/mobile/expo-router-migration.md
+  definition_of_done:
+  - Migration strategy documented for remaining surfaces
+  - Directory conventions and lint/TS rules documented in docs/mobile/
+  estimate: S
+  expected_files_touched:
+  - docs/mobile/expo-router-migration.md
+
+validation:
+  pipeline:
+  - command: pnpm turbo run lint:fix --filter=photoeditor-mobile
+    description: Auto-fix linting issues in mobile package
+  - command: pnpm turbo run qa:static --filter=photoeditor-mobile
+    description: Run static analysis (typecheck + lint) on mobile
+  - command: pnpm turbo run test --filter=photoeditor-mobile
+    description: Run unit tests for mobile package
+  - command: pnpm turbo run test:coverage --filter=photoeditor-mobile
+    description: Run tests with coverage reporting to verify thresholds (≥70% 
+      lines, ≥60% branches per standards/testing-standards.md)
+  manual_checks:
+  - Verify Jobs surface renders correctly via Expo Router on iOS simulator
+  - Verify Jobs surface renders correctly via Expo Router on Android emulator
+  - Test deeplink navigation to Jobs routes (app://photoeditor/jobs/123)
+  - Confirm auth redirects work with file-based routing
+  - Verify mixed navigation (legacy + Expo Router) functions without errors
+
+acceptance_criteria:
+  must:
+  - expo-router installed and configured in mobile/package.json and app.json
+  - app/(jobs)/ directory structure created with _layout.tsx, index.tsx, 
+    [id].tsx
+  - Co-located providers configured in app/(jobs)/_layout.tsx
+  - TypeScript config updated for generated route types
+  - Lint rules updated for file-based routing conventions
+  - pnpm turbo run qa:static --filter=photoeditor-mobile passes
+  - Mixed navigation (legacy + Expo Router) verified in device tests
+  - Deeplinking works for Jobs routes
+  - Auth redirects compatible with file-based routing
+  - Migration strategy documented for remaining surfaces
+  quality_gates:
+  - All tests pass with Expo Router enabled
+  - No regressions in existing navigation functionality
+  - File-based routes follow Expo Router conventions per documentation
+
+artifacts:
+- path: docs/evidence/tasks/TASK-0908-clarifications.md
+  description: Migration strategy clarifications and feature slice selection
+- path: docs/evidence/tasks/TASK-0908-mixed-navigation-test-results.md
+  description: Mixed navigation and deeplink compatibility test results
+- path: docs/mobile/expo-router-migration.md
+  description: Migration outcomes, directory conventions, incremental strategy
+
+deliverables:
+- mobile/package.json (expo-router dependency)
+- mobile/app.json (router config)
+- mobile/app/(jobs)/_layout.tsx
+- mobile/app/(jobs)/index.tsx
+- mobile/app/(jobs)/[id].tsx
+- mobile/tsconfig.json (updated for generated routes)
+- mobile/eslint.config.js (updated lint rules)
+- pnpm-lock.yaml
+- docs/evidence/tasks/TASK-0908-clarifications.md
+- docs/evidence/tasks/TASK-0908-mixed-navigation-test-results.md
+- docs/mobile/expo-router-migration.md
+
+risks:
+- description: Mixed navigation period may introduce routing conflicts or state 
+    issues
+  mitigation: Test thoroughly on both platforms, document known issues, provide 
+    fallback to legacy navigation if needed
+- description: Deeplink handling may require additional configuration for 
+    file-based routes
+  mitigation: Test deeplinking early, consult Expo Router deeplink docs, 
+    document workarounds
+- description: Generated route types may conflict with existing TypeScript 
+    config
+  mitigation: Update tsconfig.json incrementally, verify qa:static passes after 
+    each change
+- description: Learning curve for directory-based conventions may slow initial 
+    velocity
+  mitigation: Document conventions in docs/mobile/, provide examples, reference 
+    Expo Router docs

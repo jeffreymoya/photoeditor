@@ -3,14 +3,14 @@
 schema_version: "1.1"
 id: TASK-0911
 title: "Pilot VisionCamera + expo-background-task for uploads"
-status: todo
-blocked_reason:
+status: blocked
+blocked_reason: "Broken down into subtasks for manageable implementation. Task exceeds complexity thresholds: 12+ deliverables across multiple feature domains (camera, upload, utils, config), 8 plan steps with substantial research phases, and multiple experimental integrations (VisionCamera Skia, expo-background-task) with known issues (memory leaks, platform scheduling limits)."
 priority: P2
 area: mobile
 unblocker: false
 order:
-blocked_by: [TASK-0907]
-depends_on: [TASK-0906]
+blocked_by: [TASK-0911B, TASK-0911C, TASK-0911D, TASK-0911E, TASK-0911F]
+depends_on: [TASK-0906, TASK-0907]
 agent_completion_state: {}
 
 clarifications:

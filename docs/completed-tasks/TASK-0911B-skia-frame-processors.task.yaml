@@ -1,0 +1,275 @@
+# Task: Implement Skia frame processors for camera overlays
+
+schema_version: "1.1"
+id: TASK-0911B
+title: "Implement Skia frame processors for camera overlays"
+status: completed
+blocked_reason:
+priority: P2
+area: mobile
+unblocker: false
+order: 2
+blocked_by: []
+depends_on: [TASK-0906]
+agent_completion_state:
+  task_implementer:
+    completed: true
+    summary_path: .agent-output/TASK-0911B-implementation.md
+    timestamp: "2025-11-10T11:33:21Z"
+  implementation_reviewer:
+    completed: true
+    summary_path: .agent-output/TASK-0911B-review.md
+    timestamp: "2025-11-10T12:15:43Z"
+  test_validation_mobile:
+    completed: true
+    summary_path: docs/tests/reports/2025-11-10-validation-mobile.md
+    timestamp: "2025-11-10T12:45:00Z"
+
+clarifications:
+  outstanding: []
+  resolved: true
+  evidence_path: "docs/evidence/tasks/TASK-0911-clarifications.md"
+
+description: >-
+  Implement Skia frame processors for VisionCamera to enable GPU-accelerated camera
+  overlays (bounding boxes, live filters, AI editing previews). Frame processors use
+  Reanimated worklets to run on the camera thread. This pilot validates three overlay
+  types: bounding boxes for AI analysis preview, live filters (brightness/contrast/saturation),
+  and AI editing overlay previews. Implementation follows VisionCamera Skia frame
+  processor guide and standards/frontend-tier.md component organization.
+
+outcome: >-
+  Skia frame processors implemented for three overlay types (bounding boxes, live
+  filters, AI previews). Reanimated worklets configured for camera thread execution.
+  Overlays render correctly on iOS simulator and Android emulator with no critical
+  performance degradation.
+
+scope:
+  in:
+  - Implementing Skia frame processors for bounding boxes, live filters, AI 
+    previews
+  - Configuring Reanimated worklets per VisionCamera documentation
+  - Creating CameraWithOverlay component wrapping VisionCamera
+  - Testing overlays on iOS simulator and Android emulator
+  out:
+  - Memory profiling and leak mitigation (deferred to TASK-0911D)
+  - Feature flags and performance guardrails (deferred to TASK-0911E)
+  - Full camera replacement (pilot overlays only per scope)
+
+context:
+  affected_packages: [mobile]
+  standards_tier: mobile
+  related_docs:
+  - standards/global.md
+  - standards/AGENTS.md
+  - standards/frontend-tier.md
+  - standards/typescript.md
+  - standards/testing-standards.md
+  - docs/proposals/mobile-stack-modernization.md
+  repo_paths:
+  - mobile/src/features/camera/frameProcessors.ts
+  - mobile/src/features/camera/CameraWithOverlay.tsx
+  - mobile/src/features/camera/__tests__/
+  dependencies:
+  - react-native-vision-camera
+  - react-native-skia
+  - react-native-reanimated
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+  - name: pnpm
+    version: "8.x"
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+  - Follow VisionCamera Skia frame processor best practices
+  - Implement Reanimated worklets for camera thread execution
+  - Follow standards/frontend-tier.md component organization
+  - Keep frame processor logic pure where possible per standards/typescript.md
+  prohibited:
+  - Do not replace entire camera implementation (pilot overlays only)
+  - Do not implement feature flags or performance monitoring (deferred to 
+    TASK-0911E)
+
+plan:
+- id: 1
+  title: Create frame processor module structure
+  details: >-
+    Create mobile/src/features/camera/frameProcessors.ts with exports for each
+    overlay type. Follow standards/frontend-tier.md#feature-guardrails for feature
+    module organization. Use Reanimated worklet syntax per VisionCamera guide.
+  actor: agent
+  inputs:
+  - VisionCamera Skia frame processor guide
+  - standards/frontend-tier.md
+  outputs:
+  - mobile/src/features/camera/frameProcessors.ts (module structure)
+  definition_of_done:
+  - Frame processor module created with worklet exports
+  - Module follows standards/frontend-tier.md feature organization
+  estimate: S
+  expected_files_touched:
+  - mobile/src/features/camera/frameProcessors.ts
+- id: 2
+  title: Implement bounding box frame processor
+  details: >-
+    Implement Skia worklet to draw bounding boxes on camera feed. Use Skia Canvas
+    API to draw rectangles with configurable stroke and fill. Accept bounding box
+    coordinates as worklet parameters. Keep logic pure where possible per
+    standards/typescript.md#analyzability.
+  actor: agent
+  inputs:
+  - VisionCamera Skia frame processor examples
+  - Skia Canvas API documentation
+  outputs:
+  - mobile/src/features/camera/frameProcessors.ts (bounding box worklet)
+  definition_of_done:
+  - Bounding box worklet draws rectangles on camera feed
+  - Worklet accepts box coordinates as parameters
+  - Logic is pure where possible (deterministic rendering)
+  estimate: M
+  expected_files_touched:
+  - mobile/src/features/camera/frameProcessors.ts
+- id: 3
+  title: Implement live filter frame processor
+  details: >-
+    Implement Skia worklet to apply live filters (brightness, contrast, saturation)
+    on camera feed. Use Skia ColorFilter or ImageFilter APIs for GPU-accelerated
+    transforms. Accept filter parameters as worklet inputs.
+  actor: agent
+  inputs:
+  - VisionCamera Skia frame processor examples
+  - Skia ImageFilter/ColorFilter API documentation
+  outputs:
+  - mobile/src/features/camera/frameProcessors.ts (filter worklet)
+  definition_of_done:
+  - Filter worklet applies brightness/contrast/saturation adjustments
+  - Worklet uses Skia GPU-accelerated filters
+  - Filter parameters configurable at runtime
+  estimate: M
+  expected_files_touched:
+  - mobile/src/features/camera/frameProcessors.ts
+- id: 4
+  title: Implement AI editing overlay frame processor
+  details: >-
+    Implement Skia worklet to render AI-generated overlay images on camera feed.
+    Use Skia Image/Canvas APIs to composite overlay images. Accept overlay image
+    data as worklet parameter.
+  actor: agent
+  inputs:
+  - VisionCamera Skia frame processor examples
+  - Skia Image/Canvas API documentation
+  outputs:
+  - mobile/src/features/camera/frameProcessors.ts (overlay worklet)
+  definition_of_done:
+  - Overlay worklet composites AI-generated images on camera feed
+  - Worklet handles image loading and positioning
+  estimate: M
+  expected_files_touched:
+  - mobile/src/features/camera/frameProcessors.ts
+- id: 5
+  title: Create CameraWithOverlay component
+  details: >-
+    Create mobile/src/features/camera/CameraWithOverlay.tsx wrapping VisionCamera
+    with Skia frame processors. Expose props to toggle overlay types. Follow
+    standards/frontend-tier.md#ui-components-layer for component patterns. Export
+    via feature /public barrel per standards/frontend-tier.md#coupling--cohesion-evidence.
+  actor: agent
+  inputs:
+  - VisionCamera Camera component API
+  - mobile/src/features/camera/frameProcessors.ts
+  - standards/frontend-tier.md
+  outputs:
+  - mobile/src/features/camera/CameraWithOverlay.tsx
+  - mobile/src/features/camera/public/index.ts (barrel export)
+  definition_of_done:
+  - CameraWithOverlay component wraps VisionCamera with frame processors
+  - Props enable toggling overlay types
+  - Component exported via /public barrel
+  estimate: M
+  expected_files_touched:
+  - mobile/src/features/camera/CameraWithOverlay.tsx
+  - mobile/src/features/camera/public/index.ts
+- id: 6
+  title: Add component tests for CameraWithOverlay
+  details: >-
+    Create mobile/src/features/camera/__tests__/CameraWithOverlay.test.tsx with
+    React Native Testing Library. Test overlay prop toggling and component rendering.
+    Mock VisionCamera and Skia dependencies. Follow standards/testing-standards.md
+    coverage expectations (≥70% lines, ≥60% branches).
+  actor: agent
+  inputs:
+  - mobile/src/features/camera/CameraWithOverlay.tsx
+  - standards/testing-standards.md
+  outputs:
+  - mobile/src/features/camera/__tests__/CameraWithOverlay.test.tsx
+  definition_of_done:
+  - Component tests cover overlay prop toggling
+  - Tests meet standards/testing-standards.md coverage thresholds
+  estimate: M
+  expected_files_touched:
+  - mobile/src/features/camera/__tests__/CameraWithOverlay.test.tsx
+
+validation:
+  pipeline:
+  - command: pnpm turbo run lint:fix --filter=photoeditor-mobile
+    description: Auto-fix linting issues in mobile package
+  - command: pnpm turbo run qa:static --filter=photoeditor-mobile
+    description: Run static analysis (typecheck + lint) on mobile
+  - command: pnpm turbo run test --filter=photoeditor-mobile
+    description: Run unit tests for mobile package
+  - command: pnpm turbo run test:coverage --filter=photoeditor-mobile
+    description: Run tests with coverage reporting to verify thresholds (≥70% 
+      lines, ≥60% branches per standards/testing-standards.md)
+  manual_checks:
+  - Verify bounding box overlays render correctly on iOS simulator
+  - Verify live filters render correctly on iOS simulator
+  - Verify AI editing overlays render correctly on iOS simulator
+  - Verify bounding box overlays render correctly on Android emulator
+  - Verify live filters render correctly on Android emulator
+  - Verify AI editing overlays render correctly on Android emulator
+
+acceptance_criteria:
+  must:
+  - Skia frame processors implemented for bounding boxes, live filters, AI 
+    previews
+  - Reanimated worklets configured for camera thread execution
+  - CameraWithOverlay component wraps VisionCamera with frame processors
+  - Component tests meet standards/testing-standards.md coverage thresholds 
+    (≥70% lines, ≥60% branches)
+  - pnpm turbo run qa:static --filter=photoeditor-mobile passes
+  - Overlays render correctly on iOS simulator and Android emulator
+  quality_gates:
+  - Frame processor logic is pure where possible per standards/typescript.md
+  - Component follows standards/frontend-tier.md organization patterns
+  - No critical performance degradation during overlay rendering
+
+artifacts:
+- path: mobile/src/features/camera/frameProcessors.ts
+  description: Skia frame processor worklets for overlays
+- path: mobile/src/features/camera/CameraWithOverlay.tsx
+  description: Camera component with Skia overlay support
+- path: mobile/src/features/camera/__tests__/CameraWithOverlay.test.tsx
+  description: Component tests for CameraWithOverlay
+
+deliverables:
+- mobile/src/features/camera/frameProcessors.ts
+- mobile/src/features/camera/CameraWithOverlay.tsx
+- mobile/src/features/camera/public/index.ts
+- mobile/src/features/camera/__tests__/CameraWithOverlay.test.tsx
+
+risks:
+- description: Frame processors may exceed 16ms budget and cause UI jank
+  mitigation: Defer performance monitoring to TASK-0911E; manual testing 
+    confirms no critical degradation
+- description: Skia worklet syntax errors may be difficult to debug
+  mitigation: Follow VisionCamera examples closely, use TypeScript for worklet 
+    type safety

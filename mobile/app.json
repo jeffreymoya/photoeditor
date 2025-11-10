@@ -23,7 +23,11 @@
       "infoPlist": {
         "NSCameraUsageDescription": "This app uses the camera to take photos for editing.",
         "NSPhotoLibraryUsageDescription": "This app accesses the photo library to select images for editing.",
-        "NSPhotoLibraryAddUsageDescription": "This app saves edited photos to your photo library."
+        "NSPhotoLibraryAddUsageDescription": "This app saves edited photos to your photo library.",
+        "UIBackgroundModes": [
+          "processing",
+          "fetch"
+        ]
       }
     },
     "android": {
@@ -63,6 +67,14 @@
           "color": "#ffffff"
         }
       ],
+      [
+        "react-native-vision-camera",
+        {
+          "cameraPermissionText": "Photo Editor needs camera access to capture photos for editing and processing.",
+          "enableMicrophonePermission": false
+        }
+      ],
+      "expo-background-task",
       "expo-font"
     ],
     "extra": {

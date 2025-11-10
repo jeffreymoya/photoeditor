@@ -1,0 +1,234 @@
+# Task: Install VisionCamera, Skia, and expo-background-task dependencies
+
+schema_version: "1.1"
+id: TASK-0911A
+title: "Install VisionCamera, Skia, and expo-background-task dependencies"
+status: completed
+blocked_reason:
+priority: P2
+area: mobile
+unblocker: false
+order: 1
+blocked_by: []
+depends_on: [TASK-0906]
+agent_completion_state:
+  task_implementer:
+    completed: true
+    summary_path: .agent-output/TASK-0911A-implementation.md
+    timestamp: 2025-11-10T11:18:11Z
+  implementation_reviewer:
+    completed: true
+    summary_path: .agent-output/TASK-0911A-review.md
+    timestamp: 2025-11-10T12:15:00Z
+  test_validation_mobile:
+    completed: true
+    summary_path: .agent-output/TASK-0911A-validation-mobile.md
+    timestamp: 2025-11-10T12:35:00Z
+
+clarifications:
+  outstanding: []
+  resolved: true
+  evidence_path: "docs/evidence/tasks/TASK-0911-clarifications.md"
+
+description: >-
+  Install react-native-vision-camera, react-native-skia, expo-background-task, and
+  react-native-reanimated dependencies in mobile/package.json. Configure platform
+  permissions (camera) and entitlements (background tasks) in app.json. This subtask
+  isolates dependency installation and configuration from implementation to enable
+  parallel work on frame processors and background tasks.
+
+outcome: >-
+  VisionCamera, Skia, expo-background-task, and Reanimated dependencies installed
+  and configured. Platform permissions and entitlements set in app.json. pnpm install
+  completes successfully with no type errors.
+
+scope:
+  in:
+  - Installing VisionCamera, Skia, expo-background-task, Reanimated in 
+    mobile/package.json
+  - Configuring camera permissions in app.json (iOS/Android)
+  - Configuring background task entitlements in app.json (iOS/Android)
+  - Running pnpm install and verifying typecheck passes
+  out:
+  - Implementing frame processors or background tasks (deferred to TASK-0911B, 
+    TASK-0911C)
+  - Memory profiling or feature flags (deferred to TASK-0911D, TASK-0911E)
+
+context:
+  affected_packages: [mobile]
+  standards_tier: mobile
+  related_docs:
+  - standards/global.md
+  - standards/AGENTS.md
+  - standards/frontend-tier.md
+  - standards/typescript.md
+  - standards/testing-standards.md
+  - docs/proposals/mobile-stack-modernization.md
+  repo_paths:
+  - mobile/package.json
+  - mobile/app.json
+  - pnpm-lock.yaml
+  dependencies:
+  - react-native-vision-camera
+  - react-native-skia
+  - expo-background-task
+  - react-native-reanimated
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+  - name: pnpm
+    version: "8.x"
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+  - Follow VisionCamera and expo-background-task installation guides
+  - Configure platform permissions per Expo documentation
+  - Verify standards/typescript.md strict config remains satisfied
+  prohibited:
+  - Do not implement frame processors or background tasks (scope of other 
+    subtasks)
+
+plan:
+- id: 1
+  title: Install VisionCamera, Skia, and Reanimated dependencies
+  details: >-
+    Add react-native-vision-camera, react-native-skia, and react-native-reanimated
+    to mobile/package.json. Reference VisionCamera installation guide for version
+    compatibility with Expo SDK 53. Run pnpm install to update pnpm-lock.yaml.
+  actor: agent
+  inputs:
+  - mobile/package.json
+  - VisionCamera installation guide
+  - Expo SDK 53 compatibility matrix
+  outputs:
+  - mobile/package.json (VisionCamera, Skia, Reanimated dependencies)
+  - pnpm-lock.yaml
+  definition_of_done:
+  - VisionCamera, Skia, and Reanimated dependencies added to mobile/package.json
+  - pnpm install completes successfully
+  estimate: S
+  expected_files_touched:
+  - mobile/package.json
+  - pnpm-lock.yaml
+- id: 2
+  title: Install expo-background-task dependency
+  details: >-
+    Add expo-background-task to mobile/package.json. Verify compatibility with
+    Expo SDK 53. Run pnpm install to update pnpm-lock.yaml.
+  actor: agent
+  inputs:
+  - mobile/package.json
+  - expo-background-task installation guide
+  outputs:
+  - mobile/package.json (expo-background-task dependency)
+  - pnpm-lock.yaml
+  definition_of_done:
+  - expo-background-task dependency added to mobile/package.json
+  - pnpm install completes successfully
+  estimate: S
+  expected_files_touched:
+  - mobile/package.json
+  - pnpm-lock.yaml
+- id: 3
+  title: Configure camera permissions in app.json
+  details: >-
+    Add camera permissions for iOS (NSCameraUsageDescription) and Android
+    (android.permissions.CAMERA) in mobile/app.json. Follow VisionCamera
+    permission setup guide.
+  actor: agent
+  inputs:
+  - mobile/app.json
+  - VisionCamera permission setup guide
+  outputs:
+  - mobile/app.json (camera permissions)
+  definition_of_done:
+  - iOS NSCameraUsageDescription configured
+  - Android CAMERA permission configured
+  estimate: S
+  expected_files_touched:
+  - mobile/app.json
+- id: 4
+  title: Configure background task entitlements in app.json
+  details: >-
+    Add background task entitlements for iOS (UIBackgroundModes: processing,
+    fetch) and Android (WorkManager configuration) in mobile/app.json. Follow
+    expo-background-task setup guide.
+  actor: agent
+  inputs:
+  - mobile/app.json
+  - expo-background-task setup guide
+  outputs:
+  - mobile/app.json (background task entitlements)
+  definition_of_done:
+  - iOS UIBackgroundModes configured for background tasks
+  - Android WorkManager configuration added
+  estimate: S
+  expected_files_touched:
+  - mobile/app.json
+- id: 5
+  title: Verify typecheck passes with new dependencies
+  details: >-
+    Run pnpm turbo run typecheck --filter=photoeditor-mobile to verify no type
+    errors introduced by new dependencies. Ensure standards/typescript.md strict
+    config remains satisfied.
+  actor: agent
+  inputs:
+  - mobile/tsconfig.json
+  - standards/typescript.md
+  outputs:
+  - Command output: typecheck passes
+  definition_of_done:
+  - Typecheck passes with no errors
+  - TypeScript strict mode still enabled per standards/typescript.md
+  estimate: S
+  expected_files_touched: []
+
+validation:
+  pipeline:
+  - command: pnpm turbo run lint:fix --filter=photoeditor-mobile
+    description: Auto-fix linting issues in mobile package
+  - command: pnpm turbo run qa:static --filter=photoeditor-mobile
+    description: Run static analysis (typecheck + lint) on mobile
+  manual_checks:
+  - Verify pnpm install completes without errors
+  - Verify camera permissions appear in app.json
+  - Verify background task entitlements appear in app.json
+
+acceptance_criteria:
+  must:
+  - VisionCamera, Skia, expo-background-task, and Reanimated dependencies 
+    installed
+  - Camera permissions configured in app.json for iOS and Android
+  - Background task entitlements configured in app.json for iOS and Android
+  - pnpm install completes successfully
+  - pnpm turbo run qa:static --filter=photoeditor-mobile passes
+  quality_gates:
+  - No type errors introduced by new dependencies
+  - TypeScript strict mode remains enabled per standards/typescript.md
+
+artifacts:
+- path: mobile/package.json
+  description: VisionCamera, Skia, expo-background-task, Reanimated dependencies
+- path: mobile/app.json
+  description: Camera permissions and background task entitlements
+
+deliverables:
+- mobile/package.json (VisionCamera, Skia, expo-background-task, Reanimated 
+  dependencies)
+- mobile/app.json (camera permissions, background task entitlements)
+- pnpm-lock.yaml
+
+risks:
+- description: Version incompatibility between VisionCamera/Skia and Expo SDK 53
+  mitigation: Verify compatibility matrix, test typecheck and build before 
+    proceeding to implementation
+- description: Permission configuration may differ between Expo SDK versions
+  mitigation: Follow official Expo SDK 53 documentation for permission setup

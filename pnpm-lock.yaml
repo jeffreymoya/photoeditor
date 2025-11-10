@@ -237,6 +237,9 @@ importers:
       '@shopify/flash-list':
         specifier: '2'
         version: 2.2.0(@babel/runtime@7.28.4)(react-native@0.79.3)(react@19.0.0)
+      '@shopify/react-native-skia':
+        specifier: ^2.0.0
+        version: 2.3.10(react-native-reanimated@3.10.1)(react-native@0.79.3)(react@19.0.0)
       '@tamagui/button':
         specifier: ^1.0.0
         version: 1.136.8(react-dom@19.0.0)(react-native@0.79.3)(react@19.0.0)
@@ -264,6 +267,9 @@ importers:
       expo-av:
         specifier: ~14.0.7
         version: 14.0.7(expo@53.0.23)
+      expo-background-task:
+        specifier: ~1.0.0
+        version: 1.0.8(expo@53.0.23)(react-native@0.79.3)
       expo-camera:
         specifier: ~15.0.16
         version: 15.0.16(expo@53.0.23)
@@ -333,6 +339,9 @@ importers:
       react-native-svg:
         specifier: 15.2.0
         version: 15.2.0(react-native@0.79.3)(react@19.0.0)
+      react-native-vision-camera:
+        specifier: ^4.7.2
+        version: 4.7.2(@shopify/react-native-skia@2.3.10)(react-native-reanimated@3.10.1)(react-native@0.79.3)(react@19.0.0)
       react-native-worklets:
         specifier: ~0.5.2
         version: 0.5.2(@babel/core@7.28.4)(react-native@0.79.3)(react@19.0.0)
@@ -5734,6 +5743,27 @@ packages:
       react-native: 0.79.3(@babel/core@7.28.4)(@types/react@19.0.14)(react@19.0.0)
     dev: false
 
+  /@shopify/react-native-skia@2.3.10(react-native-reanimated@3.10.1)(react-native@0.79.3)(react@19.0.0):
+    resolution: {integrity: sha512-W1NEvkJgOQ+B0v0GUaDbHA32GNakGwvs0KBHN0TAAeVZpc9/hC8ilAMkBkR9I0kUo5L6eO3MgbmhpZ4HoGuWaA==}
+    hasBin: true
+    requiresBuild: true
+    peerDependencies:
+      react: '>=19.0'
+      react-native: '>=0.78'
+      react-native-reanimated: '>=3.19.1'
+    peerDependenciesMeta:
+      react-native:
+        optional: true
+      react-native-reanimated:
+        optional: true
+    dependencies:
+      canvaskit-wasm: 0.40.0
+      react: 19.0.0
+      react-native: 0.79.3(@babel/core@7.28.4)(@types/react@19.0.14)(react@19.0.0)
+      react-native-reanimated: 3.10.1(@babel/core@7.28.4)(react-native@0.79.3)(react@19.0.0)
+      react-reconciler: 0.31.0(react@19.0.0)
+    dev: false
+
   /@sinclair/typebox@0.27.8:
     resolution: {integrity: sha512-+Fj43pSMwJs4KRrH/938Uf+uAELIgVBmQzg/q1YG10djyfA3TnrU8N8XzqCh/okZdszqBQTZf96idMfE5lnwTA==}
 
@@ -8191,6 +8221,10 @@ packages:
       '@xtuc/long': 4.2.2
     dev: true
 
+  /@webgpu/types@0.1.21:
+    resolution: {integrity: sha512-pUrWq3V5PiSGFLeLxoGqReTZmiiXwY3jRkIG5sLLKjyqNxrwm/04b4nw7LSmGWJcKk59XOM/YRTUwOzo4MMlow==}
+    dev: false
+
   /@xmldom/xmldom@0.7.13:
     resolution: {integrity: sha512-lm2GW5PkosIzccsaZIz7tp8cPADSIlIHWDFTR1N0SzfinhhYgeIQjFMz4rYzanCScr3DqQLeomUDArp6MWKm+g==}
     engines: {node: '>=10.0.0'}
@@ -9131,6 +9165,12 @@ packages:
 
   /caniuse-lite@1.0.30001750:
     resolution: {integrity: sha512-cuom0g5sdX6rw00qOoLNSFCJ9/mYIsuSOA+yzpDw8eopiFqcVwQvZHqov0vmEighRxX++cfC0Vg1G+1Iy/mSpQ==}
+
+  /canvaskit-wasm@0.40.0:
+    resolution: {integrity: sha512-Od2o+ZmoEw9PBdN/yCGvzfu0WVqlufBPEWNG452wY7E9aT8RBE+ChpZF526doOlg7zumO4iCS+RAeht4P0Gbpw==}
+    dependencies:
+      '@webgpu/types': 0.1.21
+    dev: false
 
   /chalk@2.4.2:
     resolution: {integrity: sha512-Mti+f9lpJNcwF4tWV8/OrTTtF1gZi+f8FqlyAdouralcFWFQWF2+NgCHShjkCb+IFBLq9buZwE1xckQU4peSuQ==}
@@ -11270,6 +11310,17 @@ packages:
       expo: 53.0.23(@babel/core@7.28.4)(react-native@0.79.3)(react@19.0.0)
     dev: false
 
+  /expo-background-task@1.0.8(expo@53.0.23)(react-native@0.79.3):
+    resolution: {integrity: sha512-G6WnljBhO0K9j0ntmytF5rZLtYUpwh8n2+hcgmxM1ISPAVVZSPHZhkF9YjBOKpdPWZxmukBgEwejfcGckb8TQQ==}
+    peerDependencies:
+      expo: '*'
+    dependencies:
+      expo: 53.0.23(@babel/core@7.28.4)(react-native@0.79.3)(react@19.0.0)
+      expo-task-manager: 14.0.8(expo@53.0.23)(react-native@0.79.3)
+    transitivePeerDependencies:
+      - react-native
+    dev: false
+
   /expo-camera@15.0.16(expo@53.0.23):
     resolution: {integrity: sha512-FLE02DMqkjwsb7IugKAqQvBe6s+TCQeb5LupO1+r//wAhBwmHncOrc6zV95ZEC2f9PTPK34nFH/s8CDGiVzIAA==}
     peerDependencies:
@@ -11600,6 +11651,17 @@ packages:
 
   /expo-status-bar@1.12.1:
     resolution: {integrity: sha512-/t3xdbS8KB0prj5KG5w7z+wZPFlPtkgs95BsmrP/E7Q0xHXTcDcQ6Cu2FkFuRM+PKTb17cJDnLkawyS5vDLxMA==}
+    dev: false
+
+  /expo-task-manager@14.0.8(expo@53.0.23)(react-native@0.79.3):
+    resolution: {integrity: sha512-HxhyvmulM8px+LQvqIKS85KVx2UodZf5RO+FE2ltpC4mQ5IFkX/ESqiK0grzDa4pVFLyxvs8LjuUKsfB5c39PQ==}
+    peerDependencies:
+      expo: '*'
+      react-native: '*'
+    dependencies:
+      expo: 53.0.23(@babel/core@7.28.4)(react-native@0.79.3)(react@19.0.0)
+      react-native: 0.79.3(@babel/core@7.28.4)(@types/react@19.0.14)(react@19.0.0)
+      unimodules-app-loader: 6.0.7
     dev: false
 
   /expo-updates-interface@0.16.2(expo@53.0.23):
@@ -16400,6 +16462,28 @@ packages:
     resolution: {integrity: sha512-Ns7Bn9H/Tyw278+5SQx9oAblDZ7JixyzeOczcBK8dipQk2pD7Djkcfnf1nB/8RErAmMLL9iXgW0QHqiII8AhKw==}
     dev: true
 
+  /react-native-vision-camera@4.7.2(@shopify/react-native-skia@2.3.10)(react-native-reanimated@3.10.1)(react-native@0.79.3)(react@19.0.0):
+    resolution: {integrity: sha512-C+5PvlSunN6I4aYplSask+v3jfhgduZumIVw6H6lG+Afpf8boIcG3uFSsSfVgj+hxI7fx6qM6bsciEhzgxEUYg==}
+    peerDependencies:
+      '@shopify/react-native-skia': '*'
+      react: '*'
+      react-native: '*'
+      react-native-reanimated: '*'
+      react-native-worklets-core: '*'
+    peerDependenciesMeta:
+      '@shopify/react-native-skia':
+        optional: true
+      react-native-reanimated:
+        optional: true
+      react-native-worklets-core:
+        optional: true
+    dependencies:
+      '@shopify/react-native-skia': 2.3.10(react-native-reanimated@3.10.1)(react-native@0.79.3)(react@19.0.0)
+      react: 19.0.0
+      react-native: 0.79.3(@babel/core@7.28.4)(@types/react@19.0.14)(react@19.0.0)
+      react-native-reanimated: 3.10.1(@babel/core@7.28.4)(react-native@0.79.3)(react@19.0.0)
+    dev: false
+
   /react-native-web@0.20.0(react-dom@19.0.0)(react@19.0.0):
     resolution: {integrity: sha512-OOSgrw+aON6R3hRosCau/xVxdLzbjEcsLysYedka0ZON4ZZe6n9xgeN9ZkoejhARM36oTlUgHIQqxGutEJ9Wxg==}
     peerDependencies:
@@ -16500,6 +16584,16 @@ packages:
       - bufferutil
       - supports-color
       - utf-8-validate
+
+  /react-reconciler@0.31.0(react@19.0.0):
+    resolution: {integrity: sha512-7Ob7Z+URmesIsIVRjnLoDGwBEG/tVitidU0nMsqX/eeJaLY89RISO/10ERe0MqmzuKUUB1rmY+h1itMbUHg9BQ==}
+    engines: {node: '>=0.10.0'}
+    peerDependencies:
+      react: ^19.0.0
+    dependencies:
+      react: 19.0.0
+      scheduler: 0.25.0
+    dev: false
 
   /react-redux@9.2.0(@types/react@19.0.14)(react@19.0.0)(redux@5.0.1):
     resolution: {integrity: sha512-ROY9fvHhwOD9ySfrF0wmvu//bKCQ6AeZZq1nJNtbDC+kk5DuSuNX/n6YWYF/SYy7bSba4D4FSz8DJeKY/S/r+g==}
@@ -18349,6 +18443,10 @@ packages:
   /unicode-property-aliases-ecmascript@2.2.0:
     resolution: {integrity: sha512-hpbDzxUY9BFwX+UeBnxv3Sh1q7HFxj48DTmXchNgRa46lO8uj3/1iEn3MiNUYTg1g9ctIqXCCERn8gYZhHC5lQ==}
     engines: {node: '>=4'}
+
+  /unimodules-app-loader@6.0.7:
+    resolution: {integrity: sha512-23iwxmh6/y54PRGJt/xjsOpPK8vlfusBisi3yaVSK22pxg5DmiL/+IHCtbb/crHC+gqdItcy1OoRsZQHfNSBaw==}
+    dev: false
 
   /unique-string@1.0.0:
     resolution: {integrity: sha512-ODgiYu03y5g76A1I9Gt0/chLCzQjvzDy7DsZGsLOE/1MrF6wriEskSncj1+/C58Xk/kPZDppSctDybCwOSaGAg==}

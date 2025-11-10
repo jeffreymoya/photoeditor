@@ -1,0 +1,238 @@
+schema_version: "1.1"
+id: TASK-0913
+title: "Restore imageProcessing.service coverage gates"
+status: completed
+blocked_reason:
+priority: P1
+area: backend
+unblocker: true
+order:
+blocked_by: []
+depends_on: []
+agent_completion_state:
+  task_implementer:
+    completed: true
+    timestamp: "2025-11-10T00:00:00.000Z"
+    summary_path: ".agent-output/TASK-0913-implementation-summary.md"
+    notes: "Coverage gates restored: 100% lines, 93.33% branches. HttpClient interface
+      added. 9 comprehensive tests created."
+  implementation_reviewer:
+    completed: true
+    timestamp: "2025-11-10T01:30:00.000Z"
+    summary_path: ".agent-output/implementation-reviewer-summary-TASK-0913.md"
+    notes: "Review COMPLETE. 0 corrections, 0 improvements, 0 deprecated removals.
+      All standards compliant. Recommendation: PROCEED."
+  test_validation_backend:
+    completed: true
+    timestamp: "2025-11-10T03:00:00.000Z"
+    summary_path: "docs/tests/reports/2025-11-10-validation-backend.md"
+    notes: "Validation PASS. All acceptance criteria met: Lines 100% (70% baseline),
+      Branches 93.33% (60% baseline). Unit tests 9/9 passing. Static analysis PASS.
+      No regressions detected."
+clarifications:
+  outstanding: []
+  resolved:
+  - Use baseline coverage thresholds (70% lines, 60% branches) per 
+    testing-standards.md, not higher thresholds.
+  - Cover both provider success and fallback paths in editAndFinalizeImage() 
+    with equal rigor.
+  - Introduce injectable HttpClient interface for fetch() instead of stubbing 
+    global, following DI pattern.
+  - Cover critical batch job paths (success/completion), defer error edge cases 
+    to future work.
+  evidence_path: "docs/evidence/tasks/TASK-0913-clarifications.md"
+description: >-
+  On 2025-11-09 the backend package failed Jest coverage checks because
+  `backend/src/services/imageProcessing.service.ts` reported 4.54% statements/lines
+  and
+  0% branches/functions, far below the enforced baseline thresholds (≥70% lines, ≥60%
+  branches per standards/testing-standards.md). This task designs deterministic unit
+  tests
+  and supporting seams so the orchestration service meets PhotoEditor's coverage standards
+  while documenting the evidence trail for future audits.
+outcome: >-
+  ImageProcessing Orchestration Service owns comprehensive unit tests that cover success,
+  fallback, and batch-notification paths, raising lines to ≥70% and branches to ≥60%
+  per
+  standards/testing-standards.md baseline; coverage evidence and clarifications are
+  archived and the backend qa pipelines run cleanly.
+scope:
+  in:
+  - backend/src/services/imageProcessing.service.ts
+  - backend/tests/unit/services/imageProcessing.service.test.ts (or new 
+    colocated spec)
+  - docs/evidence/coverage-reports/TASK-0913-image-processing-service.md
+  - docs/evidence/tasks/TASK-0913-clarifications.md
+  out:
+  - Changes to Lambda handlers (`backend/src/lambdas/*`) beyond wiring the 
+    service into tests
+  - Provider implementation changes (`backend/src/providers/*`) unless new seams
+    are required
+  - Infrastructure or deployment artefacts under `infra/` or `infrastructure/`
+context:
+  affected_packages: [backend]
+  standards_tier: backend
+  related_docs:
+  - standards/global.md
+  - standards/AGENTS.md
+  - standards/testing-standards.md
+  - standards/backend-tier.md
+  - standards/typescript.md
+  - standards/qa-commands-ssot.md
+  - ARCHITECTURE.md
+  repo_paths:
+  - backend/src/services/imageProcessing.service.ts
+  - backend/tests/unit/services/imageProcessing.service.test.ts
+  - docs/evidence/coverage-reports/TASK-0913-image-processing-service.md
+  - docs/evidence/tasks/TASK-0913-clarifications.md
+  dependencies: []
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+  - name: pnpm
+    version: "8.x"
+  data: []
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+  - Keep diffs minimal and focused on the described scope.
+  - Follow repository standards referenced above.
+  prohibited:
+  - No secrets or credentials in source control.
+plan:
+- id: 1
+  title: Capture coverage gaps and standards context
+  details: >-
+    Review `backend/src/services/imageProcessing.service.ts`, the failing Jest report,
+    and
+    standards/backend-tier.md#domain-service-layer + standards/testing-standards.md#coverage-expectations
+    to catalogue the uncovered branches (success path, provider fallback, batch notifications).
+    Record open questions and decisions in the clarifications evidence file before
+    exiting draft state.
+  actor: agent
+  inputs:
+  - backend/src/services/imageProcessing.service.ts
+  - docs/evidence/tasks/TASK-0913-clarifications.md
+  - standards/backend-tier.md#domain-service-layer
+  - standards/testing-standards.md#coverage-expectations
+  outputs:
+  - docs/evidence/tasks/TASK-0913-clarifications.md
+  definition_of_done:
+  - Clarifications note specific uncovered flows and cite 
+    standards/backend-tier.md#domain-service-layer plus 
+    standards/testing-standards.md#coverage-expectations as the governing rules.
+  estimate: S
+  expected_files_touched:
+  - docs/evidence/tasks/TASK-0913-clarifications.md
+- id: 2
+  title: Add deterministic service seams and tests
+  details: >-
+    Design pure seams or spies for JobService, S3Service, NotificationService, ProviderFactory,
+    and fetch
+    so ImageProcessing Orchestration Service can be tested without external IO. Implement
+    targeted unit tests
+    covering success, editing fallback, and batch updates, keeping logic compliant
+    with standards/backend-tier.md#domain-service-layer
+    and analyzable per standards/typescript.md#3-analyzability.
+  actor: agent
+  inputs:
+  - backend/src/services/imageProcessing.service.ts
+  - backend/tests/unit/services
+  - standards/backend-tier.md#domain-service-layer
+  - standards/typescript.md#3-analyzability
+  outputs:
+  - backend/src/services/imageProcessing.service.ts
+  - backend/tests/unit/services/imageProcessing.service.test.ts
+  definition_of_done:
+  - Implementation documents seams with comments referencing 
+    standards/backend-tier.md#domain-service-layer responsibility notes and 
+    keeps logic analyzable per standards/typescript.md#3-analyzability.
+  - New/updated tests assert success + fallback + batch notification flows and 
+    encode provider expectations without real network calls.
+  estimate: M
+  expected_files_touched:
+  - backend/src/services/imageProcessing.service.ts
+  - backend/tests/unit/services/imageProcessing.service.test.ts
+- id: 3
+  title: Run QA commands and archive coverage evidence
+  details: >-
+    Execute the backend package QA sequence from standards/qa-commands-ssot.md#package-scoped-preferred-for-agents-and-focused-work,
+    ensure coverage meets standards/testing-standards.md#coverage-expectations, and
+    capture the before/after summary in
+    docs/evidence/coverage-reports/TASK-0913-image-processing-service.md with links
+    back to this task.
+  actor: agent
+  inputs:
+  - docs/evidence/tasks/TASK-0913-clarifications.md
+  - backend/src/services/imageProcessing.service.ts
+  - backend/tests/unit/services/imageProcessing.service.test.ts
+  outputs:
+  - docs/evidence/coverage-reports/TASK-0913-image-processing-service.md
+  - docs/evidence/tasks/TASK-0913-clarifications.md
+  definition_of_done:
+  - QA command logs show `pnpm turbo run lint:fix`, `qa:static`, `test`, 
+    `test:coverage`, and `test:contract` passing for @photoeditor/backend.
+  - Coverage report cites standards/testing-standards.md#coverage-expectations 
+    and records ≥70% lines, ≥60% branches for the service per baseline 
+    thresholds.
+  estimate: S
+  expected_files_touched:
+  - docs/evidence/coverage-reports/TASK-0913-image-processing-service.md
+  - docs/evidence/tasks/TASK-0913-clarifications.md
+validation:
+  pipeline:
+  - command: pnpm turbo run lint:fix --filter=@photoeditor/backend
+    description: Auto-fix linting issues in backend package before static 
+      analysis (per 
+      standards/qa-commands-ssot.md#package-scoped-preferred-for-agents-and-focused-work).
+  - command: pnpm turbo run qa:static --filter=@photoeditor/backend
+    description: Run backend static analysis (typecheck, lint, domain purity) to
+      satisfy standards/backend-tier.md layering rules.
+  - command: pnpm turbo run test --filter=@photoeditor/backend
+    description: Execute backend unit tests to guard service contracts ahead of 
+      coverage enforcement.
+  - command: pnpm turbo run test:coverage --filter=@photoeditor/backend
+    description: Run backend tests with coverage output to verify ≥70% lines, 
+      ≥60% branches per standards/testing-standards.md#coverage-expectations 
+      baseline.
+  - command: pnpm turbo run test:contract --filter=@photoeditor/backend
+    description: Re-run backend contract tests to ensure service changes keep 
+      API promises intact.
+  manual_checks: []
+acceptance_criteria:
+  must:
+  - Jest thresholds for `backend/src/services/imageProcessing.service.ts` meet 
+    or exceed Lines ≥70%, Branches ≥60% per standards/testing-standards.md 
+    baseline, with proof in 
+    docs/evidence/coverage-reports/TASK-0913-image-processing-service.md.
+  - Unit tests cover provider success, editing fallback, and batch-notification 
+    paths without relying on real S3 or HTTP calls, demonstrating compliance 
+    with standards/backend-tier.md#domain-service-layer.
+  - HttpClient interface introduced and injected via constructor to enable 
+    deterministic fetch mocking per standards/typescript.md#3-analyzability.
+  quality_gates:
+  - Affected standards references remain satisfied; note any deviations and link
+    the follow-up standards change request.
+  - No lint/type errors in affected packages.
+artifacts:
+- path: docs/evidence/coverage-reports/TASK-0913-image-processing-service.md
+  description: Coverage before/after summary and command output excerpts proving
+    the thresholds.
+- path: docs/evidence/tasks/TASK-0913-clarifications.md
+  description: Decisions and answers to outstanding questions required before 
+    leaving draft status.
+deliverables:
+- backend/src/services/imageProcessing.service.ts
+- backend/tests/unit/services/imageProcessing.service.test.ts
+- docs/evidence/coverage-reports/TASK-0913-image-processing-service.md
+- docs/evidence/tasks/TASK-0913-clarifications.md
+risks:
+- description: Network-bound behaviour in tests may introduce flakiness or slow 
+    suites if global fetch/S3 interactions are not stubbed.
+  mitigation: Inject or mock fetch/S3 interactions with deterministic buffers 
+    per standards/typescript.md#3-analyzability so tests run in-memory.

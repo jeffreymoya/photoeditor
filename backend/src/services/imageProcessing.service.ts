@@ -25,6 +25,14 @@ import { NotificationService } from './notification.service';
 import { S3Service } from './s3.service';
 
 /**
+ * HttpClient interface for fetch operations
+ * Injected to enable deterministic testing per standards/typescript.md#analyzability
+ */
+export interface HttpClient {
+  fetch(url: string): Promise<Response>;
+}
+
+/**
  * Parsed S3 event containing upload information
  */
 export interface ParsedS3Event {
@@ -54,7 +62,8 @@ export class ImageProcessingOrchestrationService {
     private readonly jobService: JobService,
     private readonly s3Service: S3Service,
     private readonly notificationService: NotificationService,
-    private readonly providerFactory: ProviderFactory
+    private readonly providerFactory: ProviderFactory,
+    private readonly httpClient: HttpClient = { fetch: (url: string) => fetch(url) }
   ) {}
 
   /**
@@ -180,7 +189,7 @@ export class ImageProcessingOrchestrationService {
 
     if (editedImageResult.success && editedImageData?.editedImageUrl) {
       // Fetch and upload edited image
-      const editedImageResponse = await fetch(editedImageData.editedImageUrl);
+      const editedImageResponse = await this.httpClient.fetch(editedImageData.editedImageUrl);
       const editedImageBuffer = await editedImageResponse.arrayBuffer();
 
       await this.s3Service.uploadObject(

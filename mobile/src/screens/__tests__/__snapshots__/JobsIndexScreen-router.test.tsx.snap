@@ -179,7 +179,7 @@ exports[`JobsIndexScreen should apply correct styling 1`] = `
                   suppressHighlighting={true}
                 >
                   Created: 
-                  11/9/2025
+                  11/1/2025
                 </Text>
               </View>
             </View>
@@ -293,7 +293,7 @@ exports[`JobsIndexScreen should apply correct styling 1`] = `
                   suppressHighlighting={true}
                 >
                   Created: 
-                  11/9/2025
+                  11/2/2025
                 </Text>
               </View>
             </View>
@@ -407,7 +407,7 @@ exports[`JobsIndexScreen should apply correct styling 1`] = `
                   suppressHighlighting={true}
                 >
                   Created: 
-                  11/9/2025
+                  11/3/2025
                 </Text>
               </View>
             </View>

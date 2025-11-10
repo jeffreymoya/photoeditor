@@ -20,6 +20,15 @@ jest.mock('@/lib/upload/preprocessing');
 const mockNetwork = networkModule as jest.Mocked<typeof networkModule>;
 const mockPreprocessing = preprocessingModule as jest.Mocked<typeof preprocessingModule>;
 
+const renderUploadHook = async (options?: Parameters<typeof useUpload>[0]) => {
+  const rendered = renderHook(() => useUpload(options));
+  // Flush pending microtasks (initial getNetworkStatus resolution) inside act
+  await act(async () => {
+    await Promise.resolve();
+  });
+  return rendered;
+};
+
 describe('useUpload', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -50,8 +59,8 @@ describe('useUpload', () => {
   });
 
   describe('initial state', () => {
-    it('should initialize with idle status', () => {
-      const { result } = renderHook(() => useUpload());
+    it('should initialize with idle status', async () => {
+      const { result } = await renderUploadHook();
 
       expect(result.current.progress.status).toBe(UploadStatus.IDLE);
       expect(result.current.progress.progress).toBe(0);
@@ -59,7 +68,7 @@ describe('useUpload', () => {
     });
 
     it('should subscribe to network status on mount', async () => {
-      renderHook(() => useUpload());
+      await renderUploadHook();
 
       await waitFor(() => {
         expect(mockNetwork.subscribeToNetworkStatus).toHaveBeenCalled();
@@ -94,12 +103,10 @@ describe('useUpload', () => {
       const onProgress = jest.fn();
       const onSuccess = jest.fn();
 
-      const { result } = renderHook(() =>
-        useUpload({
-          onProgress,
-          onSuccess,
-        })
-      );
+      const { result } = await renderUploadHook({
+        onProgress,
+        onSuccess,
+      });
 
       let uploadPromise: Promise<unknown>;
 
@@ -143,7 +150,7 @@ describe('useUpload', () => {
 
       const onProgress = jest.fn();
 
-      const { result } = renderHook(() => useUpload({ onProgress }));
+      const { result } = await renderUploadHook({ onProgress });
 
       await act(async () => {
         await result.current.upload(
@@ -177,7 +184,7 @@ describe('useUpload', () => {
 
       const onError = jest.fn();
 
-      const { result } = renderHook(() => useUpload({ onError, maxRetries: 1 }));
+      const { result } = await renderUploadHook({ onError, maxRetries: 1 });
 
       await act(async () => {
         await expect(
@@ -217,7 +224,7 @@ describe('useUpload', () => {
 
       const onError = jest.fn();
 
-      const { result } = renderHook(() => useUpload({ onError, maxRetries: 1 }));
+      const { result } = await renderUploadHook({ onError, maxRetries: 1 });
 
       await act(async () => {
         await expect(
@@ -239,7 +246,7 @@ describe('useUpload', () => {
 
       const onError = jest.fn();
 
-      const { result } = renderHook(() => useUpload({ onError }));
+      const { result } = await renderUploadHook({ onError });
 
       await act(async () => {
         await expect(
@@ -287,9 +294,7 @@ describe('useUpload', () => {
 
       const onProgress = jest.fn();
 
-      const { result } = renderHook(() =>
-        useUpload({ onProgress, maxRetries: 3 })
-      );
+      const { result } = await renderUploadHook({ onProgress, maxRetries: 3 });
 
       await act(async () => {
         await result.current.upload(
@@ -317,9 +322,7 @@ describe('useUpload', () => {
 
       const onProgress = jest.fn();
 
-      const { result } = renderHook(() =>
-        useUpload({ onProgress, maxRetries: 2 })
-      );
+      const { result } = await renderUploadHook({ onProgress, maxRetries: 2 });
 
       await act(async () => {
         await expect(
@@ -346,7 +349,7 @@ describe('useUpload', () => {
         return jest.fn();
       });
 
-      renderHook(() => useUpload());
+      await renderUploadHook();
 
       // Simulate network disconnection
       await act(async () => {
@@ -371,7 +374,7 @@ describe('useUpload', () => {
         return jest.fn();
       });
 
-      renderHook(() => useUpload({ allowMetered: false }));
+      await renderUploadHook({ allowMetered: false });
 
       // Simulate switch to metered connection while uploading
       await act(async () => {
@@ -391,7 +394,7 @@ describe('useUpload', () => {
 
   describe('manual pause/resume', () => {
     it('should pause upload when pause is called', async () => {
-      const { result } = renderHook(() => useUpload());
+      const { result } = await renderUploadHook();
 
       // Simulate being in uploading state
       await act(async () => {
@@ -414,7 +417,7 @@ describe('useUpload', () => {
         type: NetInfoStateType.wifi,
       });
 
-      const { result } = renderHook(() => useUpload());
+      const { result } = await renderUploadHook();
 
       // Set to paused state
       await act(async () => {
@@ -463,7 +466,7 @@ describe('useUpload', () => {
       // Mock S3 upload - will hang to allow pause
       mockFetch.mockImplementationOnce(() => new Promise(() => {}));
 
-      const { result } = renderHook(() => useUpload());
+      const { result } = await renderUploadHook();
 
       // Start upload (but don't await - let it hang on the S3 upload)
       await act(async () => {
@@ -509,7 +512,7 @@ describe('useUpload', () => {
 
   describe('reset functionality', () => {
     it('should reset upload state to idle', async () => {
-      const { result } = renderHook(() => useUpload());
+      const { result } = await renderUploadHook();
 
       // Set to error state
       await act(async () => {
@@ -554,7 +557,7 @@ describe('useUpload', () => {
         progressValues.push(progress.progress);
       });
 
-      const { result } = renderHook(() => useUpload({ onProgress }));
+      const { result } = await renderUploadHook({ onProgress });
 
       await act(async () => {
         await result.current.upload(
@@ -594,7 +597,7 @@ describe('useUpload', () => {
         ok: true,
       });
 
-      const { result } = renderHook(() => useUpload());
+      const { result } = await renderUploadHook();
 
       let uploadResult;
       await act(async () => {

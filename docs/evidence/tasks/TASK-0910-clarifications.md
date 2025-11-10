@@ -54,9 +54,32 @@ Documentation for future reference:
 - If Legend List needed in future, refer to official docs for recycling safeguards
 - FlashList v2 handles recycling automatically with Fabric-native views
 
+## Implementation Findings (2025-11-10)
+
+**Current State Audit:**
+- GalleryScreen.tsx: Placeholder screen with no list implementation
+- JobsScreen.tsx: Placeholder screen with no list implementation
+- No notification feed screen currently exists
+- No existing FlatList usage found in mobile/src/screens/ or mobile/src/components/
+
+**Revised Approach:**
+Given no existing FlatList implementations exist, this task will:
+1. Install FlashList v2 as planned
+2. Implement representative examples in Gallery and Jobs screens demonstrating:
+   - Masonry layout pattern (Gallery)
+   - Standard vertical list pattern (Jobs)
+   - Proper TypeScript typing for FlashList v2
+   - Performance characteristics documentation
+3. Create usage pattern documentation for future feature implementations
+4. Defer notification feed implementation (no screen exists yet)
+
+**Scope Adjustment:**
+This is effectively a "greenfield" FlashList v2 adoption task rather than a migration task. The deliverable is proof-of-concept implementations and usage patterns that future feature work can reference.
+
 ## Notes
 
-- This task replaces FlatList with FlashList v2 (Fabric-native) for all three surfaces
+- This task adopts FlashList v2 (Fabric-native) for placeholder screens
 - Blocked by TASK-0907 (FlashList v2 requires Fabric/New Architecture enablement)
-- Focus on gallery (masonry), job history (scrollToIndex), and notification feed (dynamic sizing)
+- Focus on gallery (masonry pattern demo) and jobs (standard list pattern demo)
 - Legend List deferred as bridge-compatible fallback not needed with Fabric ready
+- Notification feed implementation deferred (screen doesn't exist yet)

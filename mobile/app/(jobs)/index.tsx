@@ -14,28 +14,29 @@ import { JobCard, JobsHeader } from '@/components/jobs';
  * Implements file-based routing per standards/frontend-tier.md#feature-guardrails
  * with theme-aware styling that renders identically on iOS and Android.
  */
+const mockJobs = [
+  {
+    id: 'job-001',
+    title: 'Beach Sunset Enhancement',
+    status: 'completed' as const,
+    createdAt: '2025-11-01T12:00:00.000Z',
+  },
+  {
+    id: 'job-002',
+    title: 'Portrait Background Removal',
+    status: 'processing' as const,
+    createdAt: '2025-11-02T12:00:00.000Z',
+  },
+  {
+    id: 'job-003',
+    title: 'Product Photo Color Correction',
+    status: 'pending' as const,
+    createdAt: '2025-11-03T12:00:00.000Z',
+  },
+];
+
 export const JobsIndexScreen = () => {
   // TODO: Replace with actual Redux state or API data
-  const mockJobs = [
-    {
-      id: 'job-001',
-      title: 'Beach Sunset Enhancement',
-      status: 'completed' as const,
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: 'job-002',
-      title: 'Portrait Background Removal',
-      status: 'processing' as const,
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: 'job-003',
-      title: 'Product Photo Color Correction',
-      status: 'pending' as const,
-      createdAt: new Date().toISOString(),
-    },
-  ];
 
   return (
     <SafeAreaView style={{ flex: 1 }}>

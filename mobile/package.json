@@ -41,6 +41,7 @@
     "@react-navigation/native": "^6.1.9",
     "@react-navigation/stack": "^6.3.20",
     "@reduxjs/toolkit": "^2.0.1",
+    "@shopify/flash-list": "2",
     "@tamagui/button": "^1.0.0",
     "@tamagui/core": "^1.0.0",
     "@tamagui/input": "^1.0.0",

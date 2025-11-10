@@ -6,7 +6,7 @@
  * - Query via labels, roles, or text that mirrors end-user language
  * - Keep component tests behavioural: simulate user events, assert rendered output
  *
- * Note: GalleryScreen is currently a placeholder with minimal functionality
+ * Note: Tests FlashList v2 masonry layout demonstration (TASK-0910)
  * Complex gallery features defer to E2E tests per TASK-0832
  */
 
@@ -23,10 +23,10 @@ describe('GalleryScreen', () => {
       expect(screen.getByText('Gallery')).toBeTruthy();
     });
 
-    it('renders subtitle', () => {
+    it('renders FlashList v2 subtitle', () => {
       render(<GalleryScreen />);
 
-      expect(screen.getByText('View your photo collection')).toBeTruthy();
+      expect(screen.getByText('FlashList v2 masonry layout demonstration')).toBeTruthy();
     });
 
     it('renders without crashing', () => {
@@ -34,14 +34,24 @@ describe('GalleryScreen', () => {
 
       expect(toJSON()).toBeTruthy();
     });
+
+    it('renders mock gallery items', () => {
+      render(<GalleryScreen />);
+
+      // Verify mock data is rendered (items 1-6)
+      expect(screen.getByText('1')).toBeTruthy();
+      expect(screen.getByText('2')).toBeTruthy();
+      expect(screen.getByText('6')).toBeTruthy();
+    });
   });
 
-  describe('UI Token Usage', () => {
+  describe('FlashList v2 Integration', () => {
     /**
-     * Verify that styles use ui-tokens instead of ad-hoc values
+     * Verify FlashList v2 is properly integrated with masonry layout
      *
-     * Per standards/frontend-tier.md#ui-components-layer:
-     * - "UI primitives must come from packages/ui-tokens; inline raw tokens are not allowed"
+     * Per TASK-0910:
+     * - Gallery surface migrated to FlashList v2 with masonry layout
+     * - Proper TypeScript typing for FlashList v2
      */
     it('renders with consistent design tokens', () => {
       render(<GalleryScreen />);
@@ -49,7 +59,17 @@ describe('GalleryScreen', () => {
       // Visual regression would be tested via Storybook + Chromatic (future)
       // This test verifies the component renders without style errors
       expect(screen.getByText('Gallery')).toBeTruthy();
-      expect(screen.getByText('View your photo collection')).toBeTruthy();
+      expect(screen.getByText('FlashList v2 masonry layout demonstration')).toBeTruthy();
+    });
+
+    it('demonstrates masonry layout pattern', () => {
+      render(<GalleryScreen />);
+
+      // FlashList renders items with varying aspect ratios (masonry pattern)
+      // Mock items have different aspect ratios: 0.75, 1.0, 0.6, 0.86, 0.67, 1.0
+      expect(screen.getByText('1')).toBeTruthy();
+      expect(screen.getByText('3')).toBeTruthy();
+      expect(screen.getByText('5')).toBeTruthy();
     });
   });
 

@@ -9,7 +9,7 @@ priority: P2
 area: mobile
 unblocker: false
 order: 5
-blocked_by: [TASK-0911B, TASK-0911D]
+blocked_by: [TASK-0911D]
 depends_on: [TASK-0906]
 agent_completion_state: {}
 

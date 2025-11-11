@@ -3,8 +3,8 @@
 schema_version: "1.1"
 id: TASK-0911D
 title: "Profile VisionCamera Skia memory leaks and implement mitigations"
-status: todo
-blocked_reason: null
+status: blocked
+blocked_reason: "Requires manual profiling (Xcode Instruments/Android Profiler 5-10min sessions) and Skia canvas integration incomplete (CameraWithOverlay.tsx:128 TODO). See docs/evidence/tasks/TASK-0911D-blocking-analysis.md"
 priority: P2
 area: mobile
 unblocker: false
@@ -35,7 +35,8 @@ outcome: >-
 scope:
   in:
   - Profiling memory usage for Skia frame processors on iOS (Xcode Instruments)
-  - Profiling memory usage for Skia frame processors on Android (Android Profiler)
+  - Profiling memory usage for Skia frame processors on Android (Android 
+    Profiler)
   - Establishing baseline memory usage without Skia
   - Implementing cleanup hooks (useEffect unmount) for frame processors
   - Monitoring long camera sessions (>5 min) for memory growth
@@ -82,7 +83,8 @@ constraints:
   - Implement cleanup hooks per React best practices
   - Document profiling procedures for reproducibility
   prohibited:
-  - Do not implement feature flags or performance monitoring (deferred to TASK-0911E)
+  - Do not implement feature flags or performance monitoring (deferred to 
+    TASK-0911E)
 
 plan:
 - id: 1
@@ -119,7 +121,8 @@ plan:
   - Xcode Instruments documentation
   - Android Profiler documentation
   outputs:
-  - docs/evidence/tasks/TASK-0911-memory-profiling-results.md (Skia metrics and comparison)
+  - docs/evidence/tasks/TASK-0911-memory-profiling-results.md (Skia metrics and 
+    comparison)
   definition_of_done:
   - Skia memory usage recorded for iOS and Android
   - Comparison against baseline documented in evidence file
@@ -185,7 +188,8 @@ plan:
   - Xcode Instruments documentation
   - Android Profiler documentation
   outputs:
-  - docs/evidence/tasks/TASK-0911-memory-profiling-results.md (validation results)
+  - docs/evidence/tasks/TASK-0911-memory-profiling-results.md (validation 
+    results)
   definition_of_done:
   - Long camera sessions (>5 min) profiled after mitigations
   - No significant memory growth confirmed
@@ -214,7 +218,8 @@ acceptance_criteria:
   must:
   - Baseline memory usage established for iOS and Android
   - Skia frame processor memory usage profiled for iOS and Android
-  - Memory leaks identified and mitigations applied (cleanup hooks, upstream fixes)
+  - Memory leaks identified and mitigations applied (cleanup hooks, upstream 
+    fixes)
   - No significant memory growth over extended camera sessions (>5 min)
   - Profiling procedures documented in evidence file
   - pnpm turbo run qa:static --filter=photoeditor-mobile passes
@@ -225,7 +230,8 @@ acceptance_criteria:
 
 artifacts:
 - path: docs/evidence/tasks/TASK-0911-memory-profiling-results.md
-  description: Memory profiling baseline, Skia metrics, mitigations, and validation results
+  description: Memory profiling baseline, Skia metrics, mitigations, and 
+    validation results
 
 deliverables:
 - docs/evidence/tasks/TASK-0911-memory-profiling-results.md
@@ -234,7 +240,11 @@ deliverables:
 - mobile/package.json (if upstream dependency updates applied)
 
 risks:
-- description: Memory leaks may persist despite mitigations if VisionCamera issue #3517 is unresolved
-  mitigation: Document leak rates and severity; escalate to VisionCamera maintainers if critical
-- description: Profiling may be difficult in simulators/emulators vs. real devices
-  mitigation: Focus on relative comparison (baseline vs. Skia) rather than absolute metrics; note limitations in evidence
+- description: Memory leaks may persist despite mitigations if VisionCamera 
+    issue                                                                         #3517 is unresolved
+  mitigation: Document leak rates and severity; escalate to VisionCamera 
+    maintainers if critical
+- description: Profiling may be difficult in simulators/emulators vs. real 
+    devices
+  mitigation: Focus on relative comparison (baseline vs. Skia) rather than 
+    absolute metrics; note limitations in evidence

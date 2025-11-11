@@ -3,15 +3,27 @@
 schema_version: "1.1"
 id: TASK-0911F
 title: "Measure upload success rate and document pilot outcomes"
-status: todo
-blocked_reason: null
+status: completed
+blocked_reason:
 priority: P2
 area: mobile
 unblocker: false
 order: 6
-blocked_by: [TASK-0911C]
+blocked_by: []
 depends_on: [TASK-0906, TASK-0911D, TASK-0911E]
-agent_completion_state: {}
+agent_completion_state:
+  task_implementer:
+    status: complete
+    summary_path: .agent-outputs/TASK-0911F-implementation-summary.md
+    timestamp: "2025-11-11"
+  implementation_reviewer:
+    status: complete
+    summary_path: .agent-outputs/implementation-reviewer-summary-TASK-0911F.md
+    timestamp: "2025-11-11"
+  validation:
+    status: complete
+    report_path: docs/tests/reports/2025-11-11-validation-TASK-0911F.md
+    timestamp: "2025-11-11"
 
 clarifications:
   outstanding: []
@@ -111,10 +123,13 @@ plan:
   - mobile/src/features/upload/backgroundTasks.ts
   - Application logs or analytics
   outputs:
-  - docs/evidence/tasks/TASK-0911-upload-metrics.md (expo-background-task metrics)
+  - docs/evidence/tasks/TASK-0911-upload-metrics.md (expo-background-task 
+    metrics)
   definition_of_done:
-  - expo-background-task success rate, latency (p50/p95), and manual retry rate captured
-  - Sampling methodology matches baseline (1-week period, comparable sample size)
+  - expo-background-task success rate, latency (p50/p95), and manual retry rate 
+    captured
+  - Sampling methodology matches baseline (1-week period, comparable sample 
+    size)
   - Metrics recorded in evidence file
   estimate: M
   expected_files_touched:
@@ -129,12 +144,14 @@ plan:
     significance in evidence file.
   actor: agent
   inputs:
-  - docs/evidence/tasks/TASK-0911-upload-metrics.md (baseline and expo-background-task metrics)
+  - docs/evidence/tasks/TASK-0911-upload-metrics.md (baseline and 
+    expo-background-task metrics)
   outputs:
   - docs/evidence/tasks/TASK-0911-upload-metrics.md (comparison and analysis)
   definition_of_done:
   - Metrics compared with percent change calculated
-  - Targets from clarifications validated (success rate, latency, retry reduction)
+  - Targets from clarifications validated (success rate, latency, retry 
+    reduction)
   - Improvements or regressions documented with statistical significance
   estimate: S
   expected_files_touched:
@@ -178,12 +195,14 @@ plan:
   - mobile/src/features/upload/backgroundTasks.ts
   - mobile/app.json (background task configuration)
   outputs:
-  - docs/mobile/visioncamera-background-task-pilot.md (expo-background-task section)
+  - docs/mobile/visioncamera-background-task-pilot.md (expo-background-task 
+    section)
   definition_of_done:
   - Scheduling strategy documented (immediate dispatch, exponential backoff)
   - Upload metrics comparison included (success rate, latency, retry rate)
   - WorkManager/BGTaskScheduler configuration documented
-  - Platform entitlements documented (iOS UIBackgroundModes, Android WorkManager)
+  - Platform entitlements documented (iOS UIBackgroundModes, Android 
+    WorkManager)
   estimate: M
   expected_files_touched:
   - docs/mobile/visioncamera-background-task-pilot.md
@@ -196,12 +215,14 @@ plan:
     metrics). Ensure standards/global.md evidence bundle completeness.
   actor: agent
   inputs:
-  - docs/mobile/visioncamera-background-task-pilot.md (VisionCamera and expo-background-task sections)
+  - docs/mobile/visioncamera-background-task-pilot.md (VisionCamera and 
+    expo-background-task sections)
   - docs/evidence/tasks/TASK-0911-clarifications.md
   - docs/evidence/tasks/TASK-0911-memory-profiling-results.md
   - docs/evidence/tasks/TASK-0911-upload-metrics.md
   outputs:
-  - docs/mobile/visioncamera-background-task-pilot.md (recommendations and final review)
+  - docs/mobile/visioncamera-background-task-pilot.md (recommendations and final
+    review)
   definition_of_done:
   - Recommendations added (next steps, limitations, rollout plan)
   - All evidence files referenced
@@ -212,7 +233,8 @@ plan:
 
 validation:
   pipeline:
-  - command: bash -c "echo 'Documentation-only task - no code validation required'"
+  - command: bash -c "echo 'Documentation-only task - no code validation 
+      required'"
     description: Documentation-only task (no code changes)
   manual_checks:
   - Review upload baseline metrics for statistical significance
@@ -226,10 +248,14 @@ acceptance_criteria:
   must:
   - Upload baseline metrics captured over 1-week period
   - expo-background-task metrics captured over 1-week period
-  - Metrics comparison documented with percent change and statistical significance
-  - Targets from clarifications validated (success rate ≥baseline, latency within 10%/20%, retry reduction ≥25%)
-  - VisionCamera Skia pilot outcomes documented (overlays, memory, feature flags, permissions)
-  - expo-background-task pilot outcomes documented (scheduling, metrics, entitlements)
+  - Metrics comparison documented with percent change and statistical 
+    significance
+  - Targets from clarifications validated (success rate ≥baseline, latency 
+    within 10%/20%, retry reduction ≥25%)
+  - VisionCamera Skia pilot outcomes documented (overlays, memory, feature 
+    flags, permissions)
+  - expo-background-task pilot outcomes documented (scheduling, metrics, 
+    entitlements)
   - Recommendations added (next steps, limitations, rollout plan)
   - standards/global.md evidence bundle requirements satisfied
   quality_gates:
@@ -241,14 +267,19 @@ artifacts:
 - path: docs/evidence/tasks/TASK-0911-upload-metrics.md
   description: Upload baseline, expo-background-task metrics, and comparison
 - path: docs/mobile/visioncamera-background-task-pilot.md
-  description: VisionCamera Skia and expo-background-task pilot outcomes, recommendations
+  description: VisionCamera Skia and expo-background-task pilot outcomes, 
+    recommendations
 
 deliverables:
 - docs/evidence/tasks/TASK-0911-upload-metrics.md
 - docs/mobile/visioncamera-background-task-pilot.md
 
 risks:
-- description: Upload success rate may not improve if network reliability is the bottleneck
-  mitigation: Focus on retry reliability rather than raw success rate; document baseline carefully
-- description: 1-week sampling may have insufficient sample size for statistical significance
-  mitigation: Document sample size and confidence intervals; extend sampling period if needed
+- description: Upload success rate may not improve if network reliability is the
+    bottleneck
+  mitigation: Focus on retry reliability rather than raw success rate; document 
+    baseline carefully
+- description: 1-week sampling may have insufficient sample size for statistical
+    significance
+  mitigation: Document sample size and confidence intervals; extend sampling 
+    period if needed

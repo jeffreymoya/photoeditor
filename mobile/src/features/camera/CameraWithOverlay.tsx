@@ -12,11 +12,17 @@
  * @module features/camera/CameraWithOverlay
  */
 
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, type ViewStyle } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
 import { Camera, useCameraDevice, useSkiaFrameProcessor } from 'react-native-vision-camera';
+import { useSelector } from 'react-redux';
 
+import type { RootState } from '@/store';
+import { getDeviceCapability, shouldEnableFrameProcessors } from '@/utils/featureFlags';
+import type { FrameProcessorFeatureFlags } from '@/utils/featureFlags';
+
+import { monitorFrameProcessing } from './frameBudgetMonitor';
 import { applyCombinedOverlays } from './frameProcessors';
 
 import type {
@@ -25,6 +31,7 @@ import type {
   OverlayConfig,
   CombinedOverlayOptions,
 } from './frameProcessors';
+
 
 
 /**
@@ -85,6 +92,35 @@ export const CameraWithOverlay: React.FC<CameraWithOverlayProps> = ({
   // Get camera device
   const device = useCameraDevice(position);
 
+  // Get user's frame processor preference from Redux
+  const userFrameProcessorEnabled = useSelector(
+    (state: RootState) => state.settings.camera.frameProcessorsEnabled
+  );
+
+  // Feature flags state
+  const [featureFlags, setFeatureFlags] = useState<FrameProcessorFeatureFlags | null>(null);
+
+  // Initialize feature flags on mount
+  useEffect(() => {
+    const initFeatureFlags = async () => {
+      const deviceCapability = await getDeviceCapability();
+      const flags = shouldEnableFrameProcessors(userFrameProcessorEnabled, deviceCapability);
+      setFeatureFlags(flags);
+
+      // Log feature flag state on component mount per plan step 4
+      console.info('[CameraWithOverlay] Feature flags initialized', {
+        isEnabled: flags.isEnabled,
+        isDeviceCapable: flags.isDeviceCapable,
+        isUserEnabled: flags.isUserEnabled,
+        platform: flags.deviceCapability.platform,
+        deviceModel: flags.deviceCapability.deviceModel,
+        reason: flags.deviceCapability.reason,
+      });
+    };
+
+    void initFeatureFlags();
+  }, [userFrameProcessorEnabled]);
+
   // Shared values for frame processor parameters (updated without re-renders)
   const overlayOptions = useSharedValue<CombinedOverlayOptions>({});
 
@@ -115,6 +151,7 @@ export const CameraWithOverlay: React.FC<CameraWithOverlayProps> = ({
   // Frame processor with Skia overlays
   // Android-first implementation per ADR-0011 and ADR-0012
   // DrawableFrame extends both Frame and SkCanvas - render frame first, then draw overlays
+  // Feature flag gated per TASK-0911E
   const frameProcessor = useSkiaFrameProcessor(
     (frame) => {
       'worklet';
@@ -122,13 +159,21 @@ export const CameraWithOverlay: React.FC<CameraWithOverlayProps> = ({
       // Render the camera frame to the canvas first
       frame.render();
 
-      // Apply combined overlays if any are enabled
+      // Apply combined overlays if feature flags allow and any are enabled
+      // Feature flag check happens at component level (featureFlags state)
+      // Frame processor only runs if enabled (via conditional below in Camera component)
       if (enabledOverlays.length > 0) {
         const options = overlayOptions.value;
 
         // Apply overlays with Skia canvas (frame acts as both Frame and SkCanvas)
         if (options.filters || options.boxes || options.overlay) {
+          // Frame budget monitoring per TASK-0911E plan step 4
+          const startTime = performance.now();
+
           applyCombinedOverlays(frame, frame, options);
+
+          const endTime = performance.now();
+          monitorFrameProcessing(startTime, endTime, 'combined');
         }
       }
     },
@@ -165,15 +210,34 @@ export const CameraWithOverlay: React.FC<CameraWithOverlayProps> = ({
     return null;
   }
 
-  return (
-    <Camera
-      style={[styles.camera, style]}
-      device={device}
-      isActive={true}
-      frameProcessor={frameProcessor}
-      onError={handleError}
-    />
-  );
+  // Feature flags not yet initialized
+  if (!featureFlags) {
+    return null;
+  }
+
+  // Check if frame processors should be enabled per feature flags
+  // Per ADR-0011: Android-first pilot, iOS explicitly deferred
+  // Per TASK-0911E: Feature flag gates frame processor enablement
+  const shouldUseFrameProcessor = featureFlags.isEnabled && enabledOverlays.length > 0;
+
+  // Build Camera props conditionally based on feature flags
+  // exactOptionalPropertyTypes requires we omit undefined frameProcessor rather than pass undefined
+  const cameraProps = shouldUseFrameProcessor
+    ? {
+        style: [styles.camera, style],
+        device,
+        isActive: true as const,
+        frameProcessor,
+        onError: handleError,
+      }
+    : {
+        style: [styles.camera, style],
+        device,
+        isActive: true as const,
+        onError: handleError,
+      };
+
+  return <Camera {...cameraProps} />;
 };
 
 const styles = StyleSheet.create({

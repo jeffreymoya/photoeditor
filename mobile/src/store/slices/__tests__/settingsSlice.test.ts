@@ -40,6 +40,9 @@ describe('settingsSlice reducer', () => {
       analytics: true,
       crashReports: true,
     },
+    camera: {
+      frameProcessorsEnabled: null,
+    },
     apiEndpoint: 'https://api.photoeditor.app',
   };
 
@@ -399,6 +402,9 @@ describe('settingsSlice reducer', () => {
         privacy: {
           analytics: false,
           crashReports: false,
+        },
+        camera: {
+          frameProcessorsEnabled: true,
         },
         apiEndpoint: 'https://custom.api.photoeditor.app',
       };

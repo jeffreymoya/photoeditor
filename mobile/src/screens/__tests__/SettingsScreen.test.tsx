@@ -10,19 +10,37 @@
 
 import { render, screen } from '@testing-library/react-native';
 import React from 'react';
+import { Provider } from 'react-redux';
+import { configureStore } from '@reduxjs/toolkit';
 
 import { SettingsScreen } from '../SettingsScreen';
+import { settingsSlice } from '../../store/slices/settingsSlice';
+
+// Helper to create mock store with Redux
+const createMockStore = () => {
+  return configureStore({
+    reducer: {
+      settings: settingsSlice.reducer,
+    },
+  });
+};
+
+// Helper to render components with Redux Provider
+const renderWithRedux = (component: React.ReactElement) => {
+  const mockStore = createMockStore();
+  return render(<Provider store={mockStore}>{component}</Provider>);
+};
 
 describe('SettingsScreen', () => {
   describe('Basic Rendering', () => {
     it('renders title', () => {
-      render(<SettingsScreen />);
+      renderWithRedux(<SettingsScreen />);
 
       expect(screen.getByText('Settings')).toBeTruthy();
     });
 
     it('renders subtitle', () => {
-      render(<SettingsScreen />);
+      renderWithRedux(<SettingsScreen />);
 
       expect(screen.getByText('Configure your app preferences')).toBeTruthy();
     });

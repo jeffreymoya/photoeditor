@@ -3,8 +3,8 @@
 schema_version: "1.1"
 id: TASK-0911E
 title: "Implement feature flags and frame budget guardrails (Android pilot)"
-status: todo
-blocked_reason: null
+status: completed
+blocked_reason:
 priority: P2
 area: mobile
 unblocker: false
@@ -37,11 +37,14 @@ outcome: >-
 scope:
   in:
   - Android device allowlist for frame processor enablement (API 29+, 4GB+ RAM)
-  - User toggle in Settings to enable/disable frame processors with performance warning
+  - User toggle in Settings to enable/disable frame processors with performance 
+    warning
   - Frame budget telemetry to log >16ms violations with device model
-  - Pilot-friendly defaults (enabled by default for pilot, easy toggle if issues)
+  - Pilot-friendly defaults (enabled by default for pilot, easy toggle if 
+    issues)
   - Testing on Android emulator to validate toggle and telemetry
-  - Documentation referencing ADR-0011 (Android-first) and ADR-0012 (Skia integration)
+  - Documentation referencing ADR-0011 (Android-first) and ADR-0012 (Skia 
+    integration)
   out:
   - iOS device allowlist (deferred to iOS pilot phase per ADR-0011)
   - Server-side feature flag control (not required for pilot)
@@ -82,9 +85,11 @@ constraints:
     filesystem: workspace-write
     network: enabled
   coding_guidelines:
-  - Implement feature flags per standards/frontend-tier.md state management patterns
+  - Implement feature flags per standards/frontend-tier.md state management 
+    patterns
   - Monitor frame processing times with diagnostics to prevent UI jank
-  - Use pilot-friendly defaults (frame processors enabled by default for Android pilot)
+  - Use pilot-friendly defaults (frame processors enabled by default for Android
+    pilot)
   - Android device allowlist seeded conservatively (API 29+, 4GB+ RAM)
   - Document iOS deferral per ADR-0011 Android-first strategy
   prohibited:
@@ -115,7 +120,8 @@ plan:
 - id: 2
   title: Seed Android device allowlist with conservative defaults
   details: >-
-    Seed Android device allowlist conservatively with modern devices (API 29+, 4GB+ RAM).
+    Seed Android device allowlist conservatively with modern devices (API 29+, 4GB+
+    RAM).
     Include common pilot devices (e.g., Pixel 4+, Samsung Galaxy S10+). Document allowlist
     criteria in comments. Note iOS allowlist explicitly deferred per ADR-0011. Configure
     pilot-friendly defaults (frame processors enabled by default for devices on allowlist).
@@ -129,7 +135,8 @@ plan:
   - mobile/src/utils/featureFlags.ts (Android allowlist seeded)
   definition_of_done:
   - Android device allowlist seeded conservatively (API 29+, 4GB+ RAM)
-  - Pilot-friendly defaults configured (enabled by default for allowlist devices)
+  - Pilot-friendly defaults configured (enabled by default for allowlist 
+    devices)
   - iOS deferral documented in comments with ADR-0011 reference
   - Allowlist criteria documented in comments
   estimate: S
@@ -231,9 +238,11 @@ validation:
   - command: pnpm turbo run test --filter=photoeditor-mobile
     description: Run unit tests for mobile package
   - command: pnpm turbo run test:coverage --filter=photoeditor-mobile
-    description: Run tests with coverage reporting to verify thresholds (≥70% lines, ≥60% branches per standards/testing-standards.md)
+    description: Run tests with coverage reporting to verify thresholds (≥70% 
+      lines, ≥60% branches per standards/testing-standards.md)
   manual_checks:
-  - Test pilot-friendly defaults (frame processors enabled by default on Android emulator)
+  - Test pilot-friendly defaults (frame processors enabled by default on Android
+    emulator)
   - Test user toggle disables frame processors when user opts out
   - Test performance warning displayed when user enables on non-allowlist device
   - Test frame budget monitor logs violations (>16ms) with device model
@@ -242,21 +251,27 @@ validation:
 
 acceptance_criteria:
   must:
-  - Android device allowlist implemented and seeded conservatively (API 29+, 4GB+ RAM)
-  - Pilot-friendly defaults configured (frame processors enabled by default for pilot)
+  - Android device allowlist implemented and seeded conservatively (API 29+, 
+    4GB+ RAM)
+  - Pilot-friendly defaults configured (frame processors enabled by default for 
+    pilot)
   - User toggle in Settings disables frame processors when user opts out
   - Performance warning displayed when enabling on non-allowlist devices
   - Frame budget monitor logs >16ms violations with device model for telemetry
   - Feature flags integrated with CameraWithOverlay component
   - iOS allowlist explicitly deferred with ADR-0011 reference in code
-  - Tests meet standards/testing-standards.md coverage thresholds (≥70% lines, ≥60% branches)
+  - Tests meet standards/testing-standards.md coverage thresholds (≥70% lines, 
+    ≥60% branches)
   - pnpm turbo run qa:static --filter=photoeditor-mobile passes
   - No UI thread starvation on Android emulator with feature flags
   quality_gates:
-  - Pilot-friendly defaults: frame processors enabled by default for Android pilot
+  - Pilot-friendly defaults: frame processors enabled by default for Android 
+      pilot
   - User toggle provides easy opt-out if issues arise
-  - Frame budget violations logged with device model for telemetry and allowlist expansion
-  - Documentation references ADR-0011 (Android-first) and ADR-0012 (Skia integration)
+  - Frame budget violations logged with device model for telemetry and allowlist
+    expansion
+  - Documentation references ADR-0011 (Android-first) and ADR-0012 (Skia 
+    integration)
 
 artifacts:
 - path: mobile/src/utils/featureFlags.ts
@@ -277,11 +292,20 @@ deliverables:
 - mobile/src/features/camera/__tests__/frameBudgetMonitor.test.ts
 
 risks:
-- description: Android device allowlist may be incomplete and exclude capable devices
-  mitigation: Conservative initial list (API 29+, 4GB+ RAM) prevents performance issues; telemetry from frame budget monitor identifies additional devices for expansion; pilot scope limits initial exposure
-- description: Pilot-friendly defaults (enabled by default) may expose performance issues on edge-case devices
-  mitigation: User toggle provides easy opt-out; frame budget telemetry catches violations; conservative allowlist criteria minimize risk
-- description: Frame budget monitor may introduce overhead and affect measurements
-  mitigation: Minimize monitor overhead with lightweight timing APIs; monitor can be disabled if overhead proves significant; pilot validates overhead acceptable
+- description: Android device allowlist may be incomplete and exclude capable 
+    devices
+  mitigation: Conservative initial list (API 29+, 4GB+ RAM) prevents performance
+    issues; telemetry from frame budget monitor identifies additional devices 
+    for expansion; pilot scope limits initial exposure
+- description: Pilot-friendly defaults (enabled by default) may expose 
+    performance issues on edge-case devices
+  mitigation: User toggle provides easy opt-out; frame budget telemetry catches 
+    violations; conservative allowlist criteria minimize risk
+- description: Frame budget monitor may introduce overhead and affect 
+    measurements
+  mitigation: Minimize monitor overhead with lightweight timing APIs; monitor 
+    can be disabled if overhead proves significant; pilot validates overhead 
+    acceptable
 - description: iOS device allowlist deferred may delay iOS pilot phase
-  mitigation: Android-first strategy (ADR-0011) is deliberate; iOS allowlist can be added when iOS support needed; frame processors are platform-agnostic
+  mitigation: Android-first strategy (ADR-0011) is deliberate; iOS allowlist can
+    be added when iOS support needed; frame processors are platform-agnostic

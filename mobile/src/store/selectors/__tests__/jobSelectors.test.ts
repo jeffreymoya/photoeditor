@@ -126,6 +126,9 @@ const createMockState = (overrides?: Partial<RootState>): RootState => ({
       analytics: false,
       crashReports: true,
     },
+    camera: {
+      frameProcessorsEnabled: null,
+    },
     apiEndpoint: 'http://localhost:3000',
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

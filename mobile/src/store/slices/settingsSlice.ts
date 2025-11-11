@@ -16,6 +16,9 @@ export interface SettingsState {
     analytics: boolean;
     crashReports: boolean;
   };
+  camera: {
+    frameProcessorsEnabled: boolean | null;
+  };
   apiEndpoint: string;
 }
 
@@ -34,6 +37,9 @@ const initialState: SettingsState = {
   privacy: {
     analytics: true,
     crashReports: true,
+  },
+  camera: {
+    frameProcessorsEnabled: null, // null = use device-based default
   },
   apiEndpoint: 'https://api.photoeditor.app',
 };
@@ -63,6 +69,15 @@ export const settingsSlice = createSlice({
     ) => {
       state.privacy = { ...state.privacy, ...action.payload };
     },
+    updateCameraSettings: (
+      state,
+      action: PayloadAction<Partial<SettingsState['camera']>>
+    ) => {
+      state.camera = { ...state.camera, ...action.payload };
+    },
+    setFrameProcessorsEnabled: (state, action: PayloadAction<boolean | null>) => {
+      state.camera.frameProcessorsEnabled = action.payload;
+    },
     setApiEndpoint: (state, action: PayloadAction<string>) => {
       state.apiEndpoint = action.payload;
     },
@@ -75,6 +90,8 @@ export const {
   updateNotificationSettings,
   updateImageSettings,
   updatePrivacySettings,
+  updateCameraSettings,
+  setFrameProcessorsEnabled,
   setApiEndpoint,
   resetSettings,
 } = settingsSlice.actions;

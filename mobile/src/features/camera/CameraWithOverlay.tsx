@@ -12,10 +12,12 @@
  * @module features/camera/CameraWithOverlay
  */
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { StyleSheet, type ViewStyle } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
-import { Camera, useCameraDevice, useFrameProcessor } from 'react-native-vision-camera';
+import { Camera, useCameraDevice, useSkiaFrameProcessor } from 'react-native-vision-camera';
+
+import { applyCombinedOverlays } from './frameProcessors';
 
 import type {
   BoundingBox,
@@ -106,31 +108,45 @@ export const CameraWithOverlay: React.FC<CameraWithOverlayProps> = ({
   }, [enabledOverlays, boundingBoxes, filterParams, overlayConfig]);
 
   // Update shared value when options change
-  React.useEffect(() => {
+  useEffect(() => {
     overlayOptions.value = computedOptions;
   }, [computedOptions, overlayOptions]);
 
   // Frame processor with Skia overlays
-  const frameProcessor = useFrameProcessor(
-    (_frame) => {
+  // Android-first implementation per ADR-0011 and ADR-0012
+  // DrawableFrame extends both Frame and SkCanvas - render frame first, then draw overlays
+  const frameProcessor = useSkiaFrameProcessor(
+    (frame) => {
       'worklet';
+
+      // Render the camera frame to the canvas first
+      frame.render();
 
       // Apply combined overlays if any are enabled
       if (enabledOverlays.length > 0) {
-        // Note: In production, canvas would be obtained from Skia integration
-        // This is a placeholder for the frame processor API
-        // Actual implementation requires VisionCamera Skia plugin integration
         const options = overlayOptions.value;
 
-        // Apply overlays (actual canvas integration deferred to VisionCamera Skia setup)
+        // Apply overlays with Skia canvas (frame acts as both Frame and SkCanvas)
         if (options.filters || options.boxes || options.overlay) {
-          // applyCombinedOverlays(_frame, canvas, options);
-          // TODO: Wire up actual Skia canvas when VisionCamera Skia plugin is configured
+          applyCombinedOverlays(frame, frame, options);
         }
       }
     },
     [enabledOverlays, overlayOptions]
   );
+
+  // Cleanup hook for Skia resources and frame processor disposal
+  // Per ADR-0012 and VisionCamera best practices: keep Camera mounted, toggle isActive
+  // Frame processor resources (Paint, Color, etc.) are worklet-scoped and auto-collected
+  // Cleanup primarily ensures proper disposal on component unmount
+  useEffect(() => {
+    return () => {
+      // Cleanup logic on unmount
+      // Current implementation: Skia resources are worklet-scoped and auto-collected
+      // No persistent resources requiring manual disposal at this time
+      // This hook provides future extension point for resource cleanup if needed
+    };
+  }, []);
 
   // Error handler
   const handleError = useCallback(

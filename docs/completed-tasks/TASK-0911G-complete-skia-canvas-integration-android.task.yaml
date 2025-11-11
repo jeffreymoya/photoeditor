@@ -1,0 +1,290 @@
+# Task: Complete Skia Canvas Integration for Android Pilot
+
+schema_version: "1.1"
+id: TASK-0911G
+title: "Complete Skia Canvas Integration for Android Pilot"
+status: completed
+blocked_reason:
+priority: P0
+area: mobile
+unblocker: true  # Unblocks TASK-0911D and TASK-0911E
+order: 3.5
+blocked_by: []
+depends_on: []
+agent_completion_state:
+  task_implementer:
+    completed: true
+    summary_path: .task-runner/TASK-0911G-implementer-summary.md
+  implementation_reviewer:
+    completed: true
+    summary_path: .task-runner/TASK-0911G-reviewer-summary.md
+  test_validation_mobile:
+    completed: true
+    summary_path: docs/tests/reports/2025-11-11-validation-mobile.md
+
+clarifications:
+  outstanding: []
+  resolved: true
+  evidence_path: "docs/evidence/tasks/TASK-0911-clarifications.md"
+
+description: >-
+  Complete Skia canvas integration for VisionCamera frame processors in the Android
+  pilot.
+  The frame processors are fully implemented (frameProcessors.ts) but the canvas wiring
+  is commented out at CameraWithOverlay.tsx:128. Uncomment and complete the canvas
+  integration, add proper cleanup hooks for resource disposal, and validate overlays
+  render correctly on Android emulator. This follows ADR-0011 (Android-first pilot)
+  and
+  ADR-0012 (complete current architecture for Android, defer iOS workarounds). iOS
+  support explicitly out of scope for this task.
+
+outcome: >-
+  Skia camera overlays (bounding boxes, live filters, AI overlays) render correctly
+  on Android emulator. Canvas is properly wired to frame processors. Cleanup hooks
+  implemented for proper resource disposal on component unmount. Basic memory validation
+  shows no obvious leaks over 2-3 minute sessions. Android pilot unblocked for feature
+  flag implementation and pilot testing.
+
+scope:
+  in:
+  - Uncomment and complete canvas wiring at CameraWithOverlay.tsx:128
+  - Connect applyCombinedOverlays to frame processor with Skia canvas
+  - Implement useEffect cleanup hooks for Skia resource disposal
+  - Validate overlay rendering on Android emulator (bounding boxes, filters, AI 
+    graphics)
+  - Basic visual memory validation (2-3 min sessions, no obvious growth)
+  - Document Android-first approach and iOS deferral rationale
+  out:
+  - iOS testing or iOS-specific workarounds (deferred per ADR-0011/ADR-0012)
+  - Formal profiling with Xcode Instruments or Android Studio Profiler (deferred
+    per user preference)
+  - Feature flags implementation (deferred to TASK-0911E)
+  - Device allowlist or Settings UI toggle (deferred to TASK-0911E)
+  - Frame budget telemetry (deferred to TASK-0911E)
+
+context:
+  affected_packages: [mobile]
+  standards_tier: mobile
+  related_docs:
+  - standards/global.md
+  - standards/AGENTS.md
+  - standards/frontend-tier.md
+  - standards/typescript.md
+  - standards/testing-standards.md
+  - adr/0011-android-first-pilot-strategy.md
+  - adr/0012-visioncamera-skia-integration.md
+  - docs/mobile/visioncamera-background-task-pilot.md
+  repo_paths:
+  - mobile/src/features/camera/CameraWithOverlay.tsx
+  - mobile/src/features/camera/frameProcessors.ts
+  - docs/evidence/tasks/TASK-0911-memory-profiling-results.md
+  dependencies:
+  - react-native-vision-camera
+  - react-native-skia
+  - react-native-worklets-core
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+  - name: pnpm
+    version: "8.x"
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+  - Follow React Native platform-specific code best practices (maximize shared 
+    code)
+  - Implement cleanup hooks per React best practices (useEffect unmount)
+  - Follow VisionCamera performance best practices (keep Camera mounted, toggle 
+    isActive)
+  - Document platform scope clearly (Android pilot only)
+  prohibited:
+  - Do not implement iOS-specific workarounds (deferred to post-pilot 
+    evaluation)
+  - Do not implement feature flags or performance monitoring (deferred to 
+    TASK-0911E)
+  - Do not perform formal profiling sessions (user preference: skip for pilot)
+
+plan:
+- id: 1
+  title: Review current implementation and architectural decisions
+  details: >-
+    Review CameraWithOverlay.tsx (current state with commented canvas wiring at line
+    128),
+    frameProcessors.ts (fully implemented frame processors), ADR-0011 (Android-first
+    pilot
+    strategy), and ADR-0012 (Skia integration architecture). Understand the canvas
+    wiring
+    requirements, cleanup hook patterns, and platform scope (Android only). Document
+    findings in evidence file per standards/frontend-tier.md#component-architecture.
+  actor: agent
+  inputs:
+  - mobile/src/features/camera/CameraWithOverlay.tsx (commented canvas wiring)
+  - mobile/src/features/camera/frameProcessors.ts (implemented processors)
+  - adr/0011-android-first-pilot-strategy.md (platform strategy)
+  - adr/0012-visioncamera-skia-integration.md (integration approach)
+  - standards/frontend-tier.md#component-architecture
+  outputs:
+  - docs/evidence/tasks/TASK-0911G-implementation-notes.md (review findings)
+  definition_of_done:
+  - Canvas wiring requirements understood and documented
+  - Cleanup hook patterns identified from VisionCamera best practices
+  - Platform scope (Android-only) confirmed in evidence file
+  estimate: S
+  expected_files_touched:
+  - docs/evidence/tasks/TASK-0911G-implementation-notes.md
+- id: 2
+  title: Complete canvas wiring and cleanup hooks
+  details: >-
+    Uncomment and complete the canvas wiring at CameraWithOverlay.tsx:128. Connect
+    applyCombinedOverlays to the frame processor with Skia canvas parameter. Implement
+    useEffect cleanup hooks to dispose Skia resources on component unmount per React
+    best practices and VisionCamera performance guidelines. Follow standards/typescript.md#analyzability
+    for component structure and standards/frontend-tier.md#state-management-patterns
+    for shared values integration.
+  actor: agent
+  inputs:
+  - mobile/src/features/camera/CameraWithOverlay.tsx (current implementation)
+  - mobile/src/features/camera/frameProcessors.ts (frame processor functions)
+  - React useEffect cleanup documentation
+  - VisionCamera performance best practices
+  outputs:
+  - mobile/src/features/camera/CameraWithOverlay.tsx (completed canvas wiring + 
+    cleanup)
+  definition_of_done:
+  - Canvas wiring uncommented and connected to applyCombinedOverlays
+  - useEffect cleanup hooks implemented for Skia resource disposal
+  - Component follows VisionCamera best practices (keep mounted, toggle 
+    isActive)
+  - Implementation follows standards/typescript.md#analyzability and 
+    standards/frontend-tier.md#state-management-patterns
+  estimate: M
+  expected_files_touched:
+  - mobile/src/features/camera/CameraWithOverlay.tsx
+- id: 3
+  title: Validate overlay rendering on Android emulator
+  details: >-
+    Start Android emulator, launch camera screen, and validate that all three overlay
+    types render correctly: bounding boxes (drawBoundingBoxes), live filters
+    (applyLiveFilters), and AI overlays (drawAIOverlay). Test with various combinations
+    of overlays enabled. Verify visual correctness, smooth rendering, and no obvious
+    frame drops. Run basic memory validation (2-3 min camera sessions, visual inspection
+    for memory growth via React DevTools). Document validation results per
+    standards/testing-standards.md#validation-evidence.
+  actor: agent
+  inputs:
+  - mobile/src/features/camera/CameraWithOverlay.tsx (completed implementation)
+  - Android emulator (API 29+)
+  - React DevTools component profiler
+  outputs:
+  - docs/evidence/tasks/TASK-0911-memory-profiling-results.md (Android 
+    validation section)
+  definition_of_done:
+  - All three overlay types render correctly on Android emulator
+  - No obvious frame drops or performance issues during 2-3 min sessions
+  - Basic memory validation shows no obvious growth (React DevTools)
+  - Validation results documented per 
+    standards/testing-standards.md#validation-evidence
+  estimate: M
+  expected_files_touched:
+  - docs/evidence/tasks/TASK-0911-memory-profiling-results.md
+- id: 4
+  title: Document Android-first implementation and unblock downstream tasks
+  details: >-
+    Update docs/evidence/tasks/TASK-0911-memory-profiling-results.md with Android
+    pilot status, validation results, and iOS deferral rationale. Update pilot document
+    (docs/mobile/visioncamera-background-task-pilot.md) to reflect completed Android
+    canvas integration. Document that formal profiling was skipped per user preference.
+    Reference ADR-0011 and ADR-0012 for platform strategy and architectural decisions.
+    Note that iOS support is explicitly deferred to post-pilot phase.
+  actor: agent
+  inputs:
+  - docs/evidence/tasks/TASK-0911-memory-profiling-results.md (validation 
+    results)
+  - docs/mobile/visioncamera-background-task-pilot.md (pilot document)
+  - adr/0011-android-first-pilot-strategy.md
+  - adr/0012-visioncamera-skia-integration.md
+  outputs:
+  - docs/evidence/tasks/TASK-0911-memory-profiling-results.md (Android section 
+    complete)
+  - docs/mobile/visioncamera-background-task-pilot.md (updated status)
+  - docs/evidence/tasks/TASK-0911G-implementation-notes.md (completion summary)
+  definition_of_done:
+  - Evidence file includes Android validation results and iOS deferral rationale
+  - Pilot document updated to reflect completed Android canvas integration
+  - Implementation notes reference ADR-0011 and ADR-0012
+  - Downstream tasks (TASK-0911D, TASK-0911E) unblocked
+  estimate: S
+  expected_files_touched:
+  - docs/evidence/tasks/TASK-0911-memory-profiling-results.md
+  - docs/mobile/visioncamera-background-task-pilot.md
+  - docs/evidence/tasks/TASK-0911G-implementation-notes.md
+
+validation:
+  pipeline:
+  - command: pnpm turbo run lint:fix --filter=photoeditor-mobile
+    description: Auto-fix linting issues in mobile package
+  - command: pnpm turbo run qa:static --filter=photoeditor-mobile
+    description: Run static analysis (typecheck + lint) on mobile
+  - command: pnpm turbo run test --filter=photoeditor-mobile
+    description: Run unit tests for mobile package
+  manual_checks:
+  - Start Android emulator and launch camera screen
+  - Verify bounding box overlays render correctly
+  - Verify live filter overlays render correctly (grayscale, sepia, blur)
+  - Verify AI overlay graphics render correctly
+  - Run 2-3 min camera sessions and check for obvious frame drops or performance
+    issues
+  - Visual inspection for memory growth via React DevTools component profiler
+  - Verify component unmount properly disposes resources (remount and check)
+
+acceptance_criteria:
+  must:
+  - Canvas wiring completed at CameraWithOverlay.tsx:128 (applyCombinedOverlays 
+    connected)
+  - useEffect cleanup hooks implemented for Skia resource disposal
+  - All three overlay types render correctly on Android emulator
+  - No obvious frame drops or performance issues during 2-3 min sessions
+  - Basic memory validation shows no obvious growth (React DevTools)
+  - Android validation results documented in evidence file
+  - iOS support explicitly noted as deferred (references ADR-0011, ADR-0012)
+  - pnpm turbo run qa:static --filter=photoeditor-mobile passes
+  - TASK-0911D and TASK-0911E unblocked for Android pilot work
+  quality_gates:
+  - Component follows React best practices for cleanup hooks
+  - Implementation follows VisionCamera performance best practices
+  - No lint/type errors in mobile package
+  - Documentation references correct ADRs and platform scope
+
+artifacts:
+- path: docs/evidence/tasks/TASK-0911G-implementation-notes.md
+  description: Implementation notes, review findings, and completion summary
+- path: docs/evidence/tasks/TASK-0911-memory-profiling-results.md
+  description: Android validation results and iOS deferral documentation
+
+deliverables:
+- mobile/src/features/camera/CameraWithOverlay.tsx (canvas wiring + cleanup 
+  hooks)
+- docs/evidence/tasks/TASK-0911G-implementation-notes.md (implementation notes)
+- docs/evidence/tasks/TASK-0911-memory-profiling-results.md (Android validation 
+  section)
+- docs/mobile/visioncamera-background-task-pilot.md (updated status)
+
+risks:
+- description: Android may also have VisionCamera issue #3517 memory leak (currently unknown)
+  mitigation: Feature flags (TASK-0911E) allow quick disable if issues arise; 
+    basic validation catches obvious problems; pilot scope limits exposure
+- description: iOS may require significant rework if separation architecture 
+    needed later
+  mitigation: Frame processors are platform-agnostic (already shared); only 
+    camera component would need iOS variant; acceptable per ADR-0012 strategy
+- description: Skipping formal profiling may miss subtle memory issues
+  mitigation: User preference for pilot; feature flags + telemetry (TASK-0911E) 
+    catch issues in pilot; formal profiling can be added later if specific 
+    issues arise

@@ -2,15 +2,15 @@
 
 schema_version: "1.1"
 id: TASK-0911
-title: "Pilot VisionCamera + expo-background-task for uploads"
+title: "Pilot VisionCamera + expo-background-task for uploads (Android pilot)"
 status: blocked
-blocked_reason: "Broken down into subtasks for manageable implementation. Task exceeds complexity thresholds: 12+ deliverables across multiple feature domains (camera, upload, utils, config), 8 plan steps with substantial research phases, and multiple experimental integrations (VisionCamera Skia, expo-background-task) with known issues (memory leaks, platform scheduling limits)."
+blocked_reason: "Broken down into subtasks for manageable implementation. Android-first pilot strategy per ADR-0011. Currently blocked by: TASK-0911G (Skia canvas integration), TASK-0911D (basic memory validation), TASK-0911E (feature flags). iOS support explicitly deferred to post-pilot phase."
 priority: P2
 area: mobile
 unblocker: false
 order:
-blocked_by: [TASK-0911B, TASK-0911C, TASK-0911D, TASK-0911E, TASK-0911F]
-depends_on: [TASK-0906, TASK-0907]
+blocked_by: [TASK-0911G, TASK-0911D, TASK-0911E]
+depends_on: []
 agent_completion_state: {}
 
 clarifications:
@@ -20,43 +20,35 @@ clarifications:
 
 description: >-
   Pilot VisionCamera with Skia frame processors for GPU-accelerated camera overlays
-  (bounding
-  boxes, live filters, AI editing previews) and migrate polling/notification upload
-  jobs to
-  expo-background-task (WorkManager on Android, BGTaskScheduler on iOS). VisionCamera's
-  Skia
-  frame processors enable on-device ML and live previews without leaving the Expo
-  ecosystem,
-  while expo-background-task (new in Expo SDK 53) replaces deprecated expo-background-fetch
-  with reliable retries for uploads and notification hydration. Frame processors require
-  Reanimated worklets and can starve the UI thread if 16ms budget is exceeded; guardrails
-  (feature flags, diagnostics) are needed for lower-end devices. Measure end-to-end
-  upload
-  latency and success rate vs. current baseline.
+  (bounding boxes, live filters, AI editing previews) and expo-background-task for
+  upload pipeline on Android first (ADR-0011 Android-first pilot strategy). VisionCamera
+  Skia frame processors provide on-device overlays using current architecture (ADR-0012),
+  with basic memory validation instead of formal profiling per user preference. Feature
+  flags implemented with pilot-friendly defaults (enabled by default for pilot). iOS
+  support explicitly deferred to post-pilot phase. expo-background-task already
+  implemented (TASK-0911C) and documented (TASK-0911F).
 
 outcome: >-
-  VisionCamera Skia frame processors successfully integrated for camera overlays.
-  expo-background-task
-  configured for upload pipeline with WorkManager/BGTaskScheduler scheduling. Upload
-  success rate
-  meets or exceeds current baseline with fewer manual retries. Frame processor memory
-  leaks profiled
-  and mitigated. Feature flags implemented for lower-end devices.
+  Android pilot complete: VisionCamera Skia frame processors integrated and validated
+  on Android emulator. Canvas wiring completed (TASK-0911G), basic memory validation
+  passed (TASK-0911D), feature flags with pilot-friendly defaults implemented (TASK-0911E).
+  expo-background-task configured for upload pipeline (TASK-0911C complete). Pilot
+  outcomes documented in pilot document referencing ADR-0011 and ADR-0012. iOS support
+  deferred with clear evaluation path documented.
 
 scope:
   in:
-  - Installing VisionCamera and Skia dependencies in mobile/package.json
-  - Implementing Skia frame processors for camera overlays (bounding boxes, 
-    filters, or previews)
-  - Installing and configuring expo-background-task for upload pipeline
-  - Migrating upload/notification jobs from current polling/push model to 
-    background tasks
-  - Profiling VisionCamera Skia memory leaks (issue   #3517) and applying mitigations
-  - Implementing feature flags and diagnostics for lower-end devices (16ms frame
-    budget guardrails)
-  - Measuring upload success rate and end-to-end latency vs. baseline
-  - Documenting platform entitlements and scheduling limits
+  - Android pilot for VisionCamera Skia frame processors (ADR-0011 Android-first)
+  - Canvas wiring for Skia overlays (TASK-0911G)
+  - Basic memory validation on Android emulator (TASK-0911D, no formal profiling)
+  - Feature flags with Android allowlist and pilot-friendly defaults (TASK-0911E)
+  - expo-background-task upload pipeline (TASK-0911C complete)
+  - Upload metrics documentation (TASK-0911F complete)
+  - Pilot outcomes documentation referencing ADR-0011 and ADR-0012
   out:
+  - iOS Skia frame processors (deferred to post-pilot phase per ADR-0011)
+  - iOS memory leak workaround (separation architecture per ADR-0012, if needed)
+  - Formal memory profiling with Xcode Instruments/Android Studio (deferred)
   - Full camera replacement (pilot Skia overlays only)
   - Migrating all background jobs (upload pilot only)
   - Styling system changes (deferred to TASK-0909)
@@ -71,15 +63,16 @@ context:
   - standards/frontend-tier.md
   - standards/typescript.md
   - standards/testing-standards.md
-  - docs/proposals/mobile-stack-modernization.md
-  - VisionCamera Skia frame processor guide
-  - expo-background-task documentation
+  - adr/0011-android-first-pilot-strategy.md
+  - adr/0012-visioncamera-skia-integration.md
+  - docs/mobile/visioncamera-background-task-pilot.md
   repo_paths:
   - mobile/package.json
   - mobile/src/features/camera/
   - mobile/src/features/upload/
   - mobile/app.json
   - docs/mobile/
+  - docs/evidence/tasks/TASK-0911-memory-profiling-results.md
   dependencies:
   - react-native-vision-camera
   - react-native-skia

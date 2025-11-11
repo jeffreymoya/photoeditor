@@ -4,20 +4,124 @@
 
 This document captures the outcomes of the VisionCamera Skia frame processors and expo-background-task upload pipeline pilot implementation (TASK-0911 series). The pilot validates GPU-accelerated camera overlays and reliable background upload execution with AsyncStorage queue pattern for the PhotoEditor mobile app.
 
-**Pilot Status**: Implementation complete (TASK-0911A, B, C), awaiting memory profiling (TASK-0911D) and feature flags (TASK-0911E)
+**Pilot Status**: Android-first pilot in progress (TASK-0911G canvas integration, TASK-0911D validation, TASK-0911E feature flags). expo-background-task implementation complete (TASK-0911C, TASK-0911F).
+**Platform Strategy**: Android pilot first (ADR-0011), iOS explicitly deferred to post-pilot phase
 **Standards Reference**: standards/global.md evidence bundle requirements, standards/frontend-tier.md
-**Related ADRs**: adr/0010-asyncstorage-queue-background-uploads.md
-**Completion Date**: 2025-11-11
+**Related ADRs**:
+- adr/0010-asyncstorage-queue-background-uploads.md (AsyncStorage queue pattern)
+- adr/0011-android-first-pilot-strategy.md (Platform rollout strategy)
+- adr/0012-visioncamera-skia-integration.md (Skia integration architecture)
+**Last Updated**: 2025-11-11
 
 ---
 
 ## Table of Contents
 
-1. [VisionCamera Skia Pilot Outcomes](#visioncamera-skia-pilot-outcomes)
-2. [expo-background-task Pilot Outcomes](#expo-background-task-pilot-outcomes)
-3. [Recommendations](#recommendations)
-4. [Next Steps](#next-steps)
-5. [References](#references)
+1. [Platform Rollout Strategy](#platform-rollout-strategy)
+2. [VisionCamera Skia Pilot Outcomes](#visioncamera-skia-pilot-outcomes)
+3. [expo-background-task Pilot Outcomes](#expo-background-task-pilot-outcomes)
+4. [Recommendations](#recommendations)
+5. [Next Steps](#next-steps)
+6. [References](#references)
+
+---
+
+## Platform Rollout Strategy
+
+### Android-First Pilot (ADR-0011)
+
+**Decision**: Adopt Android-first pilot strategy for VisionCamera Skia frame processors, with iOS support explicitly deferred to post-pilot phase.
+
+**Rationale**:
+1. **Industry Precedent**: Shopify engineering uses Android-first rollout for risk mitigation (Android 8% → 30% → 100%, then iOS 0% → 1% → 100%)
+2. **Rollout Control**: Google Play staged rollout provides instant stop capability; iOS App Store is all-or-nothing
+3. **Market Alignment**: Android dominates global market share (>70%), maximizing initial pilot reach
+4. **Resource Efficiency**: Solo developer can focus deeply on one platform at a time
+5. **Issue Isolation**: VisionCamera #3517 (iOS memory leak) deferred until iOS pilot phase
+
+### Rollout Phases
+
+#### Phase 1: Android Pilot (Current - 2025-11)
+**Status**: In Progress
+**Scope**:
+- ✅ VisionCamera + Skia dependencies installed (TASK-0911A)
+- ✅ Skia frame processors implemented (TASK-0911B complete, archived)
+- ✅ expo-background-task configured (TASK-0911C)
+- ✅ Canvas wiring for Android completed (TASK-0911G complete, 2025-11-11)
+- 🚧 Basic memory validation on Android emulator (TASK-0911D ready to start)
+- 🚧 Feature flags with Android allowlist + pilot-friendly defaults (TASK-0911E blocked by TASK-0911D)
+
+**Success Criteria**:
+- No critical crashes or memory issues on Android emulator
+- Frame processing consistently <16ms (60 FPS)
+- Positive pilot tester feedback
+- Feature flag toggle works as expected
+- Basic validation shows no obvious memory leaks
+
+**Duration**: 2-4 weeks from feature complete
+
+#### Phase 2: iOS Evaluation (Post-Android Validation - TBD)
+**Trigger**: Android pilot success + business viability confirmation
+**Approach**:
+1. Test current architecture on iOS simulator
+2. Evaluate VisionCamera issue #3517 (useSkiaFrameProcessor memory leak) status
+3. **Decision Point**:
+   - **No leak observed** → Ship with shared codebase (current architecture)
+   - **Leak reproduced** → Implement separation architecture workaround (see ADR-0012)
+
+**iOS Workaround (if needed)**:
+- Create platform-specific file: `CameraWithOverlay.ios.tsx`
+- Use standard `useFrameProcessor` (not `useSkiaFrameProcessor`)
+- Separate frame processing from rendering (community-validated workaround)
+- Keep frame processors shared (`frameProcessors.ts` is platform-agnostic)
+
+**Timeline**: TBD based on Phase 1 outcomes
+
+#### Phase 3: Dual-Platform Production (Future - TBD)
+**Scope**: Both platforms in production with platform-specific monitoring
+**Monitoring**: Platform-specific telemetry, performance metrics, device allowlists
+**Gradual Rollout**: Platform-specific staged rollout controls
+
+### Architectural Strategy (ADR-0012)
+
+**Android Pilot Implementation**:
+- Complete current architecture (canvas wiring at `CameraWithOverlay.tsx:128`)
+- No separation architecture workaround for Android pilot
+- Basic validation only (no formal profiling per user preference)
+
+**iOS Future Path**:
+- Evaluate current architecture on iOS first
+- Add platform-specific workaround only if issue #3517 reproduced
+- Frame processors remain shared across platforms (already platform-agnostic)
+
+**Code Organization**:
+```
+mobile/src/features/camera/
+├── frameProcessors.ts           # Shared (platform-agnostic worklets)
+├── CameraWithOverlay.tsx        # Android (current architecture)
+└── CameraWithOverlay.ios.tsx    # iOS (separation architecture, if needed)
+```
+
+### Memory Profiling Strategy
+
+**Formal Profiling: DEFERRED**
+- **User Preference**: Skip formal profiling for pilot (acceptable risk tolerance)
+- **Android Approach**: Basic validation with React DevTools (2-3 min sessions)
+- **iOS Approach**: Deferred to iOS pilot phase
+
+**Alternative Validation** (Android Pilot):
+- React DevTools component profiler (development builds)
+- Visual inspection for obvious memory growth
+- 2-3 minute camera sessions with overlays enabled
+- Feature flags + frame budget telemetry as safety net
+
+**When to Resume Formal Profiling**:
+1. Specific memory issues observed in pilot
+2. Wide device rollout preparation (beyond pilot testers)
+3. iOS support phase (validate issue #3517 status)
+4. Post-pilot optimization for broader device range
+
+**Full Details**: See `/home/jeffreymoya/dev/photoeditor/docs/evidence/tasks/TASK-0911-memory-profiling-results.md`
 
 ---
 

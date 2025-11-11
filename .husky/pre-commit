@@ -5,7 +5,7 @@ echo "🔍 Checking for standards violations..."
 echo ""
 
 # Block it.skip additions (test weakening) – ignore documentation-only paths so changelog notes don't trigger
-if git diff --cached --diff-filter=AM -- '.' ':!.husky/' ':!docs/' ':!tasks/' ':!.agent-outputs/' ':!changelog/' | grep -E '^\+.*it\.skip|^\+.*describe\.skip'; then
+if git diff --cached --diff-filter=AM -- '.' ':!.husky/' ':!docs/' ':!tasks/' ':!.agent-outputs/' ':!.task-runner/' ':!changelog/' | grep -E '^\+.*it\.skip|^\+.*describe\.skip'; then
   echo "❌ ERROR: it.skip/describe.skip detected (standards/testing-standards.md violation)"
   echo "   Fix tests properly rather than skipping them"
   exit 1

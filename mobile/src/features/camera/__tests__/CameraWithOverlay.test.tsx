@@ -5,7 +5,7 @@
  * standards/testing-standards.md coverage expectations (≥70% lines, ≥60% branches).
  *
  * Mocks:
- * - VisionCamera (useCameraDevice, useFrameProcessor, Camera)
+ * - VisionCamera (useCameraDevice, useFrameProcessor, useSkiaFrameProcessor, Camera)
  * - Skia dependencies (no actual GPU rendering in tests)
  * - Reanimated (useSharedValue)
  */
@@ -13,7 +13,7 @@
 import { render } from '@testing-library/react-native';
 import React from 'react';
 import { useSharedValue } from 'react-native-reanimated';
-import { useCameraDevice, useFrameProcessor } from 'react-native-vision-camera';
+import { useCameraDevice, useFrameProcessor, useSkiaFrameProcessor } from 'react-native-vision-camera';
 
 import { CameraWithOverlay } from '../CameraWithOverlay';
 
@@ -26,6 +26,7 @@ jest.mock('react-native-vision-camera', () => ({
   Camera: 'Camera',
   useCameraDevice: jest.fn(),
   useFrameProcessor: jest.fn((callback) => callback),
+  useSkiaFrameProcessor: jest.fn((callback) => callback),
 }));
 
 // Mock Skia
@@ -66,12 +67,14 @@ describe('CameraWithOverlay', () => {
   const mockDevice = { id: 'test-camera', position: 'back' };
   const mockUseCameraDevice = useCameraDevice as jest.MockedFunction<typeof useCameraDevice>;
   const mockUseFrameProcessor = useFrameProcessor as jest.MockedFunction<typeof useFrameProcessor>;
+  const mockUseSkiaFrameProcessor = useSkiaFrameProcessor as jest.MockedFunction<typeof useSkiaFrameProcessor>;
   const mockUseSharedValue = useSharedValue as jest.MockedFunction<typeof useSharedValue>;
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseCameraDevice.mockReturnValue(mockDevice as unknown as ReturnType<typeof useCameraDevice>);
     mockUseFrameProcessor.mockImplementation((callback) => callback as unknown as ReturnType<typeof useFrameProcessor>);
+    mockUseSkiaFrameProcessor.mockImplementation((callback) => callback as unknown as ReturnType<typeof useSkiaFrameProcessor>);
     mockUseSharedValue.mockImplementation((initialValue) => ({
       value: initialValue,
       addListener: jest.fn(),
@@ -192,7 +195,7 @@ describe('CameraWithOverlay', () => {
       );
 
       expect(mockUseSharedValue).toHaveBeenCalled();
-      expect(mockUseFrameProcessor).toHaveBeenCalled();
+      expect(mockUseSkiaFrameProcessor).toHaveBeenCalled();
     });
 
     it('should not include filters when disabled', () => {
@@ -277,7 +280,7 @@ describe('CameraWithOverlay', () => {
     it('should register frame processor', () => {
       render(<CameraWithOverlay enabledOverlays={['boundingBoxes']} />);
 
-      expect(mockUseFrameProcessor).toHaveBeenCalled();
+      expect(mockUseSkiaFrameProcessor).toHaveBeenCalled();
     });
 
     it('should update frame processor when overlays change', () => {
@@ -285,14 +288,14 @@ describe('CameraWithOverlay', () => {
         <CameraWithOverlay enabledOverlays={['boundingBoxes']} />
       );
 
-      const initialCallCount = mockUseFrameProcessor.mock.calls.length;
+      const initialCallCount = mockUseSkiaFrameProcessor.mock.calls.length;
 
       rerender(
         <CameraWithOverlay enabledOverlays={['boundingBoxes', 'liveFilters']} />
       );
 
       // Frame processor should be re-registered
-      expect(mockUseFrameProcessor.mock.calls.length).toBeGreaterThan(
+      expect(mockUseSkiaFrameProcessor.mock.calls.length).toBeGreaterThan(
         initialCallCount
       );
     });

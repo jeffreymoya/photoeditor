@@ -1,0 +1,240 @@
+# Task: Profile VisionCamera Skia memory leaks and implement mitigations
+
+schema_version: "1.1"
+id: TASK-0911D
+title: "Profile VisionCamera Skia memory leaks and implement mitigations"
+status: todo
+blocked_reason: null
+priority: P2
+area: mobile
+unblocker: false
+order: 4
+blocked_by: [TASK-0911B]
+depends_on: [TASK-0906]
+agent_completion_state: {}
+
+clarifications:
+  outstanding: []
+  resolved: true
+  evidence_path: "docs/evidence/tasks/TASK-0911-clarifications.md"
+
+description: >-
+  Profile memory usage for VisionCamera Skia frame processors to identify memory
+  leaks or performance bottlenecks (VisionCamera issue #3517). Use Xcode Instruments
+  for iOS and Android Profiler for Android to capture memory allocations during
+  camera sessions. Establish baseline vs. Skia-enabled memory usage. Apply cleanup
+  hooks (useEffect unmount), monitor long sessions (>5 min), and reference upstream
+  fixes from VisionCamera issue #3517. Document profiling procedures and findings.
+
+outcome: >-
+  Memory profiling completed for Skia frame processors with baseline comparison.
+  Memory leaks identified and mitigations applied (cleanup hooks, upstream fixes).
+  No significant memory growth over extended camera sessions (>5 min). Profiling
+  procedures documented for future validation.
+
+scope:
+  in:
+  - Profiling memory usage for Skia frame processors on iOS (Xcode Instruments)
+  - Profiling memory usage for Skia frame processors on Android (Android Profiler)
+  - Establishing baseline memory usage without Skia
+  - Implementing cleanup hooks (useEffect unmount) for frame processors
+  - Monitoring long camera sessions (>5 min) for memory growth
+  - Applying upstream fixes from VisionCamera issue #3517
+  - Documenting profiling procedures and findings
+  out:
+  - Feature flags or performance guardrails (deferred to TASK-0911E)
+  - Upload metrics measurement (deferred to TASK-0911F)
+
+context:
+  affected_packages: [mobile]
+  standards_tier: mobile
+  related_docs:
+  - standards/global.md
+  - standards/AGENTS.md
+  - standards/frontend-tier.md
+  - standards/typescript.md
+  - standards/testing-standards.md
+  - docs/proposals/mobile-stack-modernization.md
+  repo_paths:
+  - mobile/src/features/camera/frameProcessors.ts
+  - mobile/src/features/camera/CameraWithOverlay.tsx
+  - docs/evidence/tasks/TASK-0911-memory-profiling-results.md
+  dependencies:
+  - react-native-vision-camera
+  - react-native-skia
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+  - name: pnpm
+    version: "8.x"
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+  - Follow VisionCamera memory leak mitigation patterns (issue #3517)
+  - Implement cleanup hooks per React best practices
+  - Document profiling procedures for reproducibility
+  prohibited:
+  - Do not implement feature flags or performance monitoring (deferred to TASK-0911E)
+
+plan:
+- id: 1
+  title: Establish baseline memory usage without Skia
+  details: >-
+    Profile current camera implementation without Skia frame processors using Xcode
+    Instruments (iOS) and Android Profiler (Android). Capture memory allocations
+    during 5-10 minute camera sessions. Record baseline peak memory and leak rates.
+    Document profiling procedure in evidence file.
+  actor: agent
+  inputs:
+  - mobile/src/features/camera/ (current implementation)
+  - Xcode Instruments documentation
+  - Android Profiler documentation
+  outputs:
+  - docs/evidence/tasks/TASK-0911-memory-profiling-results.md (baseline metrics)
+  definition_of_done:
+  - Baseline memory usage recorded for iOS and Android
+  - Profiling procedure documented in evidence file
+  estimate: M
+  expected_files_touched:
+  - docs/evidence/tasks/TASK-0911-memory-profiling-results.md
+- id: 2
+  title: Profile Skia frame processor memory usage
+  details: >-
+    Profile camera implementation with Skia frame processors enabled using Xcode
+    Instruments (iOS) and Android Profiler (Android). Capture memory allocations
+    during 5-10 minute camera sessions. Compare against baseline to identify memory
+    growth or leaks. Document findings in evidence file.
+  actor: agent
+  inputs:
+  - mobile/src/features/camera/frameProcessors.ts
+  - mobile/src/features/camera/CameraWithOverlay.tsx
+  - Xcode Instruments documentation
+  - Android Profiler documentation
+  outputs:
+  - docs/evidence/tasks/TASK-0911-memory-profiling-results.md (Skia metrics and comparison)
+  definition_of_done:
+  - Skia memory usage recorded for iOS and Android
+  - Comparison against baseline documented in evidence file
+  - Memory leaks or growth patterns identified
+  estimate: M
+  expected_files_touched:
+  - docs/evidence/tasks/TASK-0911-memory-profiling-results.md
+- id: 3
+  title: Implement cleanup hooks for frame processors
+  details: >-
+    Implement useEffect cleanup hooks in CameraWithOverlay component to release
+    Skia resources on component unmount. Follow React best practices for cleanup.
+    Reference VisionCamera issue #3517 for Skia-specific cleanup patterns. Apply
+    cleanup to all frame processor worklets.
+  actor: agent
+  inputs:
+  - mobile/src/features/camera/CameraWithOverlay.tsx
+  - VisionCamera issue #3517 (cleanup patterns)
+  - React useEffect cleanup documentation
+  outputs:
+  - mobile/src/features/camera/CameraWithOverlay.tsx (cleanup hooks)
+  - mobile/src/features/camera/frameProcessors.ts (cleanup functions)
+  definition_of_done:
+  - useEffect cleanup hooks implemented for all frame processors
+  - Cleanup patterns follow VisionCamera issue #3517 recommendations
+  estimate: M
+  expected_files_touched:
+  - mobile/src/features/camera/CameraWithOverlay.tsx
+  - mobile/src/features/camera/frameProcessors.ts
+- id: 4
+  title: Apply upstream fixes from VisionCamera issue #3517
+  details: >-
+    Review VisionCamera GitHub issue #3517 for upstream fixes or workarounds. Apply
+    any available patches, dependency updates, or configuration changes that address
+    memory leaks. Document applied fixes in evidence file.
+  actor: agent
+  inputs:
+  - VisionCamera issue #3517
+  - mobile/package.json
+  - mobile/src/features/camera/
+  outputs:
+  - mobile/package.json (if dependency updates needed)
+  - mobile/src/features/camera/ (if configuration changes needed)
+  - docs/evidence/tasks/TASK-0911-memory-profiling-results.md (applied fixes)
+  definition_of_done:
+  - Upstream fixes from issue #3517 reviewed and applied
+  - Applied fixes documented in evidence file
+  estimate: M
+  expected_files_touched:
+  - docs/evidence/tasks/TASK-0911-memory-profiling-results.md
+  - mobile/package.json (if applicable)
+  - mobile/src/features/camera/ (if applicable)
+- id: 5
+  title: Validate mitigations with long camera sessions
+  details: >-
+    Re-profile camera implementation after applying cleanup hooks and upstream fixes.
+    Monitor long camera sessions (>5 min) to confirm no significant memory growth.
+    Compare against baseline and initial Skia profiling. Document validation results
+    in evidence file.
+  actor: agent
+  inputs:
+  - mobile/src/features/camera/CameraWithOverlay.tsx (with mitigations)
+  - Xcode Instruments documentation
+  - Android Profiler documentation
+  outputs:
+  - docs/evidence/tasks/TASK-0911-memory-profiling-results.md (validation results)
+  definition_of_done:
+  - Long camera sessions (>5 min) profiled after mitigations
+  - No significant memory growth confirmed
+  - Validation results documented in evidence file
+  estimate: M
+  expected_files_touched:
+  - docs/evidence/tasks/TASK-0911-memory-profiling-results.md
+
+validation:
+  pipeline:
+  - command: pnpm turbo run lint:fix --filter=photoeditor-mobile
+    description: Auto-fix linting issues in mobile package
+  - command: pnpm turbo run qa:static --filter=photoeditor-mobile
+    description: Run static analysis (typecheck + lint) on mobile
+  - command: pnpm turbo run test --filter=photoeditor-mobile
+    description: Run unit tests for mobile package
+  manual_checks:
+  - Profile baseline memory usage on iOS simulator (5-10 min session)
+  - Profile baseline memory usage on Android emulator (5-10 min session)
+  - Profile Skia memory usage on iOS simulator (5-10 min session)
+  - Profile Skia memory usage on Android emulator (5-10 min session)
+  - Validate cleanup hooks release resources on component unmount
+  - Confirm no significant memory growth over >5 min camera sessions
+
+acceptance_criteria:
+  must:
+  - Baseline memory usage established for iOS and Android
+  - Skia frame processor memory usage profiled for iOS and Android
+  - Memory leaks identified and mitigations applied (cleanup hooks, upstream fixes)
+  - No significant memory growth over extended camera sessions (>5 min)
+  - Profiling procedures documented in evidence file
+  - pnpm turbo run qa:static --filter=photoeditor-mobile passes
+  quality_gates:
+  - Memory growth rate during Skia sessions ≤ 10% above baseline
+  - No critical memory leaks detected by profilers
+  - Cleanup hooks properly release resources on unmount
+
+artifacts:
+- path: docs/evidence/tasks/TASK-0911-memory-profiling-results.md
+  description: Memory profiling baseline, Skia metrics, mitigations, and validation results
+
+deliverables:
+- docs/evidence/tasks/TASK-0911-memory-profiling-results.md
+- mobile/src/features/camera/CameraWithOverlay.tsx (cleanup hooks)
+- mobile/src/features/camera/frameProcessors.ts (cleanup functions)
+- mobile/package.json (if upstream dependency updates applied)
+
+risks:
+- description: Memory leaks may persist despite mitigations if VisionCamera issue #3517 is unresolved
+  mitigation: Document leak rates and severity; escalate to VisionCamera maintainers if critical
+- description: Profiling may be difficult in simulators/emulators vs. real devices
+  mitigation: Focus on relative comparison (baseline vs. Skia) rather than absolute metrics; note limitations in evidence

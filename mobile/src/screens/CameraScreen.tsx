@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { writeToQueue } from '@/features/upload/uploadQueue';
 import { colors, spacing, typography, borderRadius } from '@/lib/ui-tokens';
 import { useAppDispatch } from '@/store';
 import { addSelectedImage } from '@/store/slices/imageSlice';
@@ -77,6 +78,33 @@ export const CameraScreen = ({ navigation }: CameraScreenProps) => {
         };
 
         dispatch(addSelectedImage(imageAsset));
+
+        // Write upload task to queue immediately after capture
+        // Per ADR-0010: AsyncStorage queue + foreground immediate dispatch
+        // Per TASK-0911C: expo-background-task polls queue every 15min
+        const correlationId = `upload-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+
+        const queueResult = await writeToQueue({
+          imageUri: photo.uri,
+          fileName: imageAsset.fileName || `photo_${Date.now()}.jpg`,
+          correlationId,
+        });
+
+        if (!queueResult.success) {
+          console.warn('[CameraScreen] Failed to write upload task to queue', {
+            error: queueResult.error,
+            correlationId,
+          });
+          // Non-blocking: user can still navigate to Edit screen
+          // Background processor will retry existing queued tasks
+        } else {
+          console.warn('[CameraScreen] Upload task queued', {
+            taskId: queueResult.value,
+            correlationId,
+            fileName: imageAsset.fileName,
+          });
+        }
+
         navigation.navigate('Edit');
       } catch {
         Alert.alert('Error', 'Failed to take picture');

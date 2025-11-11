@@ -74,7 +74,22 @@
           "enableMicrophonePermission": false
         }
       ],
-      "expo-background-task",
+      [
+        "expo-background-task",
+        {
+          "android": {
+            "minimumInterval": 900,
+            "networkType": "connected",
+            "requiresCharging": false,
+            "requiresDeviceIdle": false,
+            "requiresBatteryNotLow": true
+          },
+          "ios": {
+            "minimumInterval": 900,
+            "requiresNetworkConnectivity": true
+          }
+        }
+      ],
       "expo-font"
     ],
     "extra": {

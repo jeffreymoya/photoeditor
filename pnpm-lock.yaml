@@ -442,6 +442,9 @@ importers:
       eslint-plugin-unused-imports:
         specifier: ^4.3.0
         version: 4.3.0(@typescript-eslint/eslint-plugin@8.46.1)(eslint@9.39.1)
+      expo-task-manager:
+        specifier: ^14.0.8
+        version: 14.0.8(expo@53.0.23)(react-native@0.79.3)
       globals:
         specifier: ^16.5.0
         version: 16.5.0
@@ -11662,7 +11665,6 @@ packages:
       expo: 53.0.23(@babel/core@7.28.4)(react-native@0.79.3)(react@19.0.0)
       react-native: 0.79.3(@babel/core@7.28.4)(@types/react@19.0.14)(react@19.0.0)
       unimodules-app-loader: 6.0.7
-    dev: false
 
   /expo-updates-interface@0.16.2(expo@53.0.23):
     resolution: {integrity: sha512-929XBU70q5ELxkKADj1xL0UIm3HvhYhNAOZv5DSk7rrKvLo7QDdPyl+JVnwZm9LrkNbH4wuE2rLoKu1KMgZ+9A==}
@@ -18446,7 +18448,6 @@ packages:
 
   /unimodules-app-loader@6.0.7:
     resolution: {integrity: sha512-23iwxmh6/y54PRGJt/xjsOpPK8vlfusBisi3yaVSK22pxg5DmiL/+IHCtbb/crHC+gqdItcy1OoRsZQHfNSBaw==}
-    dev: false
 
   /unique-string@1.0.0:
     resolution: {integrity: sha512-ODgiYu03y5g76A1I9Gt0/chLCzQjvzDy7DsZGsLOE/1MrF6wriEskSncj1+/C58Xk/kPZDppSctDybCwOSaGAg==}

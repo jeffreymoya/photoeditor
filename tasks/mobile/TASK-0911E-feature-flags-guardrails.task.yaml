@@ -1,0 +1,260 @@
+# Task: Implement feature flags and frame budget guardrails
+
+schema_version: "1.1"
+id: TASK-0911E
+title: "Implement feature flags and frame budget guardrails"
+status: todo
+blocked_reason: null
+priority: P2
+area: mobile
+unblocker: false
+order: 5
+blocked_by: [TASK-0911B, TASK-0911D]
+depends_on: [TASK-0906]
+agent_completion_state: {}
+
+clarifications:
+  outstanding: []
+  resolved: true
+  evidence_path: "docs/evidence/tasks/TASK-0911-clarifications.md"
+
+description: >-
+  Implement feature flags for lower-end devices to disable Skia frame processors if
+  16ms frame budget is exceeded. Use dual strategy: device allowlist (only enable on
+  known-good devices) and user toggle in Settings for manual control. Implement
+  diagnostics to monitor frame processing times and identify devices for allowlist.
+  Test on lower-end emulators to validate guardrails prevent UI thread starvation.
+
+outcome: >-
+  Feature flags implemented for frame processor enablement with device allowlist and
+  user toggle. Frame budget diagnostics monitor processing times and log telemetry.
+  Tested on lower-end emulators with no UI thread starvation. Allowlist seeded with
+  devices meeting 16ms budget.
+
+scope:
+  in:
+  - Implementing device allowlist for frame processor enablement
+  - Implementing user toggle in Settings to enable/disable frame processors
+  - Creating frame budget diagnostics to monitor processing times
+  - Testing on lower-end emulators to validate guardrails
+  - Logging telemetry to identify devices for allowlist
+  out:
+  - Upload metrics measurement (deferred to TASK-0911F)
+  - Memory profiling (completed in TASK-0911D)
+
+context:
+  affected_packages: [mobile]
+  standards_tier: mobile
+  related_docs:
+  - standards/global.md
+  - standards/AGENTS.md
+  - standards/frontend-tier.md
+  - standards/typescript.md
+  - standards/testing-standards.md
+  - docs/proposals/mobile-stack-modernization.md
+  repo_paths:
+  - mobile/src/utils/featureFlags.ts
+  - mobile/src/features/camera/frameBudgetMonitor.ts
+  - mobile/src/features/camera/CameraWithOverlay.tsx
+  - mobile/src/screens/SettingsScreen.tsx
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+  - name: pnpm
+    version: "8.x"
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+  - Implement feature flags per standards/frontend-tier.md state management patterns
+  - Monitor frame processing times with diagnostics to prevent UI jank
+  - Default frame processors disabled unless device on allowlist OR user enables
+  prohibited:
+  - Do not implement upload metrics measurement (deferred to TASK-0911F)
+
+plan:
+- id: 1
+  title: Create feature flag module
+  details: >-
+    Create mobile/src/utils/featureFlags.ts module with device allowlist and user
+    toggle logic. Follow standards/frontend-tier.md#state--logic-layer for feature
+    flag patterns. Use platform APIs (Platform.constants, DeviceInfo) to detect
+    device model. Integrate with app settings state (Redux or AsyncStorage).
+  actor: agent
+  inputs:
+  - standards/frontend-tier.md
+  - React Native Platform API documentation
+  outputs:
+  - mobile/src/utils/featureFlags.ts
+  definition_of_done:
+  - Feature flag module created with device allowlist and user toggle
+  - Module follows standards/frontend-tier.md state management patterns
+  estimate: M
+  expected_files_touched:
+  - mobile/src/utils/featureFlags.ts
+- id: 2
+  title: Seed device allowlist with known-good devices
+  details: >-
+    Seed device allowlist with devices confirmed to meet 16ms frame budget during
+    frame processor operations. Reference mobile/src/features/camera/frameBudgetMonitor.ts
+    (created in next step) for measurement criteria. Start with conservative list
+    (e.g., recent iPhone/Pixel models). Document allowlist criteria in comments.
+  actor: agent
+  inputs:
+  - VisionCamera performance documentation
+  - mobile/src/utils/featureFlags.ts
+  outputs:
+  - mobile/src/utils/featureFlags.ts (seeded allowlist)
+  definition_of_done:
+  - Device allowlist seeded with conservative set of devices
+  - Allowlist criteria documented in comments
+  estimate: S
+  expected_files_touched:
+  - mobile/src/utils/featureFlags.ts
+- id: 3
+  title: Create frame budget monitor module
+  details: >-
+    Create mobile/src/features/camera/frameBudgetMonitor.ts module to monitor frame
+    processing times. Measure time delta for each frame processor execution. Log
+    violations (>16ms) with device model and frame processor type. Emit telemetry
+    to identify additional devices for allowlist. Follow standards/typescript.md#analyzability
+    for structured logging with correlation IDs.
+  actor: agent
+  inputs:
+  - standards/typescript.md
+  - Reanimated worklet timing APIs
+  outputs:
+  - mobile/src/features/camera/frameBudgetMonitor.ts
+  definition_of_done:
+  - Frame budget monitor measures processing times per frame
+  - Violations (>16ms) logged with device model and frame processor type
+  - Telemetry emitted for allowlist expansion
+  estimate: M
+  expected_files_touched:
+  - mobile/src/features/camera/frameBudgetMonitor.ts
+- id: 4
+  title: Integrate feature flags with CameraWithOverlay
+  details: >-
+    Update mobile/src/features/camera/CameraWithOverlay.tsx to check feature flags
+    before enabling frame processors. Disable frame processors if device not on
+    allowlist AND user has not manually enabled. Integrate frame budget monitor to
+    track processing times. Log feature flag state (enabled/disabled) on component
+    mount.
+  actor: agent
+  inputs:
+  - mobile/src/utils/featureFlags.ts
+  - mobile/src/features/camera/frameBudgetMonitor.ts
+  - mobile/src/features/camera/CameraWithOverlay.tsx
+  outputs:
+  - mobile/src/features/camera/CameraWithOverlay.tsx (feature flag integration)
+  definition_of_done:
+  - CameraWithOverlay checks feature flags before enabling frame processors
+  - Frame processors disabled if not on allowlist AND user has not enabled
+  - Frame budget monitor integrated to track processing times
+  estimate: M
+  expected_files_touched:
+  - mobile/src/features/camera/CameraWithOverlay.tsx
+- id: 5
+  title: Add user toggle in Settings screen
+  details: >-
+    Add user toggle in mobile/src/screens/SettingsScreen.tsx to enable/disable frame
+    processors. Display performance warning when enabling on devices not on allowlist.
+    Persist toggle state in AsyncStorage or Redux. Follow standards/frontend-tier.md#ui-components-layer
+    for component patterns.
+  actor: agent
+  inputs:
+  - mobile/src/screens/SettingsScreen.tsx
+  - mobile/src/utils/featureFlags.ts
+  - standards/frontend-tier.md
+  outputs:
+  - mobile/src/screens/SettingsScreen.tsx (user toggle)
+  definition_of_done:
+  - User toggle added to Settings screen
+  - Performance warning displayed for devices not on allowlist
+  - Toggle state persisted in AsyncStorage or Redux
+  estimate: M
+  expected_files_touched:
+  - mobile/src/screens/SettingsScreen.tsx
+- id: 6
+  title: Add tests for feature flags and frame budget monitor
+  details: >-
+    Create tests for mobile/src/utils/featureFlags.ts and mobile/src/features/camera/frameBudgetMonitor.ts.
+    Test device allowlist logic, user toggle integration, and frame budget violation
+    detection. Follow standards/testing-standards.md coverage expectations (≥70%
+    lines, ≥60% branches).
+  actor: agent
+  inputs:
+  - mobile/src/utils/featureFlags.ts
+  - mobile/src/features/camera/frameBudgetMonitor.ts
+  - standards/testing-standards.md
+  outputs:
+  - mobile/src/utils/__tests__/featureFlags.test.ts
+  - mobile/src/features/camera/__tests__/frameBudgetMonitor.test.ts
+  definition_of_done:
+  - Tests cover allowlist logic, user toggle, and budget violations
+  - Tests meet standards/testing-standards.md coverage thresholds
+  estimate: M
+  expected_files_touched:
+  - mobile/src/utils/__tests__/featureFlags.test.ts
+  - mobile/src/features/camera/__tests__/frameBudgetMonitor.test.ts
+
+validation:
+  pipeline:
+  - command: pnpm turbo run lint:fix --filter=photoeditor-mobile
+    description: Auto-fix linting issues in mobile package
+  - command: pnpm turbo run qa:static --filter=photoeditor-mobile
+    description: Run static analysis (typecheck + lint) on mobile
+  - command: pnpm turbo run test --filter=photoeditor-mobile
+    description: Run unit tests for mobile package
+  - command: pnpm turbo run test:coverage --filter=photoeditor-mobile
+    description: Run tests with coverage reporting to verify thresholds (≥70% lines, ≥60% branches per standards/testing-standards.md)
+  manual_checks:
+  - Test feature flags disable frame processors on devices not on allowlist
+  - Test user toggle enables frame processors with performance warning
+  - Test frame budget monitor logs violations (>16ms) correctly
+  - Verify no UI thread starvation on lower-end emulators with feature flags
+
+acceptance_criteria:
+  must:
+  - Device allowlist implemented and seeded with known-good devices
+  - User toggle in Settings enables/disables frame processors
+  - Frame budget monitor logs processing times and violations (>16ms)
+  - Feature flags integrated with CameraWithOverlay component
+  - Tests meet standards/testing-standards.md coverage thresholds (≥70% lines, ≥60% branches)
+  - pnpm turbo run qa:static --filter=photoeditor-mobile passes
+  - No UI thread starvation on lower-end emulators with feature flags
+  quality_gates:
+  - Default behavior: frame processors disabled unless device on allowlist OR user enables
+  - Frame budget violations logged with device model and telemetry for allowlist expansion
+
+artifacts:
+- path: mobile/src/utils/featureFlags.ts
+  description: Feature flag module with device allowlist and user toggle
+- path: mobile/src/features/camera/frameBudgetMonitor.ts
+  description: Frame budget monitor for processing time diagnostics
+- path: mobile/src/utils/__tests__/featureFlags.test.ts
+  description: Tests for feature flags
+- path: mobile/src/features/camera/__tests__/frameBudgetMonitor.test.ts
+  description: Tests for frame budget monitor
+
+deliverables:
+- mobile/src/utils/featureFlags.ts
+- mobile/src/features/camera/frameBudgetMonitor.ts
+- mobile/src/features/camera/CameraWithOverlay.tsx (feature flag integration)
+- mobile/src/screens/SettingsScreen.tsx (user toggle)
+- mobile/src/utils/__tests__/featureFlags.test.ts
+- mobile/src/features/camera/__tests__/frameBudgetMonitor.test.ts
+
+risks:
+- description: Device allowlist may be incomplete and exclude capable devices
+  mitigation: Use telemetry from frame budget monitor to identify additional devices; conservative initial list prevents performance regressions
+- description: Frame budget monitor may introduce overhead and affect measurements
+  mitigation: Minimize monitor overhead with lightweight timing APIs; disable in production if overhead significant

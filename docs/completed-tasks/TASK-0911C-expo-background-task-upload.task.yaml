@@ -1,0 +1,361 @@
+# Task: Configure expo-background-task for upload pipeline
+
+schema_version: "1.1"
+id: TASK-0911C
+title: "Configure expo-background-task for upload pipeline"
+status: completed
+blocked_reason:
+priority: P2
+area: mobile
+unblocker: false
+order: 3
+blocked_by: []
+depends_on: [TASK-0906]
+agent_completion_state:
+  task_implementer:
+    status: complete
+    summary_path: .agent-outputs/TASK-0911C-implementation-summary-final.md
+    timestamp: "2025-11-11"
+  implementation_reviewer:
+    status: complete
+    summary_path: 
+      .agent-outputs/implementation-reviewer-summary-TASK-0911C-final.md
+    timestamp: "2025-11-11"
+  test_validation_mobile:
+    status: complete
+    report_path: docs/tests/reports/2025-11-11-validation-mobile-TASK-0911C.md
+    timestamp: "2025-11-11"
+
+clarifications:
+  outstanding: []
+  resolved: true
+  evidence_path: "docs/evidence/tasks/TASK-0911-clarifications.md"
+
+description: >-
+  Migrate upload pipeline from current polling/push model to expo-background-task
+  (WorkManager on Android, BGTaskScheduler on iOS) with AsyncStorage queue pattern.
+  expo-background-task provides reliable background execution with 15-minute polling
+  interval for uploads and notification hydration. Configure foreground immediate
+  dispatch
+  + 15min background polling with exponential backoff retry strategy per ADR-0010.
+  Integrate with existing upload services and notification queue per standards/frontend-tier.md.
+
+outcome: >-
+  expo-background-task configured for upload pipeline with WorkManager/BGTaskScheduler
+  scheduling and AsyncStorage queue pattern. Upload jobs migrated to background task
+  workers with 15min polling. Foreground immediate dispatch + background polling with
+  exponential backoff retry implemented. Integration with existing upload services
+  complete.
+
+scope:
+  in:
+  - Configuring expo-background-task for upload pipeline with AsyncStorage queue
+    pattern
+  - Implementing AsyncStorage-backed upload queue (write, read, remove 
+    operations)
+  - Migrating upload jobs to background task workers (15min polling interval)
+  - Implementing foreground immediate dispatch + background polling with 
+    exponential backoff retry
+  - Integrating with existing upload services and notification queue
+  out:
+  - Upload metrics measurement (deferred to TASK-0911F)
+  - Feature flags or performance monitoring (deferred to TASK-0911E)
+  - Migrating non-upload background jobs (upload pilot only per scope)
+
+context:
+  affected_packages: [mobile]
+  standards_tier: mobile
+  related_docs:
+  - standards/global.md
+  - standards/AGENTS.md
+  - standards/frontend-tier.md
+  - standards/typescript.md
+  - standards/testing-standards.md
+  - docs/proposals/mobile-stack-modernization.md
+  - adr/0010-asyncstorage-queue-background-uploads.md
+  repo_paths:
+  - mobile/src/features/upload/backgroundTasks.ts
+  - mobile/src/features/upload/uploadQueue.ts
+  - mobile/src/features/upload/services/
+  - mobile/app.json
+  dependencies:
+  - expo-background-task
+  - "@react-native-async-storage/async-storage"
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+  - name: pnpm
+    version: "8.x"
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+  - Follow AsyncStorage queue pattern per ADR-0010 (industry standard for React 
+    Native background tasks)
+  - Implement foreground immediate dispatch + 15min background polling per 
+    platform constraints
+  - Follow expo-background-task scheduling guide for WorkManager/BGTaskScheduler
+  - Implement exponential backoff retry (1s, 2s, 4s, 8s, max 60s) per 
+    clarifications
+  - Integrate with existing upload services per standards/frontend-tier.md
+  - Follow standards/typescript.md for error handling with Result pattern
+  prohibited:
+  - Do not migrate non-upload background jobs (upload pilot only)
+  - Do not implement upload metrics measurement (deferred to TASK-0911F)
+
+plan:
+- id: 1
+  title: Create AsyncStorage upload queue module
+  details: >-
+    Create mobile/src/features/upload/uploadQueue.ts module implementing AsyncStorage-backed
+    queue pattern per ADR-0010. Provide write, read, and remove operations for upload
+    tasks. Follow standards/frontend-tier.md#services--integration-layer for service
+    integration patterns. Use TypeScript interfaces for UploadTask structure (id,
+    imageUri,
+    fileName, correlationId, timestamp, retryCount, lastError).
+  actor: agent
+  inputs:
+  - adr/0010-asyncstorage-queue-background-uploads.md
+  - standards/frontend-tier.md
+  - standards/typescript.md
+  outputs:
+  - mobile/src/features/upload/uploadQueue.ts (queue module)
+  definition_of_done:
+  - Upload queue module created with write, read, remove operations
+  - TypeScript interfaces defined for UploadTask structure
+  - Module follows standards/frontend-tier.md service integration patterns
+  estimate: S
+  expected_files_touched:
+  - mobile/src/features/upload/uploadQueue.ts
+- id: 2
+  title: Create background task module for uploads
+  details: >-
+    Create mobile/src/features/upload/backgroundTasks.ts module. Define background
+    task registration and worker functions per expo-background-task API. Worker function
+    polls uploadQueue module and processes pending uploads. Follow
+    standards/frontend-tier.md#services--integration-layer for service integration
+    patterns.
+  actor: agent
+  inputs:
+  - expo-background-task scheduling documentation
+  - mobile/src/features/upload/uploadQueue.ts
+  - standards/frontend-tier.md
+  outputs:
+  - mobile/src/features/upload/backgroundTasks.ts (module structure)
+  definition_of_done:
+  - Background task module created with registration and worker exports
+  - Worker polls uploadQueue and processes pending uploads
+  - Module follows standards/frontend-tier.md service integration patterns
+  estimate: S
+  expected_files_touched:
+  - mobile/src/features/upload/backgroundTasks.ts
+- id: 3
+  title: Implement upload background task worker
+  details: >-
+    Implement background task worker function that polls uploadQueue and executes
+    upload
+    operations for each queued task. Integrate with existing upload services in
+    mobile/src/features/upload/services/. Use Result pattern for error handling per
+    standards/typescript.md#analyzability. Follow standards/frontend-tier.md#purity--immutability-in-services
+    for service isolation. Process queue within 30-second background task execution
+    limit.
+  actor: agent
+  inputs:
+  - mobile/src/features/upload/services/
+  - mobile/src/features/upload/uploadQueue.ts
+  - expo-background-task worker API
+  - standards/typescript.md
+  - standards/frontend-tier.md
+  outputs:
+  - mobile/src/features/upload/backgroundTasks.ts (worker implementation)
+  definition_of_done:
+  - Worker function polls uploadQueue and executes upload operations
+  - Worker processes queue within 30-second execution limit
+  - Error handling uses Result pattern per standards/typescript.md
+  - Service calls follow standards/frontend-tier.md purity patterns
+  estimate: M
+  expected_files_touched:
+  - mobile/src/features/upload/backgroundTasks.ts
+- id: 4
+  title: Implement exponential backoff retry strategy
+  details: >-
+    Implement exponential backoff retry strategy for upload failures (1s, 2s, 4s,
+    8s, max 60s per clarifications). Update uploadQueue with retry count and last
+    error.
+    Background worker checks retry count and applies backoff before re-attempting.
+    Log retry attempts with correlation IDs per standards/typescript.md#analyzability.
+  actor: agent
+  inputs:
+  - mobile/src/features/upload/uploadQueue.ts
+  - standards/frontend-tier.md
+  - standards/typescript.md
+  outputs:
+  - mobile/src/features/upload/backgroundTasks.ts (retry strategy)
+  definition_of_done:
+  - Exponential backoff retry implemented (1s, 2s, 4s, 8s, max 60s)
+  - Upload queue tracks retry count and last error
+  - Retry attempts logged with correlation IDs
+  estimate: M
+  expected_files_touched:
+  - mobile/src/features/upload/backgroundTasks.ts
+  - mobile/src/features/upload/uploadQueue.ts
+- id: 5
+  title: Configure background task scheduling in app.json
+  details: >-
+    Configure expo-background-task scheduling parameters in mobile/app.json. Set
+    WorkManager minimum interval (15min) for Android and BGTaskScheduler parameters
+    for iOS per expo-background-task documentation and ADR-0010. Document platform-specific
+    scheduling limits (15min minimum, 30sec execution limit).
+  actor: agent
+  inputs:
+  - mobile/app.json
+  - expo-background-task configuration guide
+  - adr/0010-asyncstorage-queue-background-uploads.md
+  outputs:
+  - mobile/app.json (background task scheduling configuration)
+  definition_of_done:
+  - WorkManager constraints configured for Android (15min minimum interval)
+  - BGTaskScheduler parameters configured for iOS
+  - Platform scheduling limits documented in comments (15min polling, 30sec 
+    execution)
+  estimate: S
+  expected_files_touched:
+  - mobile/app.json
+- id: 6
+  title: Integrate upload queue with foreground photo capture
+  details: >-
+    Update CameraScreen (or upload service callers) to write upload tasks to uploadQueue
+    immediately after photo capture (foreground dispatch). Also attempt immediate
+    upload
+    in foreground for responsive UX. Follow standards/frontend-tier.md#ports--adapters
+    for service integration. Non-blocking UX - user can navigate regardless of queue
+    write result.
+  actor: agent
+  inputs:
+  - mobile/src/features/upload/uploadQueue.ts
+  - mobile/src/features/upload/services/
+  - mobile/src/screens/CameraScreen.tsx
+  - standards/frontend-tier.md
+  outputs:
+  - Updated upload service callers to write to uploadQueue
+  definition_of_done:
+  - CameraScreen writes to uploadQueue immediately after photo capture
+  - Foreground immediate upload attempted for responsive UX
+  - Non-blocking UX - navigation not blocked by queue operations
+  - Integration follows standards/frontend-tier.md ports & adapters pattern
+  estimate: M
+  expected_files_touched:
+  - mobile/src/screens/CameraScreen.tsx (or caller)
+  - mobile/src/features/upload/services/
+- id: 7
+  title: Add tests for upload queue and background task workers
+  details: >-
+    Create tests for uploadQueue module and backgroundTasks module. Mock AsyncStorage
+    for queue tests. Mock expo-background-task APIs and upload services for worker
+    tests.
+    Test queue operations (write, read, remove), worker polling, retry strategy. Follow
+    standards/testing-standards.md coverage expectations (≥70% lines, ≥60% branches).
+  actor: agent
+  inputs:
+  - mobile/src/features/upload/uploadQueue.ts
+  - mobile/src/features/upload/backgroundTasks.ts
+  - standards/testing-standards.md
+  outputs:
+  - mobile/src/features/upload/__tests__/uploadQueue.test.ts
+  - mobile/src/features/upload/__tests__/backgroundTasks.test.ts
+  definition_of_done:
+  - Tests cover queue operations (write, read, remove)
+  - Tests cover worker polling, execution, retry strategy
+  - AsyncStorage and expo-background-task APIs mocked
+  - Tests meet standards/testing-standards.md coverage thresholds
+  estimate: M
+  expected_files_touched:
+  - mobile/src/features/upload/__tests__/uploadQueue.test.ts
+  - mobile/src/features/upload/__tests__/backgroundTasks.test.ts
+
+validation:
+  pipeline:
+  - command: pnpm turbo run lint:fix --filter=photoeditor-mobile
+    description: Auto-fix linting issues in mobile package
+  - command: pnpm turbo run qa:static --filter=photoeditor-mobile
+    description: Run static analysis (typecheck + lint) on mobile
+  - command: pnpm turbo run test --filter=photoeditor-mobile
+    description: Run unit tests for mobile package
+  - command: pnpm turbo run test:coverage --filter=photoeditor-mobile
+    description: Run tests with coverage reporting to verify thresholds (≥70% 
+      lines, ≥60% branches per standards/testing-standards.md)
+  manual_checks:
+  - Test expo-background-task scheduling for upload pipeline on iOS simulator
+  - Test expo-background-task scheduling for upload pipeline on Android emulator
+  - Verify exponential backoff retry strategy executes correctly
+  - Verify WorkManager scheduling on Android
+  - Verify BGTaskScheduler scheduling on iOS
+
+acceptance_criteria:
+  must:
+  - expo-background-task configured for upload pipeline with AsyncStorage queue 
+    pattern per ADR-0010
+  - AsyncStorage upload queue module created (write, read, remove operations)
+  - Upload jobs migrated to background task workers (15min polling interval)
+  - Foreground immediate dispatch + 15min background polling with exponential 
+    backoff retry implemented (1s, 2s, 4s, 8s, max 60s)
+  - Integration with existing upload services complete
+  - Tests meet standards/testing-standards.md coverage thresholds (≥70% lines, 
+    ≥60% branches)
+  - pnpm turbo run qa:static --filter=photoeditor-mobile passes
+  - WorkManager/BGTaskScheduler scheduling verified on both platforms (15min 
+    minimum interval)
+  quality_gates:
+  - Error handling uses Result pattern per standards/typescript.md
+  - Service integration follows standards/frontend-tier.md ports & adapters 
+    pattern
+  - Retry attempts logged with correlation IDs
+  - AsyncStorage queue pattern follows ADR-0010 industry standards
+
+artifacts:
+- path: mobile/src/features/upload/uploadQueue.ts
+  description: AsyncStorage-backed upload queue module (write, read, remove 
+    operations)
+- path: mobile/src/features/upload/backgroundTasks.ts
+  description: Background task workers (15min polling) and retry strategy for 
+    uploads
+- path: mobile/app.json
+  description: Background task scheduling configuration 
+    (WorkManager/BGTaskScheduler, 15min minimum interval)
+- path: mobile/src/features/upload/__tests__/uploadQueue.test.ts
+  description: Tests for upload queue operations
+- path: mobile/src/features/upload/__tests__/backgroundTasks.test.ts
+  description: Tests for background task workers
+- path: adr/0010-asyncstorage-queue-background-uploads.md
+  description: ADR documenting AsyncStorage queue architecture decision
+
+deliverables:
+- mobile/src/features/upload/uploadQueue.ts
+- mobile/src/features/upload/backgroundTasks.ts
+- mobile/app.json (background task configuration)
+- mobile/src/features/upload/__tests__/uploadQueue.test.ts
+- mobile/src/features/upload/__tests__/backgroundTasks.test.ts
+- Updated upload service callers (CameraScreen or similar)
+- adr/0010-asyncstorage-queue-background-uploads.md
+
+risks:
+- description: Background tasks may not run reliably due to platform scheduling 
+    limits (15min minimum, system-controlled timing)
+  mitigation: Foreground immediate dispatch provides responsive UX for active 
+    users. Background polling handles app backgrounded/killed scenarios. Test 
+    scheduling on both platforms, document platform constraints in ADR-0010.
+- description: Exponential backoff may delay uploads too long on network 
+    failures
+  mitigation: Cap max retry delay at 60s per clarifications, monitor upload 
+    latency in TASK-0911F
+- description: AsyncStorage queue may grow unbounded if uploads consistently 
+    fail
+  mitigation: Implement max retries limit, remove tasks after max retries 
+    exceeded, add queue cleanup for expired tasks (>24h old)

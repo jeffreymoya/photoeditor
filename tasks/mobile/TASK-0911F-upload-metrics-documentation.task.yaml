@@ -1,0 +1,254 @@
+# Task: Measure upload success rate and document pilot outcomes
+
+schema_version: "1.1"
+id: TASK-0911F
+title: "Measure upload success rate and document pilot outcomes"
+status: todo
+blocked_reason: null
+priority: P2
+area: mobile
+unblocker: false
+order: 6
+blocked_by: [TASK-0911C]
+depends_on: [TASK-0906, TASK-0911D, TASK-0911E]
+agent_completion_state: {}
+
+clarifications:
+  outstanding: []
+  resolved: true
+  evidence_path: "docs/evidence/tasks/TASK-0911-clarifications.md"
+
+description: >-
+  Measure upload success rate and end-to-end latency metrics before/after expo-background-task
+  migration. Establish baseline from current upload system over 1-week period. Compare
+  against expo-background-task implementation over 1-week period. Track success rate,
+  p50/p95 latency, and manual retry rate. Document VisionCamera Skia and expo-background-task
+  pilot outcomes including overlay implementation, memory profiling, feature flags,
+  upload metrics, and platform entitlements.
+
+outcome: >-
+  Upload success rate and latency metrics captured before/after migration. Metrics
+  meet or exceed current baseline with fewer manual retries documented. VisionCamera
+  Skia and expo-background-task pilot outcomes fully documented with overlay implementation,
+  memory profiling, feature flags, upload metrics, and platform entitlements.
+
+scope:
+  in:
+  - Establishing upload baseline metrics from current system (1-week sampling)
+  - Measuring upload metrics with expo-background-task (1-week sampling)
+  - Comparing success rate, latency percentiles, manual retry rate
+  - Documenting VisionCamera Skia pilot outcomes (overlays, memory profiling)
+  - Documenting expo-background-task pilot outcomes (scheduling, metrics)
+  - Documenting feature flags and platform entitlements
+  out:
+  - Implementing new features or changes (pilot complete)
+
+context:
+  affected_packages: [mobile]
+  standards_tier: mobile
+  related_docs:
+  - standards/global.md
+  - standards/AGENTS.md
+  - standards/frontend-tier.md
+  - standards/testing-standards.md
+  - docs/proposals/mobile-stack-modernization.md
+  repo_paths:
+  - docs/evidence/tasks/TASK-0911-upload-metrics.md
+  - docs/mobile/visioncamera-background-task-pilot.md
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+  - name: pnpm
+    version: "8.x"
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+  - Follow standards/global.md evidence bundle requirements
+  - Document metrics with statistical significance and sampling methodology
+  prohibited:
+  - Do not implement new features or changes (pilot documentation only)
+
+plan:
+- id: 1
+  title: Establish upload baseline metrics from current system
+  details: >-
+    Measure upload success rate, end-to-end latency (p50/p95), and manual retry
+    rate from current upload system over 1-week period. Use application logs,
+    analytics, or instrumentation to capture metrics. Document sampling methodology
+    and statistical significance. Record baseline in evidence file per
+    standards/global.md evidence requirements.
+  actor: agent
+  inputs:
+  - mobile/src/features/upload/services/ (current implementation)
+  - Application logs or analytics
+  outputs:
+  - docs/evidence/tasks/TASK-0911-upload-metrics.md (baseline metrics)
+  definition_of_done:
+  - Baseline success rate, latency (p50/p95), and manual retry rate captured
+  - Sampling methodology documented (1-week period, sample size)
+  - Baseline metrics recorded in evidence file
+  estimate: M
+  expected_files_touched:
+  - docs/evidence/tasks/TASK-0911-upload-metrics.md
+- id: 2
+  title: Measure upload metrics with expo-background-task
+  details: >-
+    Measure upload success rate, end-to-end latency (p50/p95), and manual retry
+    rate with expo-background-task implementation over 1-week period. Use same
+    instrumentation as baseline for fair comparison. Document sampling methodology.
+    Record metrics in evidence file.
+  actor: agent
+  inputs:
+  - mobile/src/features/upload/backgroundTasks.ts
+  - Application logs or analytics
+  outputs:
+  - docs/evidence/tasks/TASK-0911-upload-metrics.md (expo-background-task metrics)
+  definition_of_done:
+  - expo-background-task success rate, latency (p50/p95), and manual retry rate captured
+  - Sampling methodology matches baseline (1-week period, comparable sample size)
+  - Metrics recorded in evidence file
+  estimate: M
+  expected_files_touched:
+  - docs/evidence/tasks/TASK-0911-upload-metrics.md
+- id: 3
+  title: Compare metrics and document improvements/regressions
+  details: >-
+    Compare expo-background-task metrics against baseline. Calculate percent change
+    for success rate, latency percentiles, and manual retry rate. Validate target
+    from clarifications (success rate ≥baseline, p50 within 10%, p95 within 20%,
+    manual retry reduction ≥25%). Document improvements or regressions with statistical
+    significance in evidence file.
+  actor: agent
+  inputs:
+  - docs/evidence/tasks/TASK-0911-upload-metrics.md (baseline and expo-background-task metrics)
+  outputs:
+  - docs/evidence/tasks/TASK-0911-upload-metrics.md (comparison and analysis)
+  definition_of_done:
+  - Metrics compared with percent change calculated
+  - Targets from clarifications validated (success rate, latency, retry reduction)
+  - Improvements or regressions documented with statistical significance
+  estimate: S
+  expected_files_touched:
+  - docs/evidence/tasks/TASK-0911-upload-metrics.md
+- id: 4
+  title: Document VisionCamera Skia pilot outcomes
+  details: >-
+    Document VisionCamera Skia pilot outcomes in docs/mobile/visioncamera-background-task-pilot.md.
+    Include overlay implementation (bounding boxes, live filters, AI previews), memory
+    profiling results (baseline, Skia, mitigations), feature flags (device allowlist,
+    user toggle), and platform entitlements (camera permissions). Reference evidence
+    files from TASK-0911D. Satisfy standards/global.md evidence bundle requirements.
+  actor: agent
+  inputs:
+  - docs/evidence/tasks/TASK-0911-clarifications.md
+  - docs/evidence/tasks/TASK-0911-memory-profiling-results.md
+  - mobile/src/features/camera/frameProcessors.ts
+  - mobile/src/features/camera/CameraWithOverlay.tsx
+  - mobile/src/utils/featureFlags.ts
+  outputs:
+  - docs/mobile/visioncamera-background-task-pilot.md (VisionCamera section)
+  definition_of_done:
+  - Overlay implementation documented (bounding boxes, filters, AI previews)
+  - Memory profiling results included (baseline, Skia, mitigations)
+  - Feature flags documented (allowlist, user toggle, frame budget monitor)
+  - Camera permissions documented (iOS NSCameraUsageDescription, Android CAMERA)
+  estimate: M
+  expected_files_touched:
+  - docs/mobile/visioncamera-background-task-pilot.md
+- id: 5
+  title: Document expo-background-task pilot outcomes
+  details: >-
+    Document expo-background-task pilot outcomes in docs/mobile/visioncamera-background-task-pilot.md.
+    Include scheduling strategy (immediate dispatch, exponential backoff), upload
+    metrics comparison, WorkManager/BGTaskScheduler configuration, and platform
+    entitlements (background modes). Reference evidence file from step 3. Satisfy
+    standards/global.md evidence bundle requirements.
+  actor: agent
+  inputs:
+  - docs/evidence/tasks/TASK-0911-upload-metrics.md
+  - mobile/src/features/upload/backgroundTasks.ts
+  - mobile/app.json (background task configuration)
+  outputs:
+  - docs/mobile/visioncamera-background-task-pilot.md (expo-background-task section)
+  definition_of_done:
+  - Scheduling strategy documented (immediate dispatch, exponential backoff)
+  - Upload metrics comparison included (success rate, latency, retry rate)
+  - WorkManager/BGTaskScheduler configuration documented
+  - Platform entitlements documented (iOS UIBackgroundModes, Android WorkManager)
+  estimate: M
+  expected_files_touched:
+  - docs/mobile/visioncamera-background-task-pilot.md
+- id: 6
+  title: Consolidate pilot documentation and recommendations
+  details: >-
+    Consolidate VisionCamera Skia and expo-background-task pilot documentation.
+    Add recommendations section with next steps, known limitations, and rollout
+    plan. Reference all evidence files (clarifications, memory profiling, upload
+    metrics). Ensure standards/global.md evidence bundle completeness.
+  actor: agent
+  inputs:
+  - docs/mobile/visioncamera-background-task-pilot.md (VisionCamera and expo-background-task sections)
+  - docs/evidence/tasks/TASK-0911-clarifications.md
+  - docs/evidence/tasks/TASK-0911-memory-profiling-results.md
+  - docs/evidence/tasks/TASK-0911-upload-metrics.md
+  outputs:
+  - docs/mobile/visioncamera-background-task-pilot.md (recommendations and final review)
+  definition_of_done:
+  - Recommendations added (next steps, limitations, rollout plan)
+  - All evidence files referenced
+  - standards/global.md evidence bundle requirements satisfied
+  estimate: S
+  expected_files_touched:
+  - docs/mobile/visioncamera-background-task-pilot.md
+
+validation:
+  pipeline:
+  - command: bash -c "echo 'Documentation-only task - no code validation required'"
+    description: Documentation-only task (no code changes)
+  manual_checks:
+  - Review upload baseline metrics for statistical significance
+  - Review expo-background-task metrics for statistical significance
+  - Verify metrics comparison validates targets from clarifications
+  - Verify VisionCamera Skia pilot documentation completeness
+  - Verify expo-background-task pilot documentation completeness
+  - Verify standards/global.md evidence bundle requirements satisfied
+
+acceptance_criteria:
+  must:
+  - Upload baseline metrics captured over 1-week period
+  - expo-background-task metrics captured over 1-week period
+  - Metrics comparison documented with percent change and statistical significance
+  - Targets from clarifications validated (success rate ≥baseline, latency within 10%/20%, retry reduction ≥25%)
+  - VisionCamera Skia pilot outcomes documented (overlays, memory, feature flags, permissions)
+  - expo-background-task pilot outcomes documented (scheduling, metrics, entitlements)
+  - Recommendations added (next steps, limitations, rollout plan)
+  - standards/global.md evidence bundle requirements satisfied
+  quality_gates:
+  - Upload success rate meets or exceeds baseline
+  - Manual retry rate reduced by ≥25% (or documented if not achieved)
+  - All evidence files referenced and complete
+
+artifacts:
+- path: docs/evidence/tasks/TASK-0911-upload-metrics.md
+  description: Upload baseline, expo-background-task metrics, and comparison
+- path: docs/mobile/visioncamera-background-task-pilot.md
+  description: VisionCamera Skia and expo-background-task pilot outcomes, recommendations
+
+deliverables:
+- docs/evidence/tasks/TASK-0911-upload-metrics.md
+- docs/mobile/visioncamera-background-task-pilot.md
+
+risks:
+- description: Upload success rate may not improve if network reliability is the bottleneck
+  mitigation: Focus on retry reliability rather than raw success rate; document baseline carefully
+- description: 1-week sampling may have insufficient sample size for statistical significance
+  mitigation: Document sample size and confidence intervals; extend sampling period if needed

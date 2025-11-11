@@ -154,6 +154,34 @@ Services and adapters should isolate platform I/O and enable pure domain logic i
 
 See `standards/typescript.md#analyzability` for purity criteria and `standards/backend-tier.md#provider-integration-layer` for parallel backend patterns.
 
+**Background Task Queue Pattern (AsyncStorage)**
+
+For background operations requiring dynamic task data (e.g., photo uploads with per-file metadata), use the **AsyncStorage queue pattern** per ADR-0010:
+
+*Pattern overview:*
+- expo-background-task API does not support passing dynamic data per execution (WorkManager/BGTaskScheduler limitation)
+- Queue tasks in AsyncStorage with execution-specific data (imageUri, fileName, correlationId, retryCount)
+- Background task polls queue periodically (15min minimum on both Android WorkManager and iOS BGTaskScheduler)
+- Foreground: Write to queue immediately for responsive UX + attempt immediate execution
+- Background: Periodic polling processes queued tasks within 30-second execution window
+
+*Implementation requirements:*
+- Queue interface: `write(task)`, `readAll()`, `remove(taskId)`, `updateRetryCount(taskId)`
+- Task structure: typed interface with `id`, data fields, `timestamp`, `retryCount`, optional `lastError`
+- Background worker: Polls queue, processes tasks sequentially, removes on success, increments retry count on failure
+- Exponential backoff: Track retry count in queue, apply backoff delays before re-attempting
+- Queue cleanup: Remove tasks after max retries exceeded or expiry (e.g., >24h old)
+
+*Testing:*
+- Mock AsyncStorage for queue operation tests (write, read, remove)
+- Mock expo-task-manager for background worker tests
+- Verify retry logic, queue cleanup, and exponential backoff with fixtures
+
+*References:*
+- ADR-0010: `adr/0010-asyncstorage-queue-background-uploads.md` — architecture decision with industry research
+- Official Expo guidance: AsyncStorage for dynamic background task data (Expo Forums)
+- Platform constraints: 15min minimum polling interval, 30sec execution limit (both Android/iOS)
+
 **Fitness gates**
 
 * 100% of external calls behind an interface in `/services/*/port.ts`.

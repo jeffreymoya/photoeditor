@@ -1,0 +1,188 @@
+schema_version: "1.1"
+id: TASK-0916
+title: "Preserve Redux provider on CameraWithOverlay rerender"
+status: todo
+blocked_reason:
+priority: P1
+area: mobile
+unblocker: true
+order:
+blocked_by: []
+depends_on:
+- TASK-0915
+agent_completion_state: {}
+
+clarifications:
+  outstanding: []
+  evidence_path: "docs/evidence/tasks/TASK-0916-clarifications.md"
+
+description: >-
+  The frame-processor rerender spec in CameraWithOverlay loses the Redux Provider
+  when calling React Testing
+  Library's `rerender`, causing `could not find react-redux context value` errors
+  in the 2025-11-12 validation
+  rerun (docs/tests/reports/2025-11-12-validation-mobile-revalidation.md). Add a provider-aware
+  rerender helper
+  and refactor the spec to use it so redux-connected components keep the expected
+  state during assertions.
+
+outcome: >-
+  CameraWithOverlay rerender tests use a shared `renderWithRedux` helper that re-wraps
+  components with the
+  Provider on every call, eliminating the context error while keeping Redux wiring
+  compliant with
+  standards/frontend-tier.md#state--logic-layer.
+
+scope:
+  in:
+  - Create or extend a shared Redux-aware render helper under 
+    `mobile/src/__tests__` and document its usage.
+  - Update `mobile/src/features/camera/__tests__/CameraWithOverlay.test.tsx` 
+    frame-processor rerender suite to consume the helper and keep the Provider 
+    intact between rerenders.
+  out:
+  - Redux store implementation changes (slice logic, reducers, or runtime 
+    behaviour).
+  - Non-camera specs unless they opt in to the helper voluntarily after this 
+    task.
+
+context:
+  affected_packages: [mobile]
+  standards_tier: mobile
+  related_docs:
+  - standards/global.md
+  - standards/AGENTS.md
+  - standards/frontend-tier.md
+  - standards/testing-standards.md
+  - standards/typescript.md
+  - docs/tests/reports/2025-11-12-validation-mobile-revalidation.md
+  repo_paths:
+  - mobile/src/__tests__/test-utils.tsx
+  - mobile/src/features/camera/__tests__/CameraWithOverlay.test.tsx
+  - mobile/src/store/index.ts
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+  - name: pnpm
+    version: "8.x"
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+  - Follow Redux provider layering guidance in 
+    standards/frontend-tier.md#state--logic-layer.
+  - Keep helper signatures typed and side-effect free per 
+    standards/typescript.md#maintainability-pillars--concrete-heuristics.
+  prohibited:
+  - Do not elevate test-only helpers into production bundles or export them from
+    runtime modules.
+
+plan:
+- id: 1
+  title: Document rerender/context failure
+  details: >-
+    Inspect the failing frame-processor spec and validation log to capture how `rerender`
+    without a Provider breaks
+    standards/frontend-tier.md#state--logic-layer; record expectations for a reusable
+    helper.
+  actor: agent
+  inputs:
+  - docs/tests/reports/2025-11-12-validation-mobile-revalidation.md
+  - mobile/src/features/camera/__tests__/CameraWithOverlay.test.tsx
+  outputs:
+  - docs/evidence/tasks/TASK-0916-clarifications.md
+  definition_of_done:
+  - Clarification notes map the missing Provider to React Redux requirements and
+    cite standards/testing-standards.md#react-component-testing for provider 
+    setup.
+  estimate: S
+  expected_files_touched: []
+- id: 2
+  title: Implement provider-aware render helper
+  details: >-
+    Extend `mobile/src/__tests__/test-utils.tsx` (or add a sibling module) with a
+    `renderWithRedux` helper that
+    stores the underlying RTL `rerender` but ensures components are wrapped in `<Provider
+    store={store}>` on every call.
+  actor: agent
+  inputs: []
+  outputs:
+  - mobile/src/__tests__/test-utils.tsx
+  definition_of_done:
+  - Helper exports include typings for returned `rerender`/`store`, documented 
+    inline, and align with 
+    standards/typescript.md#maintainability-pillars--concrete-heuristics.
+  estimate: M
+  expected_files_touched:
+  - mobile/src/__tests__/test-utils.tsx
+- id: 3
+  title: Refactor frame-processor spec and validate
+  details: >-
+    Update the failing spec to use the helper, rerender through the provider-aware
+    wrapper, and run the qa:static/test/test:coverage pipeline to prove the context
+    error is resolved per standards/testing-standards.md#coverage-expectations.
+  actor: agent
+  inputs: []
+  outputs:
+  - mobile/src/features/camera/__tests__/CameraWithOverlay.test.tsx
+  - docs/evidence/tasks/TASK-0916-validation.md
+  definition_of_done:
+  - Spec passes without Redux context errors, validation logs are captured, and 
+    helper usage is documented for future rerenders.
+  estimate: M
+  expected_files_touched:
+  - mobile/src/features/camera/__tests__/CameraWithOverlay.test.tsx
+  - docs/evidence/tasks/TASK-0916-validation.md
+
+validation:
+  pipeline:
+  - command: pnpm turbo run qa:static --filter=photoeditor-mobile
+    description: Ensure Redux helper/test changes satisfy lint/type gates.
+  - command: pnpm turbo run test --filter=photoeditor-mobile
+    description: Verify frame-processor rerender spec passes without provider 
+      errors.
+  - command: pnpm turbo run test:coverage --filter=photoeditor-mobile
+    description: Confirm coverage thresholds remain ≥70% lines / ≥60% branches 
+      as required.
+  manual_checks: []
+
+acceptance_criteria:
+  must:
+  - "`renderWithRedux` helper (or equivalent) guarantees that rerendered components
+    stay wrapped in the Redux Provider."
+  - Frame-processor rerender spec passes without `could not find react-redux 
+    context value` errors.
+  - Updated helper usage is documented in the spec so future contributors 
+    understand the pattern referenced from the validation report.
+  - "Validation logs for qa:static/test/test:coverage are stored under docs/evidence/tasks/TASK-0916-validation.md
+    and referenced in Task-0911 follow-ups."
+  quality_gates:
+  - Helper introduces no additional global state; rerenders remain deterministic
+    in parallel Jest runs.
+  - ESLint unused import/identifier rules remain satisfied (no `_` prefixes 
+    needed beyond policy).
+
+artifacts:
+- path: mobile/src/__tests__/test-utils.tsx
+  description: Provider-aware render helper for Redux-connected components.
+- path: mobile/src/features/camera/__tests__/CameraWithOverlay.test.tsx
+  description: Frame-processor rerender spec consuming the helper without 
+    context loss.
+
+deliverables:
+- mobile/src/__tests__/test-utils.tsx
+- mobile/src/features/camera/__tests__/CameraWithOverlay.test.tsx
+- docs/evidence/tasks/TASK-0916-validation.md
+
+risks:
+- description: Helper may mask missing providers in other specs if misused.
+  mitigation: Keep helper opt-in with explicit import path and document when to 
+    prefer local wrappers vs. the shared helper.

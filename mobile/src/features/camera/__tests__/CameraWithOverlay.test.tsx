@@ -10,15 +10,15 @@
  * - Reanimated (useSharedValue)
  */
 
+import { configureStore } from '@reduxjs/toolkit';
 import { render } from '@testing-library/react-native';
 import React from 'react';
-import { Provider } from 'react-redux';
 import { useSharedValue } from 'react-native-reanimated';
 import { useCameraDevice, useFrameProcessor, useSkiaFrameProcessor } from 'react-native-vision-camera';
-import { configureStore } from '@reduxjs/toolkit';
+import { Provider } from 'react-redux';
 
-import { CameraWithOverlay } from '../CameraWithOverlay';
 import { settingsSlice } from '../../../store/slices/settingsSlice';
+import { CameraWithOverlay } from '../CameraWithOverlay';
 
 import type { BoundingBox, FilterParams, OverlayConfig } from '../frameProcessors';
 
@@ -62,6 +62,22 @@ jest.mock('react-native-reanimated', () => ({
     addListener: jest.fn(),
     removeListener: jest.fn(),
     modify: jest.fn(),
+  })),
+}));
+
+// Mock feature flags
+jest.mock('@/utils/featureFlags', () => ({
+  getDeviceCapability: jest.fn(() => Promise.resolve({
+    platform: 'ios',
+    deviceModel: null,
+    isCapable: false,
+    reason: 'iOS support deferred to post-pilot phase (ADR-0011)',
+  })),
+  shouldEnableFrameProcessors: jest.fn((userEnabled, capability) => ({
+    isEnabled: false,
+    isDeviceCapable: false,
+    isUserEnabled: userEnabled,
+    deviceCapability: capability,
   })),
 }));
 
@@ -301,7 +317,7 @@ describe('CameraWithOverlay', () => {
     });
 
     it('should update frame processor when overlays change', () => {
-      const { rerender } = render(
+      const { rerender } = renderWithRedux(
         <CameraWithOverlay enabledOverlays={['boundingBoxes']} />
       );
 

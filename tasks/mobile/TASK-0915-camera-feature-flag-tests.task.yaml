@@ -1,0 +1,193 @@
+schema_version: "1.1"
+id: TASK-0915
+title: "Await CameraWithOverlay feature flags in tests"
+status: todo
+blocked_reason:
+priority: P1
+area: mobile
+unblocker: true
+order:
+blocked_by: []
+depends_on:
+- TASK-0914
+agent_completion_state: {}
+
+clarifications:
+  outstanding: []
+  evidence_path: "docs/evidence/tasks/TASK-0915-clarifications.md"
+
+description: >-
+  The 2025-11-12 validation rerun logged four CameraWithOverlay failures because the
+  tests immediately
+  queried for the VisionCamera node while feature flags were still `null`, so the
+  component returned `null`
+  (docs/tests/reports/2025-11-12-validation-mobile-revalidation.md). Update the specs
+  to await the async
+  feature-flag initialization using async test patterns (waitFor/findBy*/custom helpers
+  as appropriate) after
+  TASK-0914 establishes the async readiness pattern for SettingsScreen so Task-0911's
+  pilot validation can proceed.
+
+outcome: >-
+  CameraWithOverlay specs wait until mocked feature flags resolve, then assert rendering/error
+  behaviour
+  without `No instances found with node type: "Camera"` errors; qa:static/test/test:coverage
+  for
+  `photoeditor-mobile` pass with deterministic logs attached to this task.
+
+scope:
+  in:
+  - Refine `mobile/src/features/camera/__tests__/CameraWithOverlay.test.tsx` to 
+    await feature-flag readiness using appropriate async patterns 
+    (`waitFor/findBy*` queries or custom helpers if test-utils exports them).
+  - Ensure `mobile/src/utils/__mocks__/featureFlags.ts` (or equivalent jest 
+    mock) resolves synchronously and exposes hooks for individual specs to 
+    override device capability or frame-processor flags.
+  out:
+  - Runtime changes to `CameraWithOverlay` or feature flag implementation inside
+    production code.
+  - Broader camera feature refactors (focus strictly on Jest determinism for the
+    failing specs).
+
+context:
+  affected_packages: [mobile]
+  standards_tier: mobile
+  related_docs:
+  - standards/global.md
+  - standards/AGENTS.md
+  - standards/frontend-tier.md
+  - standards/testing-standards.md
+  - standards/typescript.md
+  - docs/tests/reports/2025-11-12-validation-mobile-revalidation.md
+  repo_paths:
+  - mobile/src/features/camera/CameraWithOverlay.tsx
+  - mobile/src/features/camera/__tests__/CameraWithOverlay.test.tsx
+  - mobile/src/utils/__mocks__/featureFlags.ts
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+  - name: pnpm
+    version: "8.x"
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+  - Mirror the component's guard logic from 
+    standards/frontend-tier.md#state--logic-layer when determining readiness.
+  - Follow the async test patterns in 
+    standards/testing-standards.md#react-component-testing (use 
+    `findBy*`/`waitFor`).
+  prohibited:
+  - Do not weaken feature flag guards inside the component just to pass tests.
+
+plan:
+- id: 1
+  title: Reproduce and document feature-flag timing gap
+  details: >-
+    Trace the failing specs called out in the validation log and capture how the mocked
+    `getDeviceCapability`
+    promise leaves `featureFlags` null, referencing standards/testing-standards.md#react-component-testing
+    to
+    justify the required waits.
+  actor: agent
+  inputs:
+  - docs/tests/reports/2025-11-12-validation-mobile-revalidation.md
+  - mobile/src/features/camera/CameraWithOverlay.tsx
+  - mobile/src/features/camera/__tests__/CameraWithOverlay.test.tsx
+  outputs:
+  - docs/evidence/tasks/TASK-0915-clarifications.md
+  definition_of_done:
+  - Documented notes map each failing spec to the guard clause in the component 
+    and cite standards/frontend-tier.md#feature-guardrails for async readiness.
+  estimate: S
+  expected_files_touched: []
+- id: 2
+  title: Update mocks and tests to await readiness
+  details: >-
+    Refactor the jest mock around `getDeviceCapability`/`shouldEnableFrameProcessors`
+    so specs can inject
+    resolved values immediately, then update the rendering and error-handling suites
+    to await the point
+    where `featureFlags` and device availability are truthy per standards/testing-standards.md#react-component-testing.
+  actor: agent
+  inputs: []
+  outputs:
+  - mobile/src/features/camera/__tests__/CameraWithOverlay.test.tsx
+  - mobile/src/utils/__mocks__/featureFlags.ts
+  definition_of_done:
+  - All rendering/error specs use `waitFor` or `findBy*` queries, mocks expose 
+    helpers for overrides, and each assertion documents the readiness condition 
+    per standards/typescript.md#maintainability-pillars--concrete-heuristics.
+  estimate: M
+  expected_files_touched:
+  - mobile/src/features/camera/__tests__/CameraWithOverlay.test.tsx
+  - mobile/src/utils/__mocks__/featureFlags.ts
+- id: 3
+  title: Validate camera test stability
+  details: >-
+    Execute qa:static/test/test:coverage for the mobile package, capture the new logs,
+    and confirm the four
+    previously failing specs now pass with deterministic output.
+  actor: agent
+  inputs: []
+  outputs:
+  - docs/evidence/tasks/TASK-0915-validation.md
+  definition_of_done:
+  - Validation commands succeed on local/CI runs and evidence references both 
+    this task ID and the original 2025-11-12 report.
+  estimate: S
+  expected_files_touched:
+  - docs/evidence/tasks/TASK-0915-validation.md
+
+validation:
+  pipeline:
+  - command: pnpm turbo run qa:static --filter=photoeditor-mobile
+    description: Static analysis for the mobile workspace to ensure mocks/tests 
+      respect lint + type rules.
+  - command: pnpm turbo run test --filter=photoeditor-mobile
+    description: Full Jest suite highlighting the fixed CameraWithOverlay specs.
+  - command: pnpm turbo run test:coverage --filter=photoeditor-mobile
+    description: Coverage run verifying ≥70%/≥60% thresholds remain satisfied 
+      per standards/testing-standards.md#coverage-expectations.
+  manual_checks: []
+
+acceptance_criteria:
+  must:
+  - All CameraWithOverlay rendering/error specs wait for feature-flag readiness 
+    and pass without `No instances found` errors.
+  - Jest output shows no `act(...)` or unhandled promise warnings from 
+    CameraWithOverlay tests.
+  - Feature flag mocks live alongside the tests and provide explicit helpers for
+    device capability overrides documented in code comments.
+  - Validation evidence captures successful command output linked to 
+    docs/tests/reports/2025-11-12-validation-mobile-revalidation.md.
+  quality_gates:
+  - VisionCamera tests remain deterministic when run with `--runInBand` or 
+    default concurrency.
+  - No new lint suppressions are added to camera specs or mocks.
+
+artifacts:
+- path: mobile/src/features/camera/__tests__/CameraWithOverlay.test.tsx
+  description: Updated tests covering rendering, error handling, and frame 
+    processor readiness.
+- path: mobile/src/utils/__mocks__/featureFlags.ts
+  description: Deterministic mock helpers for device capability and feature 
+    flags.
+
+deliverables:
+- mobile/src/features/camera/__tests__/CameraWithOverlay.test.tsx
+- mobile/src/utils/__mocks__/featureFlags.ts
+- docs/evidence/tasks/TASK-0915-validation.md
+
+risks:
+- description: Overly aggressive waits could slow the suite or mask regressions.
+  mitigation: Keep wait helpers scoped to feature flag readiness and enforce 
+    tight timeouts so genuine deadlocks still fail fast.

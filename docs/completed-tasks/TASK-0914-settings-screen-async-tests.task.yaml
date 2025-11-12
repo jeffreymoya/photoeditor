@@ -1,0 +1,232 @@
+schema_version: "1.1"
+id: TASK-0914
+title: "Stabilize SettingsScreen async readiness tests"
+status: completed
+blocked_reason:
+priority: P1
+area: mobile
+unblocker: true
+order:
+blocked_by: []
+depends_on: []
+agent_completion_state:
+  implementer:
+    completed: true
+    summary_path: ".agent-output/task-implementer-summary-TASK-0914.md"
+    timestamp: "2025-11-12"
+    files_modified:
+    - mobile/src/__tests__/test-utils.tsx
+    - mobile/src/screens/__tests__/SettingsScreen.test.tsx
+    tests_touched:
+    - mobile/src/screens/__tests__/SettingsScreen.test.tsx
+    validation_logs:
+    - ".agent-output/TASK-0914-lint-fix.log"
+    - ".agent-output/TASK-0914-qa-static.log"
+    - ".agent-output/TASK-0914-test-settingsscreen.log"
+  reviewer:
+    completed: true
+    summary_path: ".agent-output/implementation-reviewer-summary-TASK-0914.md"
+    timestamp: "2025-11-12"
+    edits_made: 0
+    recommendation: "PROCEED"
+    validation_logs:
+    - ".agent-output/TASK-0914-reviewer-lint-fix.log"
+    - ".agent-output/TASK-0914-reviewer-qa-static.log"
+  validator:
+    completed: true
+    summary_path: "docs/tests/reports/2025-11-12-validation-mobile-task-0914.md"
+    timestamp: "2025-11-12"
+    status: "PASS"
+    validation_commands_executed:
+    - "pnpm turbo run qa:static --filter=photoeditor-mobile"
+    - "pnpm turbo run test --filter=photoeditor-mobile -- --testPathPattern=SettingsScreen"
+    - "pnpm turbo run test --filter=photoeditor-mobile (full suite verification)"
+    test_results: "3/3 SettingsScreen tests PASS, 561/566 total suite pass (5 pre-existing
+      failures in TASK-0916 scope)"
+    standards_verified:
+    - standards/testing-standards.md#react-component-testing
+    - standards/testing-standards.md#coverage-expectations
+    - standards/frontend-tier.md#state--logic-layer
+    - standards/typescript.md#analyzability
+    - standards/cross-cutting.md (hard-fail controls)
+
+clarifications:
+  outstanding: []
+  evidence_path: "docs/evidence/tasks/TASK-0914-clarifications.md"
+
+description: >-
+  The 2025-11-12 mobile validation rerun (docs/tests/reports/2025-11-12-validation-mobile-revalidation.md)
+  failed because SettingsScreen tests asserted the subtitle before the async `getDeviceCapability`
+  effect settled, leaving the component in its loading state and triggering React's
+  `act(...)`
+  warning. Build a deterministic wait helper so the spec observes the post-effect
+  UI and document
+  the coverage expectations that keep Task-0911 unblocked.
+
+outcome: >-
+  SettingsScreen tests wait for device capability readiness using a shared helper,
+  emit no `act`
+  warnings, and deterministically assert the subtitle copy so `pnpm turbo run test
+  --filter=photoeditor-mobile`
+  passes on 2025-11-12 validation logs.
+
+scope:
+  in:
+  - Extend `mobile/src/__tests__/test-utils.tsx` with a 
+    `waitForDeviceCapabilityReady` custom helper tailored to SettingsScreen and 
+    other callers of `getDeviceCapability`.
+  - Update `mobile/src/screens/__tests__/SettingsScreen.test.tsx` to await the 
+    helper and capture assertions only after the subtitle renders.
+  out:
+  - Changes to the runtime SettingsScreen UI copy or Redux behaviour (tests 
+    only).
+  - Adjustments to other camera or settings specs beyond adopting the shared 
+    helper once proven.
+
+context:
+  affected_packages: [mobile]
+  standards_tier: mobile
+  related_docs:
+  - standards/global.md
+  - standards/AGENTS.md
+  - standards/frontend-tier.md
+  - standards/testing-standards.md
+  - standards/typescript.md
+  - docs/tests/reports/2025-11-12-validation-mobile-revalidation.md
+  repo_paths:
+  - mobile/src/__tests__/test-utils.tsx
+  - mobile/src/screens/SettingsScreen.tsx
+  - mobile/src/screens/__tests__/SettingsScreen.test.tsx
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+  - name: pnpm
+    version: "8.x"
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+  - Follow React Testing Library async guidance from 
+    standards/testing-standards.md#react-component-testing.
+  - Keep helper logic type-safe per 
+    standards/typescript.md#maintainability-pillars--concrete-heuristics.
+  prohibited:
+  - Do not stub network/native modules outside sanctioned mocks in 
+    mobile/src/utils/__mocks__.
+
+plan:
+- id: 1
+  title: Analyze failing SettingsScreen spec
+  details: >-
+    Review the validation log plus existing component/test sources to restate the
+    async loading gap
+    against standards/testing-standards.md#react-component-testing and document the
+    exact UI state
+    that must be awaited before asserting copy.
+  actor: agent
+  inputs:
+  - docs/tests/reports/2025-11-12-validation-mobile-revalidation.md
+  - mobile/src/screens/SettingsScreen.tsx
+  - mobile/src/screens/__tests__/SettingsScreen.test.tsx
+  outputs:
+  - docs/evidence/tasks/TASK-0914-clarifications.md
+  definition_of_done:
+  - Notes capture where the spec diverges from 
+    standards/frontend-tier.md#state--logic-layer and how the helper will 
+    enforce async readiness.
+  estimate: S
+  expected_files_touched: []
+- id: 2
+  title: Implement async readiness helper and update spec
+  details: >-
+    Add a `waitForDeviceCapabilityReady` custom helper inside the shared test utilities
+    (mobile/src/__tests__/test-utils.tsx) so tests can await the point when the loading
+    subtitle disappears,
+    then refactor SettingsScreen specs to use the helper in line with standards/testing-standards.md#react-component-testing.
+  actor: agent
+  inputs: []
+  outputs:
+  - mobile/src/__tests__/test-utils.tsx
+  - mobile/src/screens/__tests__/SettingsScreen.test.tsx
+  definition_of_done:
+  - Helper exports are typed, documented, and consumed by the SettingsScreen 
+    spec; assertions only run once the subtitle renders per 
+    standards/typescript.md#maintainability-pillars--concrete-heuristics.
+  estimate: M
+  expected_files_touched:
+  - mobile/src/__tests__/test-utils.tsx
+  - mobile/src/screens/__tests__/SettingsScreen.test.tsx
+- id: 3
+  title: Validate updated tests
+  details: >-
+    Re-run the mobile lint/static + Jest + coverage commands from standards/qa-commands-ssot.md
+    and
+    store the logs referenced by the task to prove thresholds from standards/testing-standards.md#coverage-expectations.
+  actor: agent
+  inputs: []
+  outputs:
+  - docs/evidence/tasks/TASK-0914-validation.md
+  definition_of_done:
+  - "`qa:static`, `test`, and `test:coverage` for photoeditor-mobile pass without
+    the previous warning and evidence paths are updated."
+  estimate: S
+  expected_files_touched:
+  - docs/evidence/tasks/TASK-0914-validation.md
+
+validation:
+  pipeline:
+  - command: pnpm turbo run qa:static --filter=photoeditor-mobile
+    description: Run the mobile static analysis bundle (typecheck + lint) per 
+      standards/qa-commands-ssot.md.
+  - command: pnpm turbo run test --filter=photoeditor-mobile
+    description: Execute mobile Jest suites to verify SettingsScreen specs now 
+      await async readiness.
+  - command: pnpm turbo run test:coverage --filter=photoeditor-mobile
+    description: Capture coverage to confirm ≥70% lines / ≥60% branches per 
+      standards/testing-standards.md#coverage-expectations.
+  manual_checks: []
+
+acceptance_criteria:
+  must:
+  - SettingsScreen subtitle spec uses the new `waitForDeviceCapabilityReady` 
+    custom helper so the subtitle assertion only runs after device capability 
+    resolves.
+  - React testing output contains no `act(...)` warnings for SettingsScreen 
+    during `pnpm turbo run test --filter=photoeditor-mobile`.
+  - The `waitForDeviceCapabilityReady` helper is documented and exported from 
+    `mobile/src/__tests__/test-utils.tsx` and reusable by other specs 
+    referencing `getDeviceCapability`.
+  - Validation commands listed above succeed and logs reference this task ID 
+    plus the 2025-11-12 report.
+  quality_gates:
+  - No new ESLint warnings or dependency-cruiser violations introduced by the 
+    helper.
+  - Repo-wide coverage thresholds from standards/testing-standards.md stay at or
+    above baseline for touched files.
+
+artifacts:
+- path: mobile/src/__tests__/test-utils.tsx
+  description: Shared helper ensuring component tests await device capability 
+    readiness.
+- path: mobile/src/screens/__tests__/SettingsScreen.test.tsx
+  description: Updated spec verifying subtitle rendering after async effect 
+    settles.
+
+deliverables:
+- mobile/src/__tests__/test-utils.tsx
+- mobile/src/screens/__tests__/SettingsScreen.test.tsx
+- docs/evidence/tasks/TASK-0914-validation.md
+
+risks:
+- description: Helper may hide legitimate regressions if it waits on overly 
+    broad conditions.
+  mitigation: Scope waits to the specific copy change (subtitle) and keep 
+    timeouts low so genuine hangs continue to fail fast.

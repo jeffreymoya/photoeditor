@@ -60,7 +60,6 @@ crash.log
 /tmp/
 backend/tmp/
 .npm-cache/
-.claude/
 .agent-output/
 .turbo/
 .turbo-prune-test/

@@ -1,0 +1,164 @@
+schema_version: "1.1"
+id: TASK-0917
+title: "Wrap CameraWithOverlay tests in act-aware helper"
+status: draft
+blocked_reason: null
+priority: P1
+area: mobile
+unblocker: true
+order: null
+blocked_by: []
+depends_on: []
+agent_completion_state: {}
+
+clarifications:
+  outstanding:
+    - Confirm whether the shared helper should live under mobile/src/test-utils or alongside the camera specs per standards/frontend-tier.md#test-utilities.
+    - Determine the approved approach for flushing pending microtasks (jest-native `act`, `flushMicrotasksQueue`, or RTL `waitFor`) so React 19 warnings disappear without hiding legitimate async failures.
+  evidence_path: "docs/evidence/tasks/TASK-0917-clarifications.md"
+
+description: >-
+  CameraWithOverlay specs currently mount the component directly via renderWithRedux, so the async
+  feature-flag initialization triggers 25 React 19 `act(...)` warnings per run
+  (`.agent-output/implementation-reviewer-camera-test-TASK-0915.log`).
+  Implement a shared render helper that wraps the mount in `act` and drains pending microtasks so
+  state updates complete inside React's testing boundary, unblocking TASK-0915's acceptance
+  criterion.
+
+outcome: >-
+  CameraWithOverlay test suites render through an act-aware helper, Jest stdout is free of
+  React 19 `act(...)` or unhandled promise warnings, and validation logs for
+  `photoeditor-mobile` are attached to the task evidence bundle.
+
+scope:
+  in:
+    - mobile/src/features/camera/__tests__/CameraWithOverlay.test.tsx (migrate to the new helper)
+    - mobile/src/test-utils or equivalent directory for the shared act-aware render helper
+    - mobile/jest.setup.ts or supporting utilities if additional microtask flushing helpers are required
+  out:
+    - Runtime changes to mobile/src/features/camera/CameraWithOverlay.tsx (guard logic remains untouched)
+    - Blanket suppression of console.error output or jest mocks that hide act warnings
+
+context:
+  affected_packages: [mobile]
+  standards_tier: mobile
+  related_docs:
+    - standards/global.md
+    - standards/AGENTS.md
+    - standards/frontend-tier.md
+    - standards/testing-standards.md
+    - standards/typescript.md
+    - docs/tests/reports/2025-11-12-validation-mobile-revalidation.md
+    - changelog/2025-11-13-task-0915-blocked.md
+  repo_paths:
+    - mobile/src/features/camera/__tests__/CameraWithOverlay.test.tsx
+    - mobile/src/test-utils/
+    - mobile/jest.setup.ts
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: pnpm
+      version: "8.x"
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Follow standards/testing-standards.md#react-component-testing for async waits and helper design.
+    - Keep helper exports typed (standards/typescript.md#analyzability) and documented for reuse.
+  prohibited:
+    - No jest.spyOn(console, 'error') suppression or blanket mock implementations that hide new warnings.
+
+plan:
+  - id: 1
+    title: Audit warnings and define helper contract
+    details: >-
+      Review the existing CameraWithOverlay specs, jest setup, and the React 19 warning log to pinpoint
+      where `act` boundaries are missing. Document the helper requirements referencing
+      standards/frontend-tier.md#test-utilities and standards/testing-standards.md#react-component-testing.
+    actor: agent
+    inputs:
+      - mobile/src/features/camera/__tests__/CameraWithOverlay.test.tsx
+      - mobile/jest.setup.ts
+      - .agent-output/implementation-reviewer-camera-test-TASK-0915.log
+    outputs:
+      - docs/evidence/tasks/TASK-0917-clarifications.md
+    definition_of_done:
+      - Notes explain the helper shape, cite standards/frontend-tier.md#test-utilities, and link the React 19 warning evidence.
+    estimate: S
+    expected_files_touched:
+      - docs/evidence/tasks/TASK-0917-clarifications.md
+  - id: 2
+    title: Implement act-aware render helper and migrate specs
+    details: >-
+      Create a shared helper (e.g., renderCameraWithFeatureFlags) that wraps renderWithRedux inside
+      `await act(async () => ...)`, flushes pending microtasks, and returns the RTL utilities.
+      Update CameraWithOverlay specs to import the helper, ensuring every mount flows through the new
+      boundary with descriptive comments per standards/typescript.md#modifiability.
+    actor: agent
+    inputs: []
+    outputs:
+      - mobile/src/test-utils/cameraRenderHelper.tsx
+      - mobile/src/features/camera/__tests__/CameraWithOverlay.test.tsx
+    definition_of_done:
+      - Helper includes typed signatures, doc comments citing standards/testing-standards.md#react-component-testing, and all spec mounts call it.
+    estimate: M
+    expected_files_touched:
+      - mobile/src/test-utils/cameraRenderHelper.tsx
+      - mobile/src/features/camera/__tests__/CameraWithOverlay.test.tsx
+  - id: 3
+    title: Validate jest logs and capture evidence
+    details: >-
+      Run the mobile lint, qa:static, and unit test pipelines, ensuring Jest output contains zero
+      act warnings. Store the command logs under docs/evidence/tasks and link them in the task file
+      referencing standards/testing-standards.md#coverage-expectations for pass/fail criteria.
+    actor: agent
+    inputs: []
+    outputs:
+      - docs/evidence/tasks/TASK-0917-validation.md
+    definition_of_done:
+      - Validation evidence shows successful commands, zero React 19 warnings, and references this task ID.
+    estimate: S
+    expected_files_touched:
+      - docs/evidence/tasks/TASK-0917-validation.md
+
+validation:
+  pipeline:
+    - command: pnpm turbo run lint:fix --filter=photoeditor-mobile
+      description: Auto-fix lint issues before running static analysis for the mobile workspace.
+    - command: pnpm turbo run qa:static --filter=photoeditor-mobile
+      description: Run mobile typecheck and lint per standards/testing-standards.md.
+    - command: pnpm turbo run test --filter=photoeditor-mobile
+      description: Execute Jest specs and confirm CameraWithOverlay tests no longer emit act warnings.
+  manual_checks:
+    - Review Jest stdout to confirm "An update to CameraWithOverlay..." no longer appears.
+
+acceptance_criteria:
+  must:
+    - All CameraWithOverlay tests rely on the new helper; no direct calls to renderWithRedux remain.
+    - Jest output across qa:static/test runs shows zero React 19 act warnings or unhandled promise rejections.
+    - Helper is documented and discoverable (exported from mobile/src/test-utils/index.ts) so other suites can adopt it.
+  quality_gates:
+    - No new lint warnings or ESLint suppressions are introduced.
+    - Coverage for CameraWithOverlay specs stays ≥70% lines / ≥60% branches per standards/testing-standards.md#coverage-expectations.
+
+artifacts:
+  - path: docs/evidence/tasks/TASK-0917-validation.md
+    description: Command outputs proving lint, static, and test suites pass without warnings.
+
+deliverables:
+  - mobile/src/test-utils/cameraRenderHelper.tsx
+  - mobile/src/test-utils/index.ts
+  - mobile/src/features/camera/__tests__/CameraWithOverlay.test.tsx
+  - docs/evidence/tasks/TASK-0917-validation.md
+
+risks:
+  - description: Improper helper usage could hide legitimate async race conditions if it over-flushes timers.
+    mitigation: Keep helper logic minimal (flush pending promises only) and leave `waitFor` assertions in place so behaviour remains observable.

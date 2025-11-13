@@ -1,0 +1,165 @@
+schema_version: "1.1"
+id: TASK-0918
+title: "Add CameraWithOverlay loading sentinel for async feature flags"
+status: draft
+blocked_reason: null
+priority: P2
+area: mobile
+unblocker: false
+order: null
+blocked_by: []
+depends_on: [TASK-0917]
+agent_completion_state: {}
+
+clarifications:
+  outstanding:
+    - Confirm copy and accessibility requirements for the interim "Initializing camera" UI per product guidance.
+    - Determine whether the sentinel should display metrics (e.g., feature flag readiness) for telemetry before Camera mounts.
+  evidence_path: "docs/evidence/tasks/TASK-0918-clarifications.md"
+
+description: >-
+  Even after the act-aware helper lands, CameraWithOverlay still renders `null` while async feature flags
+  resolve, which provides no user feedback and leaves tests without an observable loading state.
+  Following the SettingsScreen precedent from TASK-0914, introduce a minimal loading sentinel rendered until
+  `featureFlags` exist so both users and tests can detect readiness without extra polling.
+
+outcome: >-
+  CameraWithOverlay displays an accessible loading indicator (text + testID) while device capability checks
+  run, tests wait for the sentinel to disappear before asserting, and pilot metrics confirm no regressions in
+  frame-processor enablement.
+
+scope:
+  in:
+    - mobile/src/features/camera/CameraWithOverlay.tsx (introduce loading view + optional analytics hook)
+    - mobile/src/features/camera/__tests__/CameraWithOverlay.test.tsx (assert loading sentinel lifecycle)
+    - mobile/src/features/camera/styles and related assets if needed for theming
+  out:
+    - Changes to VisionCamera configuration, frame processor logic, or feature-flag heuristic functions
+    - Broader UI redesign of the camera screen beyond the minimal sentinel state
+
+context:
+  affected_packages: [mobile]
+  standards_tier: mobile
+  related_docs:
+    - standards/global.md
+    - standards/AGENTS.md
+    - standards/frontend-tier.md
+    - standards/testing-standards.md
+    - standards/typescript.md
+    - docs/tests/reports/2025-11-12-validation-mobile-revalidation.md
+    - changelog/2025-11-13-task-0915-blocked.md
+  repo_paths:
+    - mobile/src/features/camera/CameraWithOverlay.tsx
+    - mobile/src/features/camera/__tests__/CameraWithOverlay.test.tsx
+    - mobile/src/features/camera/styles.ts
+  dependencies: []
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: pnpm
+      version: "8.x"
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Follow standards/frontend-tier.md#state--logic-layer for async guard patterns and user feedback.
+    - Keep UI strings centralized for localization readiness (standards/mobile-tier.md#i18n if applicable).
+  prohibited:
+    - Do not bypass feature flag guards or auto-enable frame processors just to hide loading time.
+
+plan:
+  - id: 1
+    title: Align sentinel design with standards
+    details: >-
+      Review TASK-0914 implementation notes and standards/frontend-tier.md#async-state-handling to define the
+      expected loading UI, accessibility hooks, and telemetry. Document any open product questions in the
+      clarifications evidence file.
+    actor: agent
+    inputs:
+      - mobile/src/features/settings/SettingsScreen.tsx
+      - docs/evidence/tasks/TASK-0915-clarifications.md
+      - standards/frontend-tier.md
+    outputs:
+      - docs/evidence/tasks/TASK-0918-clarifications.md
+    definition_of_done:
+      - Evidence lists chosen copy/testIDs, references standards/frontend-tier.md#async-state-handling, and
+        flags any product approvals required.
+    estimate: S
+    expected_files_touched:
+      - docs/evidence/tasks/TASK-0918-clarifications.md
+  - id: 2
+    title: Implement loading sentinel and telemetry
+    details: >-
+      Update CameraWithOverlay to render a lightweight placeholder (text + optional spinner) until
+      `featureFlags` are resolved, ensuring it is accessible via `accessibilityRole="progressbar"` or similar
+      per standards/mobile-tier.md#accessibility. Emit a `console.info` or analytics hook when the sentinel
+      dismisses so tests and logs can assert readiness.
+    actor: agent
+    inputs: []
+    outputs:
+      - mobile/src/features/camera/CameraWithOverlay.tsx
+      - mobile/src/features/camera/__tests__/CameraWithOverlay.test.tsx
+    definition_of_done:
+      - Component renders sentinel with deterministic testID, logs readiness transition, and tests assert both
+        presence and disappearance using `findByTestId` per standards/testing-standards.md#react-component-testing.
+    estimate: M
+    expected_files_touched:
+      - mobile/src/features/camera/CameraWithOverlay.tsx
+      - mobile/src/features/camera/__tests__/CameraWithOverlay.test.tsx
+  - id: 3
+    title: Validate UX and test evidence
+    details: >-
+      Run the mobile lint/static/test pipelines and capture screenshots or logs showing the sentinel output in
+      storybook or Jest snapshots. Ensure acceptance criteria reference coverage expectations from
+      standards/testing-standards.md#coverage-expectations.
+    actor: agent
+    inputs: []
+    outputs:
+      - docs/evidence/tasks/TASK-0918-validation.md
+    definition_of_done:
+      - Validation doc links to command output, includes screenshot/log references, and states coverage results.
+    estimate: S
+    expected_files_touched:
+      - docs/evidence/tasks/TASK-0918-validation.md
+
+validation:
+  pipeline:
+    - command: pnpm turbo run lint:fix --filter=photoeditor-mobile
+      description: Auto-fix linting issues before validation.
+    - command: pnpm turbo run qa:static --filter=photoeditor-mobile
+      description: Typecheck + lint to ensure the sentinel complies with standards/testing-standards.md.
+    - command: pnpm turbo run test --filter=photoeditor-mobile
+      description: Verify updated CameraWithOverlay tests covering the loading sentinel.
+  manual_checks:
+    - Capture a screenshot or storybook snippet of the loading sentinel for docs/evidence/tasks/TASK-0918-validation.md.
+
+acceptance_criteria:
+  must:
+    - CameraWithOverlay renders an accessible loading sentinel with deterministic testID/text until
+      `featureFlags` are populated.
+    - Tests wait for the sentinel to disappear before asserting camera rendering, eliminating timing races.
+    - Console/info telemetry logs both entry and exit of the sentinel state for debugging.
+  quality_gates:
+    - No regressions to frame processor enablement logic (feature flag guard remains unchanged outside the
+      sentinel addition).
+    - Coverage for the updated specs remains ≥70% lines / ≥60% branches per standards/testing-standards.md.
+
+artifacts:
+  - path: docs/evidence/tasks/TASK-0918-validation.md
+    description: Validation commands and screenshot references proving the sentinel works as intended.
+
+deliverables:
+  - mobile/src/features/camera/CameraWithOverlay.tsx
+  - mobile/src/features/camera/__tests__/CameraWithOverlay.test.tsx
+  - docs/evidence/tasks/TASK-0918-validation.md
+
+risks:
+  - description: The loading sentinel may add perceivable latency if it persists longer than necessary on fast devices.
+    mitigation: Keep the sentinel lightweight, dismiss immediately after feature flags resolve, and monitor logs for dwell time.

@@ -8,10 +8,14 @@
  * - VisionCamera (useCameraDevice, useFrameProcessor, useSkiaFrameProcessor, Camera)
  * - Skia dependencies (no actual GPU rendering in tests)
  * - Reanimated (useSharedValue)
+ * - Feature flags (deterministic device capability via __mocks__/featureFlags.ts)
+ *
+ * Per TASK-0915: Tests await async feature flag initialization using waitFor patterns
+ * per standards/testing-standards.md#react-component-testing to prevent timing gaps.
  */
 
 import { configureStore } from '@reduxjs/toolkit';
-import { render } from '@testing-library/react-native';
+import { render, waitFor } from '@testing-library/react-native';
 import React from 'react';
 import { useSharedValue } from 'react-native-reanimated';
 import { useCameraDevice, useFrameProcessor, useSkiaFrameProcessor } from 'react-native-vision-camera';
@@ -65,21 +69,9 @@ jest.mock('react-native-reanimated', () => ({
   })),
 }));
 
-// Mock feature flags
-jest.mock('@/utils/featureFlags', () => ({
-  getDeviceCapability: jest.fn(() => Promise.resolve({
-    platform: 'ios',
-    deviceModel: null,
-    isCapable: false,
-    reason: 'iOS support deferred to post-pilot phase (ADR-0011)',
-  })),
-  shouldEnableFrameProcessors: jest.fn((userEnabled, capability) => ({
-    isEnabled: false,
-    isDeviceCapable: false,
-    isUserEnabled: userEnabled,
-    deviceCapability: capability,
-  })),
-}));
+// Mock feature flags - using manual mock from __mocks__/featureFlags.ts
+// This provides deterministic device capability helpers and synchronous Promise resolution
+jest.mock('@/utils/featureFlags');
 
 // Helper to create mock store with Redux
 const createMockStore = () => {
@@ -90,10 +82,27 @@ const createMockStore = () => {
   });
 };
 
-// Helper to render components with Redux Provider
+/**
+ * Helper to render components with Redux Provider.
+ *
+ * Returns render utilities plus a Redux-aware rerender function that preserves
+ * the Provider context. Per TASK-0915: prevents "could not find react-redux
+ * context value" errors when rerendering components that use useSelector.
+ *
+ * @param component - React element to render
+ * @returns Render utilities with Redux-aware rerender
+ */
 const renderWithRedux = (component: React.ReactElement) => {
   const mockStore = createMockStore();
-  return render(<Provider store={mockStore}>{component}</Provider>);
+  const utils = render(<Provider store={mockStore}>{component}</Provider>);
+
+  return {
+    ...utils,
+    // Override rerender to maintain Redux Provider context
+    rerender: (newComponent: React.ReactElement) => {
+      utils.rerender(<Provider store={mockStore}>{newComponent}</Provider>);
+    },
+  };
 };
 
 describe('CameraWithOverlay', () => {
@@ -117,12 +126,20 @@ describe('CameraWithOverlay', () => {
   });
 
   describe('Rendering', () => {
-    it('should render camera when device is available', () => {
+    it('should render camera when device is available', async () => {
       const { UNSAFE_getByType } = renderWithRedux(<CameraWithOverlay />);
 
+      // Wait for feature flags to initialize per TASK-0915
+      // Component returns null until featureFlags state is set (CameraWithOverlay.tsx:213-216)
+      await waitFor(
+        () => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          expect(UNSAFE_getByType('Camera' as any)).toBeDefined();
+        },
+        { timeout: 1000 }
+      );
+
       expect(mockUseCameraDevice).toHaveBeenCalledWith('back');
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      expect(UNSAFE_getByType('Camera' as any)).toBeDefined();
     });
 
     it('should render nothing when device is not available', () => {
@@ -146,9 +163,18 @@ describe('CameraWithOverlay', () => {
       expect(mockUseCameraDevice).toHaveBeenCalledWith('back');
     });
 
-    it('should apply custom style', () => {
+    it('should apply custom style', async () => {
       const customStyle = { width: 300, height: 400 };
       const { UNSAFE_getByType } = renderWithRedux(<CameraWithOverlay style={customStyle} />);
+
+      // Wait for feature flags to initialize per TASK-0915
+      await waitFor(
+        () => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          expect(UNSAFE_getByType('Camera' as any)).toBeDefined();
+        },
+        { timeout: 1000 }
+      );
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const camera = UNSAFE_getByType('Camera' as any);
@@ -275,7 +301,7 @@ describe('CameraWithOverlay', () => {
   });
 
   describe('Error Handling', () => {
-    it('should call onError when camera error occurs', () => {
+    it('should call onError when camera error occurs', async () => {
       const mockOnError = jest.fn();
       const testError = new Error('Camera permission denied');
 
@@ -283,22 +309,40 @@ describe('CameraWithOverlay', () => {
         <CameraWithOverlay onError={mockOnError} />
       );
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const camera = UNSAFE_getByType('Camera' as any);
-      camera.props.onError(testError);
+      // Wait for feature flags to initialize per TASK-0915
+      let camera: ReturnType<typeof UNSAFE_getByType>;
+      await waitFor(
+        () => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          camera = UNSAFE_getByType('Camera' as any);
+          expect(camera).toBeDefined();
+        },
+        { timeout: 1000 }
+      );
+
+      camera!.props.onError(testError);
 
       expect(mockOnError).toHaveBeenCalledWith(testError);
     });
 
-    it('should log error to console when onError not provided', () => {
+    it('should log error to console when onError not provided', async () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
       const testError = new Error('Camera initialization failed');
 
       const { UNSAFE_getByType } = renderWithRedux(<CameraWithOverlay />);
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const camera = UNSAFE_getByType('Camera' as any);
-      camera.props.onError(testError);
+      // Wait for feature flags to initialize per TASK-0915
+      let camera: ReturnType<typeof UNSAFE_getByType>;
+      await waitFor(
+        () => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          camera = UNSAFE_getByType('Camera' as any);
+          expect(camera).toBeDefined();
+        },
+        { timeout: 1000 }
+      );
+
+      camera!.props.onError(testError);
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         '[CameraWithOverlay] Camera error:',
@@ -316,13 +360,23 @@ describe('CameraWithOverlay', () => {
       expect(mockUseSkiaFrameProcessor).toHaveBeenCalled();
     });
 
-    it('should update frame processor when overlays change', () => {
-      const { rerender } = renderWithRedux(
+    it('should update frame processor when overlays change', async () => {
+      const { rerender, UNSAFE_getByType } = renderWithRedux(
         <CameraWithOverlay enabledOverlays={['boundingBoxes']} />
+      );
+
+      // Wait for initial feature flags to initialize per TASK-0915
+      await waitFor(
+        () => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          expect(UNSAFE_getByType('Camera' as any)).toBeDefined();
+        },
+        { timeout: 1000 }
       );
 
       const initialCallCount = mockUseSkiaFrameProcessor.mock.calls.length;
 
+      // Rerender with new overlays (Redux-aware rerender preserves Provider context)
       rerender(
         <CameraWithOverlay enabledOverlays={['boundingBoxes', 'liveFilters']} />
       );

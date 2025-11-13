@@ -1,5 +1,11 @@
 import 'react-native-gesture-handler/jestSetup';
 
+// Set React's global IS_REACT_ACT_ENVIRONMENT flag for React 19 compatibility
+// This tells React that all state updates during tests happen within act() boundaries,
+// eliminating "not wrapped in act(...)" warnings for async effects in components.
+// Per React 19 migration guide and TASK-0917.
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
 // Mock Reanimated
 jest.mock('react-native-reanimated', () => {
   const reanimatedModule = require('react-native-reanimated/mock');

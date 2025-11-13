@@ -10,18 +10,17 @@
  * - Reanimated (useSharedValue)
  * - Feature flags (deterministic device capability via __mocks__/featureFlags.ts)
  *
- * Per TASK-0915: Tests await async feature flag initialization using waitFor patterns
- * per standards/testing-standards.md#react-component-testing to prevent timing gaps.
+ * Per TASK-0917: Uses act-aware renderCameraWithRedux helper from test-utils to
+ * eliminate React 19 act(...) warnings caused by async feature flag initialization.
+ * Helper wraps render in act() and waits for component readiness per
+ * standards/testing-standards.md#react-component-testing.
  */
 
-import { configureStore } from '@reduxjs/toolkit';
-import { render, waitFor } from '@testing-library/react-native';
 import React from 'react';
 import { useSharedValue } from 'react-native-reanimated';
 import { useCameraDevice, useFrameProcessor, useSkiaFrameProcessor } from 'react-native-vision-camera';
-import { Provider } from 'react-redux';
 
-import { settingsSlice } from '../../../store/slices/settingsSlice';
+import { renderCameraWithRedux } from '../../../test-utils';
 import { CameraWithOverlay } from '../CameraWithOverlay';
 
 import type { BoundingBox, FilterParams, OverlayConfig } from '../frameProcessors';
@@ -73,38 +72,6 @@ jest.mock('react-native-reanimated', () => ({
 // This provides deterministic device capability helpers and synchronous Promise resolution
 jest.mock('@/utils/featureFlags');
 
-// Helper to create mock store with Redux
-const createMockStore = () => {
-  return configureStore({
-    reducer: {
-      settings: settingsSlice.reducer,
-    },
-  });
-};
-
-/**
- * Helper to render components with Redux Provider.
- *
- * Returns render utilities plus a Redux-aware rerender function that preserves
- * the Provider context. Per TASK-0915: prevents "could not find react-redux
- * context value" errors when rerendering components that use useSelector.
- *
- * @param component - React element to render
- * @returns Render utilities with Redux-aware rerender
- */
-const renderWithRedux = (component: React.ReactElement) => {
-  const mockStore = createMockStore();
-  const utils = render(<Provider store={mockStore}>{component}</Provider>);
-
-  return {
-    ...utils,
-    // Override rerender to maintain Redux Provider context
-    rerender: (newComponent: React.ReactElement) => {
-      utils.rerender(<Provider store={mockStore}>{newComponent}</Provider>);
-    },
-  };
-};
-
 describe('CameraWithOverlay', () => {
   const mockDevice = { id: 'test-camera', position: 'back' };
   const mockUseCameraDevice = useCameraDevice as jest.MockedFunction<typeof useCameraDevice>;
@@ -127,55 +94,40 @@ describe('CameraWithOverlay', () => {
 
   describe('Rendering', () => {
     it('should render camera when device is available', async () => {
-      const { UNSAFE_getByType } = renderWithRedux(<CameraWithOverlay />);
+      const { UNSAFE_getByType } = await renderCameraWithRedux(<CameraWithOverlay />);
 
-      // Wait for feature flags to initialize per TASK-0915
-      // Component returns null until featureFlags state is set (CameraWithOverlay.tsx:213-216)
-      await waitFor(
-        () => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          expect(UNSAFE_getByType('Camera' as any)).toBeDefined();
-        },
-        { timeout: 1000 }
-      );
-
+      // Helper already waited for feature flag initialization
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect(UNSAFE_getByType('Camera' as any)).toBeDefined();
       expect(mockUseCameraDevice).toHaveBeenCalledWith('back');
     });
 
-    it('should render nothing when device is not available', () => {
+    it('should render nothing when device is not available', async () => {
       mockUseCameraDevice.mockReturnValue(undefined);
 
-      const { UNSAFE_queryByType } = renderWithRedux(<CameraWithOverlay />);
+      const { UNSAFE_queryByType } = await renderCameraWithRedux(<CameraWithOverlay />);
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       expect(UNSAFE_queryByType('Camera' as any)).toBeNull();
     });
 
-    it('should use front camera when position is front', () => {
-      renderWithRedux(<CameraWithOverlay position="front" />);
+    it('should use front camera when position is front', async () => {
+      await renderCameraWithRedux(<CameraWithOverlay position="front" />);
 
       expect(mockUseCameraDevice).toHaveBeenCalledWith('front');
     });
 
-    it('should use back camera when position is back', () => {
-      renderWithRedux(<CameraWithOverlay position="back" />);
+    it('should use back camera when position is back', async () => {
+      await renderCameraWithRedux(<CameraWithOverlay position="back" />);
 
       expect(mockUseCameraDevice).toHaveBeenCalledWith('back');
     });
 
     it('should apply custom style', async () => {
       const customStyle = { width: 300, height: 400 };
-      const { UNSAFE_getByType } = renderWithRedux(<CameraWithOverlay style={customStyle} />);
+      const { UNSAFE_getByType } = await renderCameraWithRedux(<CameraWithOverlay style={customStyle} />);
 
-      // Wait for feature flags to initialize per TASK-0915
-      await waitFor(
-        () => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          expect(UNSAFE_getByType('Camera' as any)).toBeDefined();
-        },
-        { timeout: 1000 }
-      );
-
+      // Helper already waited for feature flag initialization
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const camera = UNSAFE_getByType('Camera' as any);
       expect(camera.props.style).toContainEqual(customStyle);
@@ -183,18 +135,18 @@ describe('CameraWithOverlay', () => {
   });
 
   describe('Overlay Toggling', () => {
-    it('should initialize with empty overlays when no overlays enabled', () => {
-      renderWithRedux(<CameraWithOverlay enabledOverlays={[]} />);
+    it('should initialize with empty overlays when no overlays enabled', async () => {
+      await renderCameraWithRedux(<CameraWithOverlay enabledOverlays={[]} />);
 
       expect(mockUseSharedValue).toHaveBeenCalledWith({});
     });
 
-    it('should enable bounding box overlay when specified', () => {
+    it('should enable bounding box overlay when specified', async () => {
       const boundingBoxes: BoundingBox[] = [
         { x: 100, y: 100, width: 200, height: 200, label: 'Face' },
       ];
 
-      renderWithRedux(
+      await renderCameraWithRedux(
         <CameraWithOverlay
           enabledOverlays={['boundingBoxes']}
           boundingBoxes={boundingBoxes}
@@ -205,14 +157,14 @@ describe('CameraWithOverlay', () => {
       expect(mockUseSharedValue).toHaveBeenCalled();
     });
 
-    it('should enable live filter overlay when specified', () => {
+    it('should enable live filter overlay when specified', async () => {
       const filterParams: FilterParams = {
         brightness: 0.2,
         contrast: 1.1,
         saturation: 1.0,
       };
 
-      renderWithRedux(
+      await renderCameraWithRedux(
         <CameraWithOverlay
           enabledOverlays={['liveFilters']}
           filterParams={filterParams}
@@ -222,14 +174,14 @@ describe('CameraWithOverlay', () => {
       expect(mockUseSharedValue).toHaveBeenCalled();
     });
 
-    it('should enable AI overlay when specified', () => {
+    it('should enable AI overlay when specified', async () => {
       const overlayConfig: OverlayConfig = {
         opacity: 0.8,
         x: 50,
         y: 50,
       };
 
-      renderWithRedux(
+      await renderCameraWithRedux(
         <CameraWithOverlay
           enabledOverlays={['aiOverlay']}
           overlayConfig={overlayConfig}
@@ -239,13 +191,13 @@ describe('CameraWithOverlay', () => {
       expect(mockUseSharedValue).toHaveBeenCalled();
     });
 
-    it('should enable multiple overlays simultaneously', () => {
+    it('should enable multiple overlays simultaneously', async () => {
       const boundingBoxes: BoundingBox[] = [
         { x: 100, y: 100, width: 200, height: 200 },
       ];
       const filterParams: FilterParams = { brightness: 0.1 };
 
-      renderWithRedux(
+      await renderCameraWithRedux(
         <CameraWithOverlay
           enabledOverlays={['boundingBoxes', 'liveFilters']}
           boundingBoxes={boundingBoxes}
@@ -257,10 +209,10 @@ describe('CameraWithOverlay', () => {
       expect(mockUseSkiaFrameProcessor).toHaveBeenCalled();
     });
 
-    it('should not include filters when disabled', () => {
+    it('should not include filters when disabled', async () => {
       const filterParams: FilterParams = { brightness: 0.2 };
 
-      renderWithRedux(
+      await renderCameraWithRedux(
         <CameraWithOverlay
           enabledOverlays={[]} // Filters not enabled
           filterParams={filterParams}
@@ -271,12 +223,12 @@ describe('CameraWithOverlay', () => {
       expect(mockUseSharedValue).toHaveBeenCalledWith({});
     });
 
-    it('should not include bounding boxes when disabled', () => {
+    it('should not include bounding boxes when disabled', async () => {
       const boundingBoxes: BoundingBox[] = [
         { x: 100, y: 100, width: 200, height: 200 },
       ];
 
-      renderWithRedux(
+      await renderCameraWithRedux(
         <CameraWithOverlay
           enabledOverlays={[]} // Boxes not enabled
           boundingBoxes={boundingBoxes}
@@ -286,10 +238,10 @@ describe('CameraWithOverlay', () => {
       expect(mockUseSharedValue).toHaveBeenCalledWith({});
     });
 
-    it('should not include overlay when disabled', () => {
+    it('should not include overlay when disabled', async () => {
       const overlayConfig: OverlayConfig = { opacity: 0.5 };
 
-      renderWithRedux(
+      await renderCameraWithRedux(
         <CameraWithOverlay
           enabledOverlays={[]} // Overlay not enabled
           overlayConfig={overlayConfig}
@@ -305,22 +257,14 @@ describe('CameraWithOverlay', () => {
       const mockOnError = jest.fn();
       const testError = new Error('Camera permission denied');
 
-      const { UNSAFE_getByType } = renderWithRedux(
+      const { UNSAFE_getByType } = await renderCameraWithRedux(
         <CameraWithOverlay onError={mockOnError} />
       );
 
-      // Wait for feature flags to initialize per TASK-0915
-      let camera: ReturnType<typeof UNSAFE_getByType>;
-      await waitFor(
-        () => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          camera = UNSAFE_getByType('Camera' as any);
-          expect(camera).toBeDefined();
-        },
-        { timeout: 1000 }
-      );
-
-      camera!.props.onError(testError);
+      // Helper already waited for feature flag initialization
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const camera = UNSAFE_getByType('Camera' as any);
+      camera.props.onError(testError);
 
       expect(mockOnError).toHaveBeenCalledWith(testError);
     });
@@ -329,20 +273,12 @@ describe('CameraWithOverlay', () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
       const testError = new Error('Camera initialization failed');
 
-      const { UNSAFE_getByType } = renderWithRedux(<CameraWithOverlay />);
+      const { UNSAFE_getByType } = await renderCameraWithRedux(<CameraWithOverlay />);
 
-      // Wait for feature flags to initialize per TASK-0915
-      let camera: ReturnType<typeof UNSAFE_getByType>;
-      await waitFor(
-        () => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          camera = UNSAFE_getByType('Camera' as any);
-          expect(camera).toBeDefined();
-        },
-        { timeout: 1000 }
-      );
-
-      camera!.props.onError(testError);
+      // Helper already waited for feature flag initialization
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const camera = UNSAFE_getByType('Camera' as any);
+      camera.props.onError(testError);
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         '[CameraWithOverlay] Camera error:',
@@ -354,26 +290,18 @@ describe('CameraWithOverlay', () => {
   });
 
   describe('Frame Processor', () => {
-    it('should register frame processor', () => {
-      renderWithRedux(<CameraWithOverlay enabledOverlays={['boundingBoxes']} />);
+    it('should register frame processor', async () => {
+      await renderCameraWithRedux(<CameraWithOverlay enabledOverlays={['boundingBoxes']} />);
 
       expect(mockUseSkiaFrameProcessor).toHaveBeenCalled();
     });
 
     it('should update frame processor when overlays change', async () => {
-      const { rerender, UNSAFE_getByType } = renderWithRedux(
+      const { rerender } = await renderCameraWithRedux(
         <CameraWithOverlay enabledOverlays={['boundingBoxes']} />
       );
 
-      // Wait for initial feature flags to initialize per TASK-0915
-      await waitFor(
-        () => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          expect(UNSAFE_getByType('Camera' as any)).toBeDefined();
-        },
-        { timeout: 1000 }
-      );
-
+      // Helper already waited for initial feature flag initialization
       const initialCallCount = mockUseSkiaFrameProcessor.mock.calls.length;
 
       // Rerender with new overlays (Redux-aware rerender preserves Provider context)
@@ -389,20 +317,20 @@ describe('CameraWithOverlay', () => {
   });
 
   describe('Prop Defaults', () => {
-    it('should use default position (back)', () => {
-      renderWithRedux(<CameraWithOverlay />);
+    it('should use default position (back)', async () => {
+      await renderCameraWithRedux(<CameraWithOverlay />);
 
       expect(mockUseCameraDevice).toHaveBeenCalledWith('back');
     });
 
-    it('should use default empty overlays', () => {
-      renderWithRedux(<CameraWithOverlay />);
+    it('should use default empty overlays', async () => {
+      await renderCameraWithRedux(<CameraWithOverlay />);
 
       expect(mockUseSharedValue).toHaveBeenCalledWith({});
     });
 
-    it('should use default empty bounding boxes', () => {
-      renderWithRedux(<CameraWithOverlay enabledOverlays={['boundingBoxes']} />);
+    it('should use default empty bounding boxes', async () => {
+      await renderCameraWithRedux(<CameraWithOverlay enabledOverlays={['boundingBoxes']} />);
 
       // Should not crash with empty boxes array
       expect(mockUseSharedValue).toHaveBeenCalled();
@@ -410,38 +338,38 @@ describe('CameraWithOverlay', () => {
   });
 
   describe('Bounding Box Variations', () => {
-    it('should handle bounding box with label', () => {
+    it('should handle bounding box with label', async () => {
       const boxes: BoundingBox[] = [
         { x: 0, y: 0, width: 100, height: 100, label: 'Object' },
       ];
 
-      renderWithRedux(
+      await renderCameraWithRedux(
         <CameraWithOverlay enabledOverlays={['boundingBoxes']} boundingBoxes={boxes} />
       );
 
       expect(mockUseSharedValue).toHaveBeenCalled();
     });
 
-    it('should handle bounding box with label and confidence', () => {
+    it('should handle bounding box with label and confidence', async () => {
       const boxes: BoundingBox[] = [
         { x: 0, y: 0, width: 100, height: 100, label: 'Face', confidence: 0.95 },
       ];
 
-      renderWithRedux(
+      await renderCameraWithRedux(
         <CameraWithOverlay enabledOverlays={['boundingBoxes']} boundingBoxes={boxes} />
       );
 
       expect(mockUseSharedValue).toHaveBeenCalled();
     });
 
-    it('should handle multiple bounding boxes', () => {
+    it('should handle multiple bounding boxes', async () => {
       const boxes: BoundingBox[] = [
         { x: 0, y: 0, width: 100, height: 100, label: 'Object 1' },
         { x: 150, y: 150, width: 80, height: 80, label: 'Object 2' },
         { x: 300, y: 300, width: 120, height: 120, label: 'Object 3' },
       ];
 
-      renderWithRedux(
+      await renderCameraWithRedux(
         <CameraWithOverlay enabledOverlays={['boundingBoxes']} boundingBoxes={boxes} />
       );
 
@@ -450,44 +378,44 @@ describe('CameraWithOverlay', () => {
   });
 
   describe('Filter Parameter Variations', () => {
-    it('should handle brightness only', () => {
+    it('should handle brightness only', async () => {
       const filters: FilterParams = { brightness: 0.3 };
 
-      renderWithRedux(
+      await renderCameraWithRedux(
         <CameraWithOverlay enabledOverlays={['liveFilters']} filterParams={filters} />
       );
 
       expect(mockUseSharedValue).toHaveBeenCalled();
     });
 
-    it('should handle contrast only', () => {
+    it('should handle contrast only', async () => {
       const filters: FilterParams = { contrast: 1.5 };
 
-      renderWithRedux(
+      await renderCameraWithRedux(
         <CameraWithOverlay enabledOverlays={['liveFilters']} filterParams={filters} />
       );
 
       expect(mockUseSharedValue).toHaveBeenCalled();
     });
 
-    it('should handle saturation only', () => {
+    it('should handle saturation only', async () => {
       const filters: FilterParams = { saturation: 0.8 };
 
-      renderWithRedux(
+      await renderCameraWithRedux(
         <CameraWithOverlay enabledOverlays={['liveFilters']} filterParams={filters} />
       );
 
       expect(mockUseSharedValue).toHaveBeenCalled();
     });
 
-    it('should handle all filter parameters', () => {
+    it('should handle all filter parameters', async () => {
       const filters: FilterParams = {
         brightness: 0.1,
         contrast: 1.2,
         saturation: 1.1,
       };
 
-      renderWithRedux(
+      await renderCameraWithRedux(
         <CameraWithOverlay enabledOverlays={['liveFilters']} filterParams={filters} />
       );
 
@@ -496,34 +424,34 @@ describe('CameraWithOverlay', () => {
   });
 
   describe('Overlay Config Variations', () => {
-    it('should handle overlay with opacity only', () => {
+    it('should handle overlay with opacity only', async () => {
       const config: OverlayConfig = { opacity: 0.6 };
 
-      renderWithRedux(
+      await renderCameraWithRedux(
         <CameraWithOverlay enabledOverlays={['aiOverlay']} overlayConfig={config} />
       );
 
       expect(mockUseSharedValue).toHaveBeenCalled();
     });
 
-    it('should handle overlay with position', () => {
+    it('should handle overlay with position', async () => {
       const config: OverlayConfig = { x: 100, y: 200 };
 
-      renderWithRedux(
+      await renderCameraWithRedux(
         <CameraWithOverlay enabledOverlays={['aiOverlay']} overlayConfig={config} />
       );
 
       expect(mockUseSharedValue).toHaveBeenCalled();
     });
 
-    it('should handle overlay with all parameters', () => {
+    it('should handle overlay with all parameters', async () => {
       const config: OverlayConfig = {
         opacity: 0.75,
         x: 50,
         y: 100,
       };
 
-      renderWithRedux(
+      await renderCameraWithRedux(
         <CameraWithOverlay enabledOverlays={['aiOverlay']} overlayConfig={config} />
       );
 

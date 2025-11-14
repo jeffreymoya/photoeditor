@@ -30,3 +30,15 @@ class WorkflowHaltError(Exception):
         super().__init__(message)
         self.halt_type = halt_type
         self.task_ids = task_ids
+
+
+class ValidationError(Exception):
+    """
+    Raised when validation fails.
+
+    This exception is raised when data validation fails, such as:
+    - Secret detection in context data
+    - Missing required fields
+    - Invalid field values
+    """
+    pass

@@ -13,11 +13,12 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { StyleSheet, type ViewStyle } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
 import { Camera, useCameraDevice, useSkiaFrameProcessor } from 'react-native-vision-camera';
 import { useSelector } from 'react-redux';
 
+import { colors, spacing, typography } from '@/lib/ui-tokens';
 import type { RootState } from '@/store';
 import { getDeviceCapability, shouldEnableFrameProcessors } from '@/utils/featureFlags';
 import type { FrameProcessorFeatureFlags } from '@/utils/featureFlags';
@@ -102,10 +103,17 @@ export const CameraWithOverlay: React.FC<CameraWithOverlayProps> = ({
 
   // Initialize feature flags on mount
   useEffect(() => {
+    // Telemetry: Track loading sentinel entry time
+    const sentinelEntryTime = performance.now();
+
     const initFeatureFlags = async () => {
       const deviceCapability = await getDeviceCapability();
       const flags = shouldEnableFrameProcessors(userFrameProcessorEnabled, deviceCapability);
       setFeatureFlags(flags);
+
+      // Telemetry: Calculate sentinel dwell time
+      const sentinelExitTime = performance.now();
+      const dwellTime = sentinelExitTime - sentinelEntryTime;
 
       // Log feature flag state on component mount per plan step 4
       console.info('[CameraWithOverlay] Feature flags initialized', {
@@ -115,6 +123,7 @@ export const CameraWithOverlay: React.FC<CameraWithOverlayProps> = ({
         platform: flags.deviceCapability.platform,
         deviceModel: flags.deviceCapability.deviceModel,
         reason: flags.deviceCapability.reason,
+        sentinelDwellTimeMs: dwellTime,
       });
     };
 
@@ -210,9 +219,22 @@ export const CameraWithOverlay: React.FC<CameraWithOverlayProps> = ({
     return null;
   }
 
-  // Feature flags not yet initialized
+  // Feature flags not yet initialized - show loading sentinel
+  // Per TASK-0918: Follows SettingsScreen precedent from TASK-0914
+  // Provides user feedback and observable loading state for tests
   if (!featureFlags) {
-    return null;
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text
+          style={styles.loadingText}
+          accessibilityRole="progressbar"
+          testID="camera-loading-sentinel"
+        >
+          Loading camera settings...
+        </Text>
+      </View>
+    );
   }
 
   // Check if frame processors should be enabled per feature flags
@@ -243,5 +265,18 @@ export const CameraWithOverlay: React.FC<CameraWithOverlayProps> = ({
 const styles = StyleSheet.create({
   camera: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    paddingHorizontal: spacing.md,
+  },
+  loadingText: {
+    fontSize: typography.sizes.md,
+    color: colors.textSecondary,
+    marginTop: spacing.md,
+    textAlign: 'center',
   },
 });

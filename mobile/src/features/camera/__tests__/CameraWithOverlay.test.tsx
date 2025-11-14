@@ -22,10 +22,14 @@
  * docs/evidence/tasks/TASK-0916-clarifications.md.
  */
 
+import { configureStore } from '@reduxjs/toolkit';
+import { render } from '@testing-library/react-native';
 import React from 'react';
 import { useSharedValue } from 'react-native-reanimated';
 import { useCameraDevice, useFrameProcessor, useSkiaFrameProcessor } from 'react-native-vision-camera';
+import { Provider } from 'react-redux';
 
+import { settingsSlice } from '../../../store/slices/settingsSlice';
 import { renderCameraWithRedux } from '../../../test-utils';
 import { CameraWithOverlay } from '../CameraWithOverlay';
 
@@ -99,6 +103,42 @@ describe('CameraWithOverlay', () => {
   });
 
   describe('Rendering', () => {
+    it('should display loading sentinel with correct accessibility attributes', () => {
+      // Create mock store with settings reducer for sentinel test
+      const mockStore = configureStore({
+        reducer: {
+          settings: settingsSlice.reducer,
+        },
+      });
+
+      const { getByTestId, getByText } = render(
+        <Provider store={mockStore}>
+          <CameraWithOverlay />
+        </Provider>
+      );
+
+      // Sentinel should be visible immediately before async feature flag resolution
+      const sentinel = getByTestId('camera-loading-sentinel');
+      expect(sentinel).toBeDefined();
+      expect(sentinel.props.accessibilityRole).toBe('progressbar');
+      expect(getByText('Loading camera settings...')).toBeDefined();
+    });
+
+    it('should show loading sentinel then render camera when device is available', async () => {
+      const { UNSAFE_getByType, queryByTestId } = await renderCameraWithRedux(
+        <CameraWithOverlay />
+      );
+
+      // Loading sentinel should have been visible initially (helper already waited for it to disappear)
+      // After helper completes, sentinel should be gone
+      expect(queryByTestId('camera-loading-sentinel')).toBeNull();
+
+      // Camera should be rendered after feature flags initialize
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect(UNSAFE_getByType('Camera' as any)).toBeDefined();
+      expect(mockUseCameraDevice).toHaveBeenCalledWith('back');
+    });
+
     it('should render camera when device is available', async () => {
       const { UNSAFE_getByType } = await renderCameraWithRedux(<CameraWithOverlay />);
 

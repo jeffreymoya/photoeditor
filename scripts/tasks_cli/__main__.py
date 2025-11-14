@@ -857,6 +857,350 @@ TODO: Document manual verification steps if needed
 # Context Cache Commands (Phase 2)
 # ============================================================================
 
+def _build_immutable_context_from_task(task_path: Path) -> dict:
+    """
+    Build immutable context from task YAML file.
+
+    Extracts all necessary fields for context initialization per
+    proposal Section 5.1 (Initial Capture Workflow).
+
+    Args:
+        task_path: Path to task YAML file
+
+    Returns:
+        Dictionary with task_snapshot, standards_citations, validation_baseline, repo_paths
+
+    Raises:
+        ValidationError: If required fields are missing
+    """
+    from ruamel.yaml import YAML
+
+    yaml = YAML(typ='safe')
+
+    try:
+        with open(task_path, 'r', encoding='utf-8') as f:
+            data = yaml.load(f)
+    except Exception as e:
+        raise ValidationError(f"Failed to read task file: {e}")
+
+    if not data or not isinstance(data, dict):
+        raise ValidationError("Task file is empty or invalid")
+
+    # Extract task snapshot fields
+    title = data.get('title', '')
+    priority = data.get('priority', 'P1')
+    area = data.get('area', '')
+    description = data.get('description', '')
+    outcome = data.get('outcome', '')
+
+    # Combine description and outcome for full context
+    full_description = f"{description}\n\nOutcome: {outcome}" if outcome else description
+
+    # Extract scope
+    scope = data.get('scope', {})
+    scope_in = scope.get('in', []) if isinstance(scope, dict) else []
+    scope_out = scope.get('out', []) if isinstance(scope, dict) else []
+
+    # Extract acceptance criteria
+    acceptance_criteria = data.get('acceptance_criteria', [])
+    if not isinstance(acceptance_criteria, list):
+        acceptance_criteria = []
+
+    # Build task snapshot
+    task_snapshot = {
+        'title': title,
+        'priority': priority,
+        'area': area,
+        'description': full_description.strip(),
+        'scope_in': [str(item) for item in scope_in],
+        'scope_out': [str(item) for item in scope_out],
+        'acceptance_criteria': [str(item) for item in acceptance_criteria],
+    }
+
+    # Extract repo paths from context
+    context = data.get('context', {})
+    repo_paths = context.get('repo_paths', []) if isinstance(context, dict) else []
+    if not isinstance(repo_paths, list):
+        repo_paths = []
+    repo_paths = [str(p) for p in repo_paths]
+
+    # Build standards citations based on area
+    standards_citations = _build_standards_citations(area, priority, data)
+
+    # Extract validation commands
+    validation = data.get('validation', {})
+    if isinstance(validation, dict):
+        qa_commands = validation.get('commands', [])
+    else:
+        qa_commands = []
+
+    if not isinstance(qa_commands, list):
+        qa_commands = []
+
+    # Fallback to tier defaults if no commands specified
+    if not qa_commands:
+        qa_commands = _get_default_qa_commands(area)
+
+    validation_baseline = {
+        'commands': [str(cmd) for cmd in qa_commands],
+        'initial_results': None,
+    }
+
+    return {
+        'task_snapshot': task_snapshot,
+        'standards_citations': standards_citations,
+        'validation_baseline': validation_baseline,
+        'repo_paths': sorted(set(repo_paths)),  # Deduplicate and sort
+    }
+
+
+def _build_standards_citations(area: str, priority: str, task_data: dict) -> list:
+    """
+    Build standards citations based on task area and priority.
+
+    Per proposal Section 5.1.1 (Standards Citation Algorithm).
+
+    Args:
+        area: Task area (backend, mobile, shared, infrastructure)
+        priority: Task priority (P0, P1, P2)
+        task_data: Full task YAML data
+
+    Returns:
+        List of standards citation dicts
+    """
+    citations = []
+
+    # Global standards for all tasks
+    citations.extend([
+        {
+            'file': 'standards/global.md',
+            'section': 'evidence-requirements',
+            'requirement': 'Mandatory artifacts per release: evidence bundles, test results, compliance proofs',
+            'line_span': None,
+            'content_sha': None,
+        },
+        {
+            'file': 'standards/AGENTS.md',
+            'section': 'agent-coordination',
+            'requirement': 'Agent handoff protocols and context management',
+            'line_span': None,
+            'content_sha': None,
+        },
+    ])
+
+    # Area-specific citations
+    if area == 'backend':
+        citations.extend([
+            {
+                'file': 'standards/backend-tier.md',
+                'section': 'handler-constraints',
+                'requirement': 'Handler complexity must not exceed cyclomatic complexity 10; handlers limited to 75 LOC',
+                'line_span': None,
+                'content_sha': None,
+            },
+            {
+                'file': 'standards/backend-tier.md',
+                'section': 'layering-rules',
+                'requirement': 'Handlers → Services → Providers (one-way only); no circular dependencies',
+                'line_span': None,
+                'content_sha': None,
+            },
+            {
+                'file': 'standards/cross-cutting.md',
+                'section': 'hard-fail-controls',
+                'requirement': 'Handlers cannot import AWS SDKs; zero cycles; complexity budgets enforced',
+                'line_span': None,
+                'content_sha': None,
+            },
+        ])
+    elif area == 'mobile':
+        citations.extend([
+            {
+                'file': 'standards/frontend-tier.md',
+                'section': 'component-standards',
+                'requirement': 'Component complexity and state management patterns',
+                'line_span': None,
+                'content_sha': None,
+            },
+            {
+                'file': 'standards/frontend-tier.md',
+                'section': 'state-management',
+                'requirement': 'Redux Toolkit patterns and async handling',
+                'line_span': None,
+                'content_sha': None,
+            },
+        ])
+    elif area == 'shared':
+        citations.extend([
+            {
+                'file': 'standards/shared-contracts-tier.md',
+                'section': 'contract-first',
+                'requirement': 'Zod schemas at boundaries; contract-first API design',
+                'line_span': None,
+                'content_sha': None,
+            },
+            {
+                'file': 'standards/shared-contracts-tier.md',
+                'section': 'versioning',
+                'requirement': 'Breaking changes require /v{n} versioning',
+                'line_span': None,
+                'content_sha': None,
+            },
+        ])
+    elif area in ('infrastructure', 'infra'):
+        citations.extend([
+            {
+                'file': 'standards/infrastructure-tier.md',
+                'section': 'terraform-modules',
+                'requirement': 'Terraform module structure and local dev platform',
+                'line_span': None,
+                'content_sha': None,
+            },
+        ])
+
+    # TypeScript standards for code areas
+    if area in ('backend', 'mobile', 'shared'):
+        citations.append({
+            'file': 'standards/typescript.md',
+            'section': 'strict-config',
+            'requirement': 'Strict tsconfig including exactOptionalPropertyTypes; Zod at boundaries; neverthrow Results',
+            'line_span': None,
+            'content_sha': None,
+        })
+
+    # Testing standards
+    citations.append({
+        'file': 'standards/testing-standards.md',
+        'section': f'{area}-qa-commands',
+        'requirement': f'QA commands and coverage thresholds for {area}',
+        'line_span': None,
+        'content_sha': None,
+    })
+
+    # Task-specific overrides from context.related_docs
+    context = task_data.get('context', {})
+    if isinstance(context, dict):
+        related_docs = context.get('related_docs', [])
+        if isinstance(related_docs, list):
+            for doc in related_docs:
+                doc_str = str(doc)
+                if doc_str.startswith('standards/') and not any(c['file'] == doc_str for c in citations):
+                    citations.append({
+                        'file': doc_str,
+                        'section': 'task-specific',
+                        'requirement': f'Referenced in task context',
+                        'line_span': None,
+                        'content_sha': None,
+                    })
+
+    return citations
+
+
+def _get_default_qa_commands(area: str) -> list:
+    """
+    Get default QA commands for an area per testing-standards.md.
+
+    Args:
+        area: Task area
+
+    Returns:
+        List of default QA command strings
+    """
+    if area == 'backend':
+        return [
+            'pnpm turbo run typecheck --filter=@photoeditor/backend',
+            'pnpm turbo run lint --filter=@photoeditor/backend',
+            'pnpm turbo run test --filter=@photoeditor/backend',
+        ]
+    elif area == 'mobile':
+        return [
+            'pnpm turbo run typecheck --filter=photoeditor-mobile',
+            'pnpm turbo run lint --filter=photoeditor-mobile',
+            'pnpm turbo run test --filter=photoeditor-mobile',
+        ]
+    elif area == 'shared':
+        return [
+            'pnpm turbo run typecheck --filter=@photoeditor/shared',
+            'pnpm turbo run lint --filter=@photoeditor/shared',
+            'pnpm turbo run contracts:check --filter=@photoeditor/shared',
+        ]
+    else:
+        # Generic fallback
+        return [
+            'pnpm turbo run qa:static --parallel',
+        ]
+
+
+def _auto_verify_worktree(context_store: TaskContextStore, task_id: str, agent_role: str) -> None:
+    """
+    Auto-verify worktree before mutations (Issue #2).
+
+    Per proposal Section 3.3: state-changing CLI verbs implicitly run
+    verify_worktree for the previous agent and abort on drift.
+
+    Args:
+        context_store: TaskContextStore instance
+        task_id: Task identifier
+        agent_role: Current agent role
+
+    Raises:
+        Drift Error: On worktree drift (increments drift_budget)
+        ContextNotFoundError: If no context or snapshot found
+    """
+    # Determine previous agent
+    agent_sequence = ['implementer', 'reviewer', 'validator']
+    try:
+        current_idx = agent_sequence.index(agent_role)
+        if current_idx > 0:
+            expected_agent = agent_sequence[current_idx - 1]
+
+            # Verify worktree matches previous agent's snapshot
+            try:
+                context_store.verify_worktree_state(task_id=task_id, expected_agent=expected_agent)
+            except DriftError as e:
+                # Increment drift budget for the expected agent (Issue #3)
+                context = context_store.get_context(task_id)
+                if context:
+                    agent_coord = getattr(context, expected_agent)
+                    context_store.update_coordination(
+                        task_id=task_id,
+                        agent_role=expected_agent,
+                        updates={'drift_budget': agent_coord.drift_budget + 1},
+                        actor='auto-verification'
+                    )
+                # Re-raise drift error to block the operation
+                raise
+    except ValueError:
+        # Agent not in sequence, skip verification
+        pass
+
+
+def _check_drift_budget(context_store: TaskContextStore, task_id: str) -> None:
+    """
+    Check drift budget and block operations if non-zero (Issue #3).
+
+    Per proposal Section 3.4: when drift_budget > 0, state-changing CLI verbs
+    refuse to launch a new agent until operator records a resolution note.
+
+    Args:
+        context_store: TaskContextStore instance
+        task_id: Task identifier
+
+    Raises:
+        ValidationError: If any agent has drift_budget > 0
+    """
+    context = context_store.get_context(task_id)
+    if context:
+        for agent_role in ['implementer', 'reviewer', 'validator']:
+            agent_coord = getattr(context, agent_role)
+            if agent_coord.drift_budget > 0:
+                raise ValidationError(
+                    f"Drift budget exceeded for {agent_role} (count: {agent_coord.drift_budget}). "
+                    f"Manual intervention required. Run: python scripts/tasks.py --resolve-drift {task_id} "
+                    f"--agent {agent_role} --note \"Resolution description\""
+                )
+
+
 def cmd_init_context(args, repo_root: Path) -> int:
     """
     Initialize task context with immutable snapshot.
@@ -868,6 +1212,7 @@ def cmd_init_context(args, repo_root: Path) -> int:
     Returns:
         Exit code (0 = success, 1 = error)
     """
+    import hashlib
     import subprocess
 
     task_id = args.init_context
@@ -903,28 +1248,20 @@ def cmd_init_context(args, repo_root: Path) -> int:
         print(f"Error: Task not found: {task_id}", file=sys.stderr)
         return 1
 
-    # TODO: Build immutable context from task YAML + standards
-    # For now, create minimal context for testing
-    immutable = {
-        'task_snapshot': {
-            'title': task.title,
-            'priority': task.priority,
-            'area': task.area,
-            'description': 'TODO: Extract from task YAML',
-            'scope_in': [],
-            'scope_out': [],
-            'acceptance_criteria': [],
-        },
-        'standards_citations': [],
-        'validation_baseline': {
-            'commands': [],
-            'initial_results': None,
-        },
-        'repo_paths': [],
-    }
+    # Build immutable context from task YAML + standards (Issue #1 fix)
+    try:
+        immutable = _build_immutable_context_from_task(Path(task.path))
+    except ValidationError as e:
+        if args.format == 'json':
+            output_json({
+                'success': False,
+                'error': f'Failed to build context: {e}',
+            })
+        else:
+            print(f"Error: Failed to build context: {e}", file=sys.stderr)
+        return 1
 
     # Calculate task file SHA
-    import hashlib
     task_content = Path(task.path).read_bytes()
     task_file_sha = hashlib.sha256(task_content).hexdigest()
 
@@ -1052,6 +1389,11 @@ def cmd_update_agent(args, repo_root: Path) -> int:
     if args.session_id:
         updates['session_id'] = args.session_id
 
+    # Auto-populate completed_at when status changes to 'done' (Issue #8)
+    if updates.get('status') == 'done' and 'completed_at' not in updates:
+        from datetime import datetime, timezone
+        updates['completed_at'] = datetime.now(timezone.utc).isoformat()
+
     if not updates:
         print("Error: No updates specified (use --status, --qa-log, or --session-id)", file=sys.stderr)
         return 1
@@ -1059,6 +1401,12 @@ def cmd_update_agent(args, repo_root: Path) -> int:
     context_store = TaskContextStore(repo_root)
 
     try:
+        # Check drift budget before mutations (Issue #3)
+        _check_drift_budget(context_store, task_id)
+
+        # Auto-verify worktree before mutations (Issue #2)
+        _auto_verify_worktree(context_store, task_id, agent_role)
+
         context_store.update_coordination(
             task_id=task_id,
             agent_role=agent_role,
@@ -1110,6 +1458,12 @@ def cmd_mark_blocked(args, repo_root: Path) -> int:
     context_store = TaskContextStore(repo_root)
 
     try:
+        # Check drift budget before mutations (Issue #3)
+        _check_drift_budget(context_store, task_id)
+
+        # Auto-verify worktree before mutations (Issue #2)
+        _auto_verify_worktree(context_store, task_id, agent_role)
+
         # Get current context to retrieve existing findings
         context = context_store.get_context(task_id)
         if context is None:
@@ -1227,6 +1581,12 @@ def cmd_snapshot_worktree(args, repo_root: Path) -> int:
     base_commit = context.git_head
 
     try:
+        # Check drift budget before mutations (Issue #3)
+        _check_drift_budget(context_store, task_id)
+
+        # Auto-verify worktree before mutations (Issue #2)
+        _auto_verify_worktree(context_store, task_id, agent_role)
+
         snapshot = context_store.snapshot_worktree(
             task_id=task_id,
             agent_role=agent_role,
@@ -1418,6 +1778,69 @@ def cmd_get_diff(args, repo_root: Path) -> int:
         return 1
 
 
+def _parse_qa_log(qa_log_content: str) -> dict:
+    """
+    Parse QA log content to extract test results (Issue #4).
+
+    Attempts to extract structured information from QA command output including:
+    - Test pass/fail counts
+    - Coverage percentages
+    - Lint/typecheck results
+    - Error messages
+
+    Args:
+        qa_log_content: Raw QA log file content
+
+    Returns:
+        Dictionary with parsed results
+    """
+    import re
+
+    results = {
+        'passed': False,
+        'tests_run': None,
+        'tests_passed': None,
+        'tests_failed': None,
+        'coverage_lines': None,
+        'coverage_branches': None,
+        'errors': [],
+        'warnings': [],
+    }
+
+    # Try to extract test counts (Jest/Vitest format)
+    test_match = re.search(r'Tests:\s+(\d+) passed.*?(\d+) total', qa_log_content, re.IGNORECASE)
+    if test_match:
+        results['tests_passed'] = int(test_match.group(1))
+        results['tests_run'] = int(test_match.group(2))
+        results['tests_failed'] = results['tests_run'] - results['tests_passed']
+
+    # Try to extract coverage (Istanbul/NYC format)
+    coverage_match = re.search(r'All files\s+\|\s+([\d.]+)\s+\|\s+([\d.]+)', qa_log_content)
+    if coverage_match:
+        results['coverage_lines'] = float(coverage_match.group(1))
+        results['coverage_branches'] = float(coverage_match.group(2))
+
+    # Try to extract errors (common patterns)
+    error_patterns = [
+        r'error TS\d+:(.+?)(?=\n|$)',  # TypeScript errors
+        r'✖ \d+ problem.+?\n(.+?)(?=\n\n|$)',  # ESLint errors
+        r'Error: (.+?)(?=\n|$)',  # Generic errors
+    ]
+
+    for pattern in error_patterns:
+        matches = re.findall(pattern, qa_log_content, re.MULTILINE)
+        results['errors'].extend([m.strip() for m in matches[:5]])  # Limit to 5 errors
+
+    # Determine overall pass/fail
+    results['passed'] = (
+        'error' not in qa_log_content.lower() and
+        'failed' not in qa_log_content.lower() or
+        (results['tests_failed'] is not None and results['tests_failed'] == 0)
+    )
+
+    return results
+
+
 def cmd_record_qa(args, repo_root: Path) -> int:
     """
     Update validation baseline with QA results.
@@ -1447,18 +1870,60 @@ def cmd_record_qa(args, repo_root: Path) -> int:
         print(f"Error: QA log file not found: {qa_log_path}", file=sys.stderr)
         return 1
 
-    qa_results = qa_log_file.read_text(encoding='utf-8')
+    qa_log_content = qa_log_file.read_text(encoding='utf-8')
 
-    # Update coordination with QA log path
+    # Parse QA results (Issue #4)
+    qa_results = _parse_qa_log(qa_log_content)
+
+    # Update coordination with QA log path and results
     context_store = TaskContextStore(repo_root)
 
     try:
+        # Check drift budget before mutations (Issue #3)
+        _check_drift_budget(context_store, task_id)
+
+        # Auto-verify worktree before mutations (Issue #2)
+        _auto_verify_worktree(context_store, task_id, agent_role)
+
+        # Get context to update validation_baseline
+        context = context_store.get_context(task_id)
+        if context is None:
+            raise ContextNotFoundError(f"No context found for {task_id}")
+
+        # Build updated validation baseline
+        from datetime import datetime, timezone
+        validation_baseline = dict(context.validation_baseline)  # Copy existing
+        if 'results' not in validation_baseline:
+            validation_baseline['results'] = {}
+
+        validation_baseline['results'][agent_role] = {
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'log_path': qa_log_path,
+            'parsed': qa_results,
+        }
+
+        # Update both qa_log_path and validation_baseline in immutable section
+        updates = {
+            'qa_log_path': qa_log_path,
+        }
+
         context_store.update_coordination(
             task_id=task_id,
             agent_role=agent_role,
-            updates={'qa_log_path': qa_log_path},
+            updates=updates,
             actor=args.actor if hasattr(args, 'actor') else "task-runner"
         )
+
+        # Also update the validation baseline in context (requires direct file write)
+        # This is a bit of a hack but necessary to store in immutable section
+        context_json_path = repo_root / ".agent-output" / task_id / "context.json"
+        if context_json_path.exists():
+            import json
+            with open(context_json_path, 'r', encoding='utf-8') as f:
+                context_data = json.load(f)
+            context_data['validation_baseline'] = validation_baseline
+            with open(context_json_path, 'w', encoding='utf-8') as f:
+                json.dump(context_data, f, indent=2, sort_keys=True)
 
         if args.format == 'json':
             output_json({
@@ -1466,14 +1931,20 @@ def cmd_record_qa(args, repo_root: Path) -> int:
                 'task_id': task_id,
                 'agent_role': agent_role,
                 'qa_log_path': qa_log_path,
+                'qa_results': qa_results,
             })
         else:
             print(f"✓ Recorded QA results for {agent_role} on {task_id}")
             print(f"  QA log: {qa_log_path}")
+            print(f"  Passed: {'✓' if qa_results['passed'] else '✗'}")
+            if qa_results['tests_run'] is not None:
+                print(f"  Tests: {qa_results['tests_passed']}/{qa_results['tests_run']} passed")
+            if qa_results['coverage_lines'] is not None:
+                print(f"  Coverage: {qa_results['coverage_lines']}% lines, {qa_results['coverage_branches']}% branches")
 
         return 0
 
-    except (ContextNotFoundError, ValidationError) as e:
+    except (ContextNotFoundError, ValidationError, DriftError) as e:
         if args.format == 'json':
             output_json({
                 'success': False,

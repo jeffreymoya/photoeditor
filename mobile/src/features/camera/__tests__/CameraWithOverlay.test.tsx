@@ -14,6 +14,12 @@
  * eliminate React 19 act(...) warnings caused by async feature flag initialization.
  * Helper wraps render in act() and waits for component readiness per
  * standards/testing-standards.md#react-component-testing.
+ *
+ * Per TASK-0916: The renderCameraWithRedux helper includes Redux-aware rerender that
+ * preserves Provider context across rerenders. For general Redux-connected components
+ * (screens, settings) that don't require async feature flag waiting, use the general
+ * renderWithRedux helper from @/__tests__/test-utils per
+ * docs/evidence/tasks/TASK-0916-clarifications.md.
  */
 
 import React from 'react';

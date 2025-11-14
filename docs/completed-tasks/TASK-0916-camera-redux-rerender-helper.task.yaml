@@ -1,7 +1,7 @@
 schema_version: "1.1"
 id: TASK-0916
 title: "Preserve Redux provider on CameraWithOverlay rerender"
-status: todo
+status: completed
 blocked_reason:
 priority: P1
 area: mobile

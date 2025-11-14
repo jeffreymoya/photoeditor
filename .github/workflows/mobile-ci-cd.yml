@@ -41,8 +41,35 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-corepack-
 
+      - name: Cache Skia binaries
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.skia-prebuilts
+            node_modules/.pnpm/@shopify+react-native-skia*/node_modules/@shopify/react-native-skia/packages/skia/artifacts
+          key: ${{ runner.os }}-skia-m142-${{ hashFiles('mobile/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-skia-m142-
+
       - name: Install workspace dependencies
-        run: pnpm install --frozen-lockfile
+        run: |
+          # Retry logic for network-dependent operations (e.g., Skia binaries)
+          for attempt in {1..3}; do
+            echo "Installation attempt $attempt of 3..."
+            if pnpm install --frozen-lockfile; then
+              echo "Dependencies installed successfully"
+              break
+            else
+              if [ $attempt -lt 3 ]; then
+                sleep_time=$((2 ** attempt))
+                echo "Installation failed, retrying in ${sleep_time}s..."
+                sleep $sleep_time
+              else
+                echo "Installation failed after 3 attempts"
+                exit 1
+              fi
+            fi
+          done
 
       - name: Lint mobile app
         run: pnpm turbo run lint --filter=photoeditor-mobile
@@ -94,8 +121,35 @@ jobs:
           api-level: 34
           build-tools: 34.0.0
 
+      - name: Cache Skia binaries
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.skia-prebuilts
+            node_modules/.pnpm/@shopify+react-native-skia*/node_modules/@shopify/react-native-skia/packages/skia/artifacts
+          key: ${{ runner.os }}-skia-m142-${{ hashFiles('mobile/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-skia-m142-
+
       - name: Install workspace dependencies
-        run: pnpm install --frozen-lockfile
+        run: |
+          # Retry logic for network-dependent operations (e.g., Skia binaries)
+          for attempt in {1..3}; do
+            echo "Installation attempt $attempt of 3..."
+            if pnpm install --frozen-lockfile; then
+              echo "Dependencies installed successfully"
+              break
+            else
+              if [ $attempt -lt 3 ]; then
+                sleep_time=$((2 ** attempt))
+                echo "Installation failed, retrying in ${sleep_time}s..."
+                sleep $sleep_time
+              else
+                echo "Installation failed after 3 attempts"
+                exit 1
+              fi
+            fi
+          done
 
       - name: Cache Gradle dependencies
         uses: actions/cache@v4
@@ -154,8 +208,35 @@ jobs:
         with:
           xcode-version: '16.1'
 
+      - name: Cache Skia binaries
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.skia-prebuilts
+            node_modules/.pnpm/@shopify+react-native-skia*/node_modules/@shopify/react-native-skia/packages/skia/artifacts
+          key: ${{ runner.os }}-skia-m142-${{ hashFiles('mobile/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-skia-m142-
+
       - name: Install workspace dependencies
-        run: pnpm install --frozen-lockfile
+        run: |
+          # Retry logic for network-dependent operations (e.g., Skia binaries)
+          for attempt in {1..3}; do
+            echo "Installation attempt $attempt of 3..."
+            if pnpm install --frozen-lockfile; then
+              echo "Dependencies installed successfully"
+              break
+            else
+              if [ $attempt -lt 3 ]; then
+                sleep_time=$((2 ** attempt))
+                echo "Installation failed, retrying in ${sleep_time}s..."
+                sleep $sleep_time
+              else
+                echo "Installation failed after 3 attempts"
+                exit 1
+              fi
+            fi
+          done
 
       - name: Install CocoaPods dependencies
         run: cd mobile/ios && pod install

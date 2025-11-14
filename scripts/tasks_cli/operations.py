@@ -121,6 +121,15 @@ class TaskOperations:
             title=getattr(task, 'title', 'Task completed')
         )
 
+        # Purge context after successful completion + notification (Phase 2 lifecycle hook)
+        try:
+            from .context_store import TaskContextStore
+            context_store = TaskContextStore(self.repo_root)
+            context_store.purge_context(task.id)
+        except Exception as e:
+            # Non-fatal: log warning but don't fail completion
+            print(f"Warning: Failed to purge context for {task.id}: {e}", file=sys.stderr)
+
         return result_path
 
     def archive_task(self, task: Task) -> Path:

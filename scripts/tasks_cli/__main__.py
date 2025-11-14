@@ -25,8 +25,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
 
+from .context_store import (
+    ContextExistsError,
+    ContextNotFoundError,
+    DriftError,
+    TaskContextStore,
+)
 from .datastore import TaskDatastore
-from .exceptions import WorkflowHaltError
+from .exceptions import ValidationError, WorkflowHaltError
 from .graph import DependencyGraph
 from .models import Task
 from .operations import TaskOperationError, TaskOperations
@@ -847,6 +853,637 @@ TODO: Document manual verification steps if needed
     return 0
 
 
+# ============================================================================
+# Context Cache Commands (Phase 2)
+# ============================================================================
+
+def cmd_init_context(args, repo_root: Path) -> int:
+    """
+    Initialize task context with immutable snapshot.
+
+    Args:
+        args: Parsed command-line arguments
+        repo_root: Repository root path
+
+    Returns:
+        Exit code (0 = success, 1 = error)
+    """
+    import subprocess
+
+    task_id = args.init_context
+    base_commit = args.base_commit
+    force_secrets = args.force_secrets if hasattr(args, 'force_secrets') else False
+
+    # Auto-detect base commit if not provided
+    if not base_commit:
+        try:
+            result = subprocess.run(
+                ['git', 'rev-parse', 'HEAD'],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            base_commit = result.stdout.strip()
+        except subprocess.CalledProcessError as e:
+            print(f"Error: Unable to determine git HEAD: {e}", file=sys.stderr)
+            return 1
+
+    # Load task to get metadata
+    datastore = TaskDatastore(repo_root)
+    tasks = datastore.load_tasks()
+
+    task = None
+    for t in tasks:
+        if t.id == task_id:
+            task = t
+            break
+
+    if not task:
+        print(f"Error: Task not found: {task_id}", file=sys.stderr)
+        return 1
+
+    # TODO: Build immutable context from task YAML + standards
+    # For now, create minimal context for testing
+    immutable = {
+        'task_snapshot': {
+            'title': task.title,
+            'priority': task.priority,
+            'area': task.area,
+            'description': 'TODO: Extract from task YAML',
+            'scope_in': [],
+            'scope_out': [],
+            'acceptance_criteria': [],
+        },
+        'standards_citations': [],
+        'validation_baseline': {
+            'commands': [],
+            'initial_results': None,
+        },
+        'repo_paths': [],
+    }
+
+    # Calculate task file SHA
+    import hashlib
+    task_content = Path(task.path).read_bytes()
+    task_file_sha = hashlib.sha256(task_content).hexdigest()
+
+    # Initialize context
+    context_store = TaskContextStore(repo_root)
+
+    try:
+        context = context_store.init_context(
+            task_id=task_id,
+            immutable=immutable,
+            git_head=base_commit,
+            task_file_sha=task_file_sha,
+            created_by=args.actor if hasattr(args, 'actor') else "task-runner",
+            force_secrets=force_secrets
+        )
+
+        if args.format == 'json':
+            output_json({
+                'success': True,
+                'task_id': task_id,
+                'base_commit': base_commit,
+                'context_version': context.version,
+            })
+        else:
+            print(f"✓ Initialized context for {task_id}")
+            print(f"  Base commit: {base_commit[:8]}")
+            print(f"  Context file: .agent-output/{task_id}/context.json")
+
+        return 0
+
+    except ContextExistsError as e:
+        if args.format == 'json':
+            output_json({
+                'success': False,
+                'error': str(e),
+            })
+        else:
+            print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+    except ValidationError as e:
+        if args.format == 'json':
+            output_json({
+                'success': False,
+                'error': str(e),
+            })
+        else:
+            print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+
+def cmd_get_context(args, repo_root: Path) -> int:
+    """
+    Read task context (immutable + coordination).
+
+    Args:
+        args: Parsed command-line arguments
+        repo_root: Repository root path
+
+    Returns:
+        Exit code (0 = success, 1 = error)
+    """
+    task_id = args.get_context
+
+    context_store = TaskContextStore(repo_root)
+    context = context_store.get_context(task_id)
+
+    if context is None:
+        if args.format == 'json':
+            output_json({
+                'success': False,
+                'error': f'No context found for {task_id}',
+            })
+        else:
+            print(f"Error: No context found for {task_id}", file=sys.stderr)
+        return 1
+
+    if args.format == 'json':
+        output_json({
+            'success': True,
+            'context': context.to_dict(),
+        })
+    else:
+        # Pretty-print context
+        print(f"Context for {context.task_id}")
+        print(f"  Version: {context.version}")
+        print(f"  Created: {context.created_at}")
+        print(f"  Created by: {context.created_by}")
+        print(f"  Git HEAD: {context.git_head[:8]}")
+        print()
+        print(f"Task Snapshot:")
+        print(f"  Title: {context.task_snapshot.title}")
+        print(f"  Priority: {context.task_snapshot.priority}")
+        print(f"  Area: {context.task_snapshot.area}")
+        print()
+        print(f"Agent Coordination:")
+        print(f"  Implementer: {context.implementer.status}")
+        print(f"  Reviewer: {context.reviewer.status}")
+        print(f"  Validator: {context.validator.status}")
+
+    return 0
+
+
+def cmd_update_agent(args, repo_root: Path) -> int:
+    """
+    Update coordination state for one agent.
+
+    Args:
+        args: Parsed command-line arguments
+        repo_root: Repository root path
+
+    Returns:
+        Exit code (0 = success, 1 = error)
+    """
+    task_id = args.update_agent
+    agent_role = args.agent
+    force_secrets = args.force_secrets if hasattr(args, 'force_secrets') else False
+
+    # Build updates dict from arguments
+    updates = {}
+    if args.status:
+        updates['status'] = args.status
+    if args.qa_log:
+        updates['qa_log_path'] = args.qa_log
+    if args.session_id:
+        updates['session_id'] = args.session_id
+
+    if not updates:
+        print("Error: No updates specified (use --status, --qa-log, or --session-id)", file=sys.stderr)
+        return 1
+
+    context_store = TaskContextStore(repo_root)
+
+    try:
+        context_store.update_coordination(
+            task_id=task_id,
+            agent_role=agent_role,
+            updates=updates,
+            actor=args.actor if hasattr(args, 'actor') else "task-runner",
+            force_secrets=force_secrets
+        )
+
+        if args.format == 'json':
+            output_json({
+                'success': True,
+                'task_id': task_id,
+                'agent_role': agent_role,
+                'updates': updates,
+            })
+        else:
+            print(f"✓ Updated {agent_role} coordination for {task_id}")
+            for key, value in updates.items():
+                print(f"  {key}: {value}")
+
+        return 0
+
+    except (ContextNotFoundError, ValidationError) as e:
+        if args.format == 'json':
+            output_json({
+                'success': False,
+                'error': str(e),
+            })
+        else:
+            print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+
+def cmd_mark_blocked(args, repo_root: Path) -> int:
+    """
+    Add blocking finding to agent coordination.
+
+    Args:
+        args: Parsed command-line arguments
+        repo_root: Repository root path
+
+    Returns:
+        Exit code (0 = success, 1 = error)
+    """
+    task_id = args.mark_blocked
+    agent_role = args.agent
+    finding = args.finding
+
+    context_store = TaskContextStore(repo_root)
+
+    try:
+        # Get current context to retrieve existing findings
+        context = context_store.get_context(task_id)
+        if context is None:
+            raise ContextNotFoundError(f"No context found for {task_id}")
+
+        # Get current agent coordination
+        agent_coord = getattr(context, agent_role)
+        existing_findings = list(agent_coord.blocking_findings)
+        existing_findings.append(finding)
+
+        # Update coordination with new findings and blocked status
+        context_store.update_coordination(
+            task_id=task_id,
+            agent_role=agent_role,
+            updates={
+                'blocking_findings': existing_findings,
+                'status': 'blocked',
+            },
+            actor=args.actor if hasattr(args, 'actor') else "task-runner"
+        )
+
+        if args.format == 'json':
+            output_json({
+                'success': True,
+                'task_id': task_id,
+                'agent_role': agent_role,
+                'finding': finding,
+                'total_findings': len(existing_findings),
+            })
+        else:
+            print(f"✓ Marked {agent_role} as blocked for {task_id}")
+            print(f"  Finding: {finding}")
+            print(f"  Total findings: {len(existing_findings)}")
+
+        return 0
+
+    except (ContextNotFoundError, ValidationError) as e:
+        if args.format == 'json':
+            output_json({
+                'success': False,
+                'error': str(e),
+            })
+        else:
+            print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+
+def cmd_purge_context(args, repo_root: Path) -> int:
+    """
+    Delete context directory (idempotent).
+
+    Args:
+        args: Parsed command-line arguments
+        repo_root: Repository root path
+
+    Returns:
+        Exit code (0 = success)
+    """
+    task_id = args.purge_context
+
+    context_store = TaskContextStore(repo_root)
+    context_store.purge_context(task_id)
+
+    if args.format == 'json':
+        output_json({
+            'success': True,
+            'task_id': task_id,
+        })
+    else:
+        print(f"✓ Purged context for {task_id}")
+
+    return 0
+
+
+# ============================================================================
+# Delta Tracking Commands (Phase 2 Day 6)
+# ============================================================================
+
+def cmd_snapshot_worktree(args, repo_root: Path) -> int:
+    """
+    Snapshot working tree state at agent completion.
+
+    Args:
+        args: Parsed command-line arguments
+        repo_root: Repository root path
+
+    Returns:
+        Exit code (0 = success, 1 = error)
+    """
+    import subprocess
+
+    task_id = args.snapshot_worktree
+    agent_role = args.agent
+    actor = args.actor if hasattr(args, 'actor') else "task-runner"
+    previous_agent = args.previous_agent if hasattr(args, 'previous_agent') else None
+
+    if not agent_role:
+        print("Error: --agent is required for snapshot-worktree", file=sys.stderr)
+        return 1
+
+    # Get base commit from context
+    context_store = TaskContextStore(repo_root)
+    context = context_store.get_context(task_id)
+
+    if context is None:
+        if args.format == 'json':
+            output_json({
+                'success': False,
+                'error': f'No context found for {task_id}',
+            })
+        else:
+            print(f"Error: No context found for {task_id}", file=sys.stderr)
+        return 1
+
+    base_commit = context.git_head
+
+    try:
+        snapshot = context_store.snapshot_worktree(
+            task_id=task_id,
+            agent_role=agent_role,
+            actor=actor,
+            base_commit=base_commit,
+            previous_agent=previous_agent
+        )
+
+        if args.format == 'json':
+            output_json({
+                'success': True,
+                'task_id': task_id,
+                'agent_role': agent_role,
+                'snapshot': snapshot.to_dict(),
+            })
+        else:
+            print(f"✓ Snapshotted working tree for {agent_role} on {task_id}")
+            print(f"  Base commit: {snapshot.base_commit[:8]}")
+            print(f"  Files changed: {len(snapshot.files_changed)}")
+            print(f"  Diff saved to: {snapshot.diff_from_base}")
+            print(f"  Diff stat: {snapshot.diff_stat}")
+
+            if snapshot.incremental_diff_error:
+                print(f"\n⚠️  Incremental diff calculation failed:")
+                print(f"  {snapshot.incremental_diff_error}")
+
+        return 0
+
+    except (ValidationError, ContextNotFoundError) as e:
+        if args.format == 'json':
+            output_json({
+                'success': False,
+                'error': str(e),
+            })
+        else:
+            print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+
+def cmd_verify_worktree(args, repo_root: Path) -> int:
+    """
+    Verify working tree matches expected state from previous agent.
+
+    Args:
+        args: Parsed command-line arguments
+        repo_root: Repository root path
+
+    Returns:
+        Exit code (0 = success, 1 = error)
+    """
+    task_id = args.verify_worktree
+    expected_agent = args.expected_agent
+
+    if not expected_agent:
+        print("Error: --expected-agent is required for verify-worktree", file=sys.stderr)
+        return 1
+
+    context_store = TaskContextStore(repo_root)
+
+    try:
+        context_store.verify_worktree_state(
+            task_id=task_id,
+            expected_agent=expected_agent
+        )
+
+        if args.format == 'json':
+            output_json({
+                'success': True,
+                'task_id': task_id,
+                'expected_agent': expected_agent,
+                'drift_detected': False,
+            })
+        else:
+            print(f"✓ Working tree verified against {expected_agent} snapshot for {task_id}")
+            print("  No drift detected")
+
+        return 0
+
+    except DriftError as e:
+        if args.format == 'json':
+            output_json({
+                'success': False,
+                'drift_detected': True,
+                'error': str(e),
+            })
+        else:
+            print(f"❌ Drift detected:", file=sys.stderr)
+            print(str(e), file=sys.stderr)
+        return 1
+
+    except ContextNotFoundError as e:
+        if args.format == 'json':
+            output_json({
+                'success': False,
+                'error': str(e),
+            })
+        else:
+            print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+
+def cmd_get_diff(args, repo_root: Path) -> int:
+    """
+    Retrieve diff file path for an agent's changes.
+
+    Args:
+        args: Parsed command-line arguments
+        repo_root: Repository root path
+
+    Returns:
+        Exit code (0 = success, 1 = error)
+    """
+    task_id = args.get_diff
+    agent_role = args.agent
+    diff_type = args.diff_type if hasattr(args, 'diff_type') else 'from_base'
+
+    if not agent_role:
+        print("Error: --agent is required for get-diff", file=sys.stderr)
+        return 1
+
+    context_store = TaskContextStore(repo_root)
+    context = context_store.get_context(task_id)
+
+    if context is None:
+        if args.format == 'json':
+            output_json({
+                'success': False,
+                'error': f'No context found for {task_id}',
+            })
+        else:
+            print(f"Error: No context found for {task_id}", file=sys.stderr)
+        return 1
+
+    # Get agent coordination
+    try:
+        agent_coord = getattr(context, agent_role)
+        snapshot = agent_coord.worktree_snapshot
+
+        if snapshot is None:
+            raise ContextNotFoundError(f"No worktree snapshot found for {agent_role}")
+
+        # Get diff path based on type
+        if diff_type == 'from_base':
+            diff_path = snapshot.diff_from_base
+        elif diff_type == 'incremental':
+            if agent_role != 'reviewer':
+                raise ValidationError("Incremental diff only available for reviewer")
+            if snapshot.diff_from_implementer is None:
+                if snapshot.incremental_diff_error:
+                    raise ValidationError(f"Incremental diff unavailable: {snapshot.incremental_diff_error}")
+                else:
+                    raise ValidationError("Incremental diff not calculated")
+            diff_path = snapshot.diff_from_implementer
+        else:
+            raise ValidationError(f"Invalid diff type: {diff_type}")
+
+        # Read diff content
+        full_diff_path = repo_root / diff_path
+        if not full_diff_path.exists():
+            raise ValidationError(f"Diff file not found: {diff_path}")
+
+        diff_content = full_diff_path.read_text(encoding='utf-8')
+
+        if args.format == 'json':
+            output_json({
+                'success': True,
+                'task_id': task_id,
+                'agent_role': agent_role,
+                'diff_type': diff_type,
+                'diff_path': diff_path,
+                'diff_content': diff_content,
+                'diff_stat': snapshot.diff_stat,
+            })
+        else:
+            print(f"Diff for {agent_role} ({diff_type}): {diff_path}")
+            print()
+            print(diff_content)
+
+        return 0
+
+    except (AttributeError, ContextNotFoundError, ValidationError) as e:
+        if args.format == 'json':
+            output_json({
+                'success': False,
+                'error': str(e),
+            })
+        else:
+            print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+
+def cmd_record_qa(args, repo_root: Path) -> int:
+    """
+    Update validation baseline with QA results.
+
+    Args:
+        args: Parsed command-line arguments
+        repo_root: Repository root path
+
+    Returns:
+        Exit code (0 = success, 1 = error)
+    """
+    task_id = args.record_qa
+    agent_role = args.agent
+    qa_log_path = args.qa_log_from if hasattr(args, 'qa_log_from') else None
+
+    if not agent_role:
+        print("Error: --agent is required for record-qa", file=sys.stderr)
+        return 1
+
+    if not qa_log_path:
+        print("Error: --from is required for record-qa (path to QA log)", file=sys.stderr)
+        return 1
+
+    # Read QA log content
+    qa_log_file = Path(qa_log_path)
+    if not qa_log_file.exists():
+        print(f"Error: QA log file not found: {qa_log_path}", file=sys.stderr)
+        return 1
+
+    qa_results = qa_log_file.read_text(encoding='utf-8')
+
+    # Update coordination with QA log path
+    context_store = TaskContextStore(repo_root)
+
+    try:
+        context_store.update_coordination(
+            task_id=task_id,
+            agent_role=agent_role,
+            updates={'qa_log_path': qa_log_path},
+            actor=args.actor if hasattr(args, 'actor') else "task-runner"
+        )
+
+        if args.format == 'json':
+            output_json({
+                'success': True,
+                'task_id': task_id,
+                'agent_role': agent_role,
+                'qa_log_path': qa_log_path,
+            })
+        else:
+            print(f"✓ Recorded QA results for {agent_role} on {task_id}")
+            print(f"  QA log: {qa_log_path}")
+
+        return 0
+
+    except (ContextNotFoundError, ValidationError) as e:
+        if args.format == 'json':
+            output_json({
+                'success': False,
+                'error': str(e),
+            })
+        else:
+            print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -921,12 +1558,125 @@ def main():
         help='Create evidence file stub for a task (creates docs/evidence/tasks/TASK-ID-clarifications.md)'
     )
 
+    # Context cache commands (Phase 2)
+    group.add_argument(
+        '--init-context',
+        metavar='TASK_ID',
+        help='Initialize context with immutable snapshot from task YAML + standards'
+    )
+    group.add_argument(
+        '--get-context',
+        metavar='TASK_ID',
+        help='Read context (immutable + coordination); pretty-print or JSON output'
+    )
+    group.add_argument(
+        '--update-agent',
+        metavar='TASK_ID',
+        help='Update coordination state for one agent (atomic)'
+    )
+    group.add_argument(
+        '--mark-blocked',
+        metavar='TASK_ID',
+        help='Add blocking finding to agent coordination'
+    )
+    group.add_argument(
+        '--purge-context',
+        metavar='TASK_ID',
+        help='Manual cleanup (normally auto-purged on completion)'
+    )
+
+    # Delta tracking commands (Day 6)
+    group.add_argument(
+        '--snapshot-worktree',
+        metavar='TASK_ID',
+        help='Snapshot working tree state at agent completion'
+    )
+    group.add_argument(
+        '--verify-worktree',
+        metavar='TASK_ID',
+        help='Verify working tree matches expected state (drift detection)'
+    )
+    group.add_argument(
+        '--get-diff',
+        metavar='TASK_ID',
+        help='Retrieve diff file path for an agent\'s changes'
+    )
+    group.add_argument(
+        '--record-qa',
+        metavar='TASK_ID',
+        help='Update validation baseline with QA results'
+    )
+
     # Output format option (applies to list, pick, validate, explain, check-halt)
     parser.add_argument(
         '--format',
         choices=['text', 'json'],
         default='text',
         help='Output format (default: text)'
+    )
+
+    # Context cache specific arguments
+    parser.add_argument(
+        '--base-commit',
+        metavar='SHA',
+        help='Base commit SHA for context initialization (auto-detected if not provided)'
+    )
+    parser.add_argument(
+        '--agent',
+        choices=['implementer', 'reviewer', 'validator'],
+        help='Agent role for coordination updates'
+    )
+    parser.add_argument(
+        '--status',
+        choices=['pending', 'in_progress', 'done', 'blocked'],
+        help='Agent status for coordination updates'
+    )
+    parser.add_argument(
+        '--qa-log',
+        metavar='PATH',
+        help='Path to QA log file for agent coordination'
+    )
+    parser.add_argument(
+        '--session-id',
+        metavar='ID',
+        help='CLI session ID for coordination updates'
+    )
+    parser.add_argument(
+        '--finding',
+        metavar='TEXT',
+        help='Blocking finding description'
+    )
+    parser.add_argument(
+        '--actor',
+        metavar='NAME',
+        help='Actor performing the operation (default: task-runner)'
+    )
+    parser.add_argument(
+        '--force-secrets',
+        action='store_true',
+        help='Bypass secret scanning (logs warning)'
+    )
+    parser.add_argument(
+        '--previous-agent',
+        choices=['implementer', 'reviewer', 'validator'],
+        help='Previous agent role (for incremental diff calculation)'
+    )
+    parser.add_argument(
+        '--expected-agent',
+        choices=['implementer', 'reviewer', 'validator'],
+        help='Expected agent whose snapshot to verify against'
+    )
+    parser.add_argument(
+        '--diff-type',
+        choices=['from_base', 'incremental'],
+        default='from_base',
+        help='Diff type to retrieve (default: from_base)'
+    )
+    parser.add_argument(
+        '--from',
+        dest='qa_log_from',
+        metavar='PATH',
+        help='Path to QA log file for record-qa command'
     )
 
     args = parser.parse_args()
@@ -989,6 +1739,35 @@ def main():
         elif args.bootstrap_evidence:
             args.task_id = args.bootstrap_evidence
             return cmd_bootstrap_evidence(args, repo_root)
+
+        # Context cache commands
+        elif args.init_context:
+            return cmd_init_context(args, repo_root)
+
+        elif args.get_context:
+            return cmd_get_context(args, repo_root)
+
+        elif args.update_agent:
+            return cmd_update_agent(args, repo_root)
+
+        elif args.mark_blocked:
+            return cmd_mark_blocked(args, repo_root)
+
+        elif args.purge_context:
+            return cmd_purge_context(args, repo_root)
+
+        # Delta tracking commands
+        elif args.snapshot_worktree:
+            return cmd_snapshot_worktree(args, repo_root)
+
+        elif args.verify_worktree:
+            return cmd_verify_worktree(args, repo_root)
+
+        elif args.get_diff:
+            return cmd_get_diff(args, repo_root)
+
+        elif args.record_qa:
+            return cmd_record_qa(args, repo_root)
 
     except KeyboardInterrupt:
         print("\nInterrupted", file=sys.stderr)

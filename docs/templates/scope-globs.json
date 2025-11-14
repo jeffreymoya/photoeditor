@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "description": "Scope glob macros for task context cache (GAP-2). Use :macro-name in task repo_paths for expansion.",
+  "globs": {
+    ":mobile-shared-ui": [
+      "mobile/src/components/**/*.{ts,tsx}",
+      "mobile/src/hooks/**/*.{ts,tsx}",
+      "mobile/src/styles/**/*.{ts,tsx}"
+    ],
+    ":mobile-all": [
+      "mobile/src/**/*.{ts,tsx}",
+      "mobile/package.json",
+      "mobile/tsconfig.json"
+    ],
+    ":backend-handlers": [
+      "backend/lambdas/**/*.ts"
+    ],
+    ":backend-services": [
+      "backend/services/**/*.ts"
+    ],
+    ":backend-providers": [
+      "backend/providers/**/*.ts"
+    ],
+    ":backend-core": [
+      "backend/libs/core/**/*.ts"
+    ],
+    ":backend-all": [
+      "backend/**/*.ts",
+      "backend/package.json",
+      "backend/tsconfig.json"
+    ],
+    ":shared-contracts": [
+      "shared/schemas/**/*.ts",
+      "shared/types/**/*.ts",
+      "shared/routes.manifest.ts"
+    ],
+    ":shared-all": [
+      "shared/**/*.ts",
+      "shared/package.json",
+      "shared/tsconfig.json"
+    ],
+    ":infrastructure": [
+      "infrastructure/**/*.tf",
+      "infrastructure/**/*.tfvars"
+    ],
+    ":standards-backend": [
+      "standards/backend-tier.md",
+      "standards/typescript.md",
+      "standards/cross-cutting.md",
+      "standards/testing-standards.md"
+    ],
+    ":standards-mobile": [
+      "standards/frontend-tier.md",
+      "standards/typescript.md",
+      "standards/testing-standards.md"
+    ],
+    ":standards-shared": [
+      "standards/shared-contracts-tier.md",
+      "standards/typescript.md",
+      "standards/testing-standards.md"
+    ],
+    ":standards-all": [
+      "standards/**/*.md"
+    ]
+  }
+}

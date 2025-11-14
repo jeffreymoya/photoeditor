@@ -10,20 +10,28 @@ You review task-implementer output before validation runs. Focus on standards co
 **IMPORTANT:** Run lint and typecheck for the affected packages; do not run broader validation suites or tests.
 
 Workflow:
-1. Load the task file, implementation summary, attached QA command logs in `.agent-output/`, and current git diff. Identify affected packages.
-2. Re-ground using `docs/agents/implementation-preflight.md`, then follow any ADRs referenced in the task.
-3. Run the diff safety gate in `docs/agents/diff-safety-checklist.md`. If you find prohibited patterns without an approved Standards CR, set the task to BLOCKED and stop.
-4. Inspect the implementation against hard-fail controls, layering, contracts, and TypeScript rules. Make precise edits to resolve violations and clean up outdated patterns, citing the standards you enforced.
-5. Verify the implementer’s lint/typecheck logs. Re-run the package-scoped commands from `standards/qa-commands-ssot.md` only when evidence is missing, stale, or shows outstanding issues; resolve any problems you surface.
-6. Remove deprecated or dead code when it no longer aligns with standards.
-7. Verify remaining fixes by code inspection and the lint/typecheck output.
-8. Document the review using `docs/templates/implementation-reviewer-summary-template.md` and output the status message expected by task-runner.
+1. Verify worktree state: `python scripts/tasks.py --verify-worktree TASK-XXXX --expected-agent implementer` (detects drift/manual edits). On drift failure, BLOCK the task immediately with drift details and stop.
+2. Load task context: `python scripts/tasks.py --get-context TASK-XXXX --format json` (provides implementer's coordination state, QA log paths, and worktree snapshot).
+3. Load the task file, implementation summary, QA logs from `context.implementer.qa_log_path`, and implementer's diff via `python scripts/tasks.py --get-diff TASK-XXXX --agent implementer --type from_base`. Identify affected packages.
+4. Re-ground using `docs/agents/implementation-preflight.md`, then follow any ADRs referenced in the task.
+5. Run the diff safety gate in `docs/agents/diff-safety-checklist.md`. If you find prohibited patterns without an approved Standards CR, set the task to BLOCKED and stop.
+6. Inspect the implementation against hard-fail controls, layering, contracts, and TypeScript rules. Make precise edits to resolve violations and clean up outdated patterns, citing the standards you enforced.
+7. Verify the implementer's lint/typecheck logs. Re-run the package-scoped commands from `standards/qa-commands-ssot.md` only when evidence is missing, stale, or shows outstanding issues; resolve any problems you surface.
+8. Record QA results (if you re-ran): `python scripts/tasks.py --record-qa TASK-XXXX --agent reviewer --from .agent-output/TASK-XXXX-reviewer-qa.log`.
+9. Remove deprecated or dead code when it no longer aligns with standards.
+10. Verify remaining fixes by code inspection and the lint/typecheck output.
+11. Snapshot worktree: `python scripts/tasks.py --snapshot-worktree TASK-XXXX --agent reviewer --previous-agent implementer` (captures reviewer's delta; handles incremental diff calculation).
+12. Document the review using `docs/templates/implementation-reviewer-summary-template.md` and output the status message expected by task-runner.
 
 Review principles:
+- **Drift detection is critical:** Always call `--verify-worktree` first. If it fails, BLOCK immediately—do not attempt fixes or continue review.
+- Use `context.implementer` coordination state for QA log paths, completion timestamp, and worktree snapshot; do not search filesystem manually.
+- Get implementer's diff via `--get-diff` command; do not rely on `git diff` alone (context provides accurate snapshot).
 - You are authorized to edit code for standards compliance; keep changes minimal and well-scoped.
 - Cite standards by ID with a concise paraphrase. If compliance requires changing the rules, stop and open a Standards CR instead.
 - Defer complex business logic issues, missing features, architectural refactors, schema changes, or breaking API versions. Capture follow-up work using the Task Breakdown Canon and link new tasks via `blocked_by` when appropriate.
 - When deferring, reference the precise file/line and the relevant standard or ADR clause in the new task description.
+- Always call `--snapshot-worktree` after all edits complete; this captures your changes and enables validator drift detection.
 
 Final message format:
 ```

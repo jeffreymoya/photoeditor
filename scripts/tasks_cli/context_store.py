@@ -36,6 +36,72 @@ class DriftError(Exception):
 
 
 # ============================================================================
+# Text Normalization Utilities
+# ============================================================================
+
+def normalize_multiline(text: str, preserve_formatting: bool = False) -> str:
+    """
+    Normalize multiline text for deterministic context snapshots.
+
+    Ensures identical snapshots across Windows (CRLF), macOS (LF), and Linux (LF)
+    by converting all line endings to POSIX LF and applying consistent formatting.
+
+    Steps:
+    1. Convert all line endings to LF (POSIX)
+    2. Strip YAML comments (lines starting with #)
+    3. Remove blank lines (whitespace-only)
+    4. Wrap at 120 chars on word boundaries (unless preserving)
+    5. Preserve bullet lists (-, *, digit.)
+    6. Ensure single trailing newline
+
+    Args:
+        text: Raw text from task YAML (may contain comments, extra whitespace)
+        preserve_formatting: If True, preserve bullet lists and code blocks
+
+    Returns:
+        Normalized text with consistent formatting
+
+    Version: 1.0.0 (stamped in context.manifest)
+    """
+    import re
+    from textwrap import fill
+
+    # Step 1: Normalize line endings to LF
+    normalized = text.replace('\r\n', '\n').replace('\r', '\n')
+
+    # Step 2: Strip YAML comments (lines starting with #)
+    lines = normalized.split('\n')
+    lines = [line for line in lines if not line.strip().startswith('#')]
+
+    # Step 3: Remove blank lines (whitespace-only lines)
+    lines = [line for line in lines if line.strip()]
+
+    # Step 4: Join and normalize whitespace
+    normalized = '\n'.join(lines)
+
+    # Step 5: Wrap at 120 chars on word boundaries (if not preserving formatting)
+    if not preserve_formatting:
+        # Use textwrap.fill with US locale sorting
+        paragraphs = normalized.split('\n\n')
+        wrapped_paragraphs = []
+        for para in paragraphs:
+            # Check if paragraph is a bullet list (starts with -, *, or digit.)
+            if re.match(r'^\s*[-*\d]+[.)]?\s', para):
+                # Preserve bullet list formatting
+                wrapped_paragraphs.append(para)
+            else:
+                # Wrap regular paragraphs at 120 chars
+                wrapped = fill(para, width=120, break_long_words=False, break_on_hyphens=False)
+                wrapped_paragraphs.append(wrapped)
+        normalized = '\n\n'.join(wrapped_paragraphs)
+
+    # Step 6: Ensure single trailing newline
+    normalized = normalized.rstrip('\n') + '\n'
+
+    return normalized
+
+
+# ============================================================================
 # Immutable Context Models (frozen dataclasses)
 # ============================================================================
 
@@ -126,6 +192,80 @@ class ValidationBaseline:
         return cls(
             commands=data['commands'],
             initial_results=data.get('initial_results'),
+        )
+
+
+# ============================================================================
+# Manifest Models (GAP-4: Context provenance tracking)
+# ============================================================================
+
+@dataclass(frozen=True)
+class SourceFile:
+    """Record of a source file used during context initialization."""
+    path: str                # Relative path from repo root
+    sha256: str             # Full SHA256 of file content
+    purpose: str            # Description: "task_yaml", "standards_citation", etc.
+
+    def to_dict(self) -> dict:
+        """Convert to JSON-serializable dict."""
+        return {
+            'path': self.path,
+            'sha256': self.sha256,
+            'purpose': self.purpose,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> 'SourceFile':
+        """Deserialize from dict."""
+        return cls(
+            path=data['path'],
+            sha256=data['sha256'],
+            purpose=data['purpose'],
+        )
+
+
+@dataclass(frozen=True)
+class ContextManifest:
+    """
+    Provenance manifest for context initialization.
+
+    Records all source files + SHAs used to build immutable context,
+    enabling regeneration after standards/task changes (GAP-4).
+    """
+    version: int                           # Manifest schema version (current: 1)
+    created_at: str                        # ISO timestamp
+    created_by: str                        # Actor who initialized
+    git_head: str                          # Git HEAD SHA at init time
+    task_id: str                           # Task identifier
+    context_schema_version: int            # Version of context.json schema
+    source_files: List[SourceFile]         # All files used (task YAML, standards, etc.)
+    normalization_version: Optional[str] = None   # Version of normalize_multiline() used
+
+    def to_dict(self) -> dict:
+        """Convert to JSON-serializable dict."""
+        return {
+            'version': self.version,
+            'created_at': self.created_at,
+            'created_by': self.created_by,
+            'git_head': self.git_head,
+            'task_id': self.task_id,
+            'context_schema_version': self.context_schema_version,
+            'source_files': [sf.to_dict() for sf in self.source_files],
+            'normalization_version': self.normalization_version,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> 'ContextManifest':
+        """Deserialize from dict."""
+        return cls(
+            version=data['version'],
+            created_at=data['created_at'],
+            created_by=data['created_by'],
+            git_head=data['git_head'],
+            task_id=data['task_id'],
+            context_schema_version=data['context_schema_version'],
+            source_files=[SourceFile.from_dict(sf) for sf in data['source_files']],
+            normalization_version=data.get('normalization_version'),
         )
 
 
@@ -436,6 +576,29 @@ class TaskContextStore:
         """Get context.json file path for task."""
         return self._get_context_dir(task_id) / "context.json"
 
+    def _get_manifest_file(self, task_id: str) -> Path:
+        """Get context.manifest file path for task (GAP-4)."""
+        return self._get_context_dir(task_id) / "context.manifest"
+
+    def _calculate_file_sha256(self, file_path: Path) -> str:
+        """
+        Calculate SHA256 hash of file contents.
+
+        Args:
+            file_path: Path to file (absolute or relative to repo_root)
+
+        Returns:
+            Full SHA256 hex digest
+        """
+        if not file_path.is_absolute():
+            file_path = self.repo_root / file_path
+
+        sha256 = hashlib.sha256()
+        with open(file_path, 'rb') as f:
+            while chunk := f.read(8192):
+                sha256.update(chunk)
+        return sha256.hexdigest()
+
     def _atomic_write(self, path: Path, content: str) -> None:
         """
         Write content atomically via temp file + os.replace().
@@ -546,7 +709,8 @@ class TaskContextStore:
         git_head: str,
         task_file_sha: str,
         created_by: str = "task-runner",
-        force_secrets: bool = False
+        force_secrets: bool = False,
+        source_files: Optional[List[SourceFile]] = None
     ) -> TaskContext:
         """
         Initialize context with immutable snapshot.
@@ -558,6 +722,7 @@ class TaskContextStore:
             task_file_sha: SHA of task YAML content
             created_by: Actor initializing context
             force_secrets: Bypass secret scanning
+            source_files: Source files used during initialization (for manifest, GAP-4)
 
         Returns:
             Initialized TaskContext
@@ -588,6 +753,24 @@ class TaskContextStore:
         if not task_snapshot_data.get('description'):
             raise ValidationError("task_snapshot.description cannot be empty")
 
+        # Validate standards_citations not empty (GAP-7: Quality gate per proposal Section 5.3)
+        standards_citations_data = immutable.get('standards_citations', [])
+        if not standards_citations_data:
+            raise ValidationError(
+                "standards_citations cannot be empty. Task must reference at least one standard."
+            )
+
+        # Apply text normalization to task_snapshot fields (GAP-1: ensure deterministic snapshots)
+        normalized_snapshot_data = {
+            'title': task_snapshot_data['title'],  # No normalization (single line)
+            'priority': task_snapshot_data['priority'],
+            'area': task_snapshot_data['area'],
+            'description': normalize_multiline(task_snapshot_data['description']) if task_snapshot_data.get('description') else '',
+            'scope_in': [normalize_multiline(str(item), preserve_formatting=True) for item in task_snapshot_data.get('scope_in', [])],
+            'scope_out': [normalize_multiline(str(item), preserve_formatting=True) for item in task_snapshot_data.get('scope_out', [])],
+            'acceptance_criteria': [normalize_multiline(str(item), preserve_formatting=True) for item in task_snapshot_data.get('acceptance_criteria', [])],
+        }
+
         # Create TaskContext
         now = datetime.now(timezone.utc).isoformat()
 
@@ -598,7 +781,7 @@ class TaskContextStore:
             created_by=created_by,
             git_head=git_head,
             task_file_sha=task_file_sha,
-            task_snapshot=TaskSnapshot.from_dict(task_snapshot_data),
+            task_snapshot=TaskSnapshot.from_dict(normalized_snapshot_data),
             standards_citations=[
                 StandardsCitation.from_dict(c)
                 for c in immutable['standards_citations']
@@ -618,6 +801,23 @@ class TaskContextStore:
             json_content = json.dumps(context.to_dict(), indent=2, sort_keys=True, ensure_ascii=False)
             json_content += '\n'  # Trailing newline
             self._atomic_write(context_file, json_content)
+
+            # Write manifest if source_files provided (GAP-4)
+            if source_files is not None:
+                manifest = ContextManifest(
+                    version=1,
+                    created_at=now,
+                    created_by=created_by,
+                    git_head=git_head,
+                    task_id=task_id,
+                    context_schema_version=context.version,
+                    source_files=source_files,
+                    normalization_version='1.0.0',  # Text normalization applied (GAP-1 complete)
+                )
+                manifest_file = self._get_manifest_file(task_id)
+                manifest_content = json.dumps(manifest.to_dict(), indent=2, sort_keys=True, ensure_ascii=False)
+                manifest_content += '\n'
+                self._atomic_write(manifest_file, manifest_content)
 
         return context
 
@@ -664,6 +864,27 @@ class TaskContextStore:
         # Read with lock
         with FileLock(str(self.lock_file), timeout=10):
             return self._load_context_file(task_id)
+
+    def get_manifest(self, task_id: str) -> Optional[ContextManifest]:
+        """
+        Read context manifest (provenance tracking, GAP-4).
+
+        Returns None if not found.
+
+        Args:
+            task_id: Task identifier
+
+        Returns:
+            ContextManifest or None if not found
+        """
+        manifest_file = self._get_manifest_file(task_id)
+        if not manifest_file.exists():
+            return None
+
+        with open(manifest_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        return ContextManifest.from_dict(data)
 
     def update_coordination(
         self,
@@ -1031,53 +1252,119 @@ class TaskContextStore:
     def _calculate_incremental_diff(
         self,
         implementer_diff_file: Path,
-        _base_commit: str
+        base_commit: str
     ) -> Tuple[Optional[str], Optional[str]]:
         """
         Calculate reviewer's incremental changes by reverse-applying implementer diff.
 
+        Uses git's index manipulation to safely calculate the diff without modifying
+        the working tree. Creates a temporary index, applies implementer's changes to
+        it, then diffs working tree against this reconstructed state.
+
         Args:
             implementer_diff_file: Path to implementer's diff file
-            _base_commit: Base commit SHA (reserved for future use)
+            base_commit: Base commit SHA to start from
 
         Returns:
             Tuple of (incremental_diff_content, error_message)
             - On success: (diff_string, None)
             - On conflict: (None, user_friendly_error)
         """
+        import tempfile
+        import os
+
         try:
-            # Check if reverse-apply would succeed
-            _result = subprocess.run(
-                ['git', 'apply', '--reverse', '--check', str(implementer_diff_file)],
-                cwd=self.repo_root,
-                capture_output=True,
-                text=True,
-                check=True
-            )
+            # Create a temporary index file
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.index', delete=False) as tmp_index:
+                tmp_index_path = tmp_index.name
 
-            # If check passes, we could calculate incremental diff
-            # For now, we'll use a simpler approach: just note success
-            # Full implementation would require temporary worktree manipulation
+            try:
+                # Set up environment to use temporary index
+                env = os.environ.copy()
+                env['GIT_INDEX_FILE'] = tmp_index_path
 
-            # Simplified: Return None for now (mark as not implemented)
-            return (
-                None,
-                "Incremental diff calculation not yet fully implemented. "
-                "Use cumulative diff instead."
-            )
+                # 1. Read base tree into temporary index
+                subprocess.run(
+                    ['git', 'read-tree', base_commit],
+                    cwd=self.repo_root,
+                    env=env,
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+
+                # 2. Apply implementer's diff to the temporary index
+                # Use --cached to apply only to index, not working tree
+                result = subprocess.run(
+                    ['git', 'apply', '--cached', str(implementer_diff_file)],
+                    cwd=self.repo_root,
+                    env=env,
+                    capture_output=True,
+                    text=True,
+                    check=False  # Don't raise on conflict
+                )
+
+                if result.returncode != 0:
+                    # Could not apply implementer's diff (likely due to conflicts)
+                    conflict_details = result.stderr
+
+                    error_msg = (
+                        f"Cannot calculate incremental diff: implementer's changes "
+                        f"could not be cleanly applied to base commit.\n\n"
+                        f"This can happen when:\n"
+                        f"- Both agents modified the same lines in a file\n"
+                        f"- The base commit has changed since implementer started\n"
+                        f"- File modes or paths changed\n\n"
+                        f"Mitigation: Review the cumulative diff instead "
+                        f"(--get-diff TASK --agent reviewer --type from_base)\n\n"
+                        f"Git apply error:\n{conflict_details}"
+                    )
+
+                    return (None, error_msg)
+
+                # 3. Diff working tree against temporary index
+                # This shows what the reviewer changed on top of implementer's work
+                result = subprocess.run(
+                    ['git', 'diff', '--cached'],
+                    cwd=self.repo_root,
+                    env=env,
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+
+                incremental_diff = result.stdout
+
+                # If diff is empty, reviewer made no additional changes
+                if not incremental_diff.strip():
+                    return (
+                        None,
+                        "No incremental changes detected. Reviewer's state matches "
+                        "implementer's changes exactly."
+                    )
+
+                return (incremental_diff, None)
+
+            finally:
+                # Clean up temporary index file
+                if os.path.exists(tmp_index_path):
+                    os.unlink(tmp_index_path)
 
         except subprocess.CalledProcessError as e:
-            # Conflict detected: overlapping edits
-            conflict_details = e.stderr
-
+            # Unexpected git error
             error_msg = (
-                f"Cannot calculate incremental diff: reviewer edits overlap "
-                f"with implementer changes.\n\n"
-                f"This is a known limitation when both agents modify the same "
-                f"lines in a file.\n\n"
+                f"Git error while calculating incremental diff:\n{e.stderr}\n\n"
                 f"Mitigation: Review the cumulative diff instead "
-                f"(--get-diff TASK --agent reviewer --type from_base)\n\n"
-                f"Git conflict details:\n{conflict_details}"
+                f"(--get-diff TASK --agent reviewer --type from_base)"
+            )
+
+            return (None, error_msg)
+        except Exception as e:
+            # Unexpected Python error
+            error_msg = (
+                f"Unexpected error calculating incremental diff: {str(e)}\n\n"
+                f"Mitigation: Review the cumulative diff instead "
+                f"(--get-diff TASK --agent reviewer --type from_base)"
             )
 
             return (None, error_msg)

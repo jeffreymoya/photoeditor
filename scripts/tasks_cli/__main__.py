@@ -29,7 +29,9 @@ from .context_store import (
     ContextExistsError,
     ContextNotFoundError,
     DriftError,
+    SourceFile,
     TaskContextStore,
+    normalize_multiline,
 )
 from .datastore import TaskDatastore
 from .exceptions import ValidationError, WorkflowHaltError
@@ -857,6 +859,65 @@ TODO: Document manual verification steps if needed
 # Context Cache Commands (Phase 2)
 # ============================================================================
 
+def _expand_repo_paths(repo_paths: List[str], repo_root: Path) -> List[str]:
+    """
+    Expand macros and globs to concrete file paths.
+
+    Macros starting with ':' (e.g., ':mobile-shared-ui') are expanded using
+    glob patterns defined in docs/templates/scope-globs.json.
+
+    Args:
+        repo_paths: List of paths (may include macros)
+        repo_root: Repository root directory
+
+    Returns:
+        Sorted, deduplicated list of expanded paths
+
+    Example:
+        [':mobile-shared-ui', 'backend/services/'] ->
+        ['mobile/src/components/Foo.tsx', 'mobile/src/hooks/useBar.ts', 'backend/services/']
+    """
+    import glob
+
+    globs_file = repo_root / 'docs/templates/scope-globs.json'
+
+    # Graceful fallback if config missing
+    if not globs_file.exists():
+        return sorted(set(repo_paths))
+
+    try:
+        with open(globs_file, 'r', encoding='utf-8') as f:
+            globs_config = json.load(f)
+    except Exception:
+        # If config is malformed, return paths as-is
+        return sorted(set(repo_paths))
+
+    expanded = []
+    for path in repo_paths:
+        if path.startswith(':'):
+            # Macro expansion
+            if path in globs_config.get('globs', {}):
+                for pattern in globs_config['globs'][path]:
+                    # Expand glob pattern relative to repo root
+                    full_pattern = str(repo_root / pattern)
+                    matches = glob.glob(full_pattern, recursive=True)
+                    # Convert back to relative paths
+                    relative_matches = [
+                        str(Path(match).relative_to(repo_root))
+                        for match in matches
+                    ]
+                    expanded.extend(relative_matches)
+            else:
+                # Unknown macro, keep as-is (will be caught by validation)
+                expanded.append(path)
+        else:
+            # Regular path
+            expanded.append(path)
+
+    # Deduplicate and sort for deterministic output
+    return sorted(set(expanded))
+
+
 def _build_immutable_context_from_task(task_path: Path) -> dict:
     """
     Build immutable context from task YAML file.
@@ -906,15 +967,15 @@ def _build_immutable_context_from_task(task_path: Path) -> dict:
     if not isinstance(acceptance_criteria, list):
         acceptance_criteria = []
 
-    # Build task snapshot
+    # Build task snapshot (with text normalization for cross-platform determinism)
     task_snapshot = {
-        'title': title,
+        'title': title,  # No normalization (single line)
         'priority': priority,
         'area': area,
-        'description': full_description.strip(),
-        'scope_in': [str(item) for item in scope_in],
-        'scope_out': [str(item) for item in scope_out],
-        'acceptance_criteria': [str(item) for item in acceptance_criteria],
+        'description': normalize_multiline(full_description.strip()) if full_description.strip() else '',
+        'scope_in': [normalize_multiline(str(item), preserve_formatting=True) for item in scope_in],
+        'scope_out': [normalize_multiline(str(item), preserve_formatting=True) for item in scope_out],
+        'acceptance_criteria': [normalize_multiline(str(item), preserve_formatting=True) for item in acceptance_criteria],
     }
 
     # Extract repo paths from context
@@ -923,6 +984,13 @@ def _build_immutable_context_from_task(task_path: Path) -> dict:
     if not isinstance(repo_paths, list):
         repo_paths = []
     repo_paths = [str(p) for p in repo_paths]
+
+    # Calculate repo root (task file is typically at repo_root/tasks/...)
+    # Use find_repo_root for robustness (searches for .git)
+    repo_root = find_repo_root()
+
+    # Expand glob macros (GAP-2)
+    repo_paths = _expand_repo_paths(repo_paths, repo_root)
 
     # Build standards citations based on area
     standards_citations = _build_standards_citations(area, priority, data)
@@ -950,7 +1018,7 @@ def _build_immutable_context_from_task(task_path: Path) -> dict:
         'task_snapshot': task_snapshot,
         'standards_citations': standards_citations,
         'validation_baseline': validation_baseline,
-        'repo_paths': sorted(set(repo_paths)),  # Deduplicate and sort
+        'repo_paths': repo_paths,  # Already expanded, deduped, and sorted by _expand_repo_paths
     }
 
 
@@ -1290,6 +1358,33 @@ def cmd_init_context(args, repo_root: Path) -> int:
     task_content = Path(task.path).read_bytes()
     task_file_sha = hashlib.sha256(task_content).hexdigest()
 
+    # Build source files list for manifest (GAP-4)
+    source_files = []
+
+    # Add task YAML file
+    task_rel_path = Path(task.path).relative_to(repo_root)
+    source_files.append(SourceFile(
+        path=str(task_rel_path),
+        sha256=task_file_sha,
+        purpose='task_yaml'
+    ))
+
+    # Add standards files from citations
+    standards_files_seen = set()
+    for citation in immutable.get('standards_citations', []):
+        std_file = citation.get('file')
+        if std_file and std_file not in standards_files_seen:
+            standards_files_seen.add(std_file)
+            std_path = repo_root / std_file
+            if std_path.exists():
+                std_content = std_path.read_bytes()
+                std_sha = hashlib.sha256(std_content).hexdigest()
+                source_files.append(SourceFile(
+                    path=std_file,
+                    sha256=std_sha,
+                    purpose='standards_citation'
+                ))
+
     # Initialize context
     context_store = TaskContextStore(repo_root)
 
@@ -1300,7 +1395,8 @@ def cmd_init_context(args, repo_root: Path) -> int:
             git_head=base_commit,
             task_file_sha=task_file_sha,
             created_by=args.actor if hasattr(args, 'actor') else "task-runner",
-            force_secrets=force_secrets
+            force_secrets=force_secrets,
+            source_files=source_files
         )
 
         if args.format == 'json':
@@ -1309,11 +1405,15 @@ def cmd_init_context(args, repo_root: Path) -> int:
                 'task_id': task_id,
                 'base_commit': base_commit,
                 'context_version': context.version,
+                'manifest_created': len(source_files) > 0,
+                'source_files_count': len(source_files),
             })
         else:
             print(f"✓ Initialized context for {task_id}")
             print(f"  Base commit: {base_commit[:8]}")
             print(f"  Context file: .agent-output/{task_id}/context.json")
+            if source_files:
+                print(f"  Manifest file: .agent-output/{task_id}/context.manifest ({len(source_files)} sources)")
 
         return 0
 
@@ -1577,6 +1677,205 @@ def cmd_purge_context(args, repo_root: Path) -> int:
         print(f"✓ Purged context for {task_id}")
 
     return 0
+
+
+def cmd_rebuild_context(args, repo_root: Path) -> int:
+    """
+    Rebuild context from manifest after standards/task changes (GAP-4/GAP-14).
+
+    Reads the existing manifest, verifies sources, purges old context,
+    and regenerates with current data.
+
+    Args:
+        args: Parsed command-line arguments
+        repo_root: Repository root path
+
+    Returns:
+        Exit code (0 = success, 1 = error)
+    """
+    import hashlib
+    import subprocess
+
+    task_id = args.rebuild_context
+    force_secrets = args.force_secrets if hasattr(args, 'force_secrets') else False
+
+    context_store = TaskContextStore(repo_root)
+
+    # Check if context exists
+    existing_context = context_store.get_context(task_id)
+    if not existing_context:
+        if args.format == 'json':
+            output_json({
+                'success': False,
+                'error': f'No context found for {task_id}. Use --init-context first.',
+            })
+        else:
+            print(f"Error: No context found for {task_id}", file=sys.stderr)
+            print("Use --init-context to create a new context.", file=sys.stderr)
+        return 1
+
+    # Load manifest
+    manifest = context_store.get_manifest(task_id)
+    if not manifest:
+        if args.format == 'json':
+            output_json({
+                'success': False,
+                'error': f'No manifest found for {task_id}. Cannot rebuild without provenance info.',
+            })
+        else:
+            print(f"Error: No manifest found for {task_id}", file=sys.stderr)
+            print("Manifest is required for rebuild. Context was likely created before manifest feature.", file=sys.stderr)
+        return 1
+
+    # Load task to verify it still exists
+    datastore = TaskDatastore(repo_root)
+    tasks = datastore.load_tasks()
+
+    task = None
+    for t in tasks:
+        if t.id == task_id:
+            task = t
+            break
+
+    if not task:
+        if args.format == 'json':
+            output_json({
+                'success': False,
+                'error': f'Task {task_id} not found. Cannot rebuild context.',
+            })
+        else:
+            print(f"Error: Task {task_id} not found.", file=sys.stderr)
+        return 1
+
+    # Verify source files still exist and warn about changes
+    changes_detected = []
+    for source_file in manifest.source_files:
+        source_path = repo_root / source_file.path
+        if not source_path.exists():
+            changes_detected.append(f"Missing: {source_file.path}")
+        else:
+            current_sha = hashlib.sha256(source_path.read_bytes()).hexdigest()
+            if current_sha != source_file.sha256:
+                changes_detected.append(f"Modified: {source_file.path}")
+
+    if changes_detected and not force_secrets:
+        if args.format == 'json':
+            output_json({
+                'success': False,
+                'error': 'Source files have changed. Review changes before rebuilding.',
+                'changes': changes_detected,
+            })
+        else:
+            print("⚠️  Warning: Source files have changed since last initialization:", file=sys.stderr)
+            for change in changes_detected[:10]:  # Show first 10
+                print(f"  {change}", file=sys.stderr)
+            print("\nReview these changes before rebuilding.", file=sys.stderr)
+            print("Use --force-secrets to proceed anyway.", file=sys.stderr)
+        return 1
+
+    # Get current git HEAD
+    try:
+        result = subprocess.run(
+            ['git', 'rev-parse', 'HEAD'],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        current_head = result.stdout.strip()
+    except subprocess.CalledProcessError as e:
+        if args.format == 'json':
+            output_json({
+                'success': False,
+                'error': f'Unable to determine git HEAD: {e}',
+            })
+        else:
+            print(f"Error: Unable to determine git HEAD: {e}", file=sys.stderr)
+        return 1
+
+    # Purge old context
+    context_store.purge_context(task_id)
+
+    # Rebuild immutable context from current task
+    try:
+        immutable = _build_immutable_context_from_task(Path(task.path))
+    except ValidationError as e:
+        if args.format == 'json':
+            output_json({
+                'success': False,
+                'error': f'Failed to build context: {e}',
+            })
+        else:
+            print(f"Error: Failed to build context: {e}", file=sys.stderr)
+        return 1
+
+    # Calculate current task file SHA
+    task_content = Path(task.path).read_bytes()
+    task_file_sha = hashlib.sha256(task_content).hexdigest()
+
+    # Build fresh source files list
+    source_files = []
+    task_rel_path = Path(task.path).relative_to(repo_root)
+    source_files.append(SourceFile(
+        path=str(task_rel_path),
+        sha256=task_file_sha,
+        purpose='task_yaml'
+    ))
+
+    standards_files_seen = set()
+    for citation in immutable.get('standards_citations', []):
+        std_file = citation.get('file')
+        if std_file and std_file not in standards_files_seen:
+            standards_files_seen.add(std_file)
+            std_path = repo_root / std_file
+            if std_path.exists():
+                std_content = std_path.read_bytes()
+                std_sha = hashlib.sha256(std_content).hexdigest()
+                source_files.append(SourceFile(
+                    path=std_file,
+                    sha256=std_sha,
+                    purpose='standards_citation'
+                ))
+
+    # Re-initialize context
+    try:
+        context = context_store.init_context(
+            task_id=task_id,
+            immutable=immutable,
+            git_head=current_head,
+            task_file_sha=task_file_sha,
+            created_by=args.actor if hasattr(args, 'actor') else "task-runner",
+            force_secrets=force_secrets,
+            source_files=source_files
+        )
+
+        if args.format == 'json':
+            output_json({
+                'success': True,
+                'task_id': task_id,
+                'git_head': current_head,
+                'changes_applied': len(changes_detected),
+                'source_files_count': len(source_files),
+            })
+        else:
+            print(f"✓ Rebuilt context for {task_id}")
+            print(f"  Git HEAD: {current_head[:8]}")
+            if changes_detected:
+                print(f"  Changes applied: {len(changes_detected)} source files updated")
+            print(f"  Context file: .agent-output/{task_id}/context.json")
+            print(f"  Manifest file: .agent-output/{task_id}/context.manifest ({len(source_files)} sources)")
+
+        return 0
+
+    except Exception as e:
+        if args.format == 'json':
+            output_json({
+                'success': False,
+                'error': str(e),
+            })
+        else:
+            print(f"Error: Failed to rebuild context: {e}", file=sys.stderr)
+        return 1
 
 
 # ============================================================================
@@ -2171,6 +2470,11 @@ def main():
         metavar='TASK_ID',
         help='Manual cleanup (normally auto-purged on completion)'
     )
+    group.add_argument(
+        '--rebuild-context',
+        metavar='TASK_ID',
+        help='Rebuild context from manifest after standards/task changes (GAP-4/GAP-14)'
+    )
 
     # Delta tracking commands (Day 6)
     group.add_argument(
@@ -2352,6 +2656,9 @@ def main():
 
         elif args.purge_context:
             return cmd_purge_context(args, repo_root)
+
+        elif args.rebuild_context:
+            return cmd_rebuild_context(args, repo_root)
 
         # Delta tracking commands
         elif args.snapshot_worktree:

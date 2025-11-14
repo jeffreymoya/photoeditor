@@ -224,6 +224,80 @@ validation:
 - The CLI refuses to pick `draft` tasks and prints a warning summary listing drafts and downstream tasks still waiting on clarifications.
 - On completion, move the file to `docs/completed-tasks/` (see template notes).
 
+## Task Context Cache
+
+The task context cache provides a persistent, immutable snapshot of task metadata, standards citations, and validation baselines for agent coordination. This eliminates redundant uploads of standards boilerplate and ensures deterministic handoffs between agents.
+
+### Key Concepts
+
+**Immutable Context**: When a task transitions to `in_progress`, the system captures:
+- Task snapshot (title, priority, description, scope, acceptance criteria)
+- Standards citations (file, section, requirement, line spans, content SHA)
+- Validation baseline (QA commands from `standards/qa-commands-ssot.md`)
+- Repository paths (scope.in expanded via glob macros)
+
+**Delta Tracking**: Working tree state is tracked across dirty git handoffs:
+- Implementer → Reviewer → Validator handoffs without intermediate commits
+- File checksums detect manual edits between agents
+- Incremental diffs show what each agent changed
+- Drift detection prevents validation on modified code
+
+### CLI Commands
+
+All context cache operations use `python scripts/tasks.py`:
+
+**Initialization** (automatic via task-runner):
+```bash
+python scripts/tasks.py --init-context TASK-0824
+```
+
+**Reading context** (agents use this to load immutable SSOT):
+```bash
+python scripts/tasks.py --get-context TASK-0824 --format json
+```
+
+**Delta tracking** (agents call after edits):
+```bash
+# Implementer snapshots working tree state
+python scripts/tasks.py --snapshot-worktree TASK-0824 --agent implementer
+
+# Reviewer verifies no drift, then snapshots
+python scripts/tasks.py --verify-worktree TASK-0824 --expected-agent implementer
+python scripts/tasks.py --snapshot-worktree TASK-0824 --agent reviewer --previous-agent implementer
+
+# Validator verifies before testing
+python scripts/tasks.py --verify-worktree TASK-0824 --expected-agent reviewer
+```
+
+**QA results** (record validation baseline):
+```bash
+python scripts/tasks.py --record-qa TASK-0824 --agent implementer --from .agent-output/TASK-0824-qa.log
+```
+
+**Cleanup** (automatic on task completion):
+```bash
+python scripts/tasks.py --purge-context TASK-0824
+```
+
+### Workflow Integration
+
+1. **Task Start**: Context initialized automatically when task transitions to `in_progress`
+2. **Agent Execution**: Each agent loads context via `--get-context` (replaces reading standards files)
+3. **Agent Handoff**:
+   - Outgoing agent calls `--snapshot-worktree` after all edits complete
+   - Incoming agent calls `--verify-worktree` before starting (detects drift)
+4. **Task Completion**: Context auto-purged via lifecycle hooks
+
+### Benefits
+
+- **Token efficiency**: Standards citations loaded once, referenced by agents
+- **Drift detection**: File checksums catch manual edits between agent handoffs
+- **Audit trail**: All coordination state (QA logs, diffs, timestamps) persisted
+- **Deterministic**: Cross-platform diff normalization ensures identical hashes
+- **No commits required**: Delta tracking works on dirty working tree throughout agent workflow
+
+See `docs/proposals/task-context-cache.md` for full specification, troubleshooting procedures, and recovery workflows.
+
 ## Keep the Template Authoritative
 - Use a single canonical template: `docs/templates/TASK-0000-template.task.yaml`.
 - If you find a gap, improve the canonical template and reference that change in your task/PR/ADR. Do not diverge per‑task.

@@ -199,6 +199,12 @@ pnpm turbo run test --filter=@photoeditor/backend           # Unit tests
 pnpm turbo run test:contract --filter=@photoeditor/backend  # Contract tests
 ```
 
+### CI Failure Triage
+
+- Run `./scripts/gh-failed-actions.mjs` whenever a GitHub Actions check fails to capture the broken runs, failing jobs, and failed-step log tail before rerunning anything.
+- Target the right context with flags: `--pr <number>` ties directly to a PR, `--branch <name>` scopes to your local branch, `--commit <sha>` anchors on a merge commit, and `--run <id>` inspects a specific workflow attempt; add `--no-logs` if artifact logs are huge or `--max-log-lines` to tune the tail.
+- Paste the script output into the driving task file (`tasks/*.task.yaml`) or PR description so the solo audit trail shows exactly which job/step failed and what error it emitted prior to any retries.
+
 ### Mobile
 
 ```bash

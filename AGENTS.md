@@ -11,6 +11,10 @@ Plan and report via `tasks/`; follow `tasks/README.md` to create each `.task.yam
 ## Build, Test, and Development Commands
 Run `make deps` once, then `make mobile-ios` or `make mobile-android` to launch Expo against your configured API endpoint. Backend iterations use `make backend-build` or `pnpm turbo run build:lambdas --filter=@photoeditor/backend`, and SST live-dev flows rely on `make live-dev` / `make live-test`. Execute `pnpm turbo run qa:static --parallel` before a PR—its pipeline runs type checks, ESLint, dependency-cruiser, ts-prune, and duplication scans. For focused work run scoped scripts (`pnpm turbo run lint --filter=photoeditor-mobile`, `pnpm turbo run typecheck --filter=@photoeditor/shared`, etc.).
 
+## CI Failure Investigation
+Use `./scripts/gh-failed-actions.mjs` to pull every failing GitHub Actions run (by branch, commit, PR, or run id) together with the failed jobs, failing steps, and a tail of the relevant log output. Example invocations:
+`./scripts/gh-failed-actions.mjs --pr 123`, `./scripts/gh-failed-actions.mjs --branch feature/new-flow --limit 2`, or `./scripts/gh-failed-actions.mjs --run 123456789 --no-logs`. Capture the script output in the driving task/PR notes before retrying or rerunning checks so future reviews have an audit trail of what broke and why.
+
 ## Coding Style & Naming Conventions
 Indent with two spaces, use `PascalCase` for classes and React components, and `camelCase` elsewhere. ESLint blocks cross-layer imports, forbids `any`, and expects unused identifiers to start with `_`. Mobile features follow the screen → feature component → shared UI → hooks layering and prefer named exports. See `standards/typescript.md` for language-level rules (strict config, discriminated unions with exhaustiveness, neverthrow `Result`, named exports in domain, Zod-at-boundaries).
 

@@ -25,8 +25,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
 
+from .context_store import (
+    ContextExistsError,
+    ContextNotFoundError,
+    DriftError,
+    TaskContextStore,
+)
 from .datastore import TaskDatastore
-from .exceptions import WorkflowHaltError
+from .exceptions import ValidationError, WorkflowHaltError
 from .graph import DependencyGraph
 from .models import Task
 from .operations import TaskOperationError, TaskOperations
@@ -847,6 +853,1224 @@ TODO: Document manual verification steps if needed
     return 0
 
 
+# ============================================================================
+# Context Cache Commands (Phase 2)
+# ============================================================================
+
+def _build_immutable_context_from_task(task_path: Path) -> dict:
+    """
+    Build immutable context from task YAML file.
+
+    Extracts all necessary fields for context initialization per
+    proposal Section 5.1 (Initial Capture Workflow).
+
+    Args:
+        task_path: Path to task YAML file
+
+    Returns:
+        Dictionary with task_snapshot, standards_citations, validation_baseline, repo_paths
+
+    Raises:
+        ValidationError: If required fields are missing
+    """
+    from ruamel.yaml import YAML
+
+    yaml = YAML(typ='safe')
+
+    try:
+        with open(task_path, 'r', encoding='utf-8') as f:
+            data = yaml.load(f)
+    except Exception as e:
+        raise ValidationError(f"Failed to read task file: {e}")
+
+    if not data or not isinstance(data, dict):
+        raise ValidationError("Task file is empty or invalid")
+
+    # Extract task snapshot fields
+    title = data.get('title', '')
+    priority = data.get('priority', 'P1')
+    area = data.get('area', '')
+    description = data.get('description', '')
+    outcome = data.get('outcome', '')
+
+    # Combine description and outcome for full context
+    full_description = f"{description}\n\nOutcome: {outcome}" if outcome else description
+
+    # Extract scope
+    scope = data.get('scope', {})
+    scope_in = scope.get('in', []) if isinstance(scope, dict) else []
+    scope_out = scope.get('out', []) if isinstance(scope, dict) else []
+
+    # Extract acceptance criteria
+    acceptance_criteria = data.get('acceptance_criteria', [])
+    if not isinstance(acceptance_criteria, list):
+        acceptance_criteria = []
+
+    # Build task snapshot
+    task_snapshot = {
+        'title': title,
+        'priority': priority,
+        'area': area,
+        'description': full_description.strip(),
+        'scope_in': [str(item) for item in scope_in],
+        'scope_out': [str(item) for item in scope_out],
+        'acceptance_criteria': [str(item) for item in acceptance_criteria],
+    }
+
+    # Extract repo paths from context
+    context = data.get('context', {})
+    repo_paths = context.get('repo_paths', []) if isinstance(context, dict) else []
+    if not isinstance(repo_paths, list):
+        repo_paths = []
+    repo_paths = [str(p) for p in repo_paths]
+
+    # Build standards citations based on area
+    standards_citations = _build_standards_citations(area, priority, data)
+
+    # Extract validation commands
+    validation = data.get('validation', {})
+    if isinstance(validation, dict):
+        qa_commands = validation.get('commands', [])
+    else:
+        qa_commands = []
+
+    if not isinstance(qa_commands, list):
+        qa_commands = []
+
+    # Fallback to tier defaults if no commands specified
+    if not qa_commands:
+        qa_commands = _get_default_qa_commands(area)
+
+    validation_baseline = {
+        'commands': [str(cmd) for cmd in qa_commands],
+        'initial_results': None,
+    }
+
+    return {
+        'task_snapshot': task_snapshot,
+        'standards_citations': standards_citations,
+        'validation_baseline': validation_baseline,
+        'repo_paths': sorted(set(repo_paths)),  # Deduplicate and sort
+    }
+
+
+def _build_standards_citations(area: str, priority: str, task_data: dict) -> list:
+    """
+    Build standards citations based on task area and priority.
+
+    Per proposal Section 5.1.1 (Standards Citation Algorithm).
+
+    Args:
+        area: Task area (backend, mobile, shared, infrastructure)
+        priority: Task priority (P0, P1, P2)
+        task_data: Full task YAML data
+
+    Returns:
+        List of standards citation dicts
+
+    TODO: Implement line_span and content_sha extraction (M2)
+          - Extract section boundaries from standards/*.md files using regex
+          - Calculate SHA256 of section content for staleness detection
+          - See proposal Section 5.1.1 for detailed algorithm
+    """
+    citations = []
+
+    # Global standards for all tasks
+    citations.extend([
+        {
+            'file': 'standards/global.md',
+            'section': 'evidence-requirements',
+            'requirement': 'Mandatory artifacts per release: evidence bundles, test results, compliance proofs',
+            'line_span': None,
+            'content_sha': None,
+        },
+        {
+            'file': 'standards/AGENTS.md',
+            'section': 'agent-coordination',
+            'requirement': 'Agent handoff protocols and context management',
+            'line_span': None,
+            'content_sha': None,
+        },
+    ])
+
+    # Area-specific citations
+    if area == 'backend':
+        citations.extend([
+            {
+                'file': 'standards/backend-tier.md',
+                'section': 'handler-constraints',
+                'requirement': 'Handler complexity must not exceed cyclomatic complexity 10; handlers limited to 75 LOC',
+                'line_span': None,
+                'content_sha': None,
+            },
+            {
+                'file': 'standards/backend-tier.md',
+                'section': 'layering-rules',
+                'requirement': 'Handlers → Services → Providers (one-way only); no circular dependencies',
+                'line_span': None,
+                'content_sha': None,
+            },
+            {
+                'file': 'standards/cross-cutting.md',
+                'section': 'hard-fail-controls',
+                'requirement': 'Handlers cannot import AWS SDKs; zero cycles; complexity budgets enforced',
+                'line_span': None,
+                'content_sha': None,
+            },
+        ])
+    elif area == 'mobile':
+        citations.extend([
+            {
+                'file': 'standards/frontend-tier.md',
+                'section': 'component-standards',
+                'requirement': 'Component complexity and state management patterns',
+                'line_span': None,
+                'content_sha': None,
+            },
+            {
+                'file': 'standards/frontend-tier.md',
+                'section': 'state-management',
+                'requirement': 'Redux Toolkit patterns and async handling',
+                'line_span': None,
+                'content_sha': None,
+            },
+        ])
+    elif area == 'shared':
+        citations.extend([
+            {
+                'file': 'standards/shared-contracts-tier.md',
+                'section': 'contract-first',
+                'requirement': 'Zod schemas at boundaries; contract-first API design',
+                'line_span': None,
+                'content_sha': None,
+            },
+            {
+                'file': 'standards/shared-contracts-tier.md',
+                'section': 'versioning',
+                'requirement': 'Breaking changes require /v{n} versioning',
+                'line_span': None,
+                'content_sha': None,
+            },
+        ])
+    elif area in ('infrastructure', 'infra'):
+        citations.extend([
+            {
+                'file': 'standards/infrastructure-tier.md',
+                'section': 'terraform-modules',
+                'requirement': 'Terraform module structure and local dev platform',
+                'line_span': None,
+                'content_sha': None,
+            },
+        ])
+
+    # TypeScript standards for code areas
+    if area in ('backend', 'mobile', 'shared'):
+        citations.append({
+            'file': 'standards/typescript.md',
+            'section': 'strict-config',
+            'requirement': 'Strict tsconfig including exactOptionalPropertyTypes; Zod at boundaries; neverthrow Results',
+            'line_span': None,
+            'content_sha': None,
+        })
+
+    # Testing standards
+    citations.append({
+        'file': 'standards/testing-standards.md',
+        'section': f'{area}-qa-commands',
+        'requirement': f'QA commands and coverage thresholds for {area}',
+        'line_span': None,
+        'content_sha': None,
+    })
+
+    # Task-specific overrides from context.related_docs
+    context = task_data.get('context', {})
+    if isinstance(context, dict):
+        related_docs = context.get('related_docs', [])
+        if isinstance(related_docs, list):
+            for doc in related_docs:
+                doc_str = str(doc)
+                if doc_str.startswith('standards/') and not any(c['file'] == doc_str for c in citations):
+                    citations.append({
+                        'file': doc_str,
+                        'section': 'task-specific',
+                        'requirement': f'Referenced in task context',
+                        'line_span': None,
+                        'content_sha': None,
+                    })
+
+    return citations
+
+
+def _get_default_qa_commands(area: str) -> list:
+    """
+    Get default QA commands for an area per testing-standards.md.
+
+    Args:
+        area: Task area
+
+    Returns:
+        List of default QA command strings
+    """
+    if area == 'backend':
+        return [
+            'pnpm turbo run typecheck --filter=@photoeditor/backend',
+            'pnpm turbo run lint --filter=@photoeditor/backend',
+            'pnpm turbo run test --filter=@photoeditor/backend',
+        ]
+    elif area == 'mobile':
+        return [
+            'pnpm turbo run typecheck --filter=photoeditor-mobile',
+            'pnpm turbo run lint --filter=photoeditor-mobile',
+            'pnpm turbo run test --filter=photoeditor-mobile',
+        ]
+    elif area == 'shared':
+        return [
+            'pnpm turbo run typecheck --filter=@photoeditor/shared',
+            'pnpm turbo run lint --filter=@photoeditor/shared',
+            'pnpm turbo run contracts:check --filter=@photoeditor/shared',
+        ]
+    else:
+        # Generic fallback
+        return [
+            'pnpm turbo run qa:static --parallel',
+        ]
+
+
+def _auto_verify_worktree(context_store: TaskContextStore, task_id: str, agent_role: str) -> None:
+    """
+    Auto-verify worktree before mutations (Issue #2).
+
+    Per proposal Section 3.3: state-changing CLI verbs implicitly run
+    verify_worktree for the previous agent and abort on drift.
+
+    Args:
+        context_store: TaskContextStore instance
+        task_id: Task identifier
+        agent_role: Current agent role
+
+    Raises:
+        Drift Error: On worktree drift (increments drift_budget)
+        ContextNotFoundError: If no context or snapshot found
+    """
+    # Determine previous agent
+    agent_sequence = ['implementer', 'reviewer', 'validator']
+    try:
+        current_idx = agent_sequence.index(agent_role)
+        if current_idx > 0:
+            expected_agent = agent_sequence[current_idx - 1]
+
+            # Verify worktree matches previous agent's snapshot
+            try:
+                context_store.verify_worktree_state(task_id=task_id, expected_agent=expected_agent)
+            except DriftError as e:
+                # Increment drift budget for the current agent (Issue #3 fix)
+                # Current agent encounters drift, so they should be blocked
+                context = context_store.get_context(task_id)
+                if context:
+                    agent_coord = getattr(context, agent_role)
+                    context_store.update_coordination(
+                        task_id=task_id,
+                        agent_role=agent_role,
+                        updates={'drift_budget': agent_coord.drift_budget + 1},
+                        actor='auto-verification'
+                    )
+                # Re-raise drift error to block the operation
+                raise
+    except ValueError:
+        # Agent not in sequence, skip verification
+        pass
+
+
+def _check_drift_budget(context_store: TaskContextStore, task_id: str) -> None:
+    """
+    Check drift budget and block operations if non-zero (Issue #3).
+
+    Per proposal Section 3.4: when drift_budget > 0, state-changing CLI verbs
+    refuse to launch a new agent until operator records a resolution note.
+
+    Args:
+        context_store: TaskContextStore instance
+        task_id: Task identifier
+
+    Raises:
+        ValidationError: If any agent has drift_budget > 0
+    """
+    context = context_store.get_context(task_id)
+    if context:
+        for agent_role in ['implementer', 'reviewer', 'validator']:
+            agent_coord = getattr(context, agent_role)
+            if agent_coord.drift_budget > 0:
+                raise ValidationError(
+                    f"Drift budget exceeded for {agent_role} (count: {agent_coord.drift_budget}). "
+                    f"Manual intervention required. Run: python scripts/tasks.py --resolve-drift {task_id} "
+                    f"--agent {agent_role} --note \"Resolution description\""
+                )
+
+
+def cmd_init_context(args, repo_root: Path) -> int:
+    """
+    Initialize task context with immutable snapshot.
+
+    Args:
+        args: Parsed command-line arguments
+        repo_root: Repository root path
+
+    Returns:
+        Exit code (0 = success, 1 = error)
+    """
+    import hashlib
+    import subprocess
+
+    task_id = args.init_context
+    base_commit = args.base_commit
+    force_secrets = args.force_secrets if hasattr(args, 'force_secrets') else False
+
+    # Check for dirty working tree (Issue #7)
+    try:
+        result = subprocess.run(
+            ['git', 'status', '--porcelain'],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        if result.stdout.strip():
+            print("⚠️  Warning: Working tree has uncommitted changes:", file=sys.stderr)
+            for line in result.stdout.strip().split('\n')[:5]:  # Show first 5 files
+                print(f"  {line}", file=sys.stderr)
+            if not force_secrets:
+                print("\nContext initialization will proceed, but diffs may include uncommitted changes.", file=sys.stderr)
+                print("Commit your changes first or use --force-secrets to bypass this warning.", file=sys.stderr)
+    except subprocess.CalledProcessError:
+        pass  # Non-fatal, continue
+
+    # Auto-detect base commit if not provided
+    if not base_commit:
+        try:
+            result = subprocess.run(
+                ['git', 'rev-parse', 'HEAD'],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            base_commit = result.stdout.strip()
+        except subprocess.CalledProcessError as e:
+            print(f"Error: Unable to determine git HEAD: {e}", file=sys.stderr)
+            return 1
+
+    # Load task to get metadata
+    datastore = TaskDatastore(repo_root)
+    tasks = datastore.load_tasks()
+
+    task = None
+    for t in tasks:
+        if t.id == task_id:
+            task = t
+            break
+
+    if not task:
+        print(f"Error: Task not found: {task_id}", file=sys.stderr)
+        return 1
+
+    # Build immutable context from task YAML + standards (Issue #1 fix)
+    try:
+        immutable = _build_immutable_context_from_task(Path(task.path))
+    except ValidationError as e:
+        if args.format == 'json':
+            output_json({
+                'success': False,
+                'error': f'Failed to build context: {e}',
+            })
+        else:
+            print(f"Error: Failed to build context: {e}", file=sys.stderr)
+        return 1
+
+    # Calculate task file SHA
+    task_content = Path(task.path).read_bytes()
+    task_file_sha = hashlib.sha256(task_content).hexdigest()
+
+    # Initialize context
+    context_store = TaskContextStore(repo_root)
+
+    try:
+        context = context_store.init_context(
+            task_id=task_id,
+            immutable=immutable,
+            git_head=base_commit,
+            task_file_sha=task_file_sha,
+            created_by=args.actor if hasattr(args, 'actor') else "task-runner",
+            force_secrets=force_secrets
+        )
+
+        if args.format == 'json':
+            output_json({
+                'success': True,
+                'task_id': task_id,
+                'base_commit': base_commit,
+                'context_version': context.version,
+            })
+        else:
+            print(f"✓ Initialized context for {task_id}")
+            print(f"  Base commit: {base_commit[:8]}")
+            print(f"  Context file: .agent-output/{task_id}/context.json")
+
+        return 0
+
+    except ContextExistsError as e:
+        if args.format == 'json':
+            output_json({
+                'success': False,
+                'error': str(e),
+            })
+        else:
+            print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+    except ValidationError as e:
+        if args.format == 'json':
+            output_json({
+                'success': False,
+                'error': str(e),
+            })
+        else:
+            print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+
+def cmd_get_context(args, repo_root: Path) -> int:
+    """
+    Read task context (immutable + coordination).
+
+    Args:
+        args: Parsed command-line arguments
+        repo_root: Repository root path
+
+    Returns:
+        Exit code (0 = success, 1 = error)
+    """
+    task_id = args.get_context
+
+    context_store = TaskContextStore(repo_root)
+    context = context_store.get_context(task_id)
+
+    if context is None:
+        if args.format == 'json':
+            output_json({
+                'success': False,
+                'error': f'No context found for {task_id}',
+            })
+        else:
+            print(f"Error: No context found for {task_id}", file=sys.stderr)
+        return 1
+
+    # Check for staleness (Issue #6)
+    from datetime import datetime, timezone
+    created_dt = datetime.fromisoformat(context.created_at.replace('Z', '+00:00'))
+    age_hours = (datetime.now(timezone.utc) - created_dt).total_seconds() / 3600
+    staleness_warning = None
+
+    if age_hours > 48:  # Warn if context is older than 48 hours
+        staleness_warning = f"⚠️  Context is {age_hours:.1f} hours old. Consider rebuilding if task requirements changed."
+
+    if args.format == 'json':
+        output_json({
+            'success': True,
+            'context': context.to_dict(),
+            'staleness_warning': staleness_warning,
+            'age_hours': round(age_hours, 1),
+        })
+    else:
+        # Pretty-print context
+        print(f"Context for {context.task_id}")
+        print(f"  Version: {context.version}")
+        print(f"  Created: {context.created_at}")
+        print(f"  Created by: {context.created_by}")
+        print(f"  Git HEAD: {context.git_head[:8]}")
+        print(f"  Age: {age_hours:.1f} hours")
+
+        if staleness_warning:
+            print(f"\n{staleness_warning}")
+
+        print()
+        print(f"Task Snapshot:")
+        print(f"  Title: {context.task_snapshot.title}")
+        print(f"  Priority: {context.task_snapshot.priority}")
+        print(f"  Area: {context.task_snapshot.area}")
+        print()
+        print(f"Agent Coordination:")
+        print(f"  Implementer: {context.implementer.status}")
+        print(f"  Reviewer: {context.reviewer.status}")
+        print(f"  Validator: {context.validator.status}")
+
+    return 0
+
+
+def cmd_update_agent(args, repo_root: Path) -> int:
+    """
+    Update coordination state for one agent.
+
+    Args:
+        args: Parsed command-line arguments
+        repo_root: Repository root path
+
+    Returns:
+        Exit code (0 = success, 1 = error)
+    """
+    task_id = args.update_agent
+    agent_role = args.agent
+    force_secrets = args.force_secrets if hasattr(args, 'force_secrets') else False
+
+    # Build updates dict from arguments
+    updates = {}
+    if args.status:
+        updates['status'] = args.status
+    if args.qa_log:
+        updates['qa_log_path'] = args.qa_log
+    if args.session_id:
+        updates['session_id'] = args.session_id
+
+    # Auto-populate completed_at when status changes to 'done' (Issue #8)
+    if updates.get('status') == 'done' and 'completed_at' not in updates:
+        from datetime import datetime, timezone
+        updates['completed_at'] = datetime.now(timezone.utc).isoformat()
+
+    if not updates:
+        print("Error: No updates specified (use --status, --qa-log, or --session-id)", file=sys.stderr)
+        return 1
+
+    context_store = TaskContextStore(repo_root)
+
+    try:
+        # Check drift budget before mutations (Issue #3)
+        _check_drift_budget(context_store, task_id)
+
+        # Auto-verify worktree before mutations (Issue #2)
+        _auto_verify_worktree(context_store, task_id, agent_role)
+
+        context_store.update_coordination(
+            task_id=task_id,
+            agent_role=agent_role,
+            updates=updates,
+            actor=args.actor if hasattr(args, 'actor') else "task-runner",
+            force_secrets=force_secrets
+        )
+
+        if args.format == 'json':
+            output_json({
+                'success': True,
+                'task_id': task_id,
+                'agent_role': agent_role,
+                'updates': updates,
+            })
+        else:
+            print(f"✓ Updated {agent_role} coordination for {task_id}")
+            for key, value in updates.items():
+                print(f"  {key}: {value}")
+
+        return 0
+
+    except (ContextNotFoundError, ValidationError) as e:
+        if args.format == 'json':
+            output_json({
+                'success': False,
+                'error': str(e),
+            })
+        else:
+            print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+
+def cmd_mark_blocked(args, repo_root: Path) -> int:
+    """
+    Add blocking finding to agent coordination.
+
+    Args:
+        args: Parsed command-line arguments
+        repo_root: Repository root path
+
+    Returns:
+        Exit code (0 = success, 1 = error)
+    """
+    task_id = args.mark_blocked
+    agent_role = args.agent
+    finding = args.finding
+
+    context_store = TaskContextStore(repo_root)
+
+    try:
+        # Check drift budget before mutations (Issue #3)
+        _check_drift_budget(context_store, task_id)
+
+        # Auto-verify worktree before mutations (Issue #2)
+        _auto_verify_worktree(context_store, task_id, agent_role)
+
+        # Get current context to retrieve existing findings
+        context = context_store.get_context(task_id)
+        if context is None:
+            raise ContextNotFoundError(f"No context found for {task_id}")
+
+        # Get current agent coordination
+        agent_coord = getattr(context, agent_role)
+        existing_findings = list(agent_coord.blocking_findings)
+        existing_findings.append(finding)
+
+        # Update coordination with new findings and blocked status
+        context_store.update_coordination(
+            task_id=task_id,
+            agent_role=agent_role,
+            updates={
+                'blocking_findings': existing_findings,
+                'status': 'blocked',
+            },
+            actor=args.actor if hasattr(args, 'actor') else "task-runner"
+        )
+
+        if args.format == 'json':
+            output_json({
+                'success': True,
+                'task_id': task_id,
+                'agent_role': agent_role,
+                'finding': finding,
+                'total_findings': len(existing_findings),
+            })
+        else:
+            print(f"✓ Marked {agent_role} as blocked for {task_id}")
+            print(f"  Finding: {finding}")
+            print(f"  Total findings: {len(existing_findings)}")
+
+        return 0
+
+    except (ContextNotFoundError, ValidationError) as e:
+        if args.format == 'json':
+            output_json({
+                'success': False,
+                'error': str(e),
+            })
+        else:
+            print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+
+def cmd_purge_context(args, repo_root: Path) -> int:
+    """
+    Delete context directory (idempotent).
+
+    Args:
+        args: Parsed command-line arguments
+        repo_root: Repository root path
+
+    Returns:
+        Exit code (0 = success)
+    """
+    task_id = args.purge_context
+
+    context_store = TaskContextStore(repo_root)
+    context_store.purge_context(task_id)
+
+    if args.format == 'json':
+        output_json({
+            'success': True,
+            'task_id': task_id,
+        })
+    else:
+        print(f"✓ Purged context for {task_id}")
+
+    return 0
+
+
+# ============================================================================
+# Delta Tracking Commands (Phase 2 Day 6)
+# ============================================================================
+
+def cmd_snapshot_worktree(args, repo_root: Path) -> int:
+    """
+    Snapshot working tree state at agent completion.
+
+    Args:
+        args: Parsed command-line arguments
+        repo_root: Repository root path
+
+    Returns:
+        Exit code (0 = success, 1 = error)
+    """
+    import subprocess
+
+    task_id = args.snapshot_worktree
+    agent_role = args.agent
+    actor = args.actor if hasattr(args, 'actor') else "task-runner"
+    previous_agent = args.previous_agent if hasattr(args, 'previous_agent') else None
+
+    if not agent_role:
+        print("Error: --agent is required for snapshot-worktree", file=sys.stderr)
+        return 1
+
+    # Get base commit from context
+    context_store = TaskContextStore(repo_root)
+    context = context_store.get_context(task_id)
+
+    if context is None:
+        if args.format == 'json':
+            output_json({
+                'success': False,
+                'error': f'No context found for {task_id}',
+            })
+        else:
+            print(f"Error: No context found for {task_id}", file=sys.stderr)
+        return 1
+
+    base_commit = context.git_head
+
+    try:
+        # Check drift budget before mutations (Issue #3)
+        _check_drift_budget(context_store, task_id)
+
+        # Auto-verify worktree before mutations (Issue #2)
+        _auto_verify_worktree(context_store, task_id, agent_role)
+
+        snapshot = context_store.snapshot_worktree(
+            task_id=task_id,
+            agent_role=agent_role,
+            actor=actor,
+            base_commit=base_commit,
+            previous_agent=previous_agent
+        )
+
+        if args.format == 'json':
+            output_json({
+                'success': True,
+                'task_id': task_id,
+                'agent_role': agent_role,
+                'snapshot': snapshot.to_dict(),
+            })
+        else:
+            print(f"✓ Snapshotted working tree for {agent_role} on {task_id}")
+            print(f"  Base commit: {snapshot.base_commit[:8]}")
+            print(f"  Files changed: {len(snapshot.files_changed)}")
+            print(f"  Diff saved to: {snapshot.diff_from_base}")
+            print(f"  Diff stat: {snapshot.diff_stat}")
+
+            if snapshot.incremental_diff_error:
+                print(f"\n⚠️  Incremental diff calculation failed:")
+                print(f"  {snapshot.incremental_diff_error}")
+
+        return 0
+
+    except (ValidationError, ContextNotFoundError) as e:
+        if args.format == 'json':
+            output_json({
+                'success': False,
+                'error': str(e),
+            })
+        else:
+            print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+
+def cmd_verify_worktree(args, repo_root: Path) -> int:
+    """
+    Verify working tree matches expected state from previous agent.
+
+    Args:
+        args: Parsed command-line arguments
+        repo_root: Repository root path
+
+    Returns:
+        Exit code (0 = success, 1 = error)
+    """
+    task_id = args.verify_worktree
+    expected_agent = args.expected_agent
+
+    if not expected_agent:
+        print("Error: --expected-agent is required for verify-worktree", file=sys.stderr)
+        return 1
+
+    context_store = TaskContextStore(repo_root)
+
+    try:
+        context_store.verify_worktree_state(
+            task_id=task_id,
+            expected_agent=expected_agent
+        )
+
+        if args.format == 'json':
+            output_json({
+                'success': True,
+                'task_id': task_id,
+                'expected_agent': expected_agent,
+                'drift_detected': False,
+            })
+        else:
+            print(f"✓ Working tree verified against {expected_agent} snapshot for {task_id}")
+            print("  No drift detected")
+
+        return 0
+
+    except DriftError as e:
+        if args.format == 'json':
+            output_json({
+                'success': False,
+                'drift_detected': True,
+                'error': str(e),
+            })
+        else:
+            print(f"❌ Drift detected:", file=sys.stderr)
+            print(str(e), file=sys.stderr)
+        return 1
+
+    except ContextNotFoundError as e:
+        if args.format == 'json':
+            output_json({
+                'success': False,
+                'error': str(e),
+            })
+        else:
+            print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+
+def cmd_get_diff(args, repo_root: Path) -> int:
+    """
+    Retrieve diff file path for an agent's changes.
+
+    Args:
+        args: Parsed command-line arguments
+        repo_root: Repository root path
+
+    Returns:
+        Exit code (0 = success, 1 = error)
+    """
+    task_id = args.get_diff
+    agent_role = args.agent
+    diff_type = args.diff_type if hasattr(args, 'diff_type') else 'from_base'
+
+    if not agent_role:
+        print("Error: --agent is required for get-diff", file=sys.stderr)
+        return 1
+
+    context_store = TaskContextStore(repo_root)
+    context = context_store.get_context(task_id)
+
+    if context is None:
+        if args.format == 'json':
+            output_json({
+                'success': False,
+                'error': f'No context found for {task_id}',
+            })
+        else:
+            print(f"Error: No context found for {task_id}", file=sys.stderr)
+        return 1
+
+    # Get agent coordination
+    try:
+        agent_coord = getattr(context, agent_role)
+        snapshot = agent_coord.worktree_snapshot
+
+        if snapshot is None:
+            raise ContextNotFoundError(f"No worktree snapshot found for {agent_role}")
+
+        # Get diff path based on type
+        if diff_type == 'from_base':
+            diff_path = snapshot.diff_from_base
+        elif diff_type == 'incremental':
+            if agent_role != 'reviewer':
+                raise ValidationError("Incremental diff only available for reviewer")
+            if snapshot.diff_from_implementer is None:
+                if snapshot.incremental_diff_error:
+                    raise ValidationError(f"Incremental diff unavailable: {snapshot.incremental_diff_error}")
+                else:
+                    raise ValidationError("Incremental diff not calculated")
+            diff_path = snapshot.diff_from_implementer
+        else:
+            raise ValidationError(f"Invalid diff type: {diff_type}")
+
+        # Read diff content
+        full_diff_path = repo_root / diff_path
+        if not full_diff_path.exists():
+            raise ValidationError(f"Diff file not found: {diff_path}")
+
+        diff_content = full_diff_path.read_text(encoding='utf-8')
+
+        if args.format == 'json':
+            output_json({
+                'success': True,
+                'task_id': task_id,
+                'agent_role': agent_role,
+                'diff_type': diff_type,
+                'diff_path': diff_path,
+                'diff_content': diff_content,
+                'diff_stat': snapshot.diff_stat,
+            })
+        else:
+            print(f"Diff for {agent_role} ({diff_type}): {diff_path}")
+            print()
+            print(diff_content)
+
+        return 0
+
+    except (AttributeError, ContextNotFoundError, ValidationError) as e:
+        if args.format == 'json':
+            output_json({
+                'success': False,
+                'error': str(e),
+            })
+        else:
+            print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+
+def _parse_qa_log(qa_log_content: str) -> dict:
+    """
+    Parse QA log content to extract test results (Issue #4).
+
+    Attempts to extract structured information from QA command output including:
+    - Test pass/fail counts
+    - Coverage percentages
+    - Lint/typecheck results
+    - Error messages
+
+    Args:
+        qa_log_content: Raw QA log file content
+
+    Returns:
+        Dictionary with parsed results
+    """
+    import re
+
+    results = {
+        'passed': False,
+        'tests_run': None,
+        'tests_passed': None,
+        'tests_failed': None,
+        'coverage_lines': None,
+        'coverage_branches': None,
+        'errors': [],
+        'warnings': [],
+    }
+
+    # Try to extract test counts (Jest/Vitest format)
+    test_match = re.search(r'Tests:\s+(\d+) passed.*?(\d+) total', qa_log_content, re.IGNORECASE)
+    if test_match:
+        results['tests_passed'] = int(test_match.group(1))
+        results['tests_run'] = int(test_match.group(2))
+        results['tests_failed'] = results['tests_run'] - results['tests_passed']
+
+    # Try to extract coverage (Istanbul/NYC format)
+    coverage_match = re.search(r'All files\s+\|\s+([\d.]+)\s+\|\s+([\d.]+)', qa_log_content)
+    if coverage_match:
+        results['coverage_lines'] = float(coverage_match.group(1))
+        results['coverage_branches'] = float(coverage_match.group(2))
+
+    # Try to extract errors (common patterns)
+    error_patterns = [
+        r'error TS\d+:(.+?)(?=\n|$)',  # TypeScript errors
+        r'✖ \d+ problem.+?\n(.+?)(?=\n\n|$)',  # ESLint errors
+        r'Error: (.+?)(?=\n|$)',  # Generic errors
+    ]
+
+    for pattern in error_patterns:
+        matches = re.findall(pattern, qa_log_content, re.MULTILINE)
+        results['errors'].extend([m.strip() for m in matches[:5]])  # Limit to 5 errors
+
+    # Determine overall pass/fail
+    # Pass if: (no errors AND no failures) OR (tests exist AND all passed)
+    results['passed'] = (
+        ('error' not in qa_log_content.lower() and 'failed' not in qa_log_content.lower())
+        or (results['tests_failed'] is not None and results['tests_failed'] == 0)
+    )
+
+    return results
+
+
+def cmd_record_qa(args, repo_root: Path) -> int:
+    """
+    Update validation baseline with QA results.
+
+    Args:
+        args: Parsed command-line arguments
+        repo_root: Repository root path
+
+    Returns:
+        Exit code (0 = success, 1 = error)
+    """
+    task_id = args.record_qa
+    agent_role = args.agent
+    qa_log_path = args.qa_log_from if hasattr(args, 'qa_log_from') else None
+
+    if not agent_role:
+        print("Error: --agent is required for record-qa", file=sys.stderr)
+        return 1
+
+    if not qa_log_path:
+        print("Error: --from is required for record-qa (path to QA log)", file=sys.stderr)
+        return 1
+
+    # Read QA log content
+    qa_log_file = Path(qa_log_path)
+    if not qa_log_file.exists():
+        print(f"Error: QA log file not found: {qa_log_path}", file=sys.stderr)
+        return 1
+
+    qa_log_content = qa_log_file.read_text(encoding='utf-8')
+
+    # Parse QA results (Issue #4)
+    qa_results = _parse_qa_log(qa_log_content)
+
+    # Update coordination with QA log path and results
+    context_store = TaskContextStore(repo_root)
+
+    try:
+        # Check drift budget before mutations (Issue #3)
+        _check_drift_budget(context_store, task_id)
+
+        # Auto-verify worktree before mutations (Issue #2)
+        _auto_verify_worktree(context_store, task_id, agent_role)
+
+        # Build QA results dict with timestamp
+        from datetime import datetime, timezone
+        qa_results_with_metadata = {
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'log_path': qa_log_path,
+            'parsed': qa_results,
+        }
+
+        # Update coordination with qa_log_path and qa_results (mutable section)
+        updates = {
+            'qa_log_path': qa_log_path,
+            'qa_results': qa_results_with_metadata,
+        }
+
+        context_store.update_coordination(
+            task_id=task_id,
+            agent_role=agent_role,
+            updates=updates,
+            actor=args.actor if hasattr(args, 'actor') else "task-runner"
+        )
+
+        if args.format == 'json':
+            output_json({
+                'success': True,
+                'task_id': task_id,
+                'agent_role': agent_role,
+                'qa_log_path': qa_log_path,
+                'qa_results': qa_results,
+            })
+        else:
+            print(f"✓ Recorded QA results for {agent_role} on {task_id}")
+            print(f"  QA log: {qa_log_path}")
+            print(f"  Passed: {'✓' if qa_results['passed'] else '✗'}")
+            if qa_results['tests_run'] is not None:
+                print(f"  Tests: {qa_results['tests_passed']}/{qa_results['tests_run']} passed")
+            if qa_results['coverage_lines'] is not None:
+                print(f"  Coverage: {qa_results['coverage_lines']}% lines, {qa_results['coverage_branches']}% branches")
+
+        return 0
+
+    except (ContextNotFoundError, ValidationError, DriftError) as e:
+        if args.format == 'json':
+            output_json({
+                'success': False,
+                'error': str(e),
+            })
+        else:
+            print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+
+def cmd_resolve_drift(args, repo_root: Path) -> int:
+    """
+    Reset drift budget and record resolution.
+
+    Args:
+        args: Parsed command-line arguments
+        repo_root: Repository root path
+
+    Returns:
+        Exit code (0 = success, 1 = error)
+    """
+    task_id = args.resolve_drift
+    agent_role = args.agent
+    note = args.note
+
+    if not agent_role:
+        print("Error: --agent is required for resolve-drift", file=sys.stderr)
+        return 1
+
+    if not note:
+        print("Error: --note is required for resolve-drift (resolution description)", file=sys.stderr)
+        return 1
+
+    context_store = TaskContextStore(repo_root)
+
+    try:
+        # Get current context
+        context = context_store.get_context(task_id)
+        if context is None:
+            raise ContextNotFoundError(f"No context found for {task_id}")
+
+        # Get current drift budget
+        agent_coord = getattr(context, agent_role)
+        current_drift = agent_coord.drift_budget
+
+        if current_drift == 0:
+            if args.format == 'json':
+                output_json({
+                    'success': True,
+                    'task_id': task_id,
+                    'agent_role': agent_role,
+                    'message': 'No drift budget to resolve (already 0)',
+                })
+            else:
+                print(f"✓ No drift budget to resolve for {agent_role} on {task_id}")
+                print("  Drift budget is already 0")
+            return 0
+
+        # Reset drift budget to 0
+        from datetime import datetime, timezone
+        resolution_record = {
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'note': note,
+            'previous_drift_budget': current_drift,
+        }
+
+        updates = {
+            'drift_budget': 0,
+        }
+
+        context_store.update_coordination(
+            task_id=task_id,
+            agent_role=agent_role,
+            updates=updates,
+            actor=args.actor if hasattr(args, 'actor') else "operator"
+        )
+
+        if args.format == 'json':
+            output_json({
+                'success': True,
+                'task_id': task_id,
+                'agent_role': agent_role,
+                'previous_drift_budget': current_drift,
+                'resolution': resolution_record,
+            })
+        else:
+            print(f"✓ Resolved drift for {agent_role} on {task_id}")
+            print(f"  Previous drift budget: {current_drift}")
+            print(f"  New drift budget: 0")
+            print(f"  Resolution note: {note}")
+
+        return 0
+
+    except (ContextNotFoundError, ValidationError) as e:
+        if args.format == 'json':
+            output_json({
+                'success': False,
+                'error': str(e),
+            })
+        else:
+            print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -921,12 +2145,135 @@ def main():
         help='Create evidence file stub for a task (creates docs/evidence/tasks/TASK-ID-clarifications.md)'
     )
 
+    # Context cache commands (Phase 2)
+    group.add_argument(
+        '--init-context',
+        metavar='TASK_ID',
+        help='Initialize context with immutable snapshot from task YAML + standards'
+    )
+    group.add_argument(
+        '--get-context',
+        metavar='TASK_ID',
+        help='Read context (immutable + coordination); pretty-print or JSON output'
+    )
+    group.add_argument(
+        '--update-agent',
+        metavar='TASK_ID',
+        help='Update coordination state for one agent (atomic)'
+    )
+    group.add_argument(
+        '--mark-blocked',
+        metavar='TASK_ID',
+        help='Add blocking finding to agent coordination'
+    )
+    group.add_argument(
+        '--purge-context',
+        metavar='TASK_ID',
+        help='Manual cleanup (normally auto-purged on completion)'
+    )
+
+    # Delta tracking commands (Day 6)
+    group.add_argument(
+        '--snapshot-worktree',
+        metavar='TASK_ID',
+        help='Snapshot working tree state at agent completion'
+    )
+    group.add_argument(
+        '--verify-worktree',
+        metavar='TASK_ID',
+        help='Verify working tree matches expected state (drift detection)'
+    )
+    group.add_argument(
+        '--get-diff',
+        metavar='TASK_ID',
+        help='Retrieve diff file path for an agent\'s changes'
+    )
+    group.add_argument(
+        '--record-qa',
+        metavar='TASK_ID',
+        help='Update validation baseline with QA results'
+    )
+    group.add_argument(
+        '--resolve-drift',
+        metavar='TASK_ID',
+        help='Reset drift budget and record resolution (requires --agent and --note)'
+    )
+
     # Output format option (applies to list, pick, validate, explain, check-halt)
     parser.add_argument(
         '--format',
         choices=['text', 'json'],
         default='text',
         help='Output format (default: text)'
+    )
+
+    # Context cache specific arguments
+    parser.add_argument(
+        '--base-commit',
+        metavar='SHA',
+        help='Base commit SHA for context initialization (auto-detected if not provided)'
+    )
+    parser.add_argument(
+        '--agent',
+        choices=['implementer', 'reviewer', 'validator'],
+        help='Agent role for coordination updates'
+    )
+    parser.add_argument(
+        '--status',
+        choices=['pending', 'in_progress', 'done', 'blocked'],
+        help='Agent status for coordination updates'
+    )
+    parser.add_argument(
+        '--qa-log',
+        metavar='PATH',
+        help='Path to QA log file for agent coordination'
+    )
+    parser.add_argument(
+        '--session-id',
+        metavar='ID',
+        help='CLI session ID for coordination updates'
+    )
+    parser.add_argument(
+        '--finding',
+        metavar='TEXT',
+        help='Blocking finding description'
+    )
+    parser.add_argument(
+        '--note',
+        metavar='TEXT',
+        help='Resolution note for resolve-drift command'
+    )
+    parser.add_argument(
+        '--actor',
+        metavar='NAME',
+        help='Actor performing the operation (default: task-runner)'
+    )
+    parser.add_argument(
+        '--force-secrets',
+        action='store_true',
+        help='Bypass secret scanning (logs warning)'
+    )
+    parser.add_argument(
+        '--previous-agent',
+        choices=['implementer', 'reviewer', 'validator'],
+        help='Previous agent role (for incremental diff calculation)'
+    )
+    parser.add_argument(
+        '--expected-agent',
+        choices=['implementer', 'reviewer', 'validator'],
+        help='Expected agent whose snapshot to verify against'
+    )
+    parser.add_argument(
+        '--diff-type',
+        choices=['from_base', 'incremental'],
+        default='from_base',
+        help='Diff type to retrieve (default: from_base)'
+    )
+    parser.add_argument(
+        '--from',
+        dest='qa_log_from',
+        metavar='PATH',
+        help='Path to QA log file for record-qa command'
     )
 
     args = parser.parse_args()
@@ -989,6 +2336,38 @@ def main():
         elif args.bootstrap_evidence:
             args.task_id = args.bootstrap_evidence
             return cmd_bootstrap_evidence(args, repo_root)
+
+        # Context cache commands
+        elif args.init_context:
+            return cmd_init_context(args, repo_root)
+
+        elif args.get_context:
+            return cmd_get_context(args, repo_root)
+
+        elif args.update_agent:
+            return cmd_update_agent(args, repo_root)
+
+        elif args.mark_blocked:
+            return cmd_mark_blocked(args, repo_root)
+
+        elif args.purge_context:
+            return cmd_purge_context(args, repo_root)
+
+        # Delta tracking commands
+        elif args.snapshot_worktree:
+            return cmd_snapshot_worktree(args, repo_root)
+
+        elif args.verify_worktree:
+            return cmd_verify_worktree(args, repo_root)
+
+        elif args.get_diff:
+            return cmd_get_diff(args, repo_root)
+
+        elif args.record_qa:
+            return cmd_record_qa(args, repo_root)
+
+        elif args.resolve_drift:
+            return cmd_resolve_drift(args, repo_root)
 
     except KeyboardInterrupt:
         print("\nInterrupted", file=sys.stderr)

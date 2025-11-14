@@ -18,6 +18,12 @@ from ruamel.yaml import YAML
 from .models import Task
 from .notify import get_notification_service
 
+# Issue #10: Module-level import for lifecycle hook
+try:
+    from .context_store import TaskContextStore
+except ImportError:
+    TaskContextStore = None  # Graceful degradation if not available
+
 
 class TaskOperationError(Exception):
     """Raised when a task operation fails validation or execution."""
@@ -120,6 +126,15 @@ class TaskOperations:
             task_id=task.id,
             title=getattr(task, 'title', 'Task completed')
         )
+
+        # Purge context after successful completion + notification (Phase 2 lifecycle hook, Issue #10)
+        if TaskContextStore is not None:
+            try:
+                context_store = TaskContextStore(self.repo_root)
+                context_store.purge_context(task.id)
+            except Exception as e:
+                # Non-fatal: log warning but don't fail completion
+                print(f"Warning: Failed to purge context for {task.id}: {e}", file=sys.stderr)
 
         return result_path
 

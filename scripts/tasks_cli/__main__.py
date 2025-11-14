@@ -967,6 +967,11 @@ def _build_standards_citations(area: str, priority: str, task_data: dict) -> lis
 
     Returns:
         List of standards citation dicts
+
+    TODO: Implement line_span and content_sha extraction (M2)
+          - Extract section boundaries from standards/*.md files using regex
+          - Calculate SHA256 of section content for staleness detection
+          - See proposal Section 5.1.1 for detailed algorithm
     """
     citations = []
 
@@ -1158,13 +1163,14 @@ def _auto_verify_worktree(context_store: TaskContextStore, task_id: str, agent_r
             try:
                 context_store.verify_worktree_state(task_id=task_id, expected_agent=expected_agent)
             except DriftError as e:
-                # Increment drift budget for the expected agent (Issue #3)
+                # Increment drift budget for the current agent (Issue #3 fix)
+                # Current agent encounters drift, so they should be blocked
                 context = context_store.get_context(task_id)
                 if context:
-                    agent_coord = getattr(context, expected_agent)
+                    agent_coord = getattr(context, agent_role)
                     context_store.update_coordination(
                         task_id=task_id,
-                        agent_role=expected_agent,
+                        agent_role=agent_role,
                         updates={'drift_budget': agent_coord.drift_budget + 1},
                         actor='auto-verification'
                     )
@@ -1867,10 +1873,10 @@ def _parse_qa_log(qa_log_content: str) -> dict:
         results['errors'].extend([m.strip() for m in matches[:5]])  # Limit to 5 errors
 
     # Determine overall pass/fail
+    # Pass if: (no errors AND no failures) OR (tests exist AND all passed)
     results['passed'] = (
-        'error' not in qa_log_content.lower() and
-        'failed' not in qa_log_content.lower() or
-        (results['tests_failed'] is not None and results['tests_failed'] == 0)
+        ('error' not in qa_log_content.lower() and 'failed' not in qa_log_content.lower())
+        or (results['tests_failed'] is not None and results['tests_failed'] == 0)
     )
 
     return results
@@ -1920,26 +1926,18 @@ def cmd_record_qa(args, repo_root: Path) -> int:
         # Auto-verify worktree before mutations (Issue #2)
         _auto_verify_worktree(context_store, task_id, agent_role)
 
-        # Get context to update validation_baseline
-        context = context_store.get_context(task_id)
-        if context is None:
-            raise ContextNotFoundError(f"No context found for {task_id}")
-
-        # Build updated validation baseline
+        # Build QA results dict with timestamp
         from datetime import datetime, timezone
-        validation_baseline = dict(context.validation_baseline)  # Copy existing
-        if 'results' not in validation_baseline:
-            validation_baseline['results'] = {}
-
-        validation_baseline['results'][agent_role] = {
+        qa_results_with_metadata = {
             'timestamp': datetime.now(timezone.utc).isoformat(),
             'log_path': qa_log_path,
             'parsed': qa_results,
         }
 
-        # Update both qa_log_path and validation_baseline in immutable section
+        # Update coordination with qa_log_path and qa_results (mutable section)
         updates = {
             'qa_log_path': qa_log_path,
+            'qa_results': qa_results_with_metadata,
         }
 
         context_store.update_coordination(
@@ -1948,17 +1946,6 @@ def cmd_record_qa(args, repo_root: Path) -> int:
             updates=updates,
             actor=args.actor if hasattr(args, 'actor') else "task-runner"
         )
-
-        # Also update the validation baseline in context (requires direct file write)
-        # This is a bit of a hack but necessary to store in immutable section
-        context_json_path = repo_root / ".agent-output" / task_id / "context.json"
-        if context_json_path.exists():
-            import json
-            with open(context_json_path, 'r', encoding='utf-8') as f:
-                context_data = json.load(f)
-            context_data['validation_baseline'] = validation_baseline
-            with open(context_json_path, 'w', encoding='utf-8') as f:
-                json.dump(context_data, f, indent=2, sort_keys=True)
 
         if args.format == 'json':
             output_json({
@@ -1980,6 +1967,100 @@ def cmd_record_qa(args, repo_root: Path) -> int:
         return 0
 
     except (ContextNotFoundError, ValidationError, DriftError) as e:
+        if args.format == 'json':
+            output_json({
+                'success': False,
+                'error': str(e),
+            })
+        else:
+            print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+
+def cmd_resolve_drift(args, repo_root: Path) -> int:
+    """
+    Reset drift budget and record resolution.
+
+    Args:
+        args: Parsed command-line arguments
+        repo_root: Repository root path
+
+    Returns:
+        Exit code (0 = success, 1 = error)
+    """
+    task_id = args.resolve_drift
+    agent_role = args.agent
+    note = args.note
+
+    if not agent_role:
+        print("Error: --agent is required for resolve-drift", file=sys.stderr)
+        return 1
+
+    if not note:
+        print("Error: --note is required for resolve-drift (resolution description)", file=sys.stderr)
+        return 1
+
+    context_store = TaskContextStore(repo_root)
+
+    try:
+        # Get current context
+        context = context_store.get_context(task_id)
+        if context is None:
+            raise ContextNotFoundError(f"No context found for {task_id}")
+
+        # Get current drift budget
+        agent_coord = getattr(context, agent_role)
+        current_drift = agent_coord.drift_budget
+
+        if current_drift == 0:
+            if args.format == 'json':
+                output_json({
+                    'success': True,
+                    'task_id': task_id,
+                    'agent_role': agent_role,
+                    'message': 'No drift budget to resolve (already 0)',
+                })
+            else:
+                print(f"✓ No drift budget to resolve for {agent_role} on {task_id}")
+                print("  Drift budget is already 0")
+            return 0
+
+        # Reset drift budget to 0
+        from datetime import datetime, timezone
+        resolution_record = {
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'note': note,
+            'previous_drift_budget': current_drift,
+        }
+
+        updates = {
+            'drift_budget': 0,
+        }
+
+        context_store.update_coordination(
+            task_id=task_id,
+            agent_role=agent_role,
+            updates=updates,
+            actor=args.actor if hasattr(args, 'actor') else "operator"
+        )
+
+        if args.format == 'json':
+            output_json({
+                'success': True,
+                'task_id': task_id,
+                'agent_role': agent_role,
+                'previous_drift_budget': current_drift,
+                'resolution': resolution_record,
+            })
+        else:
+            print(f"✓ Resolved drift for {agent_role} on {task_id}")
+            print(f"  Previous drift budget: {current_drift}")
+            print(f"  New drift budget: 0")
+            print(f"  Resolution note: {note}")
+
+        return 0
+
+    except (ContextNotFoundError, ValidationError) as e:
         if args.format == 'json':
             output_json({
                 'success': False,
@@ -2112,6 +2193,11 @@ def main():
         metavar='TASK_ID',
         help='Update validation baseline with QA results'
     )
+    group.add_argument(
+        '--resolve-drift',
+        metavar='TASK_ID',
+        help='Reset drift budget and record resolution (requires --agent and --note)'
+    )
 
     # Output format option (applies to list, pick, validate, explain, check-halt)
     parser.add_argument(
@@ -2151,6 +2237,11 @@ def main():
         '--finding',
         metavar='TEXT',
         help='Blocking finding description'
+    )
+    parser.add_argument(
+        '--note',
+        metavar='TEXT',
+        help='Resolution note for resolve-drift command'
     )
     parser.add_argument(
         '--actor',
@@ -2274,6 +2365,9 @@ def main():
 
         elif args.record_qa:
             return cmd_record_qa(args, repo_root)
+
+        elif args.resolve_drift:
+            return cmd_resolve_drift(args, repo_root)
 
     except KeyboardInterrupt:
         print("\nInterrupted", file=sys.stderr)

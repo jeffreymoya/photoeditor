@@ -228,6 +228,7 @@ class AgentCoordination:
     blocking_findings: List[str] = field(default_factory=list)
     worktree_snapshot: Optional[WorktreeSnapshot] = None
     drift_budget: int = 0        # Incremented on failed verification
+    qa_results: Optional[Dict[str, Any]] = None  # Parsed QA log results
 
     def to_dict(self) -> dict:
         """Convert to JSON-serializable dict."""
@@ -239,6 +240,7 @@ class AgentCoordination:
             'blocking_findings': list(self.blocking_findings),
             'worktree_snapshot': self.worktree_snapshot.to_dict() if self.worktree_snapshot else None,
             'drift_budget': self.drift_budget,
+            'qa_results': self.qa_results,
         }
 
     @classmethod
@@ -253,6 +255,7 @@ class AgentCoordination:
             blocking_findings=data.get('blocking_findings', []),
             worktree_snapshot=WorktreeSnapshot.from_dict(worktree) if worktree else None,
             drift_budget=data.get('drift_budget', 0),
+            qa_results=data.get('qa_results'),
         )
 
 
@@ -933,6 +936,16 @@ class TaskContextStore:
 
         # Save diff file
         diff_file.write_text(diff_content, encoding='utf-8')
+
+        # Check diff size and warn if > 10MB (proposal Section 3.6)
+        diff_size_mb = diff_file.stat().st_size / (1024 * 1024)
+        if diff_size_mb > 10:
+            import sys
+            print(
+                f"⚠️  Warning: Diff size {diff_size_mb:.1f}MB exceeds 10MB threshold. "
+                f"Review for unintended binary files.",
+                file=sys.stderr
+            )
 
         # 3. Normalize and hash diff
         normalized_diff = normalize_diff_for_hashing(diff_content)

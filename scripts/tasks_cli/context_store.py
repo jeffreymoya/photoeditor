@@ -13,7 +13,7 @@ import os
 import re
 import subprocess
 import tempfile
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -25,17 +25,14 @@ from .exceptions import ValidationError
 
 class ContextExistsError(Exception):
     """Raised when attempting to initialize context that already exists."""
-    pass
 
 
 class ContextNotFoundError(Exception):
     """Raised when context not found for task."""
-    pass
 
 
 class DriftError(Exception):
     """Raised when working tree drift detected."""
-    pass
 
 
 # ============================================================================
@@ -409,7 +406,9 @@ class TaskContextStore:
         (r'AKIA[0-9A-Z]{16}', 'AWS access key'),
         (r'sk_live_[a-zA-Z0-9]{24,}', 'Stripe live key'),
         (r'eyJ[a-zA-Z0-9_-]+\.eyJ[a-zA-Z0-9_-]+\.', 'JWT token'),
-        (r'-----BEGIN (RSA|DSA|EC|OPENSSH) PRIVATE KEY-----', 'Private key'),
+        (r'gh[pousr]_[a-zA-Z0-9]{36,}', 'GitHub token'),
+        (r'glpat-[a-zA-Z0-9_-]{20,}', 'GitLab token'),
+        (r'-----BEGIN (RSA|DSA|EC|OPENSSH|) ?PRIVATE KEY-----', 'Private key'),
     ]
 
     def __init__(self, repo_root: Path):
@@ -750,7 +749,8 @@ class TaskContextStore:
         result = subprocess.run(
             ['git', 'diff-index', '--quiet', 'HEAD'],
             cwd=self.repo_root,
-            capture_output=True
+            capture_output=True,
+            check=False  # Exit code signals dirty state
         )
         # Exit code 1 means dirty, 0 means clean
         return result.returncode != 0
@@ -1018,14 +1018,14 @@ class TaskContextStore:
     def _calculate_incremental_diff(
         self,
         implementer_diff_file: Path,
-        base_commit: str
+        _base_commit: str
     ) -> Tuple[Optional[str], Optional[str]]:
         """
         Calculate reviewer's incremental changes by reverse-applying implementer diff.
 
         Args:
             implementer_diff_file: Path to implementer's diff file
-            base_commit: Base commit SHA
+            _base_commit: Base commit SHA (reserved for future use)
 
         Returns:
             Tuple of (incremental_diff_content, error_message)
@@ -1034,7 +1034,7 @@ class TaskContextStore:
         """
         try:
             # Check if reverse-apply would succeed
-            result = subprocess.run(
+            _result = subprocess.run(
                 ['git', 'apply', '--reverse', '--check', str(implementer_diff_file)],
                 cwd=self.repo_root,
                 capture_output=True,
@@ -1103,8 +1103,8 @@ class TaskContextStore:
         # 3. Verify base commit unchanged
         try:
             current_head = self._get_current_git_head()
-        except subprocess.CalledProcessError:
-            raise DriftError("Unable to determine current git HEAD")
+        except subprocess.CalledProcessError as exc:
+            raise DriftError("Unable to determine current git HEAD") from exc
 
         if current_head != snapshot.base_commit:
             raise DriftError(

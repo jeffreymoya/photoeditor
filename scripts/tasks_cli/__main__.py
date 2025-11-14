@@ -1219,6 +1219,25 @@ def cmd_init_context(args, repo_root: Path) -> int:
     base_commit = args.base_commit
     force_secrets = args.force_secrets if hasattr(args, 'force_secrets') else False
 
+    # Check for dirty working tree (Issue #7)
+    try:
+        result = subprocess.run(
+            ['git', 'status', '--porcelain'],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        if result.stdout.strip():
+            print("⚠️  Warning: Working tree has uncommitted changes:", file=sys.stderr)
+            for line in result.stdout.strip().split('\n')[:5]:  # Show first 5 files
+                print(f"  {line}", file=sys.stderr)
+            if not force_secrets:
+                print("\nContext initialization will proceed, but diffs may include uncommitted changes.", file=sys.stderr)
+                print("Commit your changes first or use --force-secrets to bypass this warning.", file=sys.stderr)
+    except subprocess.CalledProcessError:
+        pass  # Non-fatal, continue
+
     # Auto-detect base commit if not provided
     if not base_commit:
         try:
@@ -1339,10 +1358,21 @@ def cmd_get_context(args, repo_root: Path) -> int:
             print(f"Error: No context found for {task_id}", file=sys.stderr)
         return 1
 
+    # Check for staleness (Issue #6)
+    from datetime import datetime, timezone
+    created_dt = datetime.fromisoformat(context.created_at.replace('Z', '+00:00'))
+    age_hours = (datetime.now(timezone.utc) - created_dt).total_seconds() / 3600
+    staleness_warning = None
+
+    if age_hours > 48:  # Warn if context is older than 48 hours
+        staleness_warning = f"⚠️  Context is {age_hours:.1f} hours old. Consider rebuilding if task requirements changed."
+
     if args.format == 'json':
         output_json({
             'success': True,
             'context': context.to_dict(),
+            'staleness_warning': staleness_warning,
+            'age_hours': round(age_hours, 1),
         })
     else:
         # Pretty-print context
@@ -1351,6 +1381,11 @@ def cmd_get_context(args, repo_root: Path) -> int:
         print(f"  Created: {context.created_at}")
         print(f"  Created by: {context.created_by}")
         print(f"  Git HEAD: {context.git_head[:8]}")
+        print(f"  Age: {age_hours:.1f} hours")
+
+        if staleness_warning:
+            print(f"\n{staleness_warning}")
+
         print()
         print(f"Task Snapshot:")
         print(f"  Title: {context.task_snapshot.title}")

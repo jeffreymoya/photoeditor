@@ -1,0 +1,274 @@
+# Storybook parser override audit tooling
+# Phase 0 of docs/proposals/storybook-parser-override-arbitration.md
+# Implements instrumentation CLI to detect and report parser override conflicts
+
+schema_version: "1.1"
+id: TASK-1001
+title: "Storybook parser override audit tooling"
+status: completed
+blocked_reason:
+priority: P0
+area: ops
+unblocker: true
+estimate: S
+order: 1
+blocked_by: []
+depends_on: []
+agent_completion_state: {}
+
+complexity_budget:
+  estimated_file_count: 3
+  plan_steps_count: 4
+
+clarifications:
+  outstanding: []
+  evidence_path: "docs/proposals/storybook-parser-override-arbitration.md"
+
+description: >-
+  Storybook builds currently fail with "More than one plugin attempted to override
+  parsing"
+  due to multiple Babel presets (NativeWind v5's react-native-css and babel-preset-expo)
+  registering parserOverride. Before implementing the governance fix, we need instrumentation
+  to detect, report, and validate that only one override is active. This task builds
+  the
+  audit CLI that shells out to `babel --show-config`, parses plugin metadata, and
+  fails
+  CI when violations are detected. The script integrates into the Storybook build
+  pipeline
+  and establishes the baseline for parser override governance.
+
+outcome: >-
+  A working audit CLI (`scripts/storybook/audit-parser-overrides.mjs`) that reports
+  parser
+  override conflicts, integrates into `pnpm run build-storybook` pre-flight checks,
+  and
+  captures a baseline report documenting current violations. CI fails if >1 override
+  detected
+  when `STORYBOOK_BUILD=1`. Follow-up tasks use this tooling to validate preset fixes.
+
+scope:
+  in:
+  - Parser override audit script with Babel --show-config integration
+  - Report generation (JSON output to mobile/storybook/.cache/)
+  - CLI exit codes (0 = pass, 1 = violations detected)
+  - Integration into package.json scripts (pre-build-storybook hook)
+  - Baseline documentation capturing current state
+  - Unit tests for audit script using mocked Babel output
+  out:
+  - Actual parser override fixes (deferred to TASK-1002)
+  - Chromatic workflow changes (deferred to TASK-1003)
+  - GitHub Actions integration (deferred to TASK-1003)
+  - NativeWind/Reanimated adapter implementation (deferred to TASK-1002)
+
+context:
+  affected_packages: [mobile]
+  standards_tier: mobile
+  related_docs:
+  - standards/global.md
+  - standards/AGENTS.md
+  - standards/testing-standards.md
+  - standards/frontend-tier.md
+  - standards/typescript.md
+  - docs/proposals/storybook-parser-override-arbitration.md
+  - docs/pending/storybook-chromatic-blockers.md
+  repo_paths:
+  - scripts/storybook/audit-parser-overrides.mjs
+  - mobile/package.json
+  - mobile/storybook/.cache/parser-override-report.json
+  - docs/pending/storybook-parser-audit.md
+  - scripts/storybook/__tests__/audit-parser-overrides.test.mjs
+  dependencies:
+  - "@babel/cli"
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+  - name: pnpm
+    version: "8.x"
+  - name: babel
+    version: "7.x"
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+  - Keep diffs minimal and focused on audit tooling only
+  - Follow standards/typescript.md for strict typing
+  - Use standards/testing-standards.md coverage thresholds (≥70% lines, ≥60% 
+    branches)
+  - Cite standards/global.md for evidence artifact requirements
+  prohibited:
+  - No secrets or credentials in source control
+  - No implementation of parser override fixes in this task
+
+plan:
+- id: 1
+  title: Design audit script architecture and CLI interface
+  details: >-
+    Review proposal Section 4.2 (Parser override instrumentation CLI) and design
+    the audit script's responsibilities: spawn `babel --show-config` for target files,
+    parse JSON output, extract plugins declaring parserOverride, generate report JSON,
+    and exit with status codes. Define CLI arguments (--file path, --output dir, --fail-on-violations).
+    Reference standards/typescript.md#analyzability for maintainable module structure.
+  actor: agent
+  inputs:
+  - docs/proposals/storybook-parser-override-arbitration.md (Section 4.2)
+  - mobile/babel.config.js (current config to audit)
+  - standards/typescript.md
+  outputs:
+  - docs/pending/storybook-parser-audit.md (architecture notes and CLI spec)
+  definition_of_done:
+  - Architecture notes reference standards/typescript.md#analyzability
+  - CLI interface documented with argument specs and exit codes
+  estimate: S
+  expected_files_touched:
+  - docs/pending/storybook-parser-audit.md
+- id: 2
+  title: Implement audit script with Babel config parsing
+  details: >-
+    Create scripts/storybook/audit-parser-overrides.mjs that spawns
+    `BABEL_SHOW_CONFIG_FOR=<path> npx babel --show-config`, parses JSON output,
+    extracts plugins with parserOverride property, and writes report to
+    mobile/storybook/.cache/parser-override-report.json. Implement CLI args
+    (--file, --output, --fail-on-violations) and exit codes (0=pass, 1=violations).
+    Follow standards/typescript.md strict typing with JSDoc type annotations.
+  actor: agent
+  inputs:
+  - docs/pending/storybook-parser-audit.md (architecture from step 1)
+  - Babel CLI documentation for --show-config output format
+  outputs:
+  - scripts/storybook/audit-parser-overrides.mjs
+  - mobile/storybook/.cache/ (directory for reports)
+  definition_of_done:
+  - Script successfully spawns babel --show-config and parses JSON
+  - Report JSON contains plugin names, packages, and override counts
+  - Exit code 1 when >1 override detected with STORYBOOK_BUILD=1
+  estimate: M
+  expected_files_touched:
+  - scripts/storybook/audit-parser-overrides.mjs
+- id: 3
+  title: Integrate audit script into package.json pre-build hook
+  details: >-
+    Add scripts/storybook/audit-parser-overrides.mjs to mobile/package.json
+    as a pre-build-storybook hook or explicit audit:parser-overrides script.
+    Configure to run before `build-storybook` with --fail-on-violations flag
+    when STORYBOOK_BUILD=1. Capture baseline by running audit against current
+    babel config and writing results to docs/pending/storybook-parser-audit.md.
+    Reference standards/global.md for evidence artifact requirements.
+  actor: agent
+  inputs:
+  - scripts/storybook/audit-parser-overrides.mjs (from step 2)
+  - mobile/package.json
+  - mobile/babel.config.js (current config)
+  outputs:
+  - mobile/package.json (updated scripts)
+  - docs/pending/storybook-parser-audit.md (baseline report with current 
+    violations)
+  definition_of_done:
+  - Package.json contains audit:parser-overrides script
+  - Baseline report documents current parser override conflicts
+  - Script integrated into build-storybook workflow
+  estimate: S
+  expected_files_touched:
+  - mobile/package.json
+  - docs/pending/storybook-parser-audit.md
+- id: 4
+  title: Add unit tests for audit script with mocked Babel output
+  details: >-
+    Create scripts/storybook/__tests__/audit-parser-overrides.test.mjs with test
+    cases covering: (1) zero overrides (pass), (2) one override (pass), (3) multiple
+    overrides (fail), (4) malformed Babel output (error handling). Mock child_process
+    spawning babel --show-config and provide fixture JSON outputs. Target
+    standards/testing-standards.md coverage thresholds (≥70% lines, ≥60% branches).
+    Reference standards/typescript.md for test structure and standards/global.md for
+    evidence requirements.
+  actor: agent
+  inputs:
+  - scripts/storybook/audit-parser-overrides.mjs (implementation from step 2)
+  - standards/testing-standards.md (coverage requirements)
+  - standards/typescript.md (test patterns)
+  outputs:
+  - scripts/storybook/__tests__/audit-parser-overrides.test.mjs
+  - Test fixtures with mocked Babel --show-config outputs
+  definition_of_done:
+  - Tests cover zero/one/multiple override scenarios
+  - Coverage meets standards/testing-standards.md thresholds (≥70%/≥60%)
+  - All tests pass with exit code 0
+  estimate: M
+  expected_files_touched:
+  - scripts/storybook/__tests__/audit-parser-overrides.test.mjs
+
+validation:
+  pipeline:
+  - command: pnpm turbo run lint:fix --filter=photoeditor-mobile
+    description: Auto-fix linting issues in mobile package
+  - command: pnpm turbo run qa:static --filter=photoeditor-mobile
+    description: Run static analysis (typecheck + lint) on mobile
+  - command: node scripts/storybook/audit-parser-overrides.mjs --file 
+      mobile/src/features/camera/CameraWithOverlay.tsx --output 
+      mobile/storybook/.cache
+    description: Test audit script execution with sample file
+  - command: cd mobile && STORYBOOK_BUILD=1 node 
+      ../scripts/storybook/audit-parser-overrides.mjs --file src/App.tsx 
+      --fail-on-violations
+    description: Verify audit script detects violations and exits with status 1
+  - command: pnpm test 
+      scripts/storybook/__tests__/audit-parser-overrides.test.mjs
+    description: Run unit tests for audit script
+  manual_checks:
+  - Review baseline report in docs/pending/storybook-parser-audit.md and confirm
+    it documents current violations accurately
+
+acceptance_criteria:
+  must:
+  - Audit script successfully spawns `babel --show-config` and parses plugin 
+    metadata
+  - Report JSON written to mobile/storybook/.cache/parser-override-report.json 
+    contains plugin names and override counts
+  - Script exits with code 1 when >1 override detected and --fail-on-violations 
+    is set
+  - Script exits with code 0 when ≤1 override detected
+  - Integration into mobile/package.json allows running via `pnpm run 
+    audit:parser-overrides`
+  - Baseline report documents current parser override conflicts with plugin 
+    names and packages
+  - Unit tests achieve ≥70% line coverage and ≥60% branch coverage per 
+    standards/testing-standards.md
+  - All validation pipeline commands pass
+  quality_gates:
+  - No lint/type errors in affected packages
+  - Baseline report references proposal Section 4.2 and documents current state
+  - Evidence artifacts satisfy standards/global.md requirements
+
+artifacts:
+- path: mobile/storybook/.cache/parser-override-report.json
+  description: JSON report with plugin names, packages, and override counts from
+    audit
+- path: docs/pending/storybook-parser-audit.md
+  description: Baseline audit results documenting current parser override 
+    violations
+
+deliverables:
+- scripts/storybook/audit-parser-overrides.mjs
+- scripts/storybook/__tests__/audit-parser-overrides.test.mjs
+- mobile/package.json (audit script integration)
+- docs/pending/storybook-parser-audit.md (baseline report)
+- mobile/storybook/.cache/parser-override-report.json (generated artifact)
+
+risks:
+- description: Babel --show-config output format may vary across versions
+  mitigation: Pin Babel version in devDependencies and include version checks in
+    audit script
+- description: Audit script may not detect all override mechanisms (e.g., 
+    programmatic plugin registration)
+  mitigation: Document known limitations in baseline report and focus on 
+    preset-based overrides per proposal scope
+- description: Integration timing may interfere with watch mode or incremental 
+    builds
+  mitigation: Run audit only when STORYBOOK_BUILD=1 flag is set, skip in dev 
+    mode

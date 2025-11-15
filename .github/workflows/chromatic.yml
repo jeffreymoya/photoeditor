@@ -80,7 +80,23 @@ jobs:
       - name: Generate Storybook stories
         run: pnpm run storybook:generate
 
+      - name: Check for Chromatic token
+        id: chromatic-token-check
+        run: |
+          if [ -z "${{ secrets.CHROMATIC_PROJECT_TOKEN }}" ]; then
+            echo "token_available=false" >> $GITHUB_OUTPUT
+            echo "⚠️  CHROMATIC_PROJECT_TOKEN secret not configured"
+            echo "To enable visual regression testing:"
+            echo "1. Sign up at https://www.chromatic.com"
+            echo "2. Create a project for photoeditor-mobile"
+            echo "3. Add CHROMATIC_PROJECT_TOKEN to repository secrets"
+            echo "4. See .github/workflows/chromatic.yml for details"
+          else
+            echo "token_available=true" >> $GITHUB_OUTPUT
+          fi
+
       - name: Run Chromatic
+        if: steps.chromatic-token-check.outputs.token_available == 'true'
         uses: chromaui/action@v1
         with:
           projectToken: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
@@ -89,14 +105,21 @@ jobs:
           exitZeroOnChanges: true # Don't fail on visual changes, just report
           exitOnceUploaded: true
 
+      - name: Skip Chromatic (token not configured)
+        if: steps.chromatic-token-check.outputs.token_available == 'false'
+        run: |
+          echo "ℹ️  Chromatic visual regression testing skipped (token not configured)"
+          echo "This is not an error - Chromatic is optional for visual regression testing"
+
       - name: Check accessibility with axe
+        if: steps.chromatic-token-check.outputs.token_available == 'true'
         run: |
           echo "Chromatic includes automatic axe accessibility checks"
           echo "Review accessibility violations in Chromatic UI"
           echo "See standards/frontend-tier.md#ui-components-layer for requirements"
 
       - name: Archive Chromatic results
-        if: always()
+        if: always() && steps.chromatic-token-check.outputs.token_available == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: chromatic-results

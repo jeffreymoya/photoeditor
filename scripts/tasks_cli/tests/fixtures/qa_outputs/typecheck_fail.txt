@@ -1,0 +1,32 @@
+@photoeditor/backend:typecheck: $ tsc --noEmit
+
+@photoeditor/backend:typecheck: backend/services/upload.ts(42,5): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+@photoeditor/backend:typecheck:   Type 'undefined' is not assignable to type 'string'.
+@photoeditor/backend:typecheck: backend/services/upload.ts(58,12): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+@photoeditor/backend:typecheck: backend/lambdas/upload/handler.ts(23,3): error TS2741: Property 'statusCode' is missing in type '{ body: string; }' but required in type 'APIGatewayProxyResult'.
+@photoeditor/backend:typecheck: backend/providers/s3-provider.ts(67,15): error TS2532: Object is possibly 'undefined'.
+
+@photoeditor/backend:typecheck: ✗ Type check failed
+@photoeditor/backend:typecheck: Found 4 errors
+@photoeditor/backend:typecheck: Time: 3.89s
+
+@photoeditor/shared:typecheck: $ tsc --noEmit
+
+@photoeditor/shared:typecheck: shared/schemas/job.ts(15,8): error TS2322: Type 'ZodString' is not assignable to type 'ZodOptional<ZodString>'.
+
+@photoeditor/shared:typecheck: ✗ Type check failed
+@photoeditor/shared:typecheck: Found 1 error
+@photoeditor/shared:typecheck: Time: 1.23s
+
+photoeditor-mobile:typecheck: $ tsc --noEmit
+
+photoeditor-mobile:typecheck: ✓ Type check passed
+photoeditor-mobile:typecheck: Files checked: 89
+photoeditor-mobile:typecheck: Time: 2.71s
+
+ Tasks:    1 successful, 3 total
+ Tasks:    2 failed, 3 total
+Cached:    0 cached, 3 total
+  Time:    9.3s
+
+ERROR: command finished with error: command (pnpm turbo run typecheck --parallel) exited (1)

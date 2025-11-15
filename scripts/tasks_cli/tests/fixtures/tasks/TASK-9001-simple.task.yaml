@@ -1,0 +1,29 @@
+id: TASK-9001
+title: Simple test task
+status: todo
+priority: P2
+area: backend
+description: A minimal task for basic testing
+
+scope:
+  in:
+    - Test basic context initialization
+  out:
+    - Complex scenarios
+
+plan:
+  - Step 1: Initialize context
+  - Step 2: Verify snapshot
+
+acceptance_criteria:
+  - criteria: Context created successfully
+    standards_ref: N/A
+
+validation:
+  commands:
+    - cmd: echo "test"
+      description: Mock validation
+
+deliverables:
+  - description: Test output
+    path: test/output.txt

@@ -1,0 +1,41 @@
+id: TASK-9011
+title: Task with very long text fields to test YAML serialization and text wrapping edge cases in the context store normalization process
+status: todo
+priority: P2
+area: shared
+description: |
+  This task has intentionally very long text fields to test YAML serialization,
+  text wrapping, line length handling, and ensure that the context store can
+  handle large amounts of text data without corruption or truncation. This is
+  important for real-world tasks that may have extensive documentation or
+  detailed implementation notes that span multiple paragraphs and contain
+  technical details, code snippets, and other information that needs to be
+  preserved exactly as written by the task author.
+
+  The following is a very long paragraph with no line breaks to test wrapping:
+  Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+
+scope:
+  in:
+    - This is a very long scope item that describes in detail all the files and directories that are in scope for this task including backend handlers services and providers as well as mobile screens components and shared contracts that need to be updated as part of this comprehensive refactoring effort
+    - Another very long scope item: shared/schemas/upload.ts, shared/schemas/download.ts, shared/schemas/job.ts, shared/types/upload.ts, shared/types/download.ts, shared/types/job.ts, shared/utils/validation.ts, shared/utils/helpers.ts
+  out:
+    - Infrastructure changes are explicitly out of scope for this task
+
+plan:
+  - "Step 1: This is a very long plan step that describes in extensive detail what needs to be done including analyzing the current codebase, identifying areas for improvement, designing the new architecture, and implementing the changes in a backwards-compatible manner while maintaining test coverage and ensuring no regressions are introduced during the refactoring process"
+  - "Step 2: Another long step with implementation details"
+  - "Step 3: Final validation and testing step"
+
+acceptance_criteria:
+  - criteria: This is a very long acceptance criteria description that specifies exactly what conditions must be met for this task to be considered complete including all technical requirements, quality thresholds, and validation steps that must pass
+    standards_ref: standards/typescript.md#validation
+
+validation:
+  commands:
+    - cmd: pnpm turbo run typecheck --filter=@photoeditor/shared && pnpm turbo run lint --filter=@photoeditor/shared && pnpm turbo run test --filter=@photoeditor/shared --coverage
+      description: Run complete validation suite including type checking, linting, and unit tests with coverage reporting to ensure all quality gates pass
+
+deliverables:
+  - description: A very long deliverable description that explains what this file does, why it's important, how it fits into the overall architecture, and what specific functionality it provides to the system as a whole
+    path: shared/schemas/very_long_filename_that_tests_path_length_limits.ts

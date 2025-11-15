@@ -1,0 +1,39 @@
+@photoeditor/backend:lint: $ eslint . --ext .ts,.tsx --max-warnings=0
+
+@photoeditor/backend:lint:
+@photoeditor/backend:lint: backend/services/upload.ts
+@photoeditor/backend:lint:   42:5   error    'uploadResult' is assigned a value but never used         @typescript-eslint/no-unused-vars
+@photoeditor/backend:lint:   58:12  error    Unexpected console statement                              no-console
+@photoeditor/backend:lint:   67:1   error    Function 'processUpload' has a complexity of 18          complexity
+@photoeditor/backend:lint:   89:15  warning  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+@photoeditor/backend:lint:
+@photoeditor/backend:lint: backend/lambdas/upload/handler.ts
+@photoeditor/backend:lint:   12:1   error    Import statement for AWS SDK client is not allowed        import-restrictions
+@photoeditor/backend:lint:   23:3   error    Missing return type on function                           @typescript-eslint/explicit-function-return-type
+@photoeditor/backend:lint:
+@photoeditor/backend:lint: ✗ 5 errors, 1 warning
+@photoeditor/backend:lint: Time: 4.92s
+
+@photoeditor/shared:lint: $ eslint . --ext .ts,.tsx --max-warnings=0
+
+@photoeditor/shared:lint:
+@photoeditor/shared:lint: shared/schemas/job.ts
+@photoeditor/shared:lint:   28:2   warning  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+@photoeditor/shared:lint:
+@photoeditor/shared:lint: ✗ 0 errors, 1 warning
+@photoeditor/shared:lint: Warnings found (--max-warnings=0 specified)
+@photoeditor/shared:lint: Time: 2.01s
+
+photoeditor-mobile:lint: $ eslint . --ext .ts,.tsx --max-warnings=0
+
+photoeditor-mobile:lint: ✓ Lint passed
+photoeditor-mobile:lint: Files checked: 89
+photoeditor-mobile:lint: 0 errors, 0 warnings
+photoeditor-mobile:lint: Time: 3.15s
+
+ Tasks:    1 successful, 3 total
+ Tasks:    2 failed, 3 total
+Cached:    0 cached, 3 total
+  Time:    12.8s
+
+ERROR: command finished with error: command (pnpm turbo run lint --parallel) exited (1)

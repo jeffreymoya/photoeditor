@@ -1,0 +1,45 @@
+id: TASK-9013
+title: Task with glob patterns in scope
+status: todo
+priority: P1
+area: backend
+description: |
+  Task with various glob patterns to test scope expansion,
+  file matching, and context normalization with wildcards.
+
+scope:
+  in:
+    - All TypeScript files (backend/**/*.ts, mobile/**/*.ts, shared/**/*.ts)
+    - Test files (**/(__tests__|__mocks__)/**/*.ts)
+    - Config files (*.config.{ts,js,json})
+    - Package manifests (**/package.json)
+    - Specific handlers (backend/lambdas/{upload,download,process}/handler.ts)
+    - Nested patterns (backend/services/**/validation/*.ts)
+    - Negation patterns (!backend/**/*.test.ts, !mobile/**/*.test.ts)
+  out:
+    - Infrastructure (infrastructure/**/*.tf)
+    - Documentation (docs/**/*.{md,txt})
+    - Build artifacts (dist/**, build/**, .turbo/**)
+
+plan:
+  - Step 1: Expand all glob patterns
+  - Step 2: Collect matching files
+  - Step 3: Generate file manifest
+  - Step 4: Compute SHAs for tracked files
+
+acceptance_criteria:
+  - criteria: All glob patterns expanded correctly
+    standards_ref: N/A
+  - criteria: Negation patterns properly excluded
+    standards_ref: N/A
+  - criteria: No duplicate files in manifest
+    standards_ref: N/A
+
+validation:
+  commands:
+    - cmd: find . -name "*.ts" -not -path "*/node_modules/*"
+      description: Verify glob expansion
+
+deliverables:
+  - description: File manifest
+    path: tasks/.context/TASK-9013/manifest.json

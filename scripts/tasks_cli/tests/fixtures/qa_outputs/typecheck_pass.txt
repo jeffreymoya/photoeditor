@@ -1,0 +1,21 @@
+@photoeditor/backend:typecheck: $ tsc --noEmit
+
+@photoeditor/backend:typecheck: ✓ Type check passed
+@photoeditor/backend:typecheck: Files checked: 127
+@photoeditor/backend:typecheck: Time: 3.42s
+
+@photoeditor/shared:typecheck: $ tsc --noEmit
+
+@photoeditor/shared:typecheck: ✓ Type check passed
+@photoeditor/shared:typecheck: Files checked: 34
+@photoeditor/shared:typecheck: Time: 1.15s
+
+photoeditor-mobile:typecheck: $ tsc --noEmit
+
+photoeditor-mobile:typecheck: ✓ Type check passed
+photoeditor-mobile:typecheck: Files checked: 89
+photoeditor-mobile:typecheck: Time: 2.87s
+
+ Tasks:    3 successful, 3 total
+Cached:    0 cached, 3 total
+  Time:    8.1s

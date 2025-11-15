@@ -1,0 +1,54 @@
+id: TASK-9010
+title: Task with validation baseline
+status: todo
+priority: P1
+area: backend
+description: |
+  Task with pre-existing validation baseline to test baseline recording
+  and QA result comparison.
+
+scope:
+  in:
+    - Backend service refactoring
+    - Test coverage improvements
+  out:
+    - Mobile changes
+    - Infrastructure
+
+plan:
+  - Step 1: Record baseline QA results
+  - Step 2: Refactor service
+  - Step 3: Run QA and compare to baseline
+  - Step 4: Verify no regressions
+
+acceptance_criteria:
+  - criteria: Service coverage ≥80%
+    standards_ref: standards/backend-tier.md#testing-requirements
+  - criteria: No new lint errors vs baseline
+    standards_ref: N/A
+  - criteria: No new type errors vs baseline
+    standards_ref: N/A
+
+validation:
+  commands:
+    - cmd: pnpm turbo run typecheck --filter=@photoeditor/backend
+      description: Type check
+      baseline_result: |
+        ✓ Type check passed
+        0 errors, 0 warnings
+    - cmd: pnpm turbo run lint --filter=@photoeditor/backend
+      description: Lint check
+      baseline_result: |
+        ✓ Lint passed
+        0 errors, 2 warnings
+    - cmd: pnpm turbo run test --filter=@photoeditor/backend --coverage
+      description: Unit tests with coverage
+      baseline_result: |
+        ✓ Tests passed: 45/45
+        Coverage: 78.5% lines, 72.3% branches
+
+deliverables:
+  - description: Refactored service
+    path: backend/services/notification.ts
+  - description: Service tests
+    path: backend/services/__tests__/notification.test.ts

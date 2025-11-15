@@ -1,11 +1,36 @@
+const createNativewindPreset = require('react-native-css/babel').default;
+const isStorybookBuild = process.env.STORYBOOK_BUILD === '1';
+const stubParserPlugin = () => ({ name: 'storybook-parser-override-stub' });
+
+if (isStorybookBuild) {
+  ['react-native-worklets/plugin', 'react-native-reanimated/plugin'].forEach((moduleName) => {
+    try {
+      const modulePath = require.resolve(moduleName);
+      require.cache[modulePath] = {
+        id: modulePath,
+        filename: modulePath,
+        loaded: true,
+        exports: stubParserPlugin,
+      };
+    } catch (error) {
+      // Module not present; ignore
+    }
+  });
+}
+
 module.exports = function (api) {
   api.cache(true);
   return {
     presets: [
-      'babel-preset-expo',
-      'nativewind/babel', // NativeWind v5 preset adds CSS interop transforms
+      isStorybookBuild
+        ? ['babel-preset-expo', { reanimated: false }]
+        : 'babel-preset-expo',
     ],
     plugins: [
+      ...(createNativewindPreset(api).plugins || []).filter(
+        (plugin) =>
+          !isStorybookBuild || plugin !== 'react-native-worklets/plugin'
+      ),
       [
         'module-resolver',
         {
@@ -25,7 +50,6 @@ module.exports = function (api) {
           },
         },
       ],
-      'react-native-reanimated/plugin', // Keep this as the last plugin
     ],
   };
 };

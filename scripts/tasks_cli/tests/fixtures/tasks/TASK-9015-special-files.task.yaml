@@ -1,0 +1,45 @@
+id: TASK-9015
+title: Task with special files and symlinks
+status: todo
+priority: P2
+area: backend
+description: |
+  Task referencing special files, symlinks, and edge cases
+  to test file type detection and handling.
+
+scope:
+  in:
+    - Symlinks (test/fixtures/symlink-to-module)
+    - Device files (if any exist in test fixtures)
+    - Named pipes (test/fixtures/fifo-pipe)
+    - Very long paths (backend/services/very/deeply/nested/directory/structure/file.ts)
+    - Special characters in filenames (test/file with spaces.ts, test/file[brackets].ts)
+  out:
+    - Regular files only
+
+plan:
+  - Step 1: Detect symlinks and resolve targets
+  - Step 2: Skip special files (devices, pipes, sockets)
+  - Step 3: Handle long paths gracefully
+  - Step 4: Escape special characters in filenames
+
+acceptance_criteria:
+  - criteria: Symlinks resolved correctly
+    standards_ref: N/A
+  - criteria: Special files skipped safely
+    standards_ref: N/A
+  - criteria: Long paths handled (max 4096 chars)
+    standards_ref: N/A
+
+validation:
+  commands:
+    - cmd: find . -type l -ls
+      description: List symlinks
+    - cmd: find . -type f -path "*very/deeply/nested*"
+      description: Find deeply nested files
+
+deliverables:
+  - description: Regular file
+    path: backend/services/file.ts
+  - description: File with spaces in name
+    path: test/file with spaces.ts

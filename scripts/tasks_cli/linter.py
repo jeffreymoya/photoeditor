@@ -67,6 +67,7 @@ class TaskLinter:
             "standards/qa-commands-ssot.md",
             "standards/standards-governance-ssot.md",
             "standards/task-breakdown-canon.md",
+            "standards/task-sizing-guide.md",
         ]
 
     def lint_file(self, file_path: Path) -> List[LintViolation]:
@@ -171,6 +172,9 @@ class TaskLinter:
 
         # D. Standards anchor validation (basic)
         violations.extend(self._check_standards_anchors(data))
+
+        # E. Complexity budget validation (task granularity)
+        violations.extend(self._check_complexity_budget(data))
 
         return violations
 
@@ -436,6 +440,134 @@ class TaskLinter:
                             ))
 
         return violations
+
+    def _check_complexity_budget(self, data: Dict[str, Any]) -> List[LintViolation]:
+        """
+        Check task complexity against granularity thresholds.
+
+        Validates per standards/task-breakdown-canon.md and standards/task-sizing-guide.md:
+        - File count ≤10 (hard fail)
+        - Plan steps ≤6 (warn at threshold)
+        - Session time risk: >6 steps AND >5 files (hard fail)
+        - L-sized tasks flagged for breakdown review
+
+        Args:
+            data: Parsed YAML dict
+
+        Returns:
+            List of violations
+        """
+        violations = []
+
+        # Extract plan and deliverables
+        plan = data.get('plan', [])
+        deliverables = data.get('deliverables', {})
+        estimate = data.get('estimate', '')
+
+        # Count plan steps
+        plan_steps = len(plan) if isinstance(plan, list) else 0
+
+        # Estimate file count from deliverables
+        file_count = self._estimate_file_count(deliverables)
+
+        # Check file count threshold (hard fail at >10)
+        if file_count > 10:
+            violations.append(LintViolation(
+                level=ViolationLevel.ERROR,
+                message=f"Task exceeds file count limit: {file_count} files (max 10). MUST break down per standards/task-breakdown-canon.md",
+                field="deliverables",
+                suggestion=f"Split task into subtasks, each ≤10 files. See standards/task-sizing-guide.md for XS/S/M/L taxonomy",
+            ))
+        elif file_count > 8:
+            violations.append(LintViolation(
+                level=ViolationLevel.WARNING,
+                message=f"Task approaching file count limit: {file_count} files (warn at 8, fail at 10). Consider breakdown.",
+                field="deliverables",
+                suggestion="Review if task can be split into smaller subtasks. L-sized tasks (9-10 files) are at upper limit.",
+            ))
+
+        # Check plan step threshold (warn at >6)
+        if plan_steps > 6:
+            violations.append(LintViolation(
+                level=ViolationLevel.WARNING,
+                message=f"Task exceeds plan step limit: {plan_steps} steps (max 6). Consider breakdown.",
+                field="plan",
+                suggestion="Break complex plans into subtasks with ≤6 steps each. See standards/task-breakdown-canon.md",
+            ))
+
+        # Check session time risk: >6 steps AND >5 files (hard fail)
+        if plan_steps > 6 and file_count > 5:
+            violations.append(LintViolation(
+                level=ViolationLevel.ERROR,
+                message=f"Session time risk: {plan_steps} steps AND {file_count} files exceeds single-session budget (<45 min). MUST break down.",
+                field="plan",
+                suggestion="Split task to reduce either plan steps ≤6 OR file count ≤5. See standards/task-sizing-guide.md session time estimation.",
+            ))
+
+        # Warn if task is L-sized (should review breakdown)
+        if estimate == 'L':
+            violations.append(LintViolation(
+                level=ViolationLevel.WARNING,
+                message="Task marked as L (Large) - at upper limit. Verify breakdown is not needed.",
+                field="estimate",
+                suggestion="L-sized tasks (9-10 files, 300-500 LOC) are acceptable but should be reviewed for split opportunities.",
+            ))
+
+        # Info-level reminder if task has no estimate field
+        if not estimate and plan_steps > 0:
+            violations.append(LintViolation(
+                level=ViolationLevel.INFO,
+                message="Task missing 'estimate' field (XS/S/M/L). Recommended for tracking complexity.",
+                field="estimate",
+                suggestion="Add estimate: XS|S|M|L per standards/task-sizing-guide.md taxonomy",
+            ))
+
+        return violations
+
+    def _estimate_file_count(self, deliverables: Any) -> int:
+        """
+        Estimate file count from deliverables section.
+
+        Counts:
+        - Individual file paths in deliverables list
+        - Files listed in plan step outputs
+        - Conservative estimate if structure is unclear
+
+        Args:
+            deliverables: Deliverables section (list, dict, or string)
+
+        Returns:
+            Estimated file count (0 if cannot parse)
+        """
+        if not deliverables:
+            return 0
+
+        file_count = 0
+
+        # Handle list format: ["file1.ts", "file2.ts"]
+        if isinstance(deliverables, list):
+            file_count = len(deliverables)
+
+        # Handle dict format: {files: [...], artifacts: [...]}
+        elif isinstance(deliverables, dict):
+            files = deliverables.get('files', [])
+            if isinstance(files, list):
+                file_count += len(files)
+
+            # Also count artifacts if they're file paths
+            artifacts = deliverables.get('artifacts', [])
+            if isinstance(artifacts, list):
+                # Filter for file-like artifacts (exclude descriptions)
+                file_artifacts = [a for a in artifacts if isinstance(a, str) and '/' in a]
+                file_count += len(file_artifacts)
+
+        # Handle string format (fallback: estimate 1 file)
+        elif isinstance(deliverables, str):
+            # Count file-like patterns in string (e.g., "src/foo.ts, tests/foo.test.ts")
+            file_patterns = re.findall(r'\S+\.\w{1,4}(?:\s|,|$)', deliverables)
+            file_count = len(file_patterns) if file_patterns else 1
+
+        return file_count
 
 
 def format_violations(violations: List[LintViolation], show_suggestions: bool = True) -> str:

@@ -1,0 +1,19 @@
+id: TASK-9005
+title: Draft incomplete task
+status: draft
+priority: P2
+area: backend
+description: Minimal draft task with many empty fields
+
+scope:
+  in: []
+  out: []
+
+plan: []
+
+acceptance_criteria: []
+
+validation:
+  commands: []
+
+deliverables: []

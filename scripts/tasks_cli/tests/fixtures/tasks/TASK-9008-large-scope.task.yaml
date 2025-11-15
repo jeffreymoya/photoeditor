@@ -1,0 +1,73 @@
+id: TASK-9008
+title: Large scope task with extensive glob patterns
+status: todo
+priority: P0
+area: backend
+description: |
+  Task with large scope containing many glob patterns and extensive text.
+  This tests context normalization with large input data and glob expansion.
+
+  Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod
+  tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam,
+  quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo
+  consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse
+  cillum dolore eu fugiat nulla pariatur.
+
+scope:
+  in:
+    - Backend handlers (backend/lambdas/**/*.ts)
+    - Backend services (backend/services/**/*.ts)
+    - Backend providers (backend/providers/**/*.ts)
+    - Backend tests (backend/**/*.test.ts)
+    - Backend core library (backend/libs/core/**/*.ts)
+    - Shared contracts (shared/schemas/**/*.ts)
+    - Shared types (shared/types/**/*.ts)
+    - Shared utilities (shared/utils/**/*.ts)
+    - Mobile screens (mobile/src/screens/**/*.tsx)
+    - Mobile components (mobile/src/components/**/*.tsx)
+    - Mobile services (mobile/src/services/**/*.ts)
+    - Mobile store (mobile/src/store/**/*.ts)
+    - Configuration files (*.config.ts, *.config.js)
+    - TypeScript configs (tsconfig*.json)
+    - Package manifests (package.json, **/package.json)
+  out:
+    - Infrastructure code (infrastructure/**/*.tf)
+    - Documentation (docs/**/*.md)
+    - CI configuration (.github/workflows/*.yml)
+
+plan:
+  - Step 1: Analyze all backend handlers for complexity
+  - Step 2: Refactor services to meet coverage requirements
+  - Step 3: Update providers to use AWS client factory
+  - Step 4: Add comprehensive test suites
+  - Step 5: Update shared contracts with versioning
+  - Step 6: Update mobile UI to match new contracts
+  - Step 7: Run full QA suite
+  - Step 8: Generate evidence bundle
+
+acceptance_criteria:
+  - criteria: All handlers complexity ≤10
+    standards_ref: standards/backend-tier.md#handler-constraints
+  - criteria: All services 80% line coverage
+    standards_ref: standards/backend-tier.md#testing-requirements
+  - criteria: No AWS SDK in handlers
+    standards_ref: standards/cross-cutting.md#hard-fail-controls
+  - criteria: Zero circular dependencies
+    standards_ref: standards/cross-cutting.md#hard-fail-controls
+
+validation:
+  commands:
+    - cmd: pnpm turbo run qa:static --parallel
+      description: Static analysis all packages
+    - cmd: pnpm turbo run qa --parallel
+      description: Full QA suite
+    - cmd: pnpm turbo run test --parallel
+      description: All unit tests
+
+deliverables:
+  - description: Refactored handlers
+    path: backend/lambdas/**/*.ts
+  - description: Refactored services
+    path: backend/services/**/*.ts
+  - description: Updated contracts
+    path: shared/schemas/**/*.ts

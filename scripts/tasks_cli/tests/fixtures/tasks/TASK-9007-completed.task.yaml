@@ -1,0 +1,38 @@
+id: TASK-9007
+title: Completed task for archive testing
+status: completed
+priority: P1
+area: shared
+description: Task marked as completed to test auto-purge and archival
+
+scope:
+  in:
+    - Contract schema updates
+    - Zod validation
+  out:
+    - Backend implementation
+    - Mobile UI
+
+plan:
+  - Step 1: Define contract schema
+  - Step 2: Add Zod validation
+  - Step 3: Update shared exports
+
+acceptance_criteria:
+  - criteria: Zod schemas defined
+    standards_ref: standards/typescript.md#validation
+  - criteria: api-extractor configured
+    standards_ref: standards/shared-contracts-tier.md#tooling
+
+validation:
+  commands:
+    - cmd: pnpm turbo run typecheck --filter=@photoeditor/shared
+      description: Type check shared
+    - cmd: pnpm turbo run contracts:check --filter=@photoeditor/shared
+      description: Contract validation
+
+deliverables:
+  - description: Contract schema
+    path: shared/schemas/job.ts
+  - description: Type exports
+    path: shared/types/job.ts

@@ -1,0 +1,43 @@
+id: TASK-9009
+title: Task with binary file deliverables
+status: todo
+priority: P2
+area: mobile
+description: |
+  Task with binary files in scope to test binary file handling,
+  diff generation, and artifact compression.
+
+scope:
+  in:
+    - Mobile app icons (mobile/assets/images/*.png)
+    - Mobile splash screens (mobile/assets/splash/*.png)
+    - Mobile fonts (mobile/assets/fonts/*.ttf)
+    - Binary test fixtures (test/fixtures/*.png, *.jpg, *.pdf)
+  out:
+    - Code files
+    - Configuration
+
+plan:
+  - Step 1: Update mobile assets
+  - Step 2: Add new app icons
+  - Step 3: Update splash screen
+  - Step 4: Test binary file handling in context store
+
+acceptance_criteria:
+  - criteria: Binary files detected and skipped in diffs
+    standards_ref: N/A
+  - criteria: Binary file paths tracked in manifest
+    standards_ref: N/A
+
+validation:
+  commands:
+    - cmd: file mobile/assets/images/*.png
+      description: Verify binary files
+
+deliverables:
+  - description: App icon
+    path: mobile/assets/images/icon.png
+  - description: Splash screen
+    path: mobile/assets/splash/splash.png
+  - description: Custom font
+    path: mobile/assets/fonts/custom.ttf

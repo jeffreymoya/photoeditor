@@ -15,14 +15,25 @@ Authoritative guidance for decomposing work into independently shippable, automa
 
 ## Decision Algorithm (When to Break Down)
 1) Read the task file and draft plan.
-2) Score complexity using all signals below; if any “Too Complex” signal fires, break down:
-   - Cross-tier: touches more than one tier (shared, backend, mobile, infra) → split by tier.
-   - File fan-out: >5 files across different modules or layers.
-   - Plan size: >6 ordered steps or multiple parallel efforts.
-   - Architectural breadth: new contracts + infra + app logic in one go.
-   - Risk & unknowns: ambiguous scope, research required, external dependencies → keep originating task in `status: draft` until clarifications are recorded per `docs/proposals/task-workflow-draft-status.md`.
-   - Reviewer “DO NOT FIX”: issues that should be deferred (see section below).
-3) If no “Too Complex” signal and scope is ≤5 related files in one tier with ≤6 steps → implement directly.
+2) Score complexity using all signals below; if any "Too Complex" signal fires, break down:
+   - **Cross-tier:** touches more than one tier (shared, backend, mobile, infra) → split by tier.
+   - **File fan-out:** >5 files across different modules or layers. Hard fail at >10 files (including test files).
+   - **LOC delta:** >300 net lines changed (warn), >500 net lines (hard fail). Count implementation + test files equally.
+   - **Plan size:** >6 ordered steps or multiple parallel efforts.
+   - **Session time risk:** >6 plan steps AND >5 files indicates task unlikely to complete in single agent session (<45 min).
+   - **Architectural breadth:** new contracts + infra + app logic in one go.
+   - **Risk & unknowns:** ambiguous scope, research required, external dependencies → keep originating task in `status: draft` until clarifications are recorded per `docs/proposals/task-workflow-draft-status.md`.
+   - **Reviewer "DO NOT FIX":** issues that should be deferred (see section below).
+3) If no "Too Complex" signal and scope is ≤5 related files in one tier with ≤6 steps → implement directly.
+
+**Rationale for Quantitative Thresholds:**
+These limits reduce implementation risk concentration by ensuring tasks remain:
+- Small enough to review effectively (worktree/diff complexity)
+- Reversible without cascading impacts (rollback safety)
+- Completable in single agent sessions (context window, predictability)
+- Testable in isolation (focused validation scope)
+
+See `standards/task-sizing-guide.md` for XS/S/M/L/XL taxonomy and examples.
 
 ## How to Break Down
 1) Partition by boundary first

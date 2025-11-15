@@ -1,0 +1,39 @@
+id: TASK-9006
+title: Blocked task with dependencies
+status: blocked
+priority: P1
+area: mobile
+description: Task blocked by multiple dependencies
+
+scope:
+  in:
+    - Mobile UI updates
+    - Navigation changes
+  out:
+    - Backend changes
+
+plan:
+  - Step 1: Wait for TASK-9001 completion
+  - Step 2: Wait for TASK-9002 completion
+  - Step 3: Implement mobile changes
+  - Step 4: Update navigation
+
+acceptance_criteria:
+  - criteria: All blockers completed
+    standards_ref: N/A
+  - criteria: TypeScript strict mode
+    standards_ref: standards/typescript.md#compiler-options
+
+validation:
+  commands:
+    - cmd: pnpm turbo run typecheck --filter=photoeditor-mobile
+      description: Type check mobile
+
+deliverables:
+  - description: Mobile screen component
+    path: mobile/src/screens/Upload/UploadScreen.tsx
+
+blocked_by:
+  - TASK-9001
+  - TASK-9002
+  - TASK-9004

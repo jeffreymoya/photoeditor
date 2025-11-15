@@ -76,3 +76,4 @@ __pycache__/
 
 tasks/.cache/
 scripts/tasks_cli/__pycache__/.claude/command-audit.log
+mobile/storybook-static/

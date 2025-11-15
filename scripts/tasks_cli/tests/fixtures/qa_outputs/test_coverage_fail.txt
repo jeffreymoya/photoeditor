@@ -1,0 +1,60 @@
+@photoeditor/backend:test: $ vitest run --coverage
+
+@photoeditor/backend:test:  ✓ backend/services/__tests__/upload.test.ts (8 tests) 187ms
+@photoeditor/backend:test:  ✓ backend/services/__tests__/download.test.ts (5 tests) 134ms
+@photoeditor/backend:test:  ✗ backend/services/__tests__/notification.test.ts (4 passed, 2 failed) 245ms
+@photoeditor/backend:test:    ✗ should handle SNS publish failure
+@photoeditor/backend:test:      Expected error type 'publish_failed', received 'unknown'
+@photoeditor/backend:test:    ✗ should retry on transient errors
+@photoeditor/backend:test:      Timeout: test exceeded 5000ms
+@photoeditor/backend:test:  ✓ backend/providers/__tests__/s3-provider.test.ts (7 tests) 165ms
+@photoeditor/backend:test:  ✓ backend/lambdas/upload/__tests__/handler.test.ts (4 tests) 198ms
+@photoeditor/backend:test:
+@photoeditor/backend:test:  Test Files  1 failed | 4 passed (5)
+@photoeditor/backend:test:       Tests  2 failed | 28 passed (30)
+@photoeditor/backend:test:    Duration  1.34s
+@photoeditor/backend:test:
+@photoeditor/backend:test: ----------|---------|----------|---------|---------|-------------------
+@photoeditor/backend:test: File      | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
+@photoeditor/backend:test: ----------|---------|----------|---------|---------|-------------------
+@photoeditor/backend:test: All files |   72.45 |    65.23 |   68.92 |   72.45 |
+@photoeditor/backend:test:  services |   74.12 |    66.78 |   70.45 |   74.12 |
+@photoeditor/backend:test:   upload  |   82.34 |    75.25 |   80.00 |   82.34 | 42-45,67
+@photoeditor/backend:test:   download|   78.67 |    71.14 |   76.47 |   78.67 | 23,56-58
+@photoeditor/backend:test:   notif.  |   62.23 |    54.45 |   58.33 |   62.23 | 34,67-92,134-156
+@photoeditor/backend:test:  providers|   70.15 |    63.56 |   65.00 |   70.15 |
+@photoeditor/backend:test:   s3      |   75.45 |    68.23 |   71.25 |   75.45 | 78-81,123-134
+@photoeditor/backend:test:   sns     |   64.56 |    58.45 |   58.57 |   64.56 | 45,67-92,123-145
+@photoeditor/backend:test:  handlers |   76.92 |    70.34 |   73.33 |   76.92 |
+@photoeditor/backend:test: ----------|---------|----------|---------|---------|-------------------
+@photoeditor/backend:test:
+@photoeditor/backend:test: ✗ Coverage thresholds NOT met
+@photoeditor/backend:test: ✗ Expected: 80% lines, 70% branches
+@photoeditor/backend:test: ✗ Actual:   72.45% lines, 65.23% branches
+@photoeditor/backend:test: ✗ Missing coverage in:
+@photoeditor/backend:test:   - backend/services/notification.ts (62.23% lines, needs 80%)
+@photoeditor/backend:test:   - backend/providers/sns-provider.ts (64.56% lines, needs 80%)
+
+@photoeditor/shared:test: $ vitest run --coverage
+
+@photoeditor/shared:test:  ✓ shared/schemas/__tests__/job.test.ts (8 tests) 124ms
+@photoeditor/shared:test:  ✓ shared/utils/__tests__/validation.test.ts (12 tests) 89ms
+@photoeditor/shared:test:
+@photoeditor/shared:test:  Test Files  2 passed (2)
+@photoeditor/shared:test:       Tests  20 passed (20)
+@photoeditor/shared:test:    Duration  456ms
+@photoeditor/shared:test:
+@photoeditor/shared:test: ----------|---------|----------|---------|---------|-------------------
+@photoeditor/shared:test: File      | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
+@photoeditor/shared:test: ----------|---------|----------|---------|---------|-------------------
+@photoeditor/shared:test: All files |   92.45 |    88.76 |   94.12 |   92.45 |
+@photoeditor/shared:test: ----------|---------|----------|---------|---------|-------------------
+@photoeditor/shared:test:
+@photoeditor/shared:test: ✓ Coverage thresholds met
+
+ Tasks:    1 successful, 2 total
+ Tasks:    1 failed, 2 total
+Cached:    0 cached, 2 total
+  Time:    2.9s
+
+ERROR: command finished with error: command (pnpm turbo run test --parallel --coverage) exited (1)

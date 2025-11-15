@@ -1,0 +1,40 @@
+id: TASK-9003
+title: Unicode edge case testing 🧪 with émojis and spëcial chars
+status: todo
+priority: P1
+area: mobile
+description: |
+  Test unicode handling in task parsing and context storage.
+  Includes: émojis 🎨📸✨, accented characters (café, naïve),
+  CJK characters (日本語, 中文, 한국어), and special symbols (™®©).
+
+scope:
+  in:
+    - Unicode validation in file paths: "backend/services/upload_café.ts"
+    - Emoji support in descriptions and titles
+    - Multi-byte character handling: 日本語のテスト
+    - Special symbols: ™®©€£¥
+  out:
+    - ASCII-only enforcement
+    - Character encoding conversion
+
+plan:
+  - Step 1: Parse unicode task file ✅
+  - Step 2: Store context with UTF-8 encoding 📝
+  - Step 3: Verify no mojibake (文字化け) occurs
+  - Step 4: Test emoji in commit messages 🚀
+
+acceptance_criteria:
+  - criteria: UTF-8 encoding preserved throughout lifecycle
+    standards_ref: N/A
+  - criteria: No character corruption in serialization
+    standards_ref: N/A
+
+validation:
+  commands:
+    - cmd: 'echo "Testing unicode: café ☕"'
+      description: Unicode validation test
+
+deliverables:
+  - description: Unicode test file with émojis 🎨
+    path: test/unicode_café_日本語.txt

@@ -1,0 +1,75 @@
+id: TASK-9004
+title: Standards-heavy task with extensive citations
+status: todo
+priority: P0
+area: backend
+description: |
+  Task with many standards citations to test citation extraction,
+  SHA validation, and manifest generation.
+
+scope:
+  in:
+    - All backend layers (handlers, services, providers)
+    - TypeScript strict mode compliance
+    - Contract versioning
+    - Cross-cutting concerns
+  out:
+    - Mobile changes
+    - Infrastructure updates
+
+plan:
+  - Step 1: Implement handler with strict layering
+  - Step 2: Add service with coverage requirements
+  - Step 3: Create provider adapter
+  - Step 4: Update contracts with versioning
+
+acceptance_criteria:
+  - criteria: Handler complexity ≤10
+    standards_ref: standards/backend-tier.md#handler-constraints:L15-L20
+  - criteria: Handler LOC ≤75
+    standards_ref: standards/backend-tier.md#handler-constraints:L21-L25
+  - criteria: No AWS SDK in handlers
+    standards_ref: standards/cross-cutting.md#hard-fail-controls:L45-L60
+  - criteria: No circular dependencies
+    standards_ref: standards/cross-cutting.md#hard-fail-controls:L61-L70
+  - criteria: Services 80% line coverage
+    standards_ref: standards/backend-tier.md#testing-requirements:L120-L135
+  - criteria: Services 70% branch coverage
+    standards_ref: standards/backend-tier.md#testing-requirements:L136-L145
+  - criteria: TypeScript strict mode
+    standards_ref: standards/typescript.md#compiler-options:L10-L25
+  - criteria: Zod at boundaries
+    standards_ref: standards/typescript.md#validation:L50-L65
+  - criteria: neverthrow Results for errors
+    standards_ref: standards/typescript.md#error-handling:L80-L100
+  - criteria: Discriminated unions
+    standards_ref: standards/typescript.md#type-patterns:L120-L140
+  - criteria: Contract versioning /v{n}
+    standards_ref: standards/shared-contracts-tier.md#versioning:L30-L50
+  - criteria: Breaking changes require new version
+    standards_ref: standards/shared-contracts-tier.md#versioning:L51-L70
+  - criteria: api-extractor for shared exports
+    standards_ref: standards/shared-contracts-tier.md#tooling:L90-L110
+  - criteria: Evidence bundle required
+    standards_ref: standards/global.md#release-requirements:L20-L40
+
+validation:
+  commands:
+    - cmd: pnpm turbo run typecheck --filter=@photoeditor/backend
+      description: Type check
+    - cmd: pnpm turbo run lint --filter=@photoeditor/backend
+      description: Lint
+    - cmd: pnpm turbo run test --filter=@photoeditor/backend --coverage
+      description: Unit tests with coverage
+    - cmd: pnpm turbo run qa:static --filter=@photoeditor/backend
+      description: Static analysis
+
+deliverables:
+  - description: Handler implementation
+    path: backend/lambdas/process/handler.ts
+  - description: Service implementation
+    path: backend/services/process.ts
+  - description: Provider implementation
+    path: backend/providers/s3-provider.ts
+  - description: Contract schema
+    path: shared/schemas/process.ts

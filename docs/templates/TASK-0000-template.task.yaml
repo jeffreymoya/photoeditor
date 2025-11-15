@@ -3,6 +3,11 @@
 # Delete comment lines you have satisfied, but keep all YAML keys so automation stays stable.
 # If the effort feels wider than one independently shippable change, stop and split it into
 # multiple task files before continuing.
+#
+# IMPORTANT: Validate task granularity per standards/task-sizing-guide.md before proceeding:
+# - File count ≤10 (hard limit), warn at >8 files
+# - Plan steps ≤6 (warn), hard fail if >6 steps AND >5 files (session time risk)
+# - See complexity_budget section below for automated validation
 
 schema_version: "1.1"  # Schema 1.1 requires validation section and non-empty plan outputs
 id: TASK-0000                    # REPLACE: stable ID (e.g., TASK-0123)
@@ -12,10 +17,19 @@ blocked_reason: null             # REQUIRED when status=blocked; explain the ext
 priority: P1                     # P0 | P1 | P2
 area: backend                    # backend | mobile | shared | infra | docs | ops | other
 unblocker: false                 # true if this task unblocks other work (task picker prioritizes it; Python CLI rollout in docs/proposals/task-workflow-python-refactor.md)
+estimate: M                      # XS | S | M | L — task size per standards/task-sizing-guide.md (XS: 1-2 files/<50 LOC, S: 3-5 files/<150 LOC, M: 6-8 files/<300 LOC, L: 9-10 files/<500 LOC)
 order: null                      # Optional: execution order for orchestration
 blocked_by: []                   # Hard execution blockers (task cannot START until these complete)
 depends_on: []                   # Informational dependencies (outputs needed but not blocking execution); if the dependency is draft, add it to blocked_by instead
 agent_completion_state: {}       # Optional: managed by task-runner; tracks completed agents for resumption (do not edit manually)
+
+# Complexity budget: estimated file count and plan complexity for granularity validation
+# Validated by: python scripts/validate-task-yaml.py <task-file>
+# Thresholds: ≤10 files (hard fail), ≤6 steps (warn), >6 steps AND >5 files = session time risk (hard fail)
+# See: standards/task-breakdown-canon.md, standards/task-sizing-guide.md
+complexity_budget:
+  estimated_file_count: 0        # Count deliverables (implementation + tests); update before transitioning to todo
+  plan_steps_count: 0            # Count plan array length; linter auto-validates this
 
 clarifications:
   outstanding:

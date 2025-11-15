@@ -1,0 +1,51 @@
+@photoeditor/backend:test: $ vitest run --coverage
+
+@photoeditor/backend:test:  ✓ backend/services/__tests__/upload.test.ts (12 tests) 245ms
+@photoeditor/backend:test:  ✓ backend/services/__tests__/download.test.ts (8 tests) 178ms
+@photoeditor/backend:test:  ✓ backend/services/__tests__/notification.test.ts (15 tests) 312ms
+@photoeditor/backend:test:  ✓ backend/providers/__tests__/s3-provider.test.ts (10 tests) 198ms
+@photoeditor/backend:test:  ✓ backend/providers/__tests__/sns-provider.test.ts (7 tests) 156ms
+@photoeditor/backend:test:  ✓ backend/lambdas/upload/__tests__/handler.test.ts (6 tests) 289ms
+@photoeditor/backend:test:  ✓ backend/lambdas/download/__tests__/handler.test.ts (5 tests) 234ms
+@photoeditor/backend:test:
+@photoeditor/backend:test:  Test Files  7 passed (7)
+@photoeditor/backend:test:       Tests  63 passed (63)
+@photoeditor/backend:test:    Start at  10:23:45
+@photoeditor/backend:test:    Duration  1.89s (transform 234ms, setup 0ms, collect 567ms, tests 1.61s)
+@photoeditor/backend:test:
+@photoeditor/backend:test: ----------|---------|----------|---------|---------|-------------------
+@photoeditor/backend:test: File      | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
+@photoeditor/backend:test: ----------|---------|----------|---------|---------|-------------------
+@photoeditor/backend:test: All files |   84.23 |    76.84 |   82.56 |   84.23 |
+@photoeditor/backend:test:  services |   86.45 |    78.92 |   84.21 |   86.45 |
+@photoeditor/backend:test:   upload  |   88.34 |    81.25 |   87.50 |   88.34 | 42-45,67
+@photoeditor/backend:test:   download|   85.67 |    77.14 |   82.35 |   85.67 | 23,56-58
+@photoeditor/backend:test:   notif.  |   85.23 |    78.45 |   83.33 |   85.23 | 34,89-92
+@photoeditor/backend:test:  providers|   82.15 |    74.56 |   80.00 |   82.15 |
+@photoeditor/backend:test:   s3      |   83.45 |    75.23 |   81.25 |   83.45 | 78-81,123
+@photoeditor/backend:test:   sns     |   80.56 |    73.45 |   78.57 |   80.56 | 45,67-70
+@photoeditor/backend:test:  handlers |   78.92 |    72.34 |   75.00 |   78.92 |
+@photoeditor/backend:test: ----------|---------|----------|---------|---------|-------------------
+@photoeditor/backend:test:
+@photoeditor/backend:test: ✓ Coverage thresholds met (80% lines, 70% branches)
+
+@photoeditor/shared:test: $ vitest run --coverage
+
+@photoeditor/shared:test:  ✓ shared/schemas/__tests__/job.test.ts (8 tests) 124ms
+@photoeditor/shared:test:  ✓ shared/utils/__tests__/validation.test.ts (12 tests) 89ms
+@photoeditor/shared:test:
+@photoeditor/shared:test:  Test Files  2 passed (2)
+@photoeditor/shared:test:       Tests  20 passed (20)
+@photoeditor/shared:test:    Duration  456ms
+@photoeditor/shared:test:
+@photoeditor/shared:test: ----------|---------|----------|---------|---------|-------------------
+@photoeditor/shared:test: File      | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
+@photoeditor/shared:test: ----------|---------|----------|---------|---------|-------------------
+@photoeditor/shared:test: All files |   92.45 |    88.76 |   94.12 |   92.45 |
+@photoeditor/shared:test: ----------|---------|----------|---------|---------|-------------------
+@photoeditor/shared:test:
+@photoeditor/shared:test: ✓ Coverage thresholds met
+
+ Tasks:    2 successful, 2 total
+Cached:    0 cached, 2 total
+  Time:    3.2s

@@ -1,0 +1,60 @@
+id: TASK-9002
+title: Complex multi-tier refactoring
+status: in_progress
+priority: P0
+area: backend
+unblocker: true
+description: |
+  Comprehensive refactoring spanning backend, mobile, and shared layers.
+  Tests multi-tier scope and standards citation extraction.
+
+scope:
+  in:
+    - Backend handler refactoring (backend/lambdas/upload/)
+    - Mobile upload screen updates (mobile/src/screens/Upload/)
+    - Shared contract updates (shared/schemas/upload/)
+    - Service layer improvements (backend/services/)
+  out:
+    - Infrastructure changes
+    - Database migrations
+    - Terraform updates
+
+plan:
+  - Step 1: Refactor backend handler to use provider pattern
+  - Step 2: Update mobile UI to match new contract
+  - Step 3: Add unit tests for service layer
+  - Step 4: Update shared contracts with versioning
+
+acceptance_criteria:
+  - criteria: Handler complexity ≤10
+    standards_ref: standards/backend-tier.md#handler-constraints
+  - criteria: No AWS SDK imports in handlers
+    standards_ref: standards/cross-cutting.md#hard-fail-controls:L45-L60
+  - criteria: Contract versioning follows /v{n} pattern
+    standards_ref: standards/shared-contracts-tier.md#versioning
+  - criteria: 80% line coverage for services
+    standards_ref: standards/backend-tier.md#testing-requirements:L120-L135
+  - criteria: TypeScript strict mode enabled
+    standards_ref: standards/typescript.md#compiler-options
+
+validation:
+  commands:
+    - cmd: pnpm turbo run typecheck --filter=@photoeditor/backend
+      description: Type check backend
+    - cmd: pnpm turbo run lint --filter=@photoeditor/backend
+      description: Lint backend
+    - cmd: pnpm turbo run test --filter=@photoeditor/backend
+      description: Run backend unit tests
+
+deliverables:
+  - description: Refactored upload handler
+    path: backend/lambdas/upload/handler.ts
+  - description: Updated upload service
+    path: backend/services/upload.ts
+  - description: Mobile upload screen
+    path: mobile/src/screens/Upload/UploadScreen.tsx
+  - description: Upload contract schema
+    path: shared/schemas/upload.ts
+
+blocked_by:
+  - TASK-9001

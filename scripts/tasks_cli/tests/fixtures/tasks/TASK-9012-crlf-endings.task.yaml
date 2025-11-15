@@ -1,0 +1,29 @@
+id: TASK-9012
+title: Task with CRLF line endings
+status: todo
+priority: P2
+area: backend
+description: Task file with Windows CRLF line endings to test normalization
+
+scope:
+  in:
+    - Test CRLF handling
+  out:
+    - LF conversion
+
+plan:
+  - Step 1: Parse file with CRLF
+  - Step 2: Normalize to LF
+
+acceptance_criteria:
+  - criteria: Line endings normalized
+    standards_ref: N/A
+
+validation:
+  commands:
+    - cmd: echo "test"
+      description: Basic validation
+
+deliverables:
+  - description: Test output
+    path: test/crlf.txt

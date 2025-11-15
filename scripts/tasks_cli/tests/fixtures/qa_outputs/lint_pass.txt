@@ -1,0 +1,24 @@
+@photoeditor/backend:lint: $ eslint . --ext .ts,.tsx --max-warnings=0
+
+@photoeditor/backend:lint: ✓ Lint passed
+@photoeditor/backend:lint: Files checked: 127
+@photoeditor/backend:lint: 0 errors, 0 warnings
+@photoeditor/backend:lint: Time: 4.56s
+
+@photoeditor/shared:lint: $ eslint . --ext .ts,.tsx --max-warnings=0
+
+@photoeditor/shared:lint: ✓ Lint passed
+@photoeditor/shared:lint: Files checked: 34
+@photoeditor/shared:lint: 0 errors, 0 warnings
+@photoeditor/shared:lint: Time: 1.89s
+
+photoeditor-mobile:lint: $ eslint . --ext .ts,.tsx --max-warnings=0
+
+photoeditor-mobile:lint: ✓ Lint passed
+photoeditor-mobile:lint: Files checked: 89
+photoeditor-mobile:lint: 0 errors, 0 warnings
+photoeditor-mobile:lint: Time: 3.21s
+
+ Tasks:    3 successful, 3 total
+Cached:    0 cached, 3 total
+  Time:    11.2s

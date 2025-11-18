@@ -201,6 +201,50 @@ class StandardsCitation:
 
 
 @dataclass(frozen=True)
+class StandardsExcerpt:
+    """
+    Standards excerpt extracted from markdown file.
+
+    Per Section 7 of task-context-cache-hardening-schemas.md.
+    """
+    file: str                           # e.g., "standards/backend-tier.md"
+    section: str                        # e.g., "Handler Constraints"
+    requirement: str                    # First sentence summary (≤140 chars)
+    line_span: Tuple[int, int]         # (start_line, end_line) for content body
+    content_sha256: str                 # Full SHA256 hash of excerpt content
+    excerpt_id: str                     # 8-char SHA256 prefix
+    cached_path: Optional[str] = None   # Relative path to cached excerpt file
+    extracted_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+
+    def to_dict(self) -> dict:
+        """Convert to JSON-serializable dict."""
+        return {
+            'file': self.file,
+            'section': self.section,
+            'requirement': self.requirement,
+            'line_span': list(self.line_span),
+            'content_sha256': self.content_sha256,
+            'excerpt_id': self.excerpt_id,
+            'cached_path': self.cached_path,
+            'extracted_at': self.extracted_at,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> 'StandardsExcerpt':
+        """Deserialize from dict."""
+        return cls(
+            file=data['file'],
+            section=data['section'],
+            requirement=data['requirement'],
+            line_span=tuple(data['line_span']),
+            content_sha256=data['content_sha256'],
+            excerpt_id=data['excerpt_id'],
+            cached_path=data.get('cached_path'),
+            extracted_at=data.get('extracted_at', datetime.now(timezone.utc).isoformat()),
+        )
+
+
+@dataclass(frozen=True)
 class QACoverageSummary:
     """Coverage metrics from test execution."""
     lines: Optional[float] = None
@@ -2282,3 +2326,344 @@ class TaskContextStore:
             EvidenceAttachment.from_dict(e)
             for e in index.get("evidence", [])
         ]
+
+    # ========================================================================
+    # Standards Excerpt Methods (Section 7: Standards Excerpt Hashing)
+    # ========================================================================
+
+    def _find_section_boundaries(self, content: str, heading: str) -> Optional[Tuple[int, int]]:
+        """
+        Find section boundaries in markdown content.
+
+        Implements Section 7.1 of task-context-cache-hardening-schemas.md.
+
+        Args:
+            content: Full markdown file content
+            heading: Section heading to find (e.g., "Handler Constraints")
+
+        Returns:
+            Tuple of (start_line, end_line) for section content (excluding heading),
+            or None if section not found.
+
+        Algorithm:
+            1. Find heading line matching the normalized heading text
+            2. Section starts at heading line + 1 (exclude heading itself)
+            3. Section ends at next same-level or higher-level heading (exclusive)
+            4. If no subsequent heading, section extends to EOF
+        """
+        lines = content.split('\n')
+
+        section_start = None
+        section_end = None
+        current_level = None
+
+        # Normalize heading for comparison
+        normalized_target = heading.lower().replace(' ', '-').replace('&', 'and')
+
+        for i, line in enumerate(lines):
+            # Match markdown headings (# through ######)
+            heading_match = re.match(r'^(#{1,6})\s+(.+)$', line)
+            if not heading_match:
+                continue
+
+            level = len(heading_match.group(1))
+            heading_text = heading_match.group(2).strip()
+
+            # Normalize current heading
+            normalized_current = heading_text.lower().replace(' ', '-').replace('&', 'and')
+
+            if normalized_current == normalized_target and section_start is None:
+                # Found target heading
+                section_start = i + 1  # Start after heading line
+                current_level = level
+            elif section_start is not None and level <= current_level:
+                # Found next heading at same or higher level
+                section_end = i
+                break
+
+        if section_start is None:
+            return None
+
+        if section_end is None:
+            section_end = len(lines)
+
+        return (section_start, section_end)
+
+    def _compute_excerpt_hash(self, content: str) -> str:
+        """
+        Compute deterministic SHA256 hash of excerpt content.
+
+        Implements Section 7.1 of task-context-cache-hardening-schemas.md.
+
+        Args:
+            content: Excerpt content to hash
+
+        Returns:
+            SHA256 hex digest (64 chars)
+
+        Algorithm:
+            1. Strip trailing whitespace from each line
+            2. Collapse multiple consecutive blank lines to single blank line
+            3. Compute SHA256 of UTF-8 encoded result
+        """
+        lines = content.split('\n')
+
+        # Strip trailing whitespace from each line
+        lines = [line.rstrip() for line in lines]
+
+        # Collapse multiple blank lines to single blank line
+        normalized_lines = []
+        prev_blank = False
+        for line in lines:
+            is_blank = len(line.strip()) == 0
+            if is_blank and prev_blank:
+                continue  # Skip consecutive blank lines
+            normalized_lines.append(line)
+            prev_blank = is_blank
+
+        # Join and ensure trailing newline
+        normalized = '\n'.join(normalized_lines)
+        if normalized and not normalized.endswith('\n'):
+            normalized += '\n'
+
+        # Compute SHA256
+        return hashlib.sha256(normalized.encode('utf-8')).hexdigest()
+
+    def _cache_excerpt(self, task_id: str, excerpt: StandardsExcerpt, content: str) -> Path:
+        """
+        Cache excerpt to evidence/standards/ directory.
+
+        Args:
+            task_id: Task identifier
+            excerpt: StandardsExcerpt metadata
+            content: Excerpt content to cache
+
+        Returns:
+            Path to cached excerpt file
+        """
+        # Create standards evidence directory
+        standards_dir = self._get_evidence_dir(task_id) / 'standards'
+        standards_dir.mkdir(parents=True, exist_ok=True)
+
+        # Create excerpt filename
+        excerpt_filename = f'{excerpt.excerpt_id}.md'
+        excerpt_path = standards_dir / excerpt_filename
+
+        # Write excerpt content
+        excerpt_path.write_text(content, encoding='utf-8')
+
+        # Update index
+        index_path = standards_dir / 'index.json'
+        if index_path.exists():
+            with open(index_path, 'r', encoding='utf-8') as f:
+                index = json.load(f)
+        else:
+            index = {'excerpts': []}
+
+        # Add or update excerpt in index
+        excerpt_dict = excerpt.to_dict()
+        excerpt_dict['cached_path'] = str(excerpt_path.relative_to(self.repo_root))
+
+        existing_idx = next(
+            (i for i, e in enumerate(index['excerpts']) if e['excerpt_id'] == excerpt.excerpt_id),
+            None
+        )
+        if existing_idx is not None:
+            index['excerpts'][existing_idx] = excerpt_dict
+        else:
+            index['excerpts'].append(excerpt_dict)
+
+        # Write index atomically
+        index_content = json.dumps(index, indent=2, sort_keys=True, ensure_ascii=False)
+        index_content += '\n'
+        self._atomic_write(index_path, index_content)
+
+        return excerpt_path
+
+    def extract_standards_excerpt(self, task_id: str, standards_file: str, section_heading: str) -> StandardsExcerpt:
+        """
+        Extract standards section with deterministic hashing.
+
+        Implements Section 7.1 of task-context-cache-hardening-schemas.md.
+
+        Args:
+            task_id: Task identifier (for caching)
+            standards_file: Path to standards file relative to repo root (e.g., "standards/backend-tier.md")
+            section_heading: Section heading text (e.g., "Handler Constraints")
+
+        Returns:
+            StandardsExcerpt with metadata and cached path
+
+        Raises:
+            FileNotFoundError: If standards file doesn't exist
+            ValueError: If section not found in file
+        """
+        file_path = self.repo_root / standards_file
+        if not file_path.exists():
+            raise FileNotFoundError(f"Standards file not found: {file_path}")
+
+        content = file_path.read_text(encoding='utf-8')
+
+        # Find section boundaries
+        boundaries = self._find_section_boundaries(content, section_heading)
+        if boundaries is None:
+            raise ValueError(f"Section '{section_heading}' not found in {standards_file}")
+
+        section_start, section_end = boundaries
+
+        # Extract section content (excluding heading)
+        lines = content.split('\n')
+        section_lines = lines[section_start:section_end]
+
+        # Track actual content boundaries (after trimming blank lines)
+        content_start = section_start
+        content_end = section_end
+
+        # Remove blank lines at start
+        while section_lines and not section_lines[0].strip():
+            section_lines.pop(0)
+            content_start += 1
+
+        # Remove blank lines at end
+        while section_lines and not section_lines[-1].strip():
+            section_lines.pop()
+            content_end -= 1
+
+        # Join section content
+        excerpt_content = '\n'.join(section_lines)
+        if excerpt_content and not excerpt_content.endswith('\n'):
+            excerpt_content += '\n'
+
+        # Compute deterministic hash
+        content_sha256 = self._compute_excerpt_hash(excerpt_content)
+        excerpt_id = content_sha256[:8]
+
+        # Extract first sentence as requirement summary
+        if excerpt_content:
+            first_paragraph = excerpt_content.split('\n\n')[0]
+            sentences = first_paragraph.split('. ')
+            first_sentence = (sentences[0] + '.') if sentences else ''
+            requirement = first_sentence[:140]  # Truncate to 140 chars
+        else:
+            requirement = ''
+
+        # Create excerpt object
+        excerpt = StandardsExcerpt(
+            file=standards_file,
+            section=section_heading,
+            requirement=requirement,
+            line_span=(content_start, content_end),
+            content_sha256=content_sha256,
+            excerpt_id=excerpt_id,
+        )
+
+        # Cache excerpt
+        cached_path = self._cache_excerpt(task_id, excerpt, excerpt_content)
+
+        # Return excerpt with cached path
+        return StandardsExcerpt(
+            file=excerpt.file,
+            section=excerpt.section,
+            requirement=excerpt.requirement,
+            line_span=excerpt.line_span,
+            content_sha256=excerpt.content_sha256,
+            excerpt_id=excerpt.excerpt_id,
+            cached_path=str(cached_path.relative_to(self.repo_root)),
+            extracted_at=excerpt.extracted_at,
+        )
+
+    def verify_excerpt_freshness(self, excerpt: StandardsExcerpt) -> bool:
+        """
+        Verify cached excerpt matches current standards file.
+
+        Implements Section 7.3 of task-context-cache-hardening-schemas.md.
+
+        Args:
+            excerpt: StandardsExcerpt to verify
+
+        Returns:
+            True if excerpt is fresh (SHA matches current file), False if stale
+        """
+        try:
+            # Re-extract current excerpt (using a dummy task ID since we're just checking hash)
+            current_file = self.repo_root / excerpt.file
+            if not current_file.exists():
+                return False
+
+            content = current_file.read_text(encoding='utf-8')
+            boundaries = self._find_section_boundaries(content, excerpt.section)
+
+            if boundaries is None:
+                return False
+
+            section_start, section_end = boundaries
+            lines = content.split('\n')
+            section_lines = lines[section_start:section_end]
+
+            # Remove blank lines
+            while section_lines and not section_lines[0].strip():
+                section_lines.pop(0)
+            while section_lines and not section_lines[-1].strip():
+                section_lines.pop()
+
+            # Compute current hash
+            excerpt_content = '\n'.join(section_lines)
+            if excerpt_content and not excerpt_content.endswith('\n'):
+                excerpt_content += '\n'
+
+            current_sha256 = self._compute_excerpt_hash(excerpt_content)
+
+            # Compare with cached hash
+            return current_sha256 == excerpt.content_sha256
+
+        except (FileNotFoundError, ValueError, KeyError):
+            # If file missing or section not found, excerpt is stale
+            return False
+
+    def invalidate_stale_excerpts(self, task_id: str) -> List[str]:
+        """
+        Check all excerpts for staleness and remove stale ones.
+
+        Implements Section 7.3 of task-context-cache-hardening-schemas.md.
+
+        Args:
+            task_id: Task identifier
+
+        Returns:
+            List of invalidated excerpt IDs
+        """
+        standards_dir = self._get_evidence_dir(task_id) / 'standards'
+        index_path = standards_dir / 'index.json'
+
+        if not index_path.exists():
+            return []
+
+        with open(index_path, 'r', encoding='utf-8') as f:
+            index = json.load(f)
+
+        stale_ids = []
+
+        for excerpt_dict in index.get('excerpts', []):
+            excerpt = StandardsExcerpt.from_dict(excerpt_dict)
+
+            if not self.verify_excerpt_freshness(excerpt):
+                stale_ids.append(excerpt.excerpt_id)
+
+                # Remove cached excerpt file
+                if excerpt.cached_path:
+                    excerpt_path = self.repo_root / excerpt.cached_path
+                    if excerpt_path.exists():
+                        excerpt_path.unlink()
+
+        # Update index to remove stale entries
+        index['excerpts'] = [
+            e for e in index.get('excerpts', [])
+            if e['excerpt_id'] not in stale_ids
+        ]
+
+        # Write updated index atomically
+        index_content = json.dumps(index, indent=2, sort_keys=True, ensure_ascii=False)
+        index_content += '\n'
+        self._atomic_write(index_path, index_content)
+
+        return stale_ids

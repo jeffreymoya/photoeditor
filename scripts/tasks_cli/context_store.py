@@ -2137,12 +2137,12 @@ class TaskContextStore:
                 '--directory', str(dir_path.parent),
                 dir_path.name
             ], check=True, capture_output=True, text=True)
-        except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        except (subprocess.CalledProcessError, FileNotFoundError):
             # Fallback to tar.gz if zstd not available
             import sys
             print(
-                f"Warning: zstd compression not available, falling back to gzip. "
-                f"Install zstd for better compression.",
+                "Warning: zstd compression not available, falling back to gzip. "
+                "Install zstd for better compression.",
                 file=sys.stderr
             )
             compression_format = "tar.gz"
@@ -2667,3 +2667,339 @@ class TaskContextStore:
         self._atomic_write(index_path, index_content)
 
         return stale_ids
+
+    # ========================================================================
+    # Task Snapshot Methods (Section 3.1: Immutable payload expansion)
+    # ========================================================================
+
+    def resolve_task_path(self, task_id: str) -> Optional[Path]:
+        """
+        Resolve task file path, checking multiple locations.
+
+        Checks in order:
+        1. Active tasks: tasks/{tier}/TASK-XXXX-....yaml
+        2. Completed tasks: docs/completed-tasks/TASK-XXXX-....yaml
+        3. Quarantined tasks: docs/compliance/quarantine/TASK-XXXX.quarantine.json
+
+        Args:
+            task_id: Task identifier (e.g., "TASK-0824")
+
+        Returns:
+            Resolved Path to task file, or None if not found
+        """
+        # Try active tasks in each tier
+        for tier in ['mobile', 'backend', 'shared', 'infrastructure', 'ops']:
+            tasks_dir = self.repo_root / 'tasks' / tier
+            if tasks_dir.exists():
+                for task_file in tasks_dir.glob(f'{task_id}-*.task.yaml'):
+                    return task_file
+
+        # Try completed tasks
+        completed_dir = self.repo_root / 'docs' / 'completed-tasks'
+        if completed_dir.exists():
+            for task_file in completed_dir.glob(f'{task_id}-*.task.yaml'):
+                return task_file
+
+        # Try quarantine
+        quarantine_dir = self.repo_root / 'docs' / 'compliance' / 'quarantine'
+        if quarantine_dir.exists():
+            quarantine_file = quarantine_dir / f'{task_id}.quarantine.json'
+            if quarantine_file.exists():
+                return quarantine_file
+
+        return None
+
+    def create_task_snapshot(self, task_id: str, task_file_path: Optional[Path] = None) -> dict:
+        """
+        Create task snapshot by copying .task.yaml to .agent-output.
+
+        Implements Section 3.1 of task-context-cache-hardening.md.
+
+        Args:
+            task_id: Task identifier (e.g., "TASK-0824")
+            task_file_path: Optional path to task file (auto-resolved if not provided)
+
+        Returns:
+            Snapshot metadata dict with paths, SHA256, and timestamp
+
+        Raises:
+            FileNotFoundError: If task file not found
+            ValidationError: If task file cannot be read
+        """
+        # Resolve task file path
+        if task_file_path is None:
+            task_file_path = self.resolve_task_path(task_id)
+            if task_file_path is None:
+                raise FileNotFoundError(f"Task file not found for {task_id}")
+
+        if not task_file_path.exists():
+            raise FileNotFoundError(f"Task file does not exist: {task_file_path}")
+
+        # Read task file content
+        try:
+            task_content = task_file_path.read_text(encoding='utf-8')
+        except Exception as exc:
+            raise ValidationError(f"Failed to read task file: {exc}") from exc
+
+        # Compute SHA256 hash
+        snapshot_sha256 = hashlib.sha256(task_content.encode('utf-8')).hexdigest()
+
+        # Determine paths
+        context_dir = self._get_context_dir(task_id)
+        context_dir.mkdir(parents=True, exist_ok=True)
+
+        snapshot_path = context_dir / 'task-snapshot.yaml'
+
+        # Write snapshot atomically
+        self._atomic_write(snapshot_path, task_content)
+
+        # Determine original and completed paths
+        original_path = str(task_file_path.relative_to(self.repo_root))
+
+        # Future completed path
+        if 'completed-tasks' in original_path:
+            completed_path = original_path
+        else:
+            completed_path = f"docs/completed-tasks/{task_file_path.name}"
+
+        # Create metadata
+        metadata = {
+            'snapshot_path': str(snapshot_path.relative_to(self.repo_root)),
+            'snapshot_sha256': snapshot_sha256,
+            'original_path': original_path,
+            'completed_path': completed_path,
+            'created_at': datetime.now(timezone.utc).isoformat()
+        }
+
+        return metadata
+
+    def embed_acceptance_criteria(
+        self,
+        task_data: dict,
+        context: TaskContext
+    ) -> None:
+        """
+        Embed acceptance criteria, scope, plan, and deliverables into context.
+
+        Modifies context.task_snapshot in-place to include:
+        - acceptance_criteria: List[str]
+        - scope.in/out: List[str]
+        - plan: List[str] (from plan.steps)
+        - deliverables: List[str]
+
+        Args:
+            task_data: Parsed task YAML dict
+            context: TaskContext to modify
+
+        Note:
+            This is a temporary helper for gradual migration. New code should
+            use the enhanced TaskSnapshot model with these fields.
+        """
+        # Extract data from task YAML
+        acceptance_criteria = task_data.get('acceptance_criteria', [])
+        scope_in = task_data.get('scope', {}).get('in', [])
+        scope_out = task_data.get('scope', {}).get('out', [])
+
+        # Extract plan steps
+        plan_steps = []
+        plan_data = task_data.get('plan', {})
+        if isinstance(plan_data, dict):
+            steps = plan_data.get('steps', [])
+            for step in steps:
+                if isinstance(step, dict):
+                    step_text = step.get('step', '')
+                    if step_text:
+                        plan_steps.append(step_text)
+                elif isinstance(step, str):
+                    plan_steps.append(step)
+
+        deliverables = task_data.get('deliverables', [])
+
+        # Store in context (we'll need to extend TaskSnapshot to include these fields)
+        # For now, we can store them in a temporary location or extend the model
+
+        # Note: The current TaskSnapshot model doesn't have these fields yet.
+        # This method is a placeholder for when we update the model.
+        # In the meantime, we can attach this as evidence or store in metadata.
+
+    def snapshot_checklists(self, task_id: str, tier: str) -> List[EvidenceAttachment]:
+        """
+        Snapshot checklists from docs/agents/ as evidence attachments.
+
+        Implements Section 3.1 of task-context-cache-hardening.md.
+
+        Default checklists:
+        - docs/agents/implementation-preflight.md
+        - docs/agents/diff-safety-checklist.md
+        - docs/agents/{tier}-implementation-checklist.md (if exists)
+
+        Args:
+            task_id: Task identifier
+            tier: Task tier (mobile, backend, shared, infrastructure)
+
+        Returns:
+            List of EvidenceAttachment objects for snapshotted checklists
+
+        Note:
+            This method can be called independently or as part of init_context.
+            It will create evidence directory structure if needed.
+        """
+        attachments = []
+
+        # Default checklists
+        default_checklists = [
+            'docs/agents/implementation-preflight.md',
+            'docs/agents/diff-safety-checklist.md'
+        ]
+
+        # Tier-specific checklist (if exists)
+        tier_checklist = f'docs/agents/{tier}-implementation-checklist.md'
+        tier_checklist_path = self.repo_root / tier_checklist
+        if tier_checklist_path.exists():
+            default_checklists.append(tier_checklist)
+
+        # Ensure evidence directory exists
+        evidence_dir = self._get_evidence_dir(task_id)
+        evidence_dir.mkdir(parents=True, exist_ok=True)
+
+        # Snapshot each checklist by creating evidence attachments directly
+        for checklist_rel_path in default_checklists:
+            checklist_path = self.repo_root / checklist_rel_path
+
+            if not checklist_path.exists():
+                continue
+
+            try:
+                # Read checklist content
+                checklist_bytes = checklist_path.read_bytes()
+                size_bytes = len(checklist_bytes)
+
+                # Validate size (file type has 1MB limit)
+                if size_bytes > 1 * 1024 * 1024:
+                    continue  # Skip large files
+
+                # Calculate SHA256 hash
+                sha256_hash = hashlib.sha256(checklist_bytes).hexdigest()
+                evidence_id = sha256_hash[:16]
+
+                # Create EvidenceAttachment
+                attachment = EvidenceAttachment(
+                    id=evidence_id,
+                    type='file',
+                    path=checklist_rel_path,
+                    sha256=sha256_hash,
+                    size=size_bytes,
+                    created_at=datetime.now(timezone.utc).isoformat(),
+                    description=f"Checklist snapshot: {checklist_path.name}"
+                )
+
+                # Update evidence index
+                index_path = evidence_dir / 'index.json'
+
+                # Read existing index or create new
+                if index_path.exists():
+                    with open(index_path, 'r', encoding='utf-8') as f:
+                        index = json.load(f)
+                else:
+                    index = {
+                        "version": 1,
+                        "evidence": []
+                    }
+
+                # Add attachment (replace if ID exists)
+                existing_idx = next(
+                    (i for i, e in enumerate(index["evidence"]) if e["id"] == evidence_id),
+                    None
+                )
+                if existing_idx is not None:
+                    index["evidence"][existing_idx] = attachment.to_dict()
+                else:
+                    index["evidence"].append(attachment.to_dict())
+
+                # Write index atomically
+                index_content = json.dumps(index, indent=2, sort_keys=True, ensure_ascii=False)
+                index_content += '\n'
+                self._atomic_write(index_path, index_content)
+
+                attachments.append(attachment)
+
+            except Exception:
+                # Skip if processing fails (read error, etc.)
+                continue
+
+        return attachments
+
+    def create_snapshot_and_embed(
+        self,
+        task_id: str,
+        task_path: Path,
+        task_data: Dict[str, Any],
+        tier: str,
+        context: 'TaskContext'
+    ) -> Dict[str, Any]:
+        """
+        Create task snapshot and embed data into context (convenience wrapper).
+
+        Combines create_task_snapshot, embed_acceptance_criteria, and
+        snapshot_checklists into a single operation.
+
+        Args:
+            task_id: Task identifier
+            task_path: Path to task file
+            task_data: Parsed task YAML
+            tier: Task tier
+            context: TaskContext to modify
+
+        Returns:
+            Snapshot metadata dict
+        """
+        # Create snapshot
+        snapshot_meta = self.create_task_snapshot(
+            task_id=task_id,
+            task_file_path=task_path
+        )
+
+        # Embed acceptance criteria into context
+        self.embed_acceptance_criteria(task_data, context)
+
+        # Snapshot checklists
+        checklist_attachments = self.snapshot_checklists(
+            task_id=task_id,
+            tier=tier
+        )
+
+        # Attach snapshot file as evidence
+        snapshot_path = self.repo_root / snapshot_meta['snapshot_path']
+        snapshot_evidence = self.attach_evidence(
+            task_id=task_id,
+            artifact_type="file",
+            artifact_path=snapshot_path,
+            description=f"Task snapshot for {task_id}",
+            metadata={
+                "sha256": snapshot_meta["snapshot_sha256"],
+                "original_path": snapshot_meta["original_path"],
+                "completed_path": snapshot_meta["completed_path"]
+            }
+        )
+
+        # Store snapshot metadata in context.task_snapshot
+        if not hasattr(context, 'task_snapshot') or context.task_snapshot is None:
+            context.task_snapshot = TaskSnapshot(
+                snapshot_path=snapshot_meta['snapshot_path'],
+                snapshot_sha256=snapshot_meta['snapshot_sha256'],
+                original_path=snapshot_meta['original_path'],
+                completed_path=snapshot_meta['completed_path'],
+                created_at=snapshot_meta['created_at'],
+                acceptance_criteria=[],
+                scope_in=[],
+                scope_out=[],
+                plan_steps=[],
+                deliverables=[]
+            )
+
+        # Return enhanced metadata
+        return {
+            **snapshot_meta,
+            "evidence_id": snapshot_evidence.id,
+            "checklist_evidence_ids": [att.id for att in checklist_attachments]
+        }

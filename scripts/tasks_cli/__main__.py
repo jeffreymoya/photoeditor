@@ -20,10 +20,11 @@ Usage:
 
 import argparse
 import json
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from .context_store import (
     ContextExistsError,
@@ -38,6 +39,7 @@ from .exceptions import ValidationError, WorkflowHaltError
 from .graph import DependencyGraph
 from .models import Task
 from .operations import TaskOperationError, TaskOperations
+from .output import set_json_mode
 from .picker import TaskPicker, check_halt_conditions
 
 
@@ -522,7 +524,7 @@ def cmd_explain(args, graph: DependencyGraph, datastore: TaskDatastore) -> int:
         print(f"  Status: {task.status}")
         print(f"  Priority: {task.priority}")
         if task.unblocker:
-            print(f"  Unblocker: YES")
+            print("  Unblocker: YES")
         print()
 
         # Hard blockers (blocked_by)
@@ -753,7 +755,7 @@ def cmd_lint(args, repo_root: Path) -> int:
         print(f"\n❌ {len(errors)} error(s) must be fixed before transitioning to 'todo'")
         return 1
     else:
-        print(f"\n✅ No blocking errors (warnings should be addressed)")
+        print("\n✅ No blocking errors (warnings should be addressed)")
         return 0
 
 
@@ -784,7 +786,7 @@ def cmd_bootstrap_evidence(args, repo_root: Path) -> int:
 
     if evidence_path.exists():
         print(f"⚠️  Evidence file already exists: {evidence_path}")
-        print(f"   Not overwriting existing file")
+        print("   Not overwriting existing file")
         return 0
 
     # Create evidence stub
@@ -847,10 +849,10 @@ TODO: Document manual verification steps if needed
         f.write(template)
 
     print(f"✅ Created evidence stub: {evidence_path}")
-    print(f"\nNext steps:")
-    print(f"1. Fill in REPLACE placeholders in the evidence file")
+    print("\nNext steps:")
+    print("1. Fill in REPLACE placeholders in the evidence file")
     print(f"2. Update task YAML: clarifications.evidence_path: \"docs/evidence/tasks/{task_id}-clarifications.md\"")
-    print(f"3. Document any clarifications or standards gaps as you plan the task")
+    print("3. Document any clarifications or standards gaps as you plan the task")
 
     return 0
 
@@ -996,14 +998,44 @@ def _build_immutable_context_from_task(task_path: Path) -> dict:
     standards_citations = _build_standards_citations(area, priority, data)
 
     # Extract validation commands
+    # Support both validation.pipeline (new, schema 1.1) and validation.commands (legacy)
     validation = data.get('validation', {})
-    if isinstance(validation, dict):
-        qa_commands = validation.get('commands', [])
-    else:
-        qa_commands = []
+    qa_commands_raw = []
 
-    if not isinstance(qa_commands, list):
-        qa_commands = []
+    if isinstance(validation, dict):
+        # Try pipeline first (schema 1.1), then fall back to commands (legacy)
+        qa_commands_raw = validation.get('pipeline', validation.get('commands', []))
+
+    if not isinstance(qa_commands_raw, list):
+        qa_commands_raw = []
+
+    # Parse commands - support both simple strings and rich dict schema
+    qa_commands = []
+    for idx, cmd in enumerate(qa_commands_raw):
+        if isinstance(cmd, str):
+            # Simple string format - backward compatible
+            qa_commands.append(cmd)
+        elif isinstance(cmd, dict):
+            # Rich schema format - extract just the command string for now
+            # Full ValidationCommand parsing will be done when executing
+            if 'command' in cmd:
+                qa_commands.append(cmd['command'])
+            else:
+                # Malformed rich schema - skip
+                import sys
+                print(
+                    f"Warning: validation.pipeline[{idx}] missing 'command' field, skipping",
+                    file=sys.stderr,
+                    flush=True
+                )
+        else:
+            # Unknown format - skip
+            import sys
+            print(
+                f"Warning: validation.pipeline[{idx}] has invalid type {type(cmd)}, skipping",
+                file=sys.stderr,
+                flush=True
+            )
 
     # Fallback to tier defaults if no commands specified
     if not qa_commands:
@@ -1161,7 +1193,7 @@ def _build_standards_citations(area: str, priority: str, task_data: dict) -> lis
                     citations.append({
                         'file': doc_str,
                         'section': 'task-specific',
-                        'requirement': f'Referenced in task context',
+                        'requirement': 'Referenced in task context',
                         'line_span': None,
                         'content_sha': None,
                     })
@@ -1230,7 +1262,7 @@ def _auto_verify_worktree(context_store: TaskContextStore, task_id: str, agent_r
             # Verify worktree matches previous agent's snapshot
             try:
                 context_store.verify_worktree_state(task_id=task_id, expected_agent=expected_agent)
-            except DriftError as e:
+            except DriftError:
                 # Increment drift budget for the current agent (Issue #3 fix)
                 # Current agent encounters drift, so they should be blocked
                 context = context_store.get_context(task_id)
@@ -1493,12 +1525,12 @@ def cmd_get_context(args, repo_root: Path) -> int:
             print(f"\n{staleness_warning}")
 
         print()
-        print(f"Task Snapshot:")
+        print("Task Snapshot:")
         print(f"  Title: {context.task_snapshot.title}")
         print(f"  Priority: {context.task_snapshot.priority}")
         print(f"  Area: {context.task_snapshot.area}")
         print()
-        print(f"Agent Coordination:")
+        print("Agent Coordination:")
         print(f"  Implementer: {context.implementer.status}")
         print(f"  Reviewer: {context.reviewer.status}")
         print(f"  Validator: {context.validator.status}")
@@ -1893,7 +1925,6 @@ def cmd_snapshot_worktree(args, repo_root: Path) -> int:
     Returns:
         Exit code (0 = success, 1 = error)
     """
-    import subprocess
 
     task_id = args.snapshot_worktree
     agent_role = args.agent
@@ -1950,7 +1981,7 @@ def cmd_snapshot_worktree(args, repo_root: Path) -> int:
             print(f"  Diff stat: {snapshot.diff_stat}")
 
             if snapshot.incremental_diff_error:
-                print(f"\n⚠️  Incremental diff calculation failed:")
+                print("\n⚠️  Incremental diff calculation failed:")
                 print(f"  {snapshot.incremental_diff_error}")
 
         return 0
@@ -2013,7 +2044,7 @@ def cmd_verify_worktree(args, repo_root: Path) -> int:
                 'error': str(e),
             })
         else:
-            print(f"❌ Drift detected:", file=sys.stderr)
+            print("❌ Drift detected:", file=sys.stderr)
             print(str(e), file=sys.stderr)
         return 1
 
@@ -2118,9 +2149,11 @@ def cmd_get_diff(args, repo_root: Path) -> int:
         return 1
 
 
-def _parse_qa_log(qa_log_content: str) -> dict:
+def _parse_qa_log(qa_log_content: str, command_type: Optional[str] = None) -> dict:
     """
-    Parse QA log content to extract test results (Issue #4).
+    Parse QA log content to extract test results.
+
+    Per Section 4.2 of task-context-cache-hardening-schemas.md.
 
     Attempts to extract structured information from QA command output including:
     - Test pass/fail counts
@@ -2130,53 +2163,161 @@ def _parse_qa_log(qa_log_content: str) -> dict:
 
     Args:
         qa_log_content: Raw QA log file content
+        command_type: Optional command type hint ('lint', 'typecheck', 'test', 'coverage')
+                      If not provided, will attempt to auto-detect
 
     Returns:
-        Dictionary with parsed results
+        Dictionary with parsed results (compatible with QACommandSummary schema)
     """
-    import re
 
+    # Auto-detect command type if not provided
+    if command_type is None:
+        command_type = _detect_command_type(qa_log_content)
+
+    # Initialize results structure
     results = {
-        'passed': False,
-        'tests_run': None,
+        'lint_errors': None,
+        'lint_warnings': None,
+        'type_errors': None,
         'tests_passed': None,
         'tests_failed': None,
-        'coverage_lines': None,
-        'coverage_branches': None,
-        'errors': [],
-        'warnings': [],
+        'coverage': None,
     }
 
-    # Try to extract test counts (Jest/Vitest format)
-    test_match = re.search(r'Tests:\s+(\d+) passed.*?(\d+) total', qa_log_content, re.IGNORECASE)
+    # Parse based on command type
+    if command_type == 'lint':
+        results.update(_parse_lint_output(qa_log_content))
+    elif command_type == 'typecheck':
+        results.update(_parse_typecheck_output(qa_log_content))
+    elif command_type == 'test':
+        results.update(_parse_test_output(qa_log_content))
+    elif command_type == 'coverage':
+        results.update(_parse_coverage_output(qa_log_content))
+    else:
+        # Unknown type - try all parsers
+        results.update(_parse_lint_output(qa_log_content))
+        results.update(_parse_typecheck_output(qa_log_content))
+        results.update(_parse_test_output(qa_log_content))
+        results.update(_parse_coverage_output(qa_log_content))
+
+    # Filter out None values for cleaner output
+    return {k: v for k, v in results.items() if v is not None}
+
+
+def _detect_command_type(log_content: str) -> Optional[str]:
+    """Auto-detect command type from log content."""
+    content_lower = log_content.lower()
+
+    if 'eslint' in content_lower or 'prettier' in content_lower:
+        return 'lint'
+    elif 'typescript' in content_lower or 'error ts' in content_lower or 'tsc' in content_lower:
+        return 'typecheck'
+    elif 'jest' in content_lower or 'vitest' in content_lower:
+        return 'test'
+    elif 'coverage' in content_lower or 'istanbul' in content_lower:
+        return 'coverage'
+
+    return None
+
+
+def _parse_lint_output(log_content: str) -> dict:
+    """Parse ESLint/Prettier output."""
+    import re
+
+    results = {}
+
+    # ESLint format: "✖ 3 problems (2 errors, 1 warning)"
+    problem_match = re.search(r'✖\s+(\d+)\s+problems?\s+\((\d+)\s+errors?,\s+(\d+)\s+warnings?\)', log_content)
+    if problem_match:
+        results['lint_errors'] = int(problem_match.group(2))
+        results['lint_warnings'] = int(problem_match.group(3))
+    else:
+        # Try alternate formats
+        error_match = re.search(r'(\d+)\s+errors?', log_content, re.IGNORECASE)
+        warning_match = re.search(r'(\d+)\s+warnings?', log_content, re.IGNORECASE)
+
+        if error_match:
+            results['lint_errors'] = int(error_match.group(1))
+        elif '✓' in log_content or 'no problems' in log_content.lower():
+            results['lint_errors'] = 0
+
+        if warning_match:
+            results['lint_warnings'] = int(warning_match.group(1))
+        elif '✓' in log_content or 'no problems' in log_content.lower():
+            results['lint_warnings'] = 0
+
+    return results
+
+
+def _parse_typecheck_output(log_content: str) -> dict:
+    """Parse TypeScript compiler output."""
+    import re
+
+    results = {}
+
+    # Count TypeScript errors: "error TS2304:"
+    type_errors = len(re.findall(r'error TS\d+:', log_content))
+    if type_errors > 0:
+        results['type_errors'] = type_errors
+    elif 'found 0 errors' in log_content.lower() or 'successfully compiled' in log_content.lower():
+        results['type_errors'] = 0
+
+    return results
+
+
+def _parse_test_output(log_content: str) -> dict:
+    """Parse Jest/Vitest test output."""
+    import re
+
+    results = {}
+
+    # Jest format: "Tests: 5 passed, 5 total"
+    test_match = re.search(r'Tests:\s+(\d+)\s+passed(?:,\s+(\d+)\s+failed)?.*?(\d+)\s+total', log_content, re.IGNORECASE)
     if test_match:
         results['tests_passed'] = int(test_match.group(1))
-        results['tests_run'] = int(test_match.group(2))
-        results['tests_failed'] = results['tests_run'] - results['tests_passed']
+        results['tests_failed'] = int(test_match.group(2)) if test_match.group(2) else 0
+    else:
+        # Try alternate format: "Passed: 5, Failed: 0"
+        passed_match = re.search(r'passed:\s*(\d+)', log_content, re.IGNORECASE)
+        failed_match = re.search(r'failed:\s*(\d+)', log_content, re.IGNORECASE)
 
-    # Try to extract coverage (Istanbul/NYC format)
-    coverage_match = re.search(r'All files\s+\|\s+([\d.]+)\s+\|\s+([\d.]+)', qa_log_content)
-    if coverage_match:
-        results['coverage_lines'] = float(coverage_match.group(1))
-        results['coverage_branches'] = float(coverage_match.group(2))
+        if passed_match:
+            results['tests_passed'] = int(passed_match.group(1))
+        if failed_match:
+            results['tests_failed'] = int(failed_match.group(1))
 
-    # Try to extract errors (common patterns)
-    error_patterns = [
-        r'error TS\d+:(.+?)(?=\n|$)',  # TypeScript errors
-        r'✖ \d+ problem.+?\n(.+?)(?=\n\n|$)',  # ESLint errors
-        r'Error: (.+?)(?=\n|$)',  # Generic errors
-    ]
+    return results
 
-    for pattern in error_patterns:
-        matches = re.findall(pattern, qa_log_content, re.MULTILINE)
-        results['errors'].extend([m.strip() for m in matches[:5]])  # Limit to 5 errors
 
-    # Determine overall pass/fail
-    # Pass if: (no errors AND no failures) OR (tests exist AND all passed)
-    results['passed'] = (
-        ('error' not in qa_log_content.lower() and 'failed' not in qa_log_content.lower())
-        or (results['tests_failed'] is not None and results['tests_failed'] == 0)
+def _parse_coverage_output(log_content: str) -> dict:
+    """Parse Jest/Istanbul coverage output."""
+    import re
+
+    results = {}
+    coverage = {}
+
+    # Istanbul/NYC table format:
+    # All files      |   85.5  |   70.2  |   90.1  |   85.5  |
+    # Columns: Statements | Branches | Functions | Lines
+    coverage_match = re.search(
+        r'All files\s+\|\s+([\d.]+)\s+\|\s+([\d.]+)\s+\|\s+([\d.]+)\s+\|\s+([\d.]+)',
+        log_content
     )
+
+    if coverage_match:
+        coverage['statements'] = float(coverage_match.group(1))
+        coverage['branches'] = float(coverage_match.group(2))
+        coverage['functions'] = float(coverage_match.group(3))
+        coverage['lines'] = float(coverage_match.group(4))
+    else:
+        # Try individual metric extraction
+        for metric in ['statements', 'branches', 'functions', 'lines']:
+            match = re.search(rf'{metric}\s*:\s*([\d.]+)%?', log_content, re.IGNORECASE)
+            if match:
+                coverage[metric] = float(match.group(1))
+
+    if coverage:
+        results['coverage'] = coverage
 
     return results
 
@@ -2195,6 +2336,7 @@ def cmd_record_qa(args, repo_root: Path) -> int:
     task_id = args.record_qa
     agent_role = args.agent
     qa_log_path = args.qa_log_from if hasattr(args, 'qa_log_from') else None
+    command_type = getattr(args, 'command_type', None)
 
     if not agent_role:
         print("Error: --agent is required for record-qa", file=sys.stderr)
@@ -2212,8 +2354,24 @@ def cmd_record_qa(args, repo_root: Path) -> int:
 
     qa_log_content = qa_log_file.read_text(encoding='utf-8')
 
-    # Parse QA results (Issue #4)
-    qa_results = _parse_qa_log(qa_log_content)
+    # Parse QA results with enhanced parser (Section 4.2)
+    qa_results = _parse_qa_log(qa_log_content, command_type=command_type)
+
+    # Calculate log file SHA256
+    import hashlib
+    log_sha256 = hashlib.sha256(qa_log_content.encode('utf-8')).hexdigest()
+
+    # Get current git SHA
+    try:
+        git_sha = subprocess.run(
+            ['git', 'rev-parse', 'HEAD'],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            check=True
+        ).stdout.strip()
+    except subprocess.CalledProcessError:
+        git_sha = None
 
     # Update coordination with QA log path and results
     context_store = TaskContextStore(repo_root)
@@ -2225,12 +2383,15 @@ def cmd_record_qa(args, repo_root: Path) -> int:
         # Auto-verify worktree before mutations (Issue #2)
         _auto_verify_worktree(context_store, task_id, agent_role)
 
-        # Build QA results dict with timestamp
+        # Build structured QA results (Section 4.1 schema)
         from datetime import datetime, timezone
         qa_results_with_metadata = {
             'timestamp': datetime.now(timezone.utc).isoformat(),
+            'git_sha': git_sha,
             'log_path': qa_log_path,
-            'parsed': qa_results,
+            'log_sha256': log_sha256,
+            'command_type': command_type or _detect_command_type(qa_log_content),
+            'summary': qa_results,  # Structured summary per QACommandSummary schema
         }
 
         # Update coordination with qa_log_path and qa_results (mutable section)
@@ -2252,20 +2413,167 @@ def cmd_record_qa(args, repo_root: Path) -> int:
                 'task_id': task_id,
                 'agent_role': agent_role,
                 'qa_log_path': qa_log_path,
+                'log_sha256': log_sha256,
                 'qa_results': qa_results,
             })
         else:
             print(f"✓ Recorded QA results for {agent_role} on {task_id}")
             print(f"  QA log: {qa_log_path}")
-            print(f"  Passed: {'✓' if qa_results['passed'] else '✗'}")
-            if qa_results['tests_run'] is not None:
-                print(f"  Tests: {qa_results['tests_passed']}/{qa_results['tests_run']} passed")
-            if qa_results['coverage_lines'] is not None:
-                print(f"  Coverage: {qa_results['coverage_lines']}% lines, {qa_results['coverage_branches']}% branches")
+            print(f"  Command type: {qa_results_with_metadata['command_type'] or 'auto-detected'}")
+
+            # Display structured results
+            if 'lint_errors' in qa_results:
+                errors = qa_results['lint_errors']
+                warnings = qa_results.get('lint_warnings', 0)
+                status = '✓' if errors == 0 else '✗'
+                print(f"  Lint: {status} {errors} errors, {warnings} warnings")
+
+            if 'type_errors' in qa_results:
+                errors = qa_results['type_errors']
+                status = '✓' if errors == 0 else '✗'
+                print(f"  Typecheck: {status} {errors} errors")
+
+            if 'tests_passed' in qa_results and 'tests_failed' in qa_results:
+                passed = qa_results['tests_passed']
+                failed = qa_results['tests_failed']
+                total = passed + failed
+                status = '✓' if failed == 0 else '✗'
+                print(f"  Tests: {status} {passed}/{total} passed")
+
+            if 'coverage' in qa_results:
+                cov = qa_results['coverage']
+                if 'lines' in cov and 'branches' in cov:
+                    print(f"  Coverage: {cov['lines']:.1f}% lines, {cov['branches']:.1f}% branches")
 
         return 0
 
     except (ContextNotFoundError, ValidationError, DriftError) as e:
+        if args.format == 'json':
+            output_json({
+                'success': False,
+                'error': str(e),
+            })
+        else:
+            print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+
+def cmd_compare_qa(args, repo_root: Path) -> int:
+    """
+    Compare current QA results against baseline and detect drift.
+
+    Per Section 4.3 of task-context-cache-hardening-schemas.md.
+
+    Args:
+        args: Parsed command-line arguments
+        repo_root: Repository root path
+
+    Returns:
+        Exit code (0 = no drift, 1 = drift detected or error)
+    """
+    from .validation import detect_qa_drift, format_drift_report
+    from .context_store import QAResults
+
+    task_id = args.compare_qa
+    agent_role = args.agent
+    qa_log_path = getattr(args, 'qa_log_from', None)
+    command_type = getattr(args, 'command_type', None)
+
+    if not agent_role:
+        print("Error: --agent is required for compare-qa", file=sys.stderr)
+        return 1
+
+    if not qa_log_path:
+        print("Error: --from is required for compare-qa (path to current QA log)", file=sys.stderr)
+        return 1
+
+    # Read current QA log
+    qa_log_file = Path(qa_log_path)
+    if not qa_log_file.exists():
+        print(f"Error: QA log file not found: {qa_log_path}", file=sys.stderr)
+        return 1
+
+    qa_log_content = qa_log_file.read_text(encoding='utf-8')
+    current_results = _parse_qa_log(qa_log_content, command_type=command_type)
+
+    # Get baseline from context
+    context_store = TaskContextStore(repo_root)
+
+    try:
+        context = context_store.get_context(task_id)
+        coord = getattr(context, agent_role)
+
+        # Check if baseline exists
+        baseline_data = coord.qa_results
+        if not baseline_data:
+            if args.format == 'json':
+                output_json({
+                    'success': False,
+                    'error': f'No baseline QA results found for {agent_role} on {task_id}',
+                })
+            else:
+                print(f"Error: No baseline QA results found for {agent_role} on {task_id}", file=sys.stderr)
+                print("Run --record-qa first to establish a baseline", file=sys.stderr)
+            return 1
+
+        # Build QAResults objects for comparison
+        from datetime import datetime, timezone
+        import hashlib
+
+        # Baseline
+        baseline_summary = baseline_data.get('summary', {})
+        baseline_qa_results = QAResults(
+            recorded_at=baseline_data.get('timestamp', datetime.now(timezone.utc).isoformat()),
+            agent=agent_role,
+            git_sha=baseline_data.get('git_sha'),
+            results=[{
+                'command_id': 'baseline',
+                'command': baseline_data.get('log_path', ''),
+                'exit_code': 0,
+                'duration_ms': 0,
+                'summary': baseline_summary
+            }]
+        )
+
+        # Current
+        current_sha = hashlib.sha256(qa_log_content.encode('utf-8')).hexdigest()
+        current_qa_results = QAResults(
+            recorded_at=datetime.now(timezone.utc).isoformat(),
+            agent=agent_role,
+            git_sha=None,
+            results=[{
+                'command_id': 'baseline',
+                'command': qa_log_path,
+                'exit_code': 0,
+                'duration_ms': 0,
+                'summary': current_results
+            }]
+        )
+
+        # Detect drift
+        drift = detect_qa_drift(baseline_qa_results, current_qa_results)
+
+        if args.format == 'json':
+            output_json({
+                'success': True,
+                'task_id': task_id,
+                'agent_role': agent_role,
+                'has_drift': drift['has_drift'],
+                'regressions': drift['regressions'],
+                'improvements': drift['improvements'],
+                'baseline': baseline_summary,
+                'current': current_results,
+            })
+        else:
+            print(f"QA Drift Detection for {task_id} ({agent_role})")
+            print("=" * 60)
+            print(f"\nBaseline: {baseline_data.get('log_path', 'unknown')}")
+            print(f"Current:  {qa_log_path}\n")
+            print(format_drift_report(drift))
+
+        return 0 if not drift['has_drift'] else 1
+
+    except ContextNotFoundError as e:
         if args.format == 'json':
             output_json({
                 'success': False,
@@ -2354,7 +2662,7 @@ def cmd_resolve_drift(args, repo_root: Path) -> int:
         else:
             print(f"✓ Resolved drift for {agent_role} on {task_id}")
             print(f"  Previous drift budget: {current_drift}")
-            print(f"  New drift budget: 0")
+            print("  New drift budget: 0")
             print(f"  Resolution note: {note}")
 
         return 0
@@ -2370,11 +2678,99 @@ def cmd_resolve_drift(args, repo_root: Path) -> int:
         return 1
 
 
+# Error message templates with recovery actions
+ERROR_TEMPLATES = {
+    "dirty_tree": {
+        "message": "Git working tree has unexpected dirty files",
+        "recovery_action": "Commit or stash changes, or use --allow-preexisting-dirty flag",
+    },
+    "missing_task": {
+        "message": "Task file not found",
+        "recovery_action": "Verify task ID and check tasks/ directory",
+    },
+    "invalid_env": {
+        "message": "Invalid --env format",
+        "recovery_action": "Use format: --env KEY=VALUE",
+    },
+    "validation_failed": {
+        "message": "Validation command failed",
+        "recovery_action": "Check logs and fix issues, or mark command as blocked",
+    },
+}
+
+
+def format_error_with_recovery(error_key: str, details: Optional[str] = None) -> Dict[str, str]:
+    """
+    Format error message with recovery action.
+
+    Args:
+        error_key: Key identifying error type
+        details: Optional additional error details
+
+    Returns:
+        Dictionary with 'error' and 'recovery_action' keys
+    """
+    template = ERROR_TEMPLATES.get(
+        error_key, {"message": "Unknown error", "recovery_action": "Check logs and retry"}
+    )
+
+    message = template["message"]
+    if details:
+        message += f": {details}"
+
+    return {"error": message, "recovery_action": template["recovery_action"]}
+
+
+def parse_env_vars(env_list: Optional[List[str]]) -> Dict[str, str]:
+    """
+    Parse --env KEY=VALUE arguments into dict.
+
+    Args:
+        env_list: List of KEY=VALUE strings from --env arguments
+
+    Returns:
+        Dictionary mapping environment variable names to values
+
+    Raises:
+        ValueError: If any env string is not in KEY=VALUE format
+    """
+    if not env_list:
+        return {}
+
+    env_dict = {}
+    for env_str in env_list:
+        if '=' not in env_str:
+            raise ValueError(f"Invalid --env format: {env_str} (expected KEY=VALUE)")
+        key, value = env_str.split('=', 1)
+        env_dict[key.strip()] = value.strip()
+
+    return env_dict
+
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
         description="Task workflow CLI for PhotoEditor project",
         formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Initialize context with custom environment
+  python scripts/tasks.py --init-context TASK-0818 --env STORYBOOK_BUILD=1
+
+  # List tasks in JSON format
+  python scripts/tasks.py --list --format json | jq
+
+  # Attach evidence with custom environment
+  python scripts/tasks.py --attach-evidence TASK-0818 --type qa_output --path .agent-output/TASK-0818/qa.log
+
+  # Check dirty tree before starting work
+  python scripts/tasks.py --verify-worktree TASK-0818
+
+  # Run validation with custom env
+  python scripts/tasks.py --run-validation TASK-0818 --command-id val-001 --env NODE_ENV=test
+
+For more information, see: docs/proposals/task-context-cache-hardening.md
+        """,
     )
 
     # Commands (mutually exclusive)
@@ -2498,6 +2894,11 @@ def main():
         help='Update validation baseline with QA results'
     )
     group.add_argument(
+        '--compare-qa',
+        metavar='TASK_ID',
+        help='Compare current QA results against baseline and detect drift'
+    )
+    group.add_argument(
         '--resolve-drift',
         metavar='TASK_ID',
         help='Reset drift budget and record resolution (requires --agent and --note)'
@@ -2579,8 +2980,45 @@ def main():
         metavar='PATH',
         help='Path to QA log file for record-qa command'
     )
+    parser.add_argument(
+        '--command-type',
+        dest='command_type',
+        choices=['lint', 'typecheck', 'test', 'coverage'],
+        help='QA command type hint for enhanced parsing (auto-detected if not provided)'
+    )
+
+    # Ergonomic improvements (Session S14)
+    parser.add_argument(
+        '--env',
+        action='append',
+        dest='env_vars',
+        metavar='KEY=VALUE',
+        help='Set environment variable for command execution (can be used multiple times)'
+    )
+    parser.add_argument(
+        '--allow-preexisting-dirty',
+        action='store_true',
+        help='Allow pre-existing dirty files in git working tree'
+    )
 
     args = parser.parse_args()
+
+    # Parse environment variables
+    try:
+        env_vars = parse_env_vars(args.env_vars)
+        args.env_dict = env_vars
+    except ValueError as e:
+        if args.format == 'json':
+            error = format_error_with_recovery("invalid_env", str(e))
+            output_json(error)
+        else:
+            print(f"Error: {e}", file=sys.stderr)
+            error = format_error_with_recovery("invalid_env")
+            print(f"Recovery: {error['recovery_action']}", file=sys.stderr)
+        sys.exit(1)
+
+    # Set JSON output mode for stream separation
+    set_json_mode(args.format == 'json')
 
     # Find repository root
     repo_root = find_repo_root()
@@ -2672,6 +3110,9 @@ def main():
 
         elif args.record_qa:
             return cmd_record_qa(args, repo_root)
+
+        elif args.compare_qa:
+            return cmd_compare_qa(args, repo_root)
 
         elif args.resolve_drift:
             return cmd_resolve_drift(args, repo_root)

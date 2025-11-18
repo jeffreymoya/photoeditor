@@ -523,6 +523,196 @@ class ValidationBaseline:
 
 
 # ============================================================================
+# Telemetry Models (Section 5.1: Agent metrics collection)
+# ============================================================================
+
+@dataclass(frozen=True)
+class FileOperationMetrics:
+    """
+    File operation telemetry for agent sessions.
+
+    Per Section 5.1 of task-context-cache-hardening-schemas.md.
+    """
+    read_calls: int = 0
+    write_calls: int = 0
+    edit_calls: int = 0
+    files_read: List[dict] = field(default_factory=list)
+
+    def to_dict(self) -> dict:
+        """Convert to JSON-serializable dict."""
+        return {
+            'read_calls': self.read_calls,
+            'write_calls': self.write_calls,
+            'edit_calls': self.edit_calls,
+            'files_read': list(self.files_read),
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> 'FileOperationMetrics':
+        """Deserialize from dict."""
+        return cls(
+            read_calls=data.get('read_calls', 0),
+            write_calls=data.get('write_calls', 0),
+            edit_calls=data.get('edit_calls', 0),
+            files_read=data.get('files_read', []),
+        )
+
+
+@dataclass(frozen=True)
+class CacheOperationMetrics:
+    """
+    Cache operation telemetry for agent sessions.
+
+    Per Section 5.1 of task-context-cache-hardening-schemas.md.
+    """
+    context_reads: int = 0
+    cache_hits: int = 0
+    cache_misses: int = 0
+    token_savings_estimate: int = 0
+
+    def to_dict(self) -> dict:
+        """Convert to JSON-serializable dict."""
+        return {
+            'context_reads': self.context_reads,
+            'cache_hits': self.cache_hits,
+            'cache_misses': self.cache_misses,
+            'token_savings_estimate': self.token_savings_estimate,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> 'CacheOperationMetrics':
+        """Deserialize from dict."""
+        return cls(
+            context_reads=data.get('context_reads', 0),
+            cache_hits=data.get('cache_hits', 0),
+            cache_misses=data.get('cache_misses', 0),
+            token_savings_estimate=data.get('token_savings_estimate', 0),
+        )
+
+
+@dataclass(frozen=True)
+class CommandExecution:
+    """
+    Single command execution record.
+
+    Per Section 5.1 of task-context-cache-hardening-schemas.md.
+    """
+    command: str
+    exit_code: int
+    duration_ms: int
+
+    def to_dict(self) -> dict:
+        """Convert to JSON-serializable dict."""
+        return {
+            'command': self.command,
+            'exit_code': self.exit_code,
+            'duration_ms': self.duration_ms,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> 'CommandExecution':
+        """Deserialize from dict."""
+        return cls(
+            command=data['command'],
+            exit_code=data['exit_code'],
+            duration_ms=data['duration_ms'],
+        )
+
+
+@dataclass(frozen=True)
+class WarningEntry:
+    """
+    Warning or error logged during agent session.
+
+    Per Section 5.1 of task-context-cache-hardening-schemas.md.
+    """
+    timestamp: str  # ISO 8601
+    level: str      # 'warning' | 'error'
+    message: str
+
+    def __post_init__(self):
+        """Validate warning level enum."""
+        valid_levels = ['warning', 'error']
+        if self.level not in valid_levels:
+            raise ValueError(
+                f"Invalid warning level: {self.level}. "
+                f"Must be one of: {', '.join(valid_levels)}"
+            )
+
+    def to_dict(self) -> dict:
+        """Convert to JSON-serializable dict."""
+        return {
+            'timestamp': self.timestamp,
+            'level': self.level,
+            'message': self.message,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> 'WarningEntry':
+        """Deserialize from dict."""
+        return cls(
+            timestamp=data['timestamp'],
+            level=data['level'],
+            message=data['message'],
+        )
+
+
+@dataclass(frozen=True)
+class TelemetrySnapshot:
+    """
+    Complete telemetry snapshot for agent session.
+
+    Per Section 5.1 of task-context-cache-hardening-schemas.md.
+    Stored in .agent-output/TASK-XXXX/telemetry-{agent}.json
+    """
+    task_id: str
+    agent_role: str  # 'implementer' | 'reviewer' | 'validator' | 'task-runner'
+    session_start: str  # ISO 8601
+    session_end: str    # ISO 8601
+    duration_ms: int
+    metrics: dict  # Nested structure with file_operations, cache_operations, commands_executed
+    warnings: List[WarningEntry] = field(default_factory=list)
+
+    def __post_init__(self):
+        """Validate agent_role enum."""
+        valid_roles = ['implementer', 'reviewer', 'validator', 'task-runner']
+        if self.agent_role not in valid_roles:
+            raise ValueError(
+                f"Invalid agent_role: {self.agent_role}. "
+                f"Must be one of: {', '.join(valid_roles)}"
+            )
+
+    def to_dict(self) -> dict:
+        """Convert to JSON-serializable dict."""
+        return {
+            'task_id': self.task_id,
+            'agent_role': self.agent_role,
+            'session_start': self.session_start,
+            'session_end': self.session_end,
+            'duration_ms': self.duration_ms,
+            'metrics': self.metrics,
+            'warnings': [w.to_dict() for w in self.warnings],
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> 'TelemetrySnapshot':
+        """Deserialize from dict."""
+        warnings = []
+        if 'warnings' in data:
+            warnings = [WarningEntry.from_dict(w) for w in data['warnings']]
+
+        return cls(
+            task_id=data['task_id'],
+            agent_role=data['agent_role'],
+            session_start=data['session_start'],
+            session_end=data['session_end'],
+            duration_ms=data['duration_ms'],
+            metrics=data['metrics'],
+            warnings=warnings,
+        )
+
+
+# ============================================================================
 # Manifest Models (GAP-4: Context provenance tracking)
 # ============================================================================
 

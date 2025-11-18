@@ -1977,3 +1977,308 @@ class TaskContextStore:
             )
 
         # All checks passed - no drift detected
+
+    # ========================================================================
+    # Evidence Directory Methods
+    # ========================================================================
+
+    def _get_evidence_dir(self, task_id: str) -> Path:
+        """
+        Get evidence directory path for task.
+
+        Args:
+            task_id: Task identifier
+
+        Returns:
+            Path to .agent-output/TASK-XXXX/evidence/
+        """
+        context_dir = self._get_context_dir(task_id)
+        return context_dir / 'evidence'
+
+    def _validate_artifact_type(self, artifact_type: str, size_bytes: int) -> None:
+        """
+        Validate artifact type against size limits.
+
+        Args:
+            artifact_type: One of ARTIFACT_TYPES
+            size_bytes: Size of artifact in bytes
+
+        Raises:
+            ValidationError: If type invalid or size exceeds limit
+        """
+        if artifact_type not in ARTIFACT_TYPES:
+            raise ValidationError(
+                f"Invalid artifact type: {artifact_type}. "
+                f"Must be one of: {', '.join(ARTIFACT_TYPES)}"
+            )
+
+        # Check size limit
+        size_limit = TYPE_SIZE_LIMITS.get(artifact_type)
+        if size_limit is not None and size_bytes > size_limit:
+            size_mb = size_bytes / (1024 * 1024)
+            limit_mb = size_limit / (1024 * 1024)
+            raise ValidationError(
+                f"Artifact size {size_mb:.2f}MB exceeds limit for type '{artifact_type}' "
+                f"({limit_mb:.2f}MB)"
+            )
+
+    def _create_directory_archive(
+        self,
+        dir_path: Path,
+        output_path: Path,
+        task_id: str
+    ) -> 'CompressionMetadata':
+        """
+        Create deterministic archive from directory.
+
+        Implements tar.zst compression with index.json manifest per
+        Section 1.3 of task-context-cache-hardening-schemas.md.
+
+        Args:
+            dir_path: Directory to archive
+            output_path: Target archive path (will have .tar.zst extension)
+            task_id: Task identifier for logging
+
+        Returns:
+            CompressionMetadata with format, original_size, index_path
+
+        Raises:
+            ValidationError: If directory doesn't exist or archive creation fails
+        """
+        if not dir_path.exists() or not dir_path.is_dir():
+            raise ValidationError(f"Directory not found or not a directory: {dir_path}")
+
+        # 1. Create index of contents
+        index = {
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "root": str(dir_path.relative_to(self.repo_root)),
+            "files": []
+        }
+
+        original_size = 0
+        for file_path in sorted(dir_path.rglob("*")):
+            if file_path.is_file():
+                rel_path = file_path.relative_to(dir_path)
+                file_size = file_path.stat().st_size
+                original_size += file_size
+
+                sha256 = hashlib.sha256()
+                with open(file_path, 'rb') as f:
+                    while chunk := f.read(8192):
+                        sha256.update(chunk)
+
+                index["files"].append({
+                    "path": str(rel_path),
+                    "size": file_size,
+                    "sha256": sha256.hexdigest()
+                })
+
+        # 2. Save index
+        index_path = output_path.with_suffix('.index.json')
+        index_content = json.dumps(index, indent=2, sort_keys=True, ensure_ascii=False)
+        index_content += '\n'
+        self._atomic_write(index_path, index_content)
+
+        # 3. Create archive (prefer tar.zst, fallback to tar.gz)
+        compression_format = "tar.zst"
+        archive_path = output_path.with_suffix('.tar.zst')
+
+        try:
+            # Try tar.zst first (best compression)
+            subprocess.run([
+                'tar',
+                '--zstd',
+                '--create',
+                '--file', str(archive_path),
+                '--directory', str(dir_path.parent),
+                dir_path.name
+            ], check=True, capture_output=True, text=True)
+        except (subprocess.CalledProcessError, FileNotFoundError) as e:
+            # Fallback to tar.gz if zstd not available
+            import sys
+            print(
+                f"Warning: zstd compression not available, falling back to gzip. "
+                f"Install zstd for better compression.",
+                file=sys.stderr
+            )
+            compression_format = "tar.gz"
+            archive_path = output_path.with_suffix('.tar.gz')
+
+            try:
+                subprocess.run([
+                    'tar',
+                    '--gzip',
+                    '--create',
+                    '--file', str(archive_path),
+                    '--directory', str(dir_path.parent),
+                    dir_path.name
+                ], check=True, capture_output=True, text=True)
+            except subprocess.CalledProcessError as tar_error:
+                raise ValidationError(
+                    f"Failed to create archive: {tar_error.stderr}"
+                ) from tar_error
+
+        # 4. Return metadata
+        return CompressionMetadata(
+            format=compression_format,
+            original_size=original_size,
+            index_path=str(index_path.relative_to(self.repo_root))
+        )
+
+    def attach_evidence(
+        self,
+        task_id: str,
+        artifact_type: str,
+        artifact_path: Path,
+        description: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> 'EvidenceAttachment':
+        """
+        Attach evidence artifact to task context.
+
+        Args:
+            task_id: Task identifier
+            artifact_type: One of ARTIFACT_TYPES
+            artifact_path: Path to artifact (absolute or relative to repo_root)
+            description: Human-readable description (max 200 chars)
+            metadata: Type-specific metadata (e.g., command, exit_code for qa_output)
+
+        Returns:
+            EvidenceAttachment with ID, SHA256, and metadata
+
+        Raises:
+            ValidationError: If type invalid, size exceeds limits, or path invalid
+            ContextNotFoundError: If context doesn't exist for task
+        """
+        # Verify context exists
+        context = self.get_context(task_id)
+        if context is None:
+            raise ContextNotFoundError(f"No context found for {task_id}")
+
+        # Resolve artifact path
+        if not artifact_path.is_absolute():
+            artifact_path = self.repo_root / artifact_path
+
+        if not artifact_path.exists():
+            raise ValidationError(f"Artifact path does not exist: {artifact_path}")
+
+        # Handle directory type by converting to archive
+        compression = None
+        if artifact_path.is_dir():
+            if artifact_type != 'directory':
+                raise ValidationError(
+                    f"Path is a directory but type is '{artifact_type}'. "
+                    "Use type='directory' for directory artifacts."
+                )
+
+            # Create archive in evidence directory
+            evidence_dir = self._get_evidence_dir(task_id)
+            evidence_dir.mkdir(parents=True, exist_ok=True)
+
+            archive_base = evidence_dir / f"{artifact_path.name}-archive"
+            compression = self._create_directory_archive(
+                artifact_path,
+                archive_base,
+                task_id
+            )
+
+            # Update artifact_path to point to archive
+            if compression.format == "tar.zst":
+                artifact_path = archive_base.with_suffix('.tar.zst')
+            else:
+                artifact_path = archive_base.with_suffix('.tar.gz')
+
+            # Update type to archive
+            artifact_type = 'archive'
+
+        # Calculate size and hash
+        artifact_bytes = artifact_path.read_bytes()
+        size_bytes = len(artifact_bytes)
+        sha256_hash = hashlib.sha256(artifact_bytes).hexdigest()
+
+        # Validate type and size
+        self._validate_artifact_type(artifact_type, size_bytes)
+
+        # Validate description length
+        if description and len(description) > 200:
+            raise ValidationError(
+                f"Description exceeds 200 characters: {len(description)}"
+            )
+
+        # Create evidence ID (16-char SHA256 prefix)
+        evidence_id = sha256_hash[:16]
+
+        # Parse metadata if provided
+        artifact_metadata = None
+        if metadata:
+            artifact_metadata = ArtifactMetadata.from_dict(metadata)
+
+        # Create EvidenceAttachment
+        attachment = EvidenceAttachment(
+            id=evidence_id,
+            type=artifact_type,
+            path=str(artifact_path.relative_to(self.repo_root)),
+            sha256=sha256_hash,
+            size=size_bytes,
+            created_at=datetime.now(timezone.utc).isoformat(),
+            description=description,
+            compression=compression,
+            metadata=artifact_metadata
+        )
+
+        # Update evidence index
+        evidence_dir = self._get_evidence_dir(task_id)
+        evidence_dir.mkdir(parents=True, exist_ok=True)
+
+        index_path = evidence_dir / 'index.json'
+
+        # Read existing index or create new
+        if index_path.exists():
+            with open(index_path, 'r', encoding='utf-8') as f:
+                index = json.load(f)
+        else:
+            index = {
+                "version": 1,
+                "evidence": []
+            }
+
+        # Add attachment (replace if ID exists)
+        existing_idx = next(
+            (i for i, e in enumerate(index["evidence"]) if e["id"] == evidence_id),
+            None
+        )
+        if existing_idx is not None:
+            index["evidence"][existing_idx] = attachment.to_dict()
+        else:
+            index["evidence"].append(attachment.to_dict())
+
+        # Write index atomically
+        index_content = json.dumps(index, indent=2, sort_keys=True, ensure_ascii=False)
+        index_content += '\n'
+        self._atomic_write(index_path, index_content)
+
+        return attachment
+
+    def list_evidence(self, task_id: str) -> List['EvidenceAttachment']:
+        """
+        List all evidence attachments for task.
+
+        Args:
+            task_id: Task identifier
+
+        Returns:
+            List of EvidenceAttachment objects (empty if no evidence)
+        """
+        evidence_dir = self._get_evidence_dir(task_id)
+        index_path = evidence_dir / 'index.json'
+
+        if not index_path.exists():
+            return []
+
+        with open(index_path, 'r', encoding='utf-8') as f:
+            index = json.load(f)
+
+        return [
+            EvidenceAttachment.from_dict(e)
+            for e in index.get("evidence", [])
+        ]

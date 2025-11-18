@@ -3,17 +3,21 @@ Notification service for task runner events.
 
 Supports multiple notification backends:
 - Telegram Bot (primary, simplest setup)
-- ntfy.sh (fallback, no registration required)
+- ntfyt.sh (self-hosted ntfy fallback, access token capable)
 
 Configuration via environment variables:
 - TELEGRAM_BOT_TOKEN: Bot token from @BotFather
 - TELEGRAM_CHAT_ID: Your Telegram chat ID
-- NTFY_TOPIC: Topic name for ntfy.sh (optional fallback)
+- NTFYT_TOPIC: Topic or channel on ntfyt.sh (optional fallback, `NTFY_TOPIC` alias supported)
+- NTFYT_BASE_URL: Override ntfyt instance base URL (defaults to https://ntfyt.sh)
+- NTFYT_ACCESS_TOKEN: Access token for authenticated ntfyt publishing (optional but recommended)
 """
 
 import os
 from typing import Optional
 from enum import Enum
+
+from .output import print_warning
 
 
 class NotificationLevel(Enum):
@@ -31,8 +35,20 @@ class NotificationService:
         """Initialize notification service with environment configuration."""
         self.telegram_token = os.environ.get("TELEGRAM_BOT_TOKEN")
         self.telegram_chat_id = os.environ.get("TELEGRAM_CHAT_ID")
-        self.ntfy_topic = os.environ.get("NTFY_TOPIC")
-        self.enabled = bool(self.telegram_token and self.telegram_chat_id) or bool(self.ntfy_topic)
+        self.ntfyt_topic = os.environ.get("NTFYT_TOPIC") or os.environ.get("NTFY_TOPIC")
+        self.ntfyt_base_url = (
+            os.environ.get("NTFYT_BASE_URL")
+            or os.environ.get("NTFY_BASE_URL")
+            or "https://ntfyt.sh"
+        )
+        self.ntfyt_access_token = (
+            os.environ.get("NTFYT_ACCESS_TOKEN")
+            or os.environ.get("NTFY_ACCESS_TOKEN")
+        )
+        self.enabled = (
+            bool(self.telegram_token and self.telegram_chat_id)
+            or bool(self.ntfyt_topic or self.ntfyt_access_token)
+        )
 
     def notify_success(self, task_id: str, title: str, details: Optional[str] = None) -> bool:
         """
@@ -129,9 +145,9 @@ class NotificationService:
         if self.telegram_token and self.telegram_chat_id:
             success = self._send_telegram(message)
 
-        # Fallback to ntfy.sh if Telegram fails or not configured
-        if not success and self.ntfy_topic:
-            success = self._send_ntfy(message, level)
+        # Fallback to ntfyt.sh self-hosted feed if Telegram fails or not configured
+        if not success and (self.ntfyt_topic or self.ntfyt_access_token):
+            success = self._send_ntfyt(message, level)
 
         return success
 
@@ -160,12 +176,18 @@ class NotificationService:
             return response.status_code == 200
         except Exception as e:
             # Silent failure - don't interrupt task runner
-            print(f"Warning: Failed to send Telegram notification: {e}")
+            print_warning(f"Failed to send Telegram notification: {e}", level="warning")
             return False
 
-    def _send_ntfy(self, message: str, level: NotificationLevel) -> bool:
+    def _build_ntfyt_url(self) -> str:
+        """Compose the ntfyt publishing URL from base and topic settings."""
+        base = (self.ntfyt_base_url or "https://ntfyt.sh").rstrip("/")
+        topic = (self.ntfyt_topic or "").strip("/")
+        return f"{base}/{topic}" if topic else base
+
+    def _send_ntfyt(self, message: str, level: NotificationLevel) -> bool:
         """
-        Send notification via ntfy.sh.
+        Send notification via ntfyt.sh (self-hosted ntfy).
 
         Args:
             message: Message to send
@@ -177,9 +199,9 @@ class NotificationService:
         try:
             import requests
 
-            url = f"https://ntfy.sh/{self.ntfy_topic}"
+            url = self._build_ntfyt_url()
 
-            # Map level to ntfy priority
+            # Map level to ntfyt priority headers
             priority_map = {
                 NotificationLevel.SUCCESS: "3",  # Default
                 NotificationLevel.FAILURE: "4",  # High
@@ -189,14 +211,16 @@ class NotificationService:
 
             headers = {
                 "Priority": priority_map.get(level, "3"),
-                "Title": "Task Runner",
+                "Title": "Task Workflow",
             }
+            if self.ntfyt_access_token:
+                headers["Authorization"] = f"Bearer {self.ntfyt_access_token}"
 
             response = requests.post(url, data=message.encode("utf-8"), headers=headers, timeout=10)
-            return response.status_code == 200
+            return 200 <= response.status_code < 300
         except Exception as e:
             # Silent failure - don't interrupt task runner
-            print(f"Warning: Failed to send ntfy notification: {e}")
+            print_warning(f"Failed to send ntfyt notification: {e}", level="warning")
             return False
 
 

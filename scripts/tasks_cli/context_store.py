@@ -23,6 +23,33 @@ from filelock import FileLock
 from .exceptions import ValidationError
 
 
+# ============================================================================
+# Evidence Attachment Constants (Per hardening-schemas.md Section 1)
+# ============================================================================
+
+ARTIFACT_TYPES = [
+    'file',
+    'directory',
+    'archive',
+    'log',
+    'screenshot',
+    'qa_output',
+    'summary',
+    'diff'
+]
+
+TYPE_SIZE_LIMITS = {
+    'file': 1 * 1024 * 1024,           # 1 MB
+    'directory': None,                  # N/A (must be converted to archive)
+    'archive': 50 * 1024 * 1024,       # 50 MB
+    'log': 10 * 1024 * 1024,           # 10 MB
+    'screenshot': 5 * 1024 * 1024,     # 5 MB
+    'qa_output': 10 * 1024 * 1024,     # 10 MB
+    'summary': 500 * 1024,              # 500 KB
+    'diff': 10 * 1024 * 1024,          # 10 MB
+}
+
+
 class ContextExistsError(Exception):
     """Raised when attempting to initialize context that already exists."""
 
@@ -174,6 +201,289 @@ class StandardsCitation:
 
 
 @dataclass(frozen=True)
+class QACoverageSummary:
+    """Coverage metrics from test execution."""
+    lines: Optional[float] = None
+    branches: Optional[float] = None
+    functions: Optional[float] = None
+    statements: Optional[float] = None
+
+    def to_dict(self) -> dict:
+        """Convert to JSON-serializable dict."""
+        result = {}
+        if self.lines is not None:
+            result['lines'] = self.lines
+        if self.branches is not None:
+            result['branches'] = self.branches
+        if self.functions is not None:
+            result['functions'] = self.functions
+        if self.statements is not None:
+            result['statements'] = self.statements
+        return result
+
+    @classmethod
+    def from_dict(cls, data: dict) -> 'QACoverageSummary':
+        """Deserialize from dict."""
+        return cls(
+            lines=data.get('lines'),
+            branches=data.get('branches'),
+            functions=data.get('functions'),
+            statements=data.get('statements'),
+        )
+
+
+@dataclass(frozen=True)
+class QACommandSummary:
+    """Parsed summary from QA command output."""
+    lint_errors: Optional[int] = None
+    lint_warnings: Optional[int] = None
+    type_errors: Optional[int] = None
+    tests_passed: Optional[int] = None
+    tests_failed: Optional[int] = None
+    coverage: Optional[QACoverageSummary] = None
+
+    def to_dict(self) -> dict:
+        """Convert to JSON-serializable dict."""
+        result = {}
+        if self.lint_errors is not None:
+            result['lint_errors'] = self.lint_errors
+        if self.lint_warnings is not None:
+            result['lint_warnings'] = self.lint_warnings
+        if self.type_errors is not None:
+            result['type_errors'] = self.type_errors
+        if self.tests_passed is not None:
+            result['tests_passed'] = self.tests_passed
+        if self.tests_failed is not None:
+            result['tests_failed'] = self.tests_failed
+        if self.coverage is not None:
+            result['coverage'] = self.coverage.to_dict()
+        return result
+
+    @classmethod
+    def from_dict(cls, data: dict) -> 'QACommandSummary':
+        """Deserialize from dict."""
+        coverage = None
+        if 'coverage' in data:
+            coverage = QACoverageSummary.from_dict(data['coverage'])
+        return cls(
+            lint_errors=data.get('lint_errors'),
+            lint_warnings=data.get('lint_warnings'),
+            type_errors=data.get('type_errors'),
+            tests_passed=data.get('tests_passed'),
+            tests_failed=data.get('tests_failed'),
+            coverage=coverage,
+        )
+
+
+@dataclass(frozen=True)
+class QACommandResult:
+    """
+    Result from a single QA command execution.
+
+    Per Section 4.1 of task-context-cache-hardening-schemas.md.
+    """
+    command_id: str
+    command: str
+    exit_code: int
+    duration_ms: int
+    log_path: Optional[str] = None
+    log_sha256: Optional[str] = None
+    summary: Optional[QACommandSummary] = None
+
+    def to_dict(self) -> dict:
+        """Convert to JSON-serializable dict."""
+        result = {
+            'command_id': self.command_id,
+            'command': self.command,
+            'exit_code': self.exit_code,
+            'duration_ms': self.duration_ms,
+        }
+        if self.log_path is not None:
+            result['log_path'] = self.log_path
+        if self.log_sha256 is not None:
+            result['log_sha256'] = self.log_sha256
+        if self.summary is not None:
+            result['summary'] = self.summary.to_dict()
+        return result
+
+    @classmethod
+    def from_dict(cls, data: dict) -> 'QACommandResult':
+        """Deserialize from dict."""
+        summary = None
+        if 'summary' in data and data['summary']:
+            summary = QACommandSummary.from_dict(data['summary'])
+        return cls(
+            command_id=data['command_id'],
+            command=data['command'],
+            exit_code=data['exit_code'],
+            duration_ms=data['duration_ms'],
+            log_path=data.get('log_path'),
+            log_sha256=data.get('log_sha256'),
+            summary=summary,
+        )
+
+
+@dataclass(frozen=True)
+class QAResults:
+    """
+    Complete QA results structure.
+
+    Per Section 4.1 of task-context-cache-hardening-schemas.md.
+    Stored in ValidationBaseline.initial_results.
+    """
+    recorded_at: str  # ISO 8601 timestamp
+    agent: str  # implementer, reviewer, validator
+    git_sha: Optional[str] = None
+    results: List[QACommandResult] = field(default_factory=list)
+
+    def to_dict(self) -> dict:
+        """Convert to JSON-serializable dict."""
+        return {
+            'recorded_at': self.recorded_at,
+            'agent': self.agent,
+            'git_sha': self.git_sha,
+            'results': [r.to_dict() for r in self.results],
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> 'QAResults':
+        """Deserialize from dict."""
+        results = []
+        if 'results' in data:
+            results = [QACommandResult.from_dict(r) for r in data['results']]
+        return cls(
+            recorded_at=data['recorded_at'],
+            agent=data['agent'],
+            git_sha=data.get('git_sha'),
+            results=results,
+        )
+
+
+@dataclass(frozen=True)
+class CompressionMetadata:
+    """
+    Compression metadata for evidence archives.
+
+    Per Section 1.1 of task-context-cache-hardening-schemas.md.
+    Present only for type=archive evidence attachments.
+    """
+    format: str  # "tar.zst" or "tar.gz"
+    original_size: int  # Size in bytes before compression
+    index_path: str  # Path to index.json listing archive contents
+
+    def to_dict(self) -> dict:
+        """Convert to JSON-serializable dict."""
+        return {
+            'format': self.format,
+            'original_size': self.original_size,
+            'index_path': self.index_path,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> 'CompressionMetadata':
+        """Deserialize from dict."""
+        return cls(
+            format=data['format'],
+            original_size=data['original_size'],
+            index_path=data['index_path'],
+        )
+
+
+@dataclass(frozen=True)
+class ArtifactMetadata:
+    """
+    Type-specific metadata for evidence attachments.
+
+    Per Section 1.1 of task-context-cache-hardening-schemas.md.
+    Used primarily for qa_output type artifacts.
+    """
+    command: Optional[str] = None  # Command that generated this artifact
+    exit_code: Optional[int] = None  # Command exit code
+    duration_ms: Optional[int] = None  # Execution time in milliseconds
+
+    def to_dict(self) -> dict:
+        """Convert to JSON-serializable dict."""
+        result = {}
+        if self.command is not None:
+            result['command'] = self.command
+        if self.exit_code is not None:
+            result['exit_code'] = self.exit_code
+        if self.duration_ms is not None:
+            result['duration_ms'] = self.duration_ms
+        return result
+
+    @classmethod
+    def from_dict(cls, data: dict) -> 'ArtifactMetadata':
+        """Deserialize from dict."""
+        return cls(
+            command=data.get('command'),
+            exit_code=data.get('exit_code'),
+            duration_ms=data.get('duration_ms'),
+        )
+
+
+@dataclass(frozen=True)
+class EvidenceAttachment:
+    """
+    Evidence attachment for task context.
+
+    Per Section 1.1 of task-context-cache-hardening-schemas.md.
+    Represents a single piece of evidence (log, artifact, screenshot, etc.)
+    attached to a task during agent workflow.
+    """
+    id: str  # 16-char SHA256 prefix of content
+    type: str  # One of ARTIFACT_TYPES
+    path: str  # Relative path from repo root
+    sha256: str  # Full SHA256 hash of content
+    size: int  # Size in bytes
+    created_at: str  # ISO 8601 timestamp
+    description: Optional[str] = None  # Human-readable description (max 200 chars)
+    compression: Optional[CompressionMetadata] = None  # Present only for type=archive
+    metadata: Optional[ArtifactMetadata] = None  # Type-specific metadata
+
+    def to_dict(self) -> dict:
+        """Convert to JSON-serializable dict."""
+        result = {
+            'id': self.id,
+            'type': self.type,
+            'path': self.path,
+            'sha256': self.sha256,
+            'size': self.size,
+            'created_at': self.created_at,
+        }
+        if self.description is not None:
+            result['description'] = self.description
+        if self.compression is not None:
+            result['compression'] = self.compression.to_dict()
+        if self.metadata is not None:
+            result['metadata'] = self.metadata.to_dict()
+        return result
+
+    @classmethod
+    def from_dict(cls, data: dict) -> 'EvidenceAttachment':
+        """Deserialize from dict."""
+        compression = None
+        if 'compression' in data and data['compression']:
+            compression = CompressionMetadata.from_dict(data['compression'])
+
+        metadata = None
+        if 'metadata' in data and data['metadata']:
+            metadata = ArtifactMetadata.from_dict(data['metadata'])
+
+        return cls(
+            id=data['id'],
+            type=data['type'],
+            path=data['path'],
+            sha256=data['sha256'],
+            size=data['size'],
+            created_at=data['created_at'],
+            description=data.get('description'),
+            compression=compression,
+            metadata=metadata,
+        )
+
+
+@dataclass(frozen=True)
 class ValidationBaseline:
     """QA commands and initial results."""
     commands: List[str]
@@ -192,6 +502,23 @@ class ValidationBaseline:
         return cls(
             commands=data['commands'],
             initial_results=data.get('initial_results'),
+        )
+
+    def get_qa_results(self) -> Optional[QAResults]:
+        """Get structured QA results if available."""
+        if self.initial_results is None:
+            return None
+        try:
+            return QAResults.from_dict(self.initial_results)
+        except (KeyError, TypeError):
+            # Fallback for legacy format
+            return None
+
+    def with_qa_results(self, qa_results: QAResults) -> 'ValidationBaseline':
+        """Return new ValidationBaseline with updated QA results."""
+        return ValidationBaseline(
+            commands=self.commands,
+            initial_results=qa_results.to_dict(),
         )
 
 

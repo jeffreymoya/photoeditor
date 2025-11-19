@@ -26,6 +26,18 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from .commands import (
+    cmd_attach_evidence,
+    cmd_list_evidence,
+    cmd_attach_standard,
+    cmd_add_exception,
+    cmd_list_exceptions,
+    cmd_resolve_exception,
+    cmd_cleanup_exceptions,
+    cmd_list_quarantined,
+    cmd_release_quarantine,
+    cmd_quarantine_task,
+)
 from .context_store import (
     ContextExistsError,
     ContextNotFoundError,
@@ -2904,6 +2916,62 @@ For more information, see: docs/proposals/task-context-cache-hardening.md
         help='Reset drift budget and record resolution (requires --agent and --note)'
     )
 
+    # Evidence and standards commands (Session S13)
+    group.add_argument(
+        '--attach-evidence',
+        metavar='TASK_ID',
+        help='Attach evidence to task context (requires --type, --path, --description)'
+    )
+    group.add_argument(
+        '--list-evidence',
+        metavar='TASK_ID',
+        help='List evidence attachments for a task'
+    )
+    group.add_argument(
+        '--attach-standard',
+        metavar='TASK_ID',
+        help='Attach standards excerpt to task context (requires --file, --section)'
+    )
+
+    # Exception ledger commands (Session S13)
+    group.add_argument(
+        '--add-exception',
+        metavar='TASK_ID',
+        help='Add exception to ledger (requires --exception-type, --message)'
+    )
+    group.add_argument(
+        '--list-exceptions',
+        action='store_true',
+        help='List exceptions from ledger (optional --status filter)'
+    )
+    group.add_argument(
+        '--resolve-exception',
+        metavar='TASK_ID',
+        help='Resolve exception in ledger (optional --notes)'
+    )
+    group.add_argument(
+        '--cleanup-exceptions',
+        metavar='TASK_ID',
+        help='Cleanup exceptions based on trigger (optional --trigger)'
+    )
+
+    # Quarantine commands (Session S13)
+    group.add_argument(
+        '--quarantine-task',
+        metavar='TASK_ID',
+        help='Quarantine a task (requires --reason, optional --error-details)'
+    )
+    group.add_argument(
+        '--list-quarantined',
+        action='store_true',
+        help='List quarantined tasks (optional --status filter)'
+    )
+    group.add_argument(
+        '--release-quarantine',
+        metavar='TASK_ID',
+        help='Release task from quarantine'
+    )
+
     # Output format option (applies to list, pick, validate, explain, check-halt)
     parser.add_argument(
         '--format',
@@ -2999,6 +3067,73 @@ For more information, see: docs/proposals/task-context-cache-hardening.md
         '--allow-preexisting-dirty',
         action='store_true',
         help='Allow pre-existing dirty files in git working tree'
+    )
+
+    # Supporting arguments for Session S13 commands
+    parser.add_argument(
+        '--type',
+        metavar='TYPE',
+        help='Evidence type (file, qa_output, validation_log, etc.)'
+    )
+    parser.add_argument(
+        '--path',
+        metavar='PATH',
+        help='File path (for attach-evidence)'
+    )
+    parser.add_argument(
+        '--description',
+        metavar='TEXT',
+        help='Description for evidence attachment'
+    )
+    parser.add_argument(
+        '--metadata',
+        metavar='JSON',
+        help='Metadata JSON for evidence attachment'
+    )
+    parser.add_argument(
+        '--file',
+        metavar='FILE',
+        help='Standards file path (for attach-standard)'
+    )
+    parser.add_argument(
+        '--section',
+        metavar='SECTION',
+        help='Section heading in standards file'
+    )
+    parser.add_argument(
+        '--exception-type',
+        metavar='TYPE',
+        help='Exception type (malformed_yaml, missing_standards, etc.)'
+    )
+    parser.add_argument(
+        '--message',
+        metavar='TEXT',
+        help='Exception or error message'
+    )
+    parser.add_argument(
+        '--owner',
+        metavar='OWNER',
+        help='Exception owner (defaults to system)'
+    )
+    parser.add_argument(
+        '--notes',
+        metavar='TEXT',
+        help='Notes for resolution'
+    )
+    parser.add_argument(
+        '--trigger',
+        metavar='TRIGGER',
+        help='Cleanup trigger (task_completion, task_deletion, manual)'
+    )
+    parser.add_argument(
+        '--reason',
+        metavar='REASON',
+        help='Quarantine reason (malformed_yaml, validation_failed, corrupted_context, manual)'
+    )
+    parser.add_argument(
+        '--error-details',
+        metavar='TEXT',
+        help='Detailed error message for quarantine'
     )
 
     args = parser.parse_args()
@@ -3116,6 +3251,47 @@ For more information, see: docs/proposals/task-context-cache-hardening.md
 
         elif args.resolve_drift:
             return cmd_resolve_drift(args, repo_root)
+
+        # Evidence and standards commands
+        elif args.attach_evidence:
+            args.task_id = args.attach_evidence
+            return cmd_attach_evidence(args)
+
+        elif args.list_evidence:
+            args.task_id = args.list_evidence
+            return cmd_list_evidence(args)
+
+        elif args.attach_standard:
+            args.task_id = args.attach_standard
+            return cmd_attach_standard(args)
+
+        # Exception ledger commands
+        elif args.add_exception:
+            args.task_id = args.add_exception
+            return cmd_add_exception(args)
+
+        elif args.list_exceptions:
+            return cmd_list_exceptions(args)
+
+        elif args.resolve_exception:
+            args.task_id = args.resolve_exception
+            return cmd_resolve_exception(args)
+
+        elif args.cleanup_exceptions:
+            args.task_id = args.cleanup_exceptions
+            return cmd_cleanup_exceptions(args)
+
+        # Quarantine commands
+        elif args.quarantine_task:
+            args.task_id = args.quarantine_task
+            return cmd_quarantine_task(args)
+
+        elif args.list_quarantined:
+            return cmd_list_quarantined(args)
+
+        elif args.release_quarantine:
+            args.task_id = args.release_quarantine
+            return cmd_release_quarantine(args)
 
     except KeyboardInterrupt:
         print("\nInterrupted", file=sys.stderr)

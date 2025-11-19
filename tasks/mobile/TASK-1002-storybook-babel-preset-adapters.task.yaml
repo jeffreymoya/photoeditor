@@ -1,0 +1,330 @@
+# Storybook Babel preset with parser override governance
+# Phase 1 of docs/proposals/storybook-parser-override-arbitration.md
+# Implements single-source parser governance and NativeWind/Reanimated adapters
+
+schema_version: "1.1"
+id: TASK-1002
+title: "Storybook Babel preset with parser override governance & NativeWind adapters"
+status: todo
+blocked_reason: null
+priority: P0
+area: mobile
+unblocker: false
+estimate: M
+order: 2
+blocked_by: [TASK-1001]
+depends_on: []
+agent_completion_state: {}
+
+complexity_budget:
+  estimated_file_count: 8
+  plan_steps_count: 5
+
+clarifications:
+  outstanding: []
+  evidence_path: "docs/proposals/storybook-parser-override-arbitration.md"
+
+description: >-
+  Storybook builds fail with "More than one plugin attempted to override parsing"
+  because multiple Babel presets (NativeWind v5's react-native-css and babel-preset-expo)
+  both register parserOverride. This task implements a dedicated Storybook Babel preset
+  that enforces single parser override governance via a shared registry, wraps upstream
+  presets in proxy logic, and provides deterministic NativeWind/Reanimated adapters so
+  Storybook web builds avoid native dependencies while Expo mobile builds remain untouched.
+  The preset integrates with the audit tooling from TASK-1001 to validate enforcement.
+
+outcome: >-
+  A working Storybook-specific Babel preset (mobile/storybook/babel/storybookPreset.js)
+  that loads babel-preset-expo with explicit reanimated:false flag, conditionally applies
+  NativeWind preset, enforces single parserOverride via shared registry (throws actionable
+  error if >1 detected), and exports helper assertSingleParserOverride for reuse. NativeWind
+  and Reanimated stub adapters allow Storybook to render components without native deps.
+  mobile/babel.config.js consumes this preset. Parser audit from TASK-1001 passes (≤1 override).
+
+scope:
+  in:
+    - Dedicated Storybook Babel preset module (mobile/storybook/babel/storybookPreset.js)
+    - Parser override registry with enforcement logic (shared state, proxy wrapping)
+    - babel-preset-expo integration with explicit options (reanimated: false, web config)
+    - NativeWind preset conditional application with registry recording
+    - NativeWind adapter stubs (mobile/storybook/adapters/nativewind.ts)
+    - Reanimated adapter stubs (reuse existing mobile/.storybook/stubs/)
+    - Module-resolver aliases in Storybook main.js for nativewind/react-native-css
+    - Shared adapter type definitions (shared/storybook/adapters/nativewind.ts)
+    - Adapter contract documentation (docs/mobile/storybook-adapters.md)
+    - Update mobile/babel.config.js to consume storybookPreset
+    - Unit tests for preset, adapters, and registry enforcement
+  out:
+    - Chromatic workflow integration (deferred to TASK-1003)
+    - GitHub Actions configuration (deferred to TASK-1003)
+    - ADR and final documentation (deferred to TASK-1003)
+    - Downgrading NativeWind to v4 (out of scope per proposal Section 3)
+    - Backend UI harness integration (future reuse, not in scope)
+
+context:
+  affected_packages: [mobile, shared]
+  standards_tier: mobile
+  related_docs:
+    - standards/global.md
+    - standards/AGENTS.md
+    - standards/testing-standards.md
+    - standards/frontend-tier.md
+    - standards/typescript.md
+    - standards/shared-contracts-tier.md
+    - docs/proposals/storybook-parser-override-arbitration.md
+    - docs/pending/storybook-chromatic-blockers.md
+    - mobile/babel.config.js
+  repo_paths:
+    - mobile/storybook/babel/storybookPreset.js
+    - mobile/storybook/adapters/nativewind.ts
+    - mobile/.storybook/main.js
+    - mobile/babel.config.js
+    - shared/storybook/adapters/nativewind.ts
+    - docs/mobile/storybook-adapters.md
+    - mobile/storybook/__tests__/storybookPreset.test.js
+    - mobile/storybook/__tests__/adapters/nativewind.test.ts
+  dependencies:
+    - babel-preset-expo
+    - nativewind
+    - react-native-css
+    - babel-plugin-module-resolver
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: pnpm
+      version: "8.x"
+    - name: babel
+      version: "7.x"
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Follow standards/typescript.md strict typing (enable exactOptionalPropertyTypes)
+    - Adhere to standards/frontend-tier.md component and module boundaries
+    - Reference standards/shared-contracts-tier.md for shared type definitions
+    - Keep Expo mobile builds untouched (preset only active when STORYBOOK_BUILD=1)
+    - Use standards/testing-standards.md coverage thresholds (≥70% lines, ≥60% branches)
+    - Cite standards/global.md for evidence artifact requirements
+  prohibited:
+    - No secrets or credentials in source control
+    - No changes to production Expo babel config (only Storybook-specific preset)
+    - No runtime dependencies added to mobile package (adapters use devDependencies only)
+
+plan:
+  - id: 1
+    title: Design Storybook Babel preset architecture with parser registry
+    details: >-
+      Review proposal Section 4.1 and design storybookPreset module responsibilities:
+      load babel-preset-expo with explicit options, conditionally apply NativeWind preset,
+      maintain parserOverrideRegistry (shared state tracking plugin ownership), wrap preset
+      plugins in proxy to record override registrations, throw actionable error if >1 override,
+      export assertSingleParserOverride helper. Define preset API (function accepting babel
+      api, returns config object with presets/plugins). Reference standards/typescript.md#analyzability
+      for maintainable module structure and standards/frontend-tier.md for Storybook boundaries.
+    actor: agent
+    inputs:
+      - docs/proposals/storybook-parser-override-arbitration.md (Section 4.1)
+      - mobile/babel.config.js (current config to refactor)
+      - babel-preset-expo documentation
+      - standards/typescript.md
+      - standards/frontend-tier.md
+    outputs:
+      - docs/mobile/storybook-adapters.md (architecture section with preset design)
+    definition_of_done:
+      - Architecture notes reference standards/typescript.md#analyzability and standards/frontend-tier.md
+      - Preset API and registry enforcement logic documented with error message format
+      - STORYBOOK_BUILD=1 conditional logic specified
+    estimate: S
+    expected_files_touched:
+      - docs/mobile/storybook-adapters.md
+  - id: 2
+    title: Implement storybookPreset module with parser override enforcement
+    details: >-
+      Create mobile/storybook/babel/storybookPreset.js exporting preset function.
+      Load babel-preset-expo with options { reanimated: false, web: { useTransformReactJSXExperimental: false } }.
+      Implement parserOverrideRegistry (Map storing plugin name → package), wrap NativeWind
+      preset in proxy checking for parserOverride property, record registrations, throw
+      descriptive error if >1 detected (print plugin names, packages, recommended override flag).
+      Export getPlugins(api) for plugin centralization and assertSingleParserOverride({ module, hook })
+      helper. Follow standards/typescript.md strict typing with JSDoc annotations for CommonJS.
+    actor: agent
+    inputs:
+      - docs/mobile/storybook-adapters.md (architecture from step 1)
+      - mobile/babel.config.js (patterns to refactor)
+      - babel-preset-expo source for option schema
+    outputs:
+      - mobile/storybook/babel/storybookPreset.js
+    definition_of_done:
+      - Preset loads babel-preset-expo with reanimated: false
+      - Registry tracks parserOverride registrations
+      - Throws error with plugin names/packages when >1 override detected
+      - Exports assertSingleParserOverride helper
+    estimate: M
+    expected_files_touched:
+      - mobile/storybook/babel/storybookPreset.js
+  - id: 3
+    title: Create NativeWind and Reanimated adapter stubs with module aliases
+    details: >-
+      Create mobile/storybook/adapters/nativewind.ts exporting identity functions for
+      styled, cssInterop, etc. (stub implementations return no-op or passthrough). Create
+      shared/storybook/adapters/nativewind.ts with TypeScript type definitions matching
+      NativeWind v5 API surface. Update mobile/.storybook/main.js to add module-resolver
+      aliases for nativewind and react-native-css pointing to stubs when STORY_STUB_NATIVEWIND=1.
+      Verify existing Reanimated stubs (mobile/.storybook/stubs/react-native-worklets-core.js)
+      are sufficient or extend as needed. Reference standards/typescript.md for strict typing
+      and standards/shared-contracts-tier.md for shared type boundaries.
+    actor: agent
+    inputs:
+      - NativeWind v5 API documentation (styled, cssInterop exports)
+      - mobile/.storybook/stubs/ (existing Reanimated stubs)
+      - mobile/.storybook/main.js (alias configuration)
+      - standards/typescript.md
+      - standards/shared-contracts-tier.md
+    outputs:
+      - mobile/storybook/adapters/nativewind.ts
+      - shared/storybook/adapters/nativewind.ts
+      - mobile/.storybook/main.js (updated aliases)
+    definition_of_done:
+      - NativeWind adapter exports match v5 API surface (styled, cssInterop, etc.)
+      - Shared types satisfy standards/shared-contracts-tier.md (no React/native imports)
+      - Module-resolver aliases active when STORY_STUB_NATIVEWIND=1
+      - Existing Reanimated stubs validated or extended
+    estimate: M
+    expected_files_touched:
+      - mobile/storybook/adapters/nativewind.ts
+      - shared/storybook/adapters/nativewind.ts
+      - mobile/.storybook/main.js
+  - id: 4
+    title: Update mobile/babel.config.js to consume storybookPreset
+    details: >-
+      Refactor mobile/babel.config.js to require storybookPreset module when
+      STORYBOOK_BUILD=1 and replace ad-hoc conditional logic with preset consumption:
+      presets: [storybookPreset(api)], plugins: storybookPreset.getPlugins(api).
+      Preserve existing Expo mobile build logic (non-Storybook path unchanged).
+      Document adapter contract (which modules are aliased, when stubs are active) in
+      docs/mobile/storybook-adapters.md. Reference standards/frontend-tier.md for
+      build configuration boundaries and standards/global.md for documentation requirements.
+    actor: agent
+    inputs:
+      - mobile/storybook/babel/storybookPreset.js (from step 2)
+      - mobile/babel.config.js (current config)
+      - docs/mobile/storybook-adapters.md (contract section to update)
+      - standards/frontend-tier.md
+      - standards/global.md
+    outputs:
+      - mobile/babel.config.js (refactored to use preset)
+      - docs/mobile/storybook-adapters.md (adapter contract documentation)
+    definition_of_done:
+      - babel.config.js loads storybookPreset when STORYBOOK_BUILD=1
+      - Expo mobile builds unaffected (tested via pnpm run start)
+      - Adapter contract documents aliased modules and activation conditions
+    estimate: S
+    expected_files_touched:
+      - mobile/babel.config.js
+      - docs/mobile/storybook-adapters.md
+  - id: 5
+    title: Add unit tests for preset, adapters, and registry enforcement
+    details: >-
+      Create mobile/storybook/__tests__/storybookPreset.test.js covering: (1) preset
+      loads with correct babel-preset-expo options, (2) registry enforcement throws
+      when >1 override detected, (3) assertSingleParserOverride helper validates inputs.
+      Create mobile/storybook/__tests__/adapters/nativewind.test.ts verifying adapter
+      stubs export expected functions (styled, cssInterop) and return no-op/passthrough.
+      Mock Babel preset loading and NativeWind runtime. Target standards/testing-standards.md
+      coverage thresholds (≥70% lines, ≥60% branches). Reference standards/typescript.md
+      for test structure.
+    actor: agent
+    inputs:
+      - mobile/storybook/babel/storybookPreset.js (implementation from step 2)
+      - mobile/storybook/adapters/nativewind.ts (implementation from step 3)
+      - standards/testing-standards.md (coverage requirements)
+      - standards/typescript.md (test patterns)
+    outputs:
+      - mobile/storybook/__tests__/storybookPreset.test.js
+      - mobile/storybook/__tests__/adapters/nativewind.test.ts
+    definition_of_done:
+      - Tests cover preset loading, registry enforcement, and adapter exports
+      - Coverage meets standards/testing-standards.md thresholds (≥70%/≥60%)
+      - All tests pass with exit code 0
+    estimate: M
+    expected_files_touched:
+      - mobile/storybook/__tests__/storybookPreset.test.js
+      - mobile/storybook/__tests__/adapters/nativewind.test.ts
+
+validation:
+  pipeline:
+    - command: pnpm turbo run lint:fix --filter=photoeditor-mobile
+      description: Auto-fix linting issues in mobile package
+    - command: pnpm turbo run qa:static --filter=photoeditor-mobile
+      description: Run static analysis (typecheck + lint) on mobile
+    - command: pnpm turbo run lint:fix --filter=@photoeditor/shared
+      description: Auto-fix linting issues in shared package
+    - command: pnpm turbo run qa:static --filter=@photoeditor/shared
+      description: Run static analysis (typecheck + lint) on shared
+    - command: cd mobile && STORYBOOK_BUILD=1 node ../scripts/storybook/audit-parser-overrides.mjs --file src/App.tsx --fail-on-violations
+      description: Verify parser audit passes with new preset (≤1 override)
+    - command: cd mobile && STORYBOOK_BUILD=1 STORY_STUB_NATIVEWIND=1 pnpm run build-storybook --output-dir=.storybook-static
+      description: Test full Storybook build with new preset and adapters
+    - command: pnpm test mobile/storybook/__tests__/storybookPreset.test.js
+      description: Run unit tests for Babel preset
+    - command: pnpm test mobile/storybook/__tests__/adapters/nativewind.test.ts
+      description: Run unit tests for NativeWind adapters
+    - command: pnpm turbo run test:coverage --filter=photoeditor-mobile
+      description: Verify coverage thresholds (≥70% lines, ≥60% branches)
+  manual_checks:
+    - Start Expo dev server (pnpm run start) and verify mobile app builds unchanged
+    - Open a Story in built Storybook and verify components render without NativeWind runtime errors
+
+acceptance_criteria:
+  must:
+    - storybookPreset.js loads babel-preset-expo with reanimated: false
+    - Parser override registry tracks plugin registrations and throws descriptive error if >1 detected
+    - assertSingleParserOverride helper exported and tested
+    - NativeWind adapter stubs export styled, cssInterop, etc. (no-op implementations)
+    - Shared type definitions in shared/storybook/adapters/nativewind.ts satisfy standards/shared-contracts-tier.md
+    - Module-resolver aliases in .storybook/main.js active when STORY_STUB_NATIVEWIND=1
+    - mobile/babel.config.js consumes storybookPreset when STORYBOOK_BUILD=1
+    - Expo mobile builds unaffected (pnpm run start succeeds, no runtime errors)
+    - Parser audit from TASK-1001 passes (exit code 0, ≤1 override detected)
+    - Full Storybook build succeeds (pnpm run build-storybook completes without errors)
+    - Unit tests achieve ≥70% line coverage and ≥60% branch coverage per standards/testing-standards.md
+    - Adapter contract documented in docs/mobile/storybook-adapters.md
+    - All validation pipeline commands pass
+  quality_gates:
+    - No lint/type errors in mobile or shared packages
+    - Parser audit report shows single override (or zero)
+    - Storybook static build artifact exists at mobile/.storybook-static/
+    - Evidence artifacts satisfy standards/global.md requirements
+
+artifacts:
+  - path: mobile/.storybook-static/
+    description: Storybook static build output demonstrating successful compilation
+  - path: mobile/storybook/.cache/parser-override-report.json
+    description: Parser audit report showing ≤1 override after preset implementation
+
+deliverables:
+  - mobile/storybook/babel/storybookPreset.js
+  - mobile/storybook/adapters/nativewind.ts
+  - shared/storybook/adapters/nativewind.ts
+  - mobile/.storybook/main.js (updated aliases)
+  - mobile/babel.config.js (refactored to use preset)
+  - docs/mobile/storybook-adapters.md
+  - mobile/storybook/__tests__/storybookPreset.test.js
+  - mobile/storybook/__tests__/adapters/nativewind.test.ts
+
+risks:
+  - description: NativeWind v5 API surface may change in future releases
+    mitigation: Pin nativewind version and add adapter contract tests comparing stub exports to actual runtime shape
+  - description: Adapter stubs may diverge from production implementations causing Storybook to hide real bugs
+    mitigation: Document adapter limitations in docs/mobile/storybook-adapters.md and add contract tests per proposal Section 8
+  - description: babel-preset-expo may reinsert Reanimated plugins despite reanimated:false flag
+    mitigation: Verify with parser audit and add regression test for preset option enforcement
+  - description: Module-resolver alias order may interfere with other Storybook webpack aliases
+    mitigation: Test full Storybook build and verify alias precedence in .storybook/main.js

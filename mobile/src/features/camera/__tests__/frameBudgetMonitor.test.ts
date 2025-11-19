@@ -30,7 +30,6 @@ jest.mock('expo-device', () => ({
 
 // Mock console methods
 const mockConsoleWarn = jest.spyOn(console, 'warn').mockImplementation();
-const mockConsoleInfo = jest.spyOn(console, 'info').mockImplementation();
 
 describe('frameBudgetMonitor', () => {
   beforeEach(() => {
@@ -285,7 +284,7 @@ describe('frameBudgetMonitor', () => {
 
       logFrameStats(stats, 'Pixel 5');
 
-      expect(mockConsoleInfo).toHaveBeenCalledWith(
+      expect(mockConsoleWarn).toHaveBeenCalledWith(
         '[FrameBudgetMonitor] Frame processing statistics',
         expect.objectContaining({
           totalFrames: 100,
@@ -310,7 +309,7 @@ describe('frameBudgetMonitor', () => {
 
       logFrameStats(stats, null);
 
-      expect(mockConsoleInfo).toHaveBeenCalledWith(
+      expect(mockConsoleWarn).toHaveBeenCalledWith(
         '[FrameBudgetMonitor] Frame processing statistics',
         expect.objectContaining({
           deviceModel: 'unknown',

@@ -1,0 +1,287 @@
+# Chromatic workflow hardening and governance documentation
+# Phases 2-3 of docs/proposals/storybook-parser-override-arbitration.md
+# Integrates parser governance into CI and documents architectural decision
+
+schema_version: "1.1"
+id: TASK-1003
+title: "Chromatic workflow hardening with parser governance & ADR documentation"
+status: todo
+blocked_reason: null
+priority: P0
+area: mobile
+unblocker: false
+estimate: S
+order: 3
+blocked_by: [TASK-1002]
+depends_on: [TASK-1001]
+agent_completion_state: {}
+
+complexity_budget:
+  estimated_file_count: 4
+  plan_steps_count: 4
+
+clarifications:
+  outstanding: []
+  evidence_path: "docs/proposals/storybook-parser-override-arbitration.md"
+
+description: >-
+  With parser override audit tooling (TASK-1001) and Storybook Babel preset governance
+  (TASK-1002) implemented, Chromatic can now reliably build Storybook artifacts without
+  plugin conflicts. This task hardens the Chromatic workflow by integrating parser audit
+  into CI, updating package.json scripts with environment flags (STORYBOOK_BUILD=1,
+  STORY_STUB_NATIVEWIND=1), configuring GitHub Actions to upload audit artifacts for
+  traceability, and running rollout validation (full QA suite, Chromatic dry run, metrics).
+  Documents the parser governance decision in an ADR and updates blocker tracking to reflect
+  resolution. Establishes baseline metrics per proposal Section 7.
+
+outcome: >-
+  Chromatic pipeline succeeds in CI with parser audit pre-flight check, package.json
+  scripts (chromatic:ci, storybook:build) include audit and environment flags, GitHub
+  Action uploads parser audit report as artifact, ADR documents single parser override
+  governance rule and adapter contract boundaries, blocker tracking updated to reference
+  proposal and ADR, baseline metrics captured (Chromatic success rate, build duration).
+  Rollout validation confirms all systems operational.
+
+scope:
+  in:
+    - Update mobile/package.json scripts (chromatic:ci, storybook:build)
+    - Integrate parser audit into storybook:build pre-flight
+    - Environment flags (STORYBOOK_BUILD=1, STORY_STUB_NATIVEWIND=1) in scripts
+    - GitHub Actions workflow update (.github/workflows/chromatic.yml or equivalent)
+    - Upload parser audit report as CI artifact
+    - Draft ADR (adr/2025-11-15-storybook-parser-governance.md)
+    - Update blocker tracking (docs/pending/storybook-chromatic-blockers.md)
+    - Rollout validation (full QA suite, Chromatic dry run, metrics collection)
+    - Baseline metrics capture per proposal Section 7 (success rate, build duration)
+  out:
+    - Production Chromatic deployment (this task covers dry run only)
+    - Upstream OSS package for parser override guard (future consideration per proposal Section 9)
+    - Adapter sharing with desktop/web preview apps (future consideration per proposal Section 9)
+    - Emergency fallback path (disable NativeWind entirely) (deferred per proposal Section 9)
+
+context:
+  affected_packages: [mobile]
+  standards_tier: mobile
+  related_docs:
+    - standards/global.md
+    - standards/AGENTS.md
+    - standards/testing-standards.md
+    - standards/frontend-tier.md
+    - standards/typescript.md
+    - docs/proposals/storybook-parser-override-arbitration.md
+    - docs/pending/storybook-chromatic-blockers.md
+    - adr/2025-11-15-storybook-parser-governance.md
+  repo_paths:
+    - mobile/package.json
+    - .github/workflows/chromatic.yml
+    - adr/2025-11-15-storybook-parser-governance.md
+    - docs/pending/storybook-chromatic-blockers.md
+  dependencies:
+    - chromatic
+    - cross-env
+
+environment:
+  os: ubuntu-22.04
+  runtimes:
+    node: "20.x"
+  tools:
+    - name: pnpm
+      version: "8.x"
+    - name: chromatic
+      version: latest
+  data: []
+
+constraints:
+  approvals_required: false
+  sandbox:
+    filesystem: workspace-write
+    network: enabled
+  coding_guidelines:
+    - Follow standards/global.md for ADR structure and evidence requirements
+    - Reference standards/frontend-tier.md for CI/CD pipeline boundaries
+    - Document metrics per proposal Section 7 format (table with baseline/target/window)
+    - Keep package.json scripts consistent with existing conventions
+    - Cite standards/typescript.md for type safety in any script additions
+  prohibited:
+    - No secrets or credentials in source control (use GitHub secrets)
+    - No production Chromatic deployment (dry run only for validation)
+
+plan:
+  - id: 1
+    title: Update package.json scripts with parser audit and environment flags
+    details: >-
+      Update mobile/package.json scripts section to add chromatic:ci and update
+      storybook:build. chromatic:ci should use cross-env to set STORYBOOK_BUILD=1
+      STORY_STUB_NATIVEWIND=1, run parser audit pre-flight, then invoke chromatic CLI
+      with --exit-zero-on-changes --only-changed flags per proposal Section 4.4.
+      storybook:build should run parser audit before invoking build-storybook.
+      Verify existing scripts (start, build, test) are unaffected. Reference
+      standards/global.md for script naming conventions.
+    actor: agent
+    inputs:
+      - mobile/package.json (current scripts)
+      - docs/proposals/storybook-parser-override-arbitration.md (Section 4.4)
+      - standards/global.md
+    outputs:
+      - mobile/package.json (updated scripts: chromatic:ci, storybook:build)
+    definition_of_done:
+      - chromatic:ci script sets environment flags and runs audit + chromatic
+      - storybook:build script runs audit pre-flight
+      - Existing scripts unchanged and verified via pnpm run start
+    estimate: S
+    expected_files_touched:
+      - mobile/package.json
+  - id: 2
+    title: Configure GitHub Actions workflow with parser audit artifact upload
+    details: >-
+      Update .github/workflows/chromatic.yml (or create if missing) to add a step
+      running parser audit before Chromatic build, upload parser-override-report.json
+      as GitHub Actions artifact for traceability. Configure workflow to run on PR
+      events touching mobile/ or root package.json. Use chromatic:ci script from step 1.
+      Set CHROMATIC_PROJECT_TOKEN from GitHub secrets. Reference standards/frontend-tier.md
+      for CI pipeline structure and standards/global.md for artifact retention.
+    actor: agent
+    inputs:
+      - .github/workflows/ (existing workflows for pattern reference)
+      - mobile/package.json (chromatic:ci script from step 1)
+      - standards/frontend-tier.md
+      - standards/global.md
+    outputs:
+      - .github/workflows/chromatic.yml (new or updated workflow)
+    definition_of_done:
+      - Workflow runs parser audit and uploads report as artifact
+      - Workflow triggers on PR events touching mobile/ or package.json
+      - CHROMATIC_PROJECT_TOKEN sourced from GitHub secrets
+    estimate: S
+    expected_files_touched:
+      - .github/workflows/chromatic.yml
+  - id: 3
+    title: Draft ADR documenting parser governance decision and adapter contracts
+    details: >-
+      Create adr/2025-11-15-storybook-parser-governance.md following ADR template
+      (Context, Decision, Consequences). Context: multiple Babel presets registering
+      parserOverride caused Storybook build failures. Decision: enforce single parser
+      override via shared registry in storybookPreset module, provide NativeWind/Reanimated
+      adapters with module-resolver aliases, integrate parser audit into CI. Consequences:
+      Storybook builds succeed, Chromatic unblocked, future UI frameworks must follow
+      governance rule, adapter contracts require maintenance for API alignment. Reference
+      proposal Sections 4.1-4.5 and link to this ADR from proposal Section 4.5. Cite
+      standards/global.md for ADR structure requirements.
+    actor: agent
+    inputs:
+      - docs/proposals/storybook-parser-override-arbitration.md (Sections 4.1-4.5, 8)
+      - Existing ADRs in adr/ for template reference
+      - standards/global.md (ADR requirements)
+    outputs:
+      - adr/2025-11-15-storybook-parser-governance.md
+    definition_of_done:
+      - ADR follows template structure (Context, Decision, Consequences)
+      - Links to proposal and references TASK-1001, TASK-1002, TASK-1003
+      - Documents parser governance rule and adapter contract boundaries
+      - Satisfies standards/global.md ADR requirements
+    estimate: M
+    expected_files_touched:
+      - adr/2025-11-15-storybook-parser-governance.md
+  - id: 4
+    title: Run rollout validation and capture baseline metrics
+    details: >-
+      Execute rollout validation per proposal Phase 3: (1) run full QA suite
+      (pnpm turbo run qa --parallel), (2) run Chromatic dry run with parser audit
+      (CHROMATIC_PROJECT_TOKEN=$TOKEN STORYBOOK_BUILD=1 pnpm run chromatic -- --dry-run),
+      (3) capture baseline metrics (Chromatic success rate from dashboard API, Storybook
+      build duration from GitHub Actions timing, parser override violations from audit
+      report). Update docs/pending/storybook-chromatic-blockers.md to mark blocker as
+      resolved, link to proposal and ADR, and embed baseline metrics table per proposal
+      Section 7 format. Reference standards/global.md for evidence artifact requirements
+      and standards/testing-standards.md for QA validation.
+    actor: agent
+    inputs:
+      - docs/proposals/storybook-parser-override-arbitration.md (Section 6, 7)
+      - adr/2025-11-15-storybook-parser-governance.md (from step 3)
+      - scripts/ci/chromatic-report.mjs (if exists, or note for creation)
+      - standards/global.md
+      - standards/testing-standards.md
+    outputs:
+      - docs/pending/storybook-chromatic-blockers.md (updated with resolution and metrics)
+      - QA suite output logs (attached as evidence)
+      - Chromatic dry run output (attached as evidence)
+      - Baseline metrics table (embedded in blockers doc)
+    definition_of_done:
+      - Full QA suite passes (pnpm turbo run qa --parallel exit code 0)
+      - Chromatic dry run succeeds with parser audit passing
+      - Baseline metrics captured per proposal Section 7 table format
+      - Blocker tracking updated with resolution, proposal link, and ADR link
+      - Evidence artifacts satisfy standards/global.md requirements
+    estimate: M
+    expected_files_touched:
+      - docs/pending/storybook-chromatic-blockers.md
+
+validation:
+  pipeline:
+    - command: pnpm turbo run lint:fix --filter=photoeditor-mobile
+      description: Auto-fix linting issues in mobile package
+    - command: pnpm turbo run qa:static --filter=photoeditor-mobile
+      description: Run static analysis (typecheck + lint) on mobile
+    - command: pnpm turbo run qa --parallel
+      description: Run full QA suite (all fitness functions, tests)
+    - command: cd mobile && STORYBOOK_BUILD=1 STORY_STUB_NATIVEWIND=1 pnpm run storybook:build
+      description: Test storybook:build script with parser audit pre-flight
+    - command: cd mobile && STORYBOOK_BUILD=1 STORY_STUB_NATIVEWIND=1 pnpm run chromatic:ci -- --dry-run
+      description: Test chromatic:ci script in dry run mode (requires CHROMATIC_PROJECT_TOKEN)
+    - command: node scripts/storybook/audit-parser-overrides.mjs --file mobile/src/App.tsx --fail-on-violations
+      description: Verify parser audit still passes after all changes
+  manual_checks:
+    - Review ADR structure and verify it follows template (Context, Decision, Consequences)
+    - Verify GitHub Actions workflow syntax is valid (YAML lint or GitHub CLI check)
+    - Review baseline metrics table and confirm it matches proposal Section 7 format
+    - Confirm Chromatic dry run output shows successful build and snapshot capture
+
+acceptance_criteria:
+  must:
+    - mobile/package.json contains chromatic:ci and updated storybook:build scripts
+    - chromatic:ci sets STORYBOOK_BUILD=1 STORY_STUB_NATIVEWIND=1 and runs parser audit
+    - storybook:build runs parser audit pre-flight before build-storybook
+    - GitHub Actions workflow (.github/workflows/chromatic.yml) exists and configured
+    - Workflow runs parser audit and uploads report as artifact
+    - Workflow triggers on PR events touching mobile/ or package.json
+    - ADR (adr/2025-11-15-storybook-parser-governance.md) documents parser governance decision
+    - ADR follows template structure and references proposal + tasks
+    - Blocker tracking (docs/pending/storybook-chromatic-blockers.md) updated with resolution
+    - Blocker doc links to proposal and ADR, embeds baseline metrics table
+    - Full QA suite passes (pnpm turbo run qa --parallel)
+    - Chromatic dry run succeeds with parser audit passing
+    - Baseline metrics captured per proposal Section 7 (success rate, build duration, violations)
+    - Parser audit report shows ≤1 override (validation from TASK-1002 still holds)
+    - All validation pipeline commands pass
+  quality_gates:
+    - No lint/type errors in mobile package
+    - ADR satisfies standards/global.md requirements
+    - Evidence artifacts (QA logs, Chromatic output, metrics) stored and referenced
+    - Blocker resolution documented with historical reasoning per proposal
+
+artifacts:
+  - path: adr/2025-11-15-storybook-parser-governance.md
+    description: ADR documenting single parser override governance and adapter contracts
+  - path: docs/pending/storybook-chromatic-blockers.md
+    description: Updated blocker tracking with resolution, proposal/ADR links, and baseline metrics
+  - path: mobile/storybook/.cache/parser-override-report.json
+    description: Final parser audit report demonstrating ≤1 override after all changes
+  - path: logs/chromatic-dry-run-output.txt
+    description: Chromatic dry run output showing successful build (capture during validation)
+
+deliverables:
+  - mobile/package.json (chromatic:ci and storybook:build scripts)
+  - .github/workflows/chromatic.yml (workflow with parser audit and artifact upload)
+  - adr/2025-11-15-storybook-parser-governance.md
+  - docs/pending/storybook-chromatic-blockers.md (updated)
+  - Baseline metrics table (embedded in blockers doc or ADR)
+
+risks:
+  - description: Chromatic API token may not be available in local environment for dry run testing
+    mitigation: Document token requirement in ADR, provide fallback validation using storybook:build only
+  - description: GitHub Actions workflow may fail on first CI run due to missing secrets
+    mitigation: Document CHROMATIC_PROJECT_TOKEN setup in ADR and workflow comments
+  - description: Baseline metrics may vary between local and CI environments
+    mitigation: Capture metrics from both environments and note variance in baseline doc
+  - description: Parser audit integration may increase CI runtime beyond acceptable thresholds
+    mitigation: Monitor build duration per proposal Section 7 (target ≤8 min P95), optimize if needed

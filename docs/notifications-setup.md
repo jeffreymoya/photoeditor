@@ -70,46 +70,44 @@ Notifications are **optional** and gracefully degrade if not configured (no impa
 
 ---
 
-### Option 2: ntfy.sh (Alternative - No Registration)
+### Option 2: ntfyt.sh (Self-hosted + Access Token)
 
 **Pros:**
-- No bot setup required
-- Free public instance or self-host
-- Simple HTTP API
-- Works on any device
+- Dedicated PhotoEditor ntfyt instance (https://ntfyt.sh)
+- Token-protected publishing (no guessing random topics)
+- Same ntfy mobile apps + desktop clients work out of the box
+- Simple HTTP interface; works behind firewalls
 
 **Cons:**
-- Requires installing separate ntfy app
-- Topic names are security-by-obscurity (use random string)
+- Requires installing the ntfy app (or another client) and adding a custom server
+- Must keep the provided access token safe
 
 **Setup Steps:**
 
-1. **Install ntfy app**:
+1. **Install the ntfy app** (ntfyt is a self-hosted ntfy build):
    - iOS: [ntfy on App Store](https://apps.apple.com/app/ntfy/id1625396347)
    - Android: [ntfy on Play Store](https://play.google.com/store/apps/details?id=io.heckel.ntfy)
 
-2. **Choose a secret topic name**:
-   - Use a random, unique string (e.g., `photoeditor-jeffreymoya-k8s92jd`)
-   - Topic names are public URLs, so make them hard to guess
+2. **Subscribe to the PhotoEditor feed**:
+   - Open the ntfy app and add a subscription
+   - Use `https://ntfyt.sh/<topic>` (match the topic you set in your env vars, e.g., `photoeditor-task-workflow`)
+   - The access token ensures only authorized publishers can post
 
-3. **Subscribe in the ntfy app**:
-   - Open ntfy app
-   - Tap "+" to add subscription
-   - Enter your topic name
-   - Tap "Subscribe"
-
-4. **Set environment variable**:
+3. **Set environment variables** (add to `~/.bashrc`, `~/.zshrc`, or `.env`):
    ```bash
-   # Add to your ~/.bashrc, ~/.zshrc, or .env file
-   export NTFY_TOPIC="photoeditor-jeffreymoya-k8s92jd"
+   export NTFYT_TOPIC="photoeditor-task-workflow"
+   export NTFYT_BASE_URL="https://ntfyt.sh"
+   # Provided key from Ops (safe to paste verbatim)
+   export NTFYT_ACCESS_TOKEN="tk_khotay7w6r7kpln86ujoal4hrd23j"
    ```
+   > `NTFY_TOPIC`/`NTFY_BASE_URL` aliases still work but are deprecated—prefer the `NTFYT_*` names going forward.
 
-5. **Reload your shell**:
+4. **Reload your shell**:
    ```bash
    source ~/.bashrc  # or ~/.zshrc
    ```
 
-6. **Test the notification** (optional):
+5. **Test the notification** (optional):
    ```bash
    python3 << 'EOF'
    from scripts.tasks_cli.notify import get_notification_service
@@ -123,7 +121,7 @@ Notifications are **optional** and gracefully degrade if not configured (no impa
    EOF
    ```
 
-**Done!** You'll now receive notifications via ntfy.
+**Done!** You'll now receive notifications via ntfyt.
 
 ---
 
@@ -166,15 +164,18 @@ Blocked by: TASK-0120, TASK-0121
 |----------|----------|-------------|---------|
 | `TELEGRAM_BOT_TOKEN` | No | Telegram bot token from @BotFather | `123456789:ABCdef...` |
 | `TELEGRAM_CHAT_ID` | No | Your Telegram chat ID | `123456789` |
-| `NTFY_TOPIC` | No | ntfy.sh topic name (fallback if Telegram not set) | `myproject-secret-k8s92jd` |
+| `NTFYT_TOPIC` | No | ntfyt.sh topic/channel (fallback if Telegram not set) | `photoeditor-task-workflow` |
+| `NTFYT_ACCESS_TOKEN` | No | Access token for ntfyt publishing (tk_ prefixed) | `tk_khotay7w6r7kpln86ujoal4hrd23j` |
+| `NTFYT_BASE_URL` | No | Base URL for your ntfyt instance | `https://ntfyt.sh` |
+| `NTFY_TOPIC` | No | Deprecated topic alias maintained for backward compatibility | `photoeditor-task-workflow` |
 
-**Priority**: If both Telegram and ntfy are configured, Telegram is used first. If Telegram fails, ntfy is used as fallback.
+**Priority**: If both Telegram and ntfyt are configured, Telegram is used first. If Telegram fails, ntfyt is used as fallback.
 
 ### Service Detection
 
 The notification service automatically detects configuration on initialization:
 - If `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` are set → Telegram enabled
-- Else if `NTFY_TOPIC` is set → ntfy.sh enabled
+- Else if `NTFYT_TOPIC` **or** `NTFYT_ACCESS_TOKEN` is set → ntfyt.sh enabled
 - Else → Notifications disabled (silent no-op)
 
 ---
@@ -232,7 +233,8 @@ notifier.notify_warning(
    echo $TELEGRAM_BOT_TOKEN
    echo $TELEGRAM_CHAT_ID
    # OR
-   echo $NTFY_TOPIC
+    echo $NTFYT_TOPIC
+    echo $NTFYT_ACCESS_TOKEN
    ```
 
 2. **Verify bot token and chat ID** (Telegram):
@@ -248,8 +250,11 @@ notifier.notify_warning(
         -d "chat_id=${TELEGRAM_CHAT_ID}" \
         -d "text=Test notification"
 
-   # ntfy.sh
-   curl -d "Test notification" "https://ntfy.sh/${NTFY_TOPIC}"
+   # ntfyt.sh
+   curl -H "Authorization: Bearer ${NTFYT_ACCESS_TOKEN}" \
+        -H "Priority: 4" \
+        -d "Test notification" \
+        "${NTFYT_BASE_URL:-https://ntfyt.sh}/${NTFYT_TOPIC}"
    ```
 
 4. **Check Python requests library is installed**:
@@ -268,7 +273,7 @@ Notification failures are intentionally silent (won't interrupt task execution).
    notifier = get_notification_service()
    print(f"Enabled: {notifier.enabled}")
    print(f"Telegram configured: {bool(notifier.telegram_token and notifier.telegram_chat_id)}")
-   print(f"ntfy configured: {bool(notifier.ntfy_topic)}")
+   print(f"ntfyt configured: {bool(notifier.ntfyt_topic or notifier.ntfyt_access_token)}")
    ```
 
 2. **Look for warning messages** in CLI output:
@@ -286,11 +291,11 @@ Notification failures are intentionally silent (won't interrupt task execution).
 - Store in environment variables or `.env` (add `.env` to `.gitignore`)
 - Never commit tokens to version control
 
-### ntfy.sh
-- **Topic names** should be random/secret (security by obscurity)
-- Anyone who knows the topic can see notifications
-- Consider self-hosting ntfy for sensitive projects
-- Public instance: https://docs.ntfy.sh/
+### ntfyt.sh
+- **Access tokens** (`NTFYT_ACCESS_TOKEN`) are credentials—treat like passwords
+- Topic names still matter (tokens may be scoped per-topic); use unique channels
+- Self-hosted instance lives at https://ntfyt.sh (backed by ntfy)
+- Reference ntfy documentation for API details: https://docs.ntfy.sh/
 
 ### Best Practices
 - Use environment variables (not hardcoded in scripts)
@@ -302,15 +307,17 @@ Notification failures are intentionally silent (won't interrupt task execution).
 
 ## Advanced: Multiple Notification Services
 
-You can configure both Telegram AND ntfy simultaneously for redundancy:
+You can configure both Telegram AND ntfyt simultaneously for redundancy:
 
 ```bash
 export TELEGRAM_BOT_TOKEN="123456789:ABCdef..."
 export TELEGRAM_CHAT_ID="123456789"
-export NTFY_TOPIC="photoeditor-backup-k8s92jd"
+export NTFYT_TOPIC="photoeditor-task-workflow"
+export NTFYT_ACCESS_TOKEN="tk_khotay7w6r7kpln86ujoal4hrd23j"
+export NTFYT_BASE_URL="https://ntfyt.sh"
 ```
 
-Telegram will be used first. If it fails, ntfy will be used as fallback automatically.
+Telegram will be used first. If it fails, ntfyt will be used as fallback automatically.
 
 ---
 
@@ -334,4 +341,4 @@ To request support for additional services, file an issue or extend `scripts/tas
 - Notification Service Implementation: `scripts/tasks_cli/notify.py`
 - Operations Integration: `scripts/tasks_cli/operations.py`
 - Telegram Bot API: https://core.telegram.org/bots/api
-- ntfy Documentation: https://docs.ntfy.sh/
+- ntfyt/ntfy Documentation: https://docs.ntfy.sh/

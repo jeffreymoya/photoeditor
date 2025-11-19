@@ -221,7 +221,7 @@ export const formatFrameStats = (stats: FrameStats): string => {
  * @param deviceModel - Device model for telemetry
  */
 export const logFrameStats = (stats: FrameStats, deviceModel: string | null): void => {
-  console.info('[FrameBudgetMonitor] Frame processing statistics', {
+  console.warn('[FrameBudgetMonitor] Frame processing statistics', {
     totalFrames: stats.totalFrames,
     violations: stats.violations,
     violationRate: `${(stats.violationRate * 100).toFixed(1)}%`,

@@ -1,6 +1,6 @@
 import React from 'react';
 
-import JobsIndexScreen from '../../../app/(jobs)/index';
+import { JobsIndexScreen } from '../../../app/(jobs)/index';
 import { renderWithProviders } from '../../__tests__/test-utils';
 
 const renderJobsScreen = () => renderWithProviders(<JobsIndexScreen />);

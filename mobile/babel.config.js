@@ -1,4 +1,5 @@
 const createNativewindPreset = require('react-native-css/babel').default;
+
 const isStorybookBuild = process.env.STORYBOOK_BUILD === '1';
 const stubParserPlugin = () => ({ name: 'storybook-parser-override-stub' });
 
@@ -12,7 +13,7 @@ if (isStorybookBuild) {
         loaded: true,
         exports: stubParserPlugin,
       };
-    } catch (error) {
+    } catch {
       // Module not present; ignore
     }
   });

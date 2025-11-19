@@ -1,7 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import React from 'react';
 
-import JobDetailScreen from '../../../app/(jobs)/[id]';
+import { JobDetailScreen } from '../../../app/(jobs)/[id]';
 import { renderWithProviders } from '../../__tests__/test-utils';
 
 /**

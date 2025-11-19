@@ -48,7 +48,18 @@ const { plugins: _ignoredImportTypescriptPlugins, ...importTypescriptConfig } =
 
 module.exports = tseslint.config(
   {
-    ignores: ['node_modules', '.expo', '.expo-router', 'dist', 'android', 'ios'],
+    ignores: [
+      'node_modules',
+      '.expo',
+      '.expo-router',
+      '.expo-shared',
+      'dist',
+      'build',
+      'android',
+      'ios',
+      'storybook-static',
+      'coverage',
+    ],
   },
   ...expoConfig,
   importRecommendedConfig,

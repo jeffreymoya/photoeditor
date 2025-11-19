@@ -116,7 +116,7 @@ export const CameraWithOverlay: React.FC<CameraWithOverlayProps> = ({
       const dwellTime = sentinelExitTime - sentinelEntryTime;
 
       // Log feature flag state on component mount per plan step 4
-      console.info('[CameraWithOverlay] Feature flags initialized', {
+      console.warn('[CameraWithOverlay] Feature flags initialized', {
         isEnabled: flags.isEnabled,
         isDeviceCapable: flags.isDeviceCapable,
         isUserEnabled: flags.isUserEnabled,

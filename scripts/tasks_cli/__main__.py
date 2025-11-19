@@ -37,6 +37,13 @@ from .commands import (
     cmd_list_quarantined,
     cmd_release_quarantine,
     cmd_quarantine_task,
+    cmd_init_context,
+    cmd_record_qa,
+    cmd_run_validation,
+    cmd_verify_worktree,
+    cmd_collect_metrics,
+    cmd_generate_dashboard,
+    cmd_compare_metrics,
 )
 from .context_store import (
     ContextExistsError,
@@ -2853,11 +2860,7 @@ For more information, see: docs/proposals/task-context-cache-hardening.md
     )
 
     # Context cache commands (Phase 2)
-    group.add_argument(
-        '--init-context',
-        metavar='TASK_ID',
-        help='Initialize context with immutable snapshot from task YAML + standards'
-    )
+    # Note: --init-context moved to Session S15 section for enhanced implementation
     group.add_argument(
         '--get-context',
         metavar='TASK_ID',
@@ -2890,11 +2893,7 @@ For more information, see: docs/proposals/task-context-cache-hardening.md
         metavar='TASK_ID',
         help='Snapshot working tree state at agent completion'
     )
-    group.add_argument(
-        '--verify-worktree',
-        metavar='TASK_ID',
-        help='Verify working tree matches expected state (drift detection)'
-    )
+    # Note: --verify-worktree moved to Session S15 section for enhanced implementation
     group.add_argument(
         '--get-diff',
         metavar='TASK_ID',
@@ -2970,6 +2969,38 @@ For more information, see: docs/proposals/task-context-cache-hardening.md
         '--release-quarantine',
         metavar='TASK_ID',
         help='Release task from quarantine'
+    )
+
+    # Enhanced context initialization and lifecycle commands (Session S15)
+    group.add_argument(
+        '--init-context',
+        metavar='TASK_ID',
+        help='Initialize task context with all validations (quarantine, AC, snapshots)'
+    )
+    group.add_argument(
+        '--run-validation',
+        metavar='TASK_ID',
+        help='Run validation command (requires --command-id, --command)'
+    )
+    group.add_argument(
+        '--verify-worktree',
+        metavar='TASK_ID',
+        help='Verify working tree for drift'
+    )
+    group.add_argument(
+        '--collect-metrics',
+        metavar='TASK_ID',
+        help='Collect metrics for a task (optional --baseline-path)'
+    )
+    group.add_argument(
+        '--generate-dashboard',
+        action='store_true',
+        help='Generate metrics dashboard (requires --task-ids, --output-path)'
+    )
+    group.add_argument(
+        '--compare-metrics',
+        action='store_true',
+        help='Compare baseline and current metrics (requires --baseline-path, --current-path)'
     )
 
     # Output format option (applies to list, pick, validate, explain, check-halt)
@@ -3136,6 +3167,90 @@ For more information, see: docs/proposals/task-context-cache-hardening.md
         help='Detailed error message for quarantine'
     )
 
+    # Supporting arguments for Session S15 commands
+    parser.add_argument(
+        '--command-id',
+        metavar='ID',
+        help='Validation command ID'
+    )
+    parser.add_argument(
+        '--command',
+        metavar='CMD',
+        help='Command to execute'
+    )
+    parser.add_argument(
+        '--exit-code',
+        type=int,
+        metavar='CODE',
+        help='Command exit code (for record-qa)'
+    )
+    parser.add_argument(
+        '--log-path',
+        metavar='PATH',
+        help='Path to log file'
+    )
+    parser.add_argument(
+        '--cwd',
+        metavar='DIR',
+        help='Working directory for command execution'
+    )
+    parser.add_argument(
+        '--package',
+        metavar='PKG',
+        help='Package name for scoped validation'
+    )
+    parser.add_argument(
+        '--expected-paths',
+        nargs='+',
+        metavar='PATTERN',
+        help='Expected file path patterns (glob)'
+    )
+    parser.add_argument(
+        '--blocker-id',
+        metavar='TASK_ID',
+        help='Task ID that blocks this validation'
+    )
+    parser.add_argument(
+        '--timeout-ms',
+        type=int,
+        metavar='MS',
+        help='Command timeout in milliseconds'
+    )
+    parser.add_argument(
+        '--criticality',
+        choices=['error', 'warning'],
+        metavar='LEVEL',
+        help='Validation criticality level'
+    )
+    parser.add_argument(
+        '--expected-exit-codes',
+        nargs='+',
+        type=int,
+        metavar='CODE',
+        help='Expected exit codes for success'
+    )
+    parser.add_argument(
+        '--baseline-path',
+        metavar='PATH',
+        help='Path to baseline metrics file'
+    )
+    parser.add_argument(
+        '--output-path',
+        metavar='PATH',
+        help='Output file path'
+    )
+    parser.add_argument(
+        '--task-ids',
+        nargs='+',
+        metavar='TASK_ID',
+        help='List of task IDs for dashboard'
+    )
+    parser.add_argument(
+        '--current-path',
+        metavar='PATH',
+        help='Path to current metrics file'
+    )
+
     args = parser.parse_args()
 
     # Parse environment variables
@@ -3292,6 +3407,30 @@ For more information, see: docs/proposals/task-context-cache-hardening.md
         elif args.release_quarantine:
             args.task_id = args.release_quarantine
             return cmd_release_quarantine(args)
+
+        # Enhanced context lifecycle commands (Session S15)
+        # Note: These override the older implementations in __main__.py
+        elif hasattr(args, 'init_context') and args.init_context:
+            args.task_id = args.init_context
+            return cmd_init_context(args)
+
+        elif hasattr(args, 'run_validation') and args.run_validation:
+            args.task_id = args.run_validation
+            return cmd_run_validation(args)
+
+        elif hasattr(args, 'verify_worktree') and args.verify_worktree:
+            args.task_id = args.verify_worktree
+            return cmd_verify_worktree(args)
+
+        elif hasattr(args, 'collect_metrics') and args.collect_metrics:
+            args.task_id = args.collect_metrics
+            return cmd_collect_metrics(args)
+
+        elif args.generate_dashboard:
+            return cmd_generate_dashboard(args)
+
+        elif args.compare_metrics:
+            return cmd_compare_metrics(args)
 
     except KeyboardInterrupt:
         print("\nInterrupted", file=sys.stderr)

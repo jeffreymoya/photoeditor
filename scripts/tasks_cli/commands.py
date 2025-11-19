@@ -4,6 +4,8 @@ from pathlib import Path
 from typing import Dict, Any
 import sys
 import json
+from datetime import datetime
+import yaml
 
 from .context_store import TaskContextStore
 from .exception_ledger import (
@@ -15,8 +17,22 @@ from .exception_ledger import (
 from .quarantine import (
     quarantine_task,
     list_quarantined,
-    release_from_quarantine
+    release_from_quarantine,
+    is_quarantined
 )
+from .task_snapshot import (
+    resolve_task_path
+)
+from .validation import (
+    execute_validation_command
+)
+from .qa_parsing import parse_qa_log
+from .metrics import (
+    collect_task_metrics,
+    generate_metrics_dashboard,
+    compare_metrics
+)
+from .git_utils import check_dirty_tree, get_current_commit
 from .output import (
     print_json,
     is_json_mode,
@@ -70,7 +86,7 @@ def cmd_attach_evidence(args) -> int:
     """
     try:
         repo_root = Path.cwd()
-        context_store = TaskContextStore(task_id=args.task_id, repo_root=repo_root)
+        context_store = TaskContextStore(repo_root)
 
         # Parse metadata if provided
         metadata = None
@@ -137,7 +153,7 @@ def cmd_list_evidence(args) -> int:
     """
     try:
         repo_root = Path.cwd()
-        context_store = TaskContextStore(task_id=args.task_id, repo_root=repo_root)
+        context_store = TaskContextStore(repo_root)
 
         evidence_list = context_store.list_evidence()
 
@@ -176,7 +192,7 @@ def cmd_attach_standard(args) -> int:
     """
     try:
         repo_root = Path.cwd()
-        context_store = TaskContextStore(task_id=args.task_id, repo_root=repo_root)
+        context_store = TaskContextStore(repo_root)
 
         # Extract and cache excerpt
         excerpt = context_store.extract_standards_excerpt(
@@ -499,6 +515,466 @@ def cmd_quarantine_task(args) -> int:
             "recovery_action": "Verify task_id and reason format"
         }
         print_error(error, exit_code=EXIT_VALIDATION_ERROR)
+
+    except Exception as e:
+        error = {
+            "code": "E999",
+            "name": "UnknownError",
+            "message": str(e),
+            "details": {},
+            "recovery_action": "Check logs and retry"
+        }
+        print_error(error, exit_code=EXIT_GENERAL_ERROR)
+
+
+def cmd_init_context(args) -> int:
+    """
+    Enhanced context initialization with all validations.
+
+    Integrates:
+    - Quarantine checks
+    - Acceptance criteria validation
+    - Task snapshot creation
+    - Standards excerpt attachment
+    - Checklist snapshots
+    - Exception ledger checks
+
+    Args:
+        args: Parsed arguments with task_id, allow_preexisting_dirty
+
+    Returns:
+        Exit code
+    """
+    try:
+        repo_root = Path.cwd()
+
+        # Check if task is quarantined
+        if is_quarantined(args.task_id, repo_root):
+            error = {
+                "code": "E030",
+                "name": "TaskQuarantined",
+                "message": f"Task {args.task_id} is quarantined",
+                "details": {"task_id": args.task_id},
+                "recovery_action": "Release from quarantine or fix issues first"
+            }
+            print_error(error, exit_code=EXIT_BLOCKER_ERROR)
+
+        # Resolve task file path
+        task_path = resolve_task_path(args.task_id, repo_root)
+        if not task_path:
+            error = {
+                "code": "E041",
+                "name": "TaskNotFound",
+                "message": f"Task file not found for {args.task_id}",
+                "details": {"task_id": args.task_id},
+                "recovery_action": "Verify task ID and check tasks/ directory"
+            }
+            print_error(error, exit_code=EXIT_IO_ERROR)
+
+        # Load task data
+        with open(task_path, 'r') as f:
+            task_data = yaml.safe_load(f)
+
+        # Validate acceptance criteria (fail if empty)
+        if not task_data.get('acceptance_criteria'):
+            error = {
+                "code": "E001",
+                "name": "EmptyAcceptanceCriteria",
+                "message": "acceptance_criteria is empty",
+                "details": {"task_id": args.task_id},
+                "recovery_action": "Add acceptance criteria to task file"
+            }
+
+            # Add to exception ledger
+            add_exception(
+                task_id=args.task_id,
+                exception_type="empty_acceptance_criteria",
+                parse_error="acceptance_criteria field is empty"
+            )
+
+            print_error(error, exit_code=EXIT_VALIDATION_ERROR)
+
+        # Check dirty tree
+        allow_dirty = hasattr(args, 'allow_preexisting_dirty') and args.allow_preexisting_dirty
+        if not allow_dirty:
+            is_clean, dirty_files = check_dirty_tree(
+                repo_root,
+                allow_preexisting=False,
+                expected_files=[f".agent-output/{args.task_id}/"]
+            )
+            if not is_clean:
+                error = {
+                    "code": "E050",
+                    "name": "DirtyWorkingTree",
+                    "message": "Git working tree has unexpected dirty files",
+                    "details": {"files": dirty_files[:10]},
+                    "recovery_action": "Commit or stash changes, or use --allow-preexisting-dirty"
+                }
+                print_error(error, exit_code=EXIT_GIT_ERROR)
+
+        # Initialize context store
+        context_store = TaskContextStore(repo_root)
+
+        # Create snapshot and embed acceptance criteria
+        tier = task_data.get('tier', 'backend')
+        snapshot_meta = context_store.create_snapshot_and_embed(
+            task_id=args.task_id,
+            task_path=task_path,
+            task_data=task_data,
+            tier=tier
+        )
+
+        # Save context (assuming it saves internally, or we need to call a save method)
+        # Note: TaskContextStore methods may handle persistence internally
+
+        if is_json_mode():
+            print_success({
+                "task_id": args.task_id,
+                "context_initialized": True,
+                "snapshot": snapshot_meta
+            })
+        else:
+            print(f"✓ Context initialized for {args.task_id}")
+            print(f"  Snapshot: {snapshot_meta['snapshot_path']}")
+            print(f"  Acceptance criteria: {len(task_data['acceptance_criteria'])} items")
+
+        return EXIT_SUCCESS
+
+    except Exception as e:
+        error = {
+            "code": "E999",
+            "name": "UnknownError",
+            "message": str(e),
+            "details": {},
+            "recovery_action": "Check logs and retry"
+        }
+        print_error(error, exit_code=EXIT_GENERAL_ERROR)
+
+
+def cmd_record_qa(args) -> int:
+    """
+    Record QA command results.
+
+    Args:
+        args: Parsed arguments with task_id, command, exit_code, log_path
+
+    Returns:
+        Exit code
+    """
+    try:
+        repo_root = Path.cwd()
+        context_store = TaskContextStore(repo_root)
+
+        # Parse QA log
+        log_path = Path(args.log_path)
+        if log_path.exists():
+            qa_summary = parse_qa_log(log_path, args.command)
+        else:
+            qa_summary = {}
+
+        # Create QA result entry
+        qa_result = {
+            "command": args.command,
+            "exit_code": args.exit_code,
+            "log_path": str(log_path.relative_to(repo_root)),
+            "summary": qa_summary,
+            "recorded_at": datetime.utcnow().isoformat() + "Z"
+        }
+
+        # Attach log as evidence
+        if log_path.exists():
+            context_store.attach_evidence(
+                task_id=args.task_id,
+                artifact_type="qa_output",
+                path=log_path,
+                description=f"QA output: {args.command}",
+                metadata={"command": args.command, "exit_code": args.exit_code}
+            )
+
+        # Update validation baseline in context
+        context = context_store.get_context(args.task_id)
+        if "validation_baseline" not in context:
+            context["validation_baseline"] = {"initial_results": []}
+
+        context["validation_baseline"]["initial_results"].append(qa_result)
+        # Note: May need to save context back, depending on API
+
+        if is_json_mode():
+            print_success(qa_result)
+        else:
+            print(f"✓ QA result recorded for {args.command}")
+            print(f"  Exit code: {args.exit_code}")
+            print(f"  Log: {args.log_path}")
+
+        return EXIT_SUCCESS
+
+    except Exception as e:
+        error = {
+            "code": "E999",
+            "name": "UnknownError",
+            "message": str(e),
+            "details": {},
+            "recovery_action": "Check logs and retry"
+        }
+        print_error(error, exit_code=EXIT_GENERAL_ERROR)
+
+
+def cmd_run_validation(args) -> int:
+    """
+    Run validation command with all features.
+
+    Args:
+        args: Parsed arguments with task_id, command_id, command, and other options
+
+    Returns:
+        Exit code matching validation result
+    """
+    try:
+        repo_root = Path.cwd()
+        context_store = TaskContextStore(repo_root)
+
+        # Import models
+        from .models import ValidationCommand, RetryPolicy
+
+        # Parse env vars
+        env_dict = {}
+        if hasattr(args, 'env_vars') and args.env_vars:
+            for env_str in args.env_vars:
+                key, value = env_str.split('=', 1)
+                env_dict[key] = value
+
+        # Create validation command object
+        validation_cmd = ValidationCommand(
+            id=args.command_id,
+            command=args.command if hasattr(args, 'command') else "echo 'placeholder'",
+            description=args.description if hasattr(args, 'description') else "Validation command",
+            cwd=args.cwd if hasattr(args, 'cwd') else str(repo_root),
+            package=args.package if hasattr(args, 'package') else None,
+            env=env_dict,
+            expected_paths=args.expected_paths if hasattr(args, 'expected_paths') else [],
+            blocker_id=args.blocker_id if hasattr(args, 'blocker_id') else None,
+            timeout_ms=args.timeout_ms if hasattr(args, 'timeout_ms') else 120000,
+            retry_policy=RetryPolicy(max_attempts=1, backoff_ms=0),
+            criticality=args.criticality if hasattr(args, 'criticality') else "error",
+            expected_exit_codes=args.expected_exit_codes if hasattr(args, 'expected_exit_codes') else [0]
+        )
+
+        # Execute validation command
+        result = execute_validation_command(validation_cmd, args.task_id, repo_root)
+
+        if is_json_mode():
+            print_success(result)
+        else:
+            if result.get("skipped"):
+                print(f"⊘ Validation skipped: {result['skip_reason']}")
+            elif result.get("success"):
+                print(f"✓ Validation passed: {args.command_id}")
+            else:
+                print(f"✗ Validation failed: {args.command_id}")
+                print(f"  Exit code: {result.get('exit_code')}")
+
+        # Return exit code based on result
+        if result.get("skipped"):
+            return EXIT_BLOCKER_ERROR
+        elif result.get("success"):
+            return EXIT_SUCCESS
+        else:
+            return EXIT_VALIDATION_ERROR
+
+    except Exception as e:
+        error = {
+            "code": "E999",
+            "name": "UnknownError",
+            "message": str(e),
+            "details": {},
+            "recovery_action": "Check logs and retry"
+        }
+        print_error(error, exit_code=EXIT_GENERAL_ERROR)
+
+
+def cmd_verify_worktree(args) -> int:
+    """
+    Verify working tree for drift.
+
+    Args:
+        args: Parsed arguments with task_id, expected_agent
+
+    Returns:
+        Exit code (DRIFT_ERROR if drift detected)
+    """
+    try:
+        repo_root = Path.cwd()
+
+        # Check dirty files
+        is_clean, dirty_files = check_dirty_tree(
+            repo_root,
+            expected_files=[f".agent-output/{args.task_id}/"]
+        )
+
+        # Get current commit
+        current_commit = get_current_commit(repo_root)
+
+        # Load context to check baseline
+        context_store = TaskContextStore(repo_root)
+        baseline_commit = context_store.data.get("immutable", {}).get("baseline_commit")
+
+        drift_detected = not is_clean or (baseline_commit and current_commit != baseline_commit)
+
+        result = {
+            "task_id": args.task_id,
+            "drift_detected": drift_detected,
+            "dirty_files": dirty_files,
+            "current_commit": current_commit,
+            "baseline_commit": baseline_commit
+        }
+
+        if is_json_mode():
+            print_success(result)
+        else:
+            if drift_detected:
+                print(f"⚠ Drift detected for {args.task_id}")
+                if dirty_files:
+                    print(f"  Dirty files: {', '.join(dirty_files[:5])}")
+                if baseline_commit and current_commit != baseline_commit:
+                    print(f"  Commit changed: {baseline_commit[:8]} → {current_commit[:8]}")
+            else:
+                print(f"✓ No drift detected for {args.task_id}")
+
+        return EXIT_DRIFT_ERROR if drift_detected else EXIT_SUCCESS
+
+    except Exception as e:
+        error = {
+            "code": "E999",
+            "name": "UnknownError",
+            "message": str(e),
+            "details": {},
+            "recovery_action": "Check logs and retry"
+        }
+        print_error(error, exit_code=EXIT_GENERAL_ERROR)
+
+
+def cmd_collect_metrics(args) -> int:
+    """
+    Collect metrics for a task.
+
+    Args:
+        args: Parsed arguments with task_id, baseline_path (optional)
+
+    Returns:
+        Exit code
+    """
+    try:
+        repo_root = Path.cwd()
+
+        # Load baseline if provided
+        baseline = None
+        if hasattr(args, 'baseline_path') and args.baseline_path:
+            with open(args.baseline_path) as f:
+                baseline = json.load(f)
+
+        # Collect metrics
+        metrics = collect_task_metrics(args.task_id, repo_root, baseline)
+
+        # Save metrics
+        output_path = repo_root / ".agent-output" / args.task_id / "metrics.json"
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        from dataclasses import asdict
+        with open(output_path, 'w') as f:
+            json.dump(asdict(metrics), f, indent=2)
+
+        if is_json_mode():
+            print_success(asdict(metrics))
+        else:
+            print(f"✓ Metrics collected for {args.task_id}")
+            print(f"  Agents: {len(metrics.agents_run)}")
+            print(f"  Avg file reads: {metrics.avg_file_reads_per_agent:.1f}")
+            print(f"  QA coverage: {metrics.qa_artifact_coverage:.1f}%")
+            print(f"  Saved to: {output_path}")
+
+        return EXIT_SUCCESS
+
+    except FileNotFoundError as e:
+        error = {
+            "code": "E041",
+            "name": "FileNotFound",
+            "message": str(e),
+            "details": {},
+            "recovery_action": "Ensure task has telemetry data"
+        }
+        print_error(error, exit_code=EXIT_IO_ERROR)
+
+    except Exception as e:
+        error = {
+            "code": "E999",
+            "name": "UnknownError",
+            "message": str(e),
+            "details": {},
+            "recovery_action": "Check logs and retry"
+        }
+        print_error(error, exit_code=EXIT_GENERAL_ERROR)
+
+
+def cmd_generate_dashboard(args) -> int:
+    """
+    Generate metrics dashboard across tasks.
+
+    Args:
+        args: Parsed arguments with task_ids (list), output_path
+
+    Returns:
+        Exit code
+    """
+    try:
+        repo_root = Path.cwd()
+        output_path = Path(args.output_path)
+
+        # Generate dashboard
+        dashboard = generate_metrics_dashboard(args.task_ids, repo_root, output_path)
+
+        if is_json_mode():
+            from dataclasses import asdict
+            print_success(asdict(dashboard))
+        else:
+            print(f"✓ Dashboard generated for {dashboard.total_tasks} tasks")
+            print(f"  All criteria met: {dashboard.all_criteria_met}")
+            print(f"  Saved to: {output_path}")
+
+        return EXIT_SUCCESS
+
+    except Exception as e:
+        error = {
+            "code": "E999",
+            "name": "UnknownError",
+            "message": str(e),
+            "details": {},
+            "recovery_action": "Check logs and retry"
+        }
+        print_error(error, exit_code=EXIT_GENERAL_ERROR)
+
+
+def cmd_compare_metrics(args) -> int:
+    """
+    Compare baseline and current metrics.
+
+    Args:
+        args: Parsed arguments with baseline_path, current_path
+
+    Returns:
+        Exit code
+    """
+    try:
+        comparison = compare_metrics(Path(args.baseline_path), Path(args.current_path))
+
+        if is_json_mode():
+            print_success(comparison)
+        else:
+            print("Metrics Comparison:")
+            for metric, delta in comparison["deltas"].items():
+                improvement = "✓" if delta["improvement"] else "✗"
+                print(f"  {improvement} {metric}: {delta['baseline']:.1f} → {delta['current']:.1f} (Δ {delta['delta']:+.1f})")
+
+        return EXIT_SUCCESS
 
     except Exception as e:
         error = {

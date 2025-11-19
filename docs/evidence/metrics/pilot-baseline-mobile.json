@@ -1,0 +1,117 @@
+{
+  "$schema": "pilot-metrics-v1.0",
+  "task_id": "TASK-0818",
+  "task_description": "Frontend tier gap analysis (representative mobile task)",
+  "collected_at": "2025-11-15T10:30:00Z",
+  "pilot_phase": "baseline",
+  "hardening_version": "pre-hardening",
+  "metrics": {
+    "file_read_reduction": {
+      "implementer_reads": 19,
+      "reviewer_reads": 16,
+      "validator_reads": 21,
+      "average_reads_per_agent": 18.7,
+      "target": 5,
+      "target_met": false,
+      "notes": "Similar pattern - manual re-reads of task file, standards, checklists"
+    },
+    "warning_noise": {
+      "total_warnings": 52,
+      "unique_warnings": 8,
+      "repeated_warnings": 44,
+      "warnings_per_init": 13,
+      "target": 1,
+      "target_met": false,
+      "notes": "Same 8 malformed tasks trigger warnings on every context init"
+    },
+    "qa_artifact_availability": {
+      "required_commands": 5,
+      "commands_with_logs": 3,
+      "coverage_percent": 60.0,
+      "target": 100,
+      "target_met": false,
+      "notes": "Missing: typecheck output, test coverage report"
+    },
+    "prompt_size_savings": {
+      "baseline_kb": 38.5,
+      "current_kb": 38.5,
+      "reduction_percent": 0,
+      "target": 15,
+      "target_met": false,
+      "notes": "No embedded context - full file uploads"
+    },
+    "json_output_reliability": {
+      "total_json_calls": 10,
+      "parse_failures": 2,
+      "reliability_rate": 0.80,
+      "target_failures": 0,
+      "target_met": false,
+      "notes": "YAML warnings breaking JSON parsing"
+    }
+  },
+  "detailed_observations": {
+    "file_operations": {
+      "task_file_reads": 3,
+      "standards_reads": 10,
+      "checklist_reads": 5,
+      "qa_log_reads": 6,
+      "summary_reads": 3,
+      "total": 27
+    },
+    "warning_sources": [
+      "Same 8 malformed tasks as backend pilot",
+      "Warnings logged to stdout instead of stderr",
+      "No exception ledger suppression"
+    ],
+    "missing_qa_artifacts": [
+      "typecheck output (tsc --noEmit)",
+      "test coverage report (Jest coverage summary)"
+    ],
+    "json_parse_failures": [
+      {
+        "command": "python scripts/tasks.py --list todo --format json | jq",
+        "error": "parse error: Invalid literal",
+        "cause": "YAML warnings before JSON"
+      },
+      {
+        "command": "python scripts/tasks.py --explain TASK-0818 --format json",
+        "error": "Expecting value",
+        "cause": "Warnings interleaved"
+      }
+    ],
+    "command_execution_issues": [
+      "App.tsx path referenced but never existed (command failed)",
+      "@babel/core not available from repo root (wrong cwd)",
+      "Validation command retry logic missing"
+    ]
+  },
+  "agent_breakdown": {
+    "task-runner": {
+      "file_reads": 7,
+      "cache_hits": 0,
+      "warnings": 13
+    },
+    "implementer": {
+      "file_reads": 19,
+      "cache_hits": 0,
+      "warnings": 13
+    },
+    "reviewer": {
+      "file_reads": 16,
+      "cache_hits": 0,
+      "warnings": 13
+    },
+    "validator": {
+      "file_reads": 21,
+      "cache_hits": 0,
+      "warnings": 13
+    }
+  },
+  "success_criteria_summary": {
+    "file_read_reduction": "FAIL - 18.7 reads/agent vs target ≤5",
+    "warning_noise": "FAIL - 13 repeated warnings vs target ≤1",
+    "qa_artifact_availability": "FAIL - 60% coverage vs target 100%",
+    "prompt_size_savings": "FAIL - 0% reduction vs target ≥15%",
+    "json_output_reliability": "FAIL - 2 failures vs target 0"
+  }
+}

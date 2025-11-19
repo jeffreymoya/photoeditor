@@ -6,6 +6,7 @@ Important
 - Task Breakdown Canon: `standards/task-breakdown-canon.md` — follow for decomposition when tasks are complex or blocked.
 - For QA commands, use `standards/qa-commands-ssot.md` (commands only; thresholds live in testing/cross‑cutting standards).
 - Task Context Cache: All agents must use `python scripts/tasks.py --get-context` to load immutable task context (standards citations, scope, validation baseline) rather than reading from standards files directly. See `docs/proposals/task-context-cache.md` for full specification.
+- Evidence Bundling (v1.0): Agents MUST use `--record-qa` after QA commands, `--attach-evidence` for summaries/logs, and load QA baselines from context. See `docs/guides/task-cache-hardening-migration.md` for workflows.
 
 Tier/Rule Sources
 

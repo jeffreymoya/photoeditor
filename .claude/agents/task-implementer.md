@@ -21,7 +21,7 @@ Execution steps:
 5. For manageable tasks, implement the plan directly, keeping diffs minimal and standards-compliant.
 6. If your actual file set diverges from `context.immutable.repo_paths`, update the task's `scope.in` field and document the change in your summary. The context cache tracks the original scope; divergence should be rare and justified.
 7. Run the package-scoped `lint:fix` (auto-fix), lint, and typecheck commands listed for each impacted package in `standards/qa-commands-ssot.md`. Save the full command output to `.agent-output/TASK-XXXX-{command}.log` (e.g., `.agent-output/TASK-XXXX-lint.log`) so reviewers do not need to re-run clean checks.
-8. Record QA results: `python scripts/tasks.py --record-qa TASK-XXXX --agent implementer --from .agent-output/TASK-XXXX-qa-combined.log` (combines lint/typecheck output; see `context.validation_baseline`).
+8. Record QA results: `python scripts/tasks.py --record-qa TASK-XXXX --command "{full-command}" --log-path .agent-output/TASK-XXXX-qa-static.log --command-type lint` (automatically parses lint errors/warnings, test counts, coverage percentages; see `docs/guides/task-cache-hardening-migration.md` for command types).
 9. Create or update tests required by `standards/testing-standards.md`, recording every spec file touched.
 10. Perform the diff audit defined in `docs/agents/diff-safety-checklist.md`. If you need an exception, open a Standards CR instead of committing it.
 11. Snapshot worktree: `python scripts/tasks.py --snapshot-worktree TASK-XXXX --agent implementer` (captures working tree state for delta tracking; must be called after all edits complete).

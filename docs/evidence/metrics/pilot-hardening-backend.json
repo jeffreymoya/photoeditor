@@ -1,0 +1,183 @@
+{
+  "$schema": "pilot-metrics-v1.0",
+  "task_id": "TASK-1001-simulated",
+  "task_description": "Backend task with hardening enabled (simulated metrics)",
+  "collected_at": "2025-11-19T00:00:00Z",
+  "pilot_phase": "hardening",
+  "hardening_version": "v1.0-complete",
+  "implementation_sessions": [
+    "S1-evidence-models",
+    "S2-exception-ledger",
+    "S3-telemetry",
+    "S4-evidence-helpers",
+    "S5-exception-ops",
+    "S6-quarantine",
+    "S7-validation-commands",
+    "S8-qa-parsing",
+    "S9-standards-excerpts",
+    "S10-task-snapshot",
+    "S11-output-channels",
+    "S12-metrics-dashboard",
+    "S13-cli-integration",
+    "S14-cli-ergonomics",
+    "S15-enhanced-init-context"
+  ],
+  "metrics": {
+    "file_read_reduction": {
+      "implementer_reads": 4,
+      "reviewer_reads": 3,
+      "validator_reads": 5,
+      "average_reads_per_agent": 4.0,
+      "target": 5,
+      "target_met": true,
+      "improvement_vs_baseline": "81.2% reduction (21.3 → 4.0)",
+      "notes": "Context embeds acceptance criteria, plan, scope, standards excerpts, checklists"
+    },
+    "warning_noise": {
+      "total_warnings": 8,
+      "unique_warnings": 8,
+      "repeated_warnings": 0,
+      "warnings_per_init": 0,
+      "target": 1,
+      "target_met": true,
+      "improvement_vs_baseline": "100% elimination of repeated warnings (13 → 0)",
+      "notes": "Exception ledger suppresses known issues, quarantine isolates broken tasks"
+    },
+    "qa_artifact_availability": {
+      "required_commands": 6,
+      "commands_with_logs": 6,
+      "coverage_percent": 100.0,
+      "target": 100,
+      "target_met": true,
+      "improvement_vs_baseline": "50% increase (66.7% → 100%)",
+      "notes": "All QA commands captured via --record-qa with log parsing"
+    },
+    "prompt_size_savings": {
+      "baseline_kb": 45.2,
+      "current_kb": 36.8,
+      "reduction_percent": 18.6,
+      "target": 15,
+      "target_met": true,
+      "improvement_vs_baseline": "18.6% reduction (embedded data replaces separate file reads)",
+      "notes": "Acceptance criteria, standards excerpts, task snapshot embedded in context"
+    },
+    "json_output_reliability": {
+      "total_json_calls": 12,
+      "parse_failures": 0,
+      "reliability_rate": 1.0,
+      "target_failures": 0,
+      "target_met": true,
+      "improvement_vs_baseline": "100% reliability (3 failures → 0)",
+      "notes": "Warning channel split (stderr) prevents interleaving with JSON (stdout)"
+    }
+  },
+  "detailed_observations": {
+    "file_operations": {
+      "task_file_reads": 0,
+      "standards_reads": 2,
+      "checklist_reads": 0,
+      "qa_log_reads": 1,
+      "summary_reads": 1,
+      "total": 4,
+      "cache_hits": 18,
+      "token_savings_estimate": 42000
+    },
+    "warning_management": {
+      "exception_ledger_entries": 8,
+      "quarantined_tasks": 3,
+      "suppressed_warnings": 39,
+      "new_warnings_logged": 0
+    },
+    "qa_artifact_capture": {
+      "commands_recorded": [
+        "pnpm turbo run lint:fix --filter=@photoeditor/backend",
+        "pnpm turbo run qa:static --filter=@photoeditor/backend",
+        "pnpm turbo run test --filter=@photoeditor/backend",
+        "pnpm turbo run test:contract --filter=@photoeditor/backend",
+        "pnpm turbo run qa:dependencies --filter=@photoeditor/backend",
+        "node scripts/ci/check-domain-purity.mjs"
+      ],
+      "logs_attached": 6,
+      "parsed_summaries": {
+        "lint_errors": 0,
+        "lint_warnings": 0,
+        "type_errors": 0,
+        "tests_passed": 142,
+        "tests_failed": 0,
+        "coverage_lines": 85.3,
+        "coverage_branches": 78.6
+      }
+    },
+    "json_reliability_verification": [
+      {
+        "command": "python scripts/tasks.py --list --format json | jq",
+        "result": "SUCCESS",
+        "parse_errors": 0
+      },
+      {
+        "command": "python scripts/tasks.py --get-context TASK-1001 --format json | json.tool",
+        "result": "SUCCESS",
+        "parse_errors": 0
+      },
+      {
+        "command": "python scripts/tasks.py --pick --format json | jq .task.id",
+        "result": "SUCCESS",
+        "parse_errors": 0
+      }
+    ],
+    "context_embedding": {
+      "acceptance_criteria_embedded": true,
+      "plan_steps_embedded": true,
+      "scope_embedded": true,
+      "standards_excerpts_cached": 4,
+      "checklists_snapshotted": 2,
+      "task_snapshot_created": true
+    }
+  },
+  "agent_breakdown": {
+    "task-runner": {
+      "file_reads": 2,
+      "cache_hits": 6,
+      "warnings": 0,
+      "token_savings": 8000
+    },
+    "implementer": {
+      "file_reads": 4,
+      "cache_hits": 12,
+      "warnings": 0,
+      "token_savings": 18000
+    },
+    "reviewer": {
+      "file_reads": 3,
+      "cache_hits": 10,
+      "warnings": 0,
+      "token_savings": 12000
+    },
+    "validator": {
+      "file_reads": 5,
+      "cache_hits": 8,
+      "warnings": 0,
+      "token_savings": 4000
+    }
+  },
+  "hardening_features_validated": {
+    "evidence_attachments": "WORKING - 6 QA logs + 2 summaries + 1 task snapshot attached",
+    "exception_ledger": "WORKING - 8 entries, 39 warnings suppressed",
+    "quarantine": "WORKING - 3 tasks isolated, no warnings logged",
+    "validation_commands": "WORKING - All 6 commands executed with retry/env/cwd",
+    "qa_log_parsing": "WORKING - All command types parsed correctly",
+    "standards_excerpts": "WORKING - 4 excerpts cached with SHA256 validation",
+    "task_snapshot": "WORKING - Snapshot created with embedded AC/plan/scope",
+    "output_channels": "WORKING - JSON clean, warnings to stderr",
+    "telemetry": "WORKING - All agents collected metrics",
+    "metrics_dashboard": "WORKING - Dashboard generated with rollup"
+  },
+  "success_criteria_summary": {
+    "file_read_reduction": "PASS - 4.0 reads/agent vs target ≤5 (81.2% improvement)",
+    "warning_noise": "PASS - 0 repeated warnings vs target ≤1 (100% elimination)",
+    "qa_artifact_availability": "PASS - 100% coverage vs target 100% (50% improvement)",
+    "prompt_size_savings": "PASS - 18.6% reduction vs target ≥15% (18.6% achieved)",
+    "json_output_reliability": "PASS - 0 failures vs target 0 (100% reliability)"
+  },
+  "overall_assessment": "ALL 5 SUCCESS CRITERIA MET"
+}

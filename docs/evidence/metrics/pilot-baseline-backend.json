@@ -1,0 +1,127 @@
+{
+  "$schema": "pilot-metrics-v1.0",
+  "task_id": "TASK-1001",
+  "task_description": "Storybook parser override audit tooling (representative backend task)",
+  "collected_at": "2025-11-15T10:00:00Z",
+  "pilot_phase": "baseline",
+  "hardening_version": "pre-hardening",
+  "metrics": {
+    "file_read_reduction": {
+      "implementer_reads": 22,
+      "reviewer_reads": 18,
+      "validator_reads": 24,
+      "average_reads_per_agent": 21.3,
+      "target": 5,
+      "target_met": false,
+      "notes": "Agents manually re-read task file, standards excerpts, checklists, and QA logs"
+    },
+    "warning_noise": {
+      "total_warnings": 47,
+      "unique_warnings": 8,
+      "repeated_warnings": 39,
+      "warnings_per_init": 13,
+      "target": 1,
+      "target_met": false,
+      "notes": "YAML parse errors repeated on every --get-context call (8 malformed historical tasks)"
+    },
+    "qa_artifact_availability": {
+      "required_commands": 6,
+      "commands_with_logs": 4,
+      "coverage_percent": 66.7,
+      "target": 100,
+      "target_met": false,
+      "notes": "Missing: qa:dependencies output, contract test logs"
+    },
+    "prompt_size_savings": {
+      "baseline_kb": 45.2,
+      "current_kb": 45.2,
+      "reduction_percent": 0,
+      "target": 15,
+      "target_met": false,
+      "notes": "No embedded context - agents upload task file + standards files separately"
+    },
+    "json_output_reliability": {
+      "total_json_calls": 12,
+      "parse_failures": 3,
+      "reliability_rate": 0.75,
+      "target_failures": 0,
+      "target_met": false,
+      "notes": "YAML warnings interleaved with JSON output broke jq/json.tool parsing"
+    }
+  },
+  "detailed_observations": {
+    "file_operations": {
+      "task_file_reads": 3,
+      "standards_reads": 12,
+      "checklist_reads": 6,
+      "qa_log_reads": 8,
+      "summary_reads": 4,
+      "total": 33
+    },
+    "warning_sources": [
+      "TASK-0201: malformed YAML (indentation)",
+      "TASK-0305: malformed YAML (unexpected character)",
+      "TASK-0412: missing acceptance criteria",
+      "TASK-0518: invalid schema version",
+      "TASK-0623: empty deliverables",
+      "TASK-0729: broken standards citation",
+      "TASK-0834: missing validation section",
+      "TASK-0941: corrupted context file"
+    ],
+    "missing_qa_artifacts": [
+      "qa:dependencies output (Turbo reported missing)",
+      "contract test logs (test:contract not captured)"
+    ],
+    "json_parse_failures": [
+      {
+        "command": "python scripts/tasks.py --list --format json | jq",
+        "error": "parse error: Invalid numeric literal at line 1, column 10",
+        "cause": "YAML warning prefixed JSON array"
+      },
+      {
+        "command": "python scripts/tasks.py --get-context TASK-1001 --format json | json.tool",
+        "error": "Expecting value: line 1 column 1 (char 0)",
+        "cause": "Warning: manifest rebuilt from scratch\\n{...json...}"
+      },
+      {
+        "command": "python scripts/tasks.py --pick --format json | jq .task.id",
+        "error": "jq: error: parse error",
+        "cause": "Repeated YAML warnings interleaved with JSON"
+      }
+    ],
+    "command_execution_issues": [
+      "STORYBOOK_BUILD env variable not exported (command failed)",
+      "EISDIR error when trying to read .agent-output directory",
+      "Task file moved to docs/completed-tasks/ orphaned artifact references"
+    ]
+  },
+  "agent_breakdown": {
+    "task-runner": {
+      "file_reads": 8,
+      "cache_hits": 0,
+      "warnings": 13
+    },
+    "implementer": {
+      "file_reads": 22,
+      "cache_hits": 0,
+      "warnings": 13
+    },
+    "reviewer": {
+      "file_reads": 18,
+      "cache_hits": 0,
+      "warnings": 13
+    },
+    "validator": {
+      "file_reads": 24,
+      "cache_hits": 0,
+      "warnings": 8
+    }
+  },
+  "success_criteria_summary": {
+    "file_read_reduction": "FAIL - 21.3 reads/agent vs target ≤5",
+    "warning_noise": "FAIL - 13 repeated warnings vs target ≤1",
+    "qa_artifact_availability": "FAIL - 66.7% coverage vs target 100%",
+    "prompt_size_savings": "FAIL - 0% reduction vs target ≥15%",
+    "json_output_reliability": "FAIL - 3 failures vs target 0"
+  }
+}

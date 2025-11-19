@@ -298,6 +298,233 @@ python scripts/tasks.py --purge-context TASK-0824
 
 See `docs/proposals/task-context-cache.md` for full specification, troubleshooting procedures, and recovery workflows.
 
+### Task Context Cache Hardening (v1.0)
+
+**Status**: Active as of 2025-11-19
+**Proposal**: `docs/proposals/task-context-cache-hardening.md`
+**Migration Guide**: `docs/guides/task-cache-hardening-migration.md`
+
+The hardening implementation adds evidence bundling, exception ledger, quarantine, QA log parsing, and structured validation commands to the context cache system.
+
+#### Key Improvements
+
+1. **Evidence Bundling**: Attach QA logs, summaries, standards excerpts as typed artifacts
+2. **Exception Ledger**: Suppress repeated warnings for known broken tasks
+3. **Quarantine**: Isolate critically malformed tasks from normal workflow
+4. **QA Log Parsing**: Automatic extraction of lint errors, test counts, coverage percentages
+5. **Standards Excerpts**: Cache specific standards sections with SHA256 validation
+6. **Task Snapshot**: Embed acceptance criteria, plan, scope in immutable context
+7. **Clean JSON Output**: Warnings to stderr, JSON to stdout (no interleaving)
+8. **Metrics Dashboard**: Track file reads, warnings, QA coverage, prompt size, JSON reliability
+
+#### New CLI Commands
+
+**Evidence Bundling**:
+```bash
+# Attach evidence (logs, summaries, screenshots)
+python scripts/tasks.py --attach-evidence TASK-0123 \
+  --type qa_output \
+  --path .agent-output/TASK-0123/qa-static.log \
+  --description "Static analysis output" \
+  --metadata '{"command": "pnpm turbo run qa:static", "exit_code": 0}'
+
+# List attached evidence
+python scripts/tasks.py --list-evidence TASK-0123 --format json
+
+# Record QA results (with automatic log parsing)
+python scripts/tasks.py --record-qa TASK-0123 \
+  --command "pnpm turbo run test --filter=@photoeditor/backend" \
+  --log-path .agent-output/TASK-0123/test-output.log \
+  --command-type test
+```
+
+**Standards Excerpts**:
+```bash
+# Cache standards excerpt with SHA256 validation
+python scripts/tasks.py --attach-standard standards/backend-tier.md \
+  --section "Handler Constraints" \
+  --task-id TASK-0123
+
+# Verify excerpt freshness (detects stale excerpts)
+python scripts/tasks.py --verify-excerpts TASK-0123
+```
+
+**Exception Ledger**:
+```bash
+# Add exception (idempotent - won't duplicate)
+python scripts/tasks.py --add-exception TASK-0123 \
+  --type empty_acceptance_criteria \
+  --error "Empty acceptance_criteria array (schema 1.1 violation)"
+
+# List exceptions with status filter
+python scripts/tasks.py --list-exceptions --status open --format json
+
+# Resolve exception after fixing
+python scripts/tasks.py --resolve-exception TASK-0123 \
+  --notes "Fixed acceptance_criteria in commit abc123"
+
+# Cleanup completed tasks (auto-removes exceptions)
+python scripts/tasks.py --cleanup-exceptions --trigger task_completion
+```
+
+**Quarantine**:
+```bash
+# Quarantine critically broken task
+python scripts/tasks.py --quarantine-task TASK-0123 \
+  --reason malformed_yaml \
+  --error "Invalid YAML: unexpected character at line 42"
+
+# List quarantined tasks
+python scripts/tasks.py --list-quarantined --format json
+
+# Release from quarantine after repair
+python scripts/tasks.py --release-quarantine TASK-0123 \
+  --notes "Fixed YAML syntax in commit abc123"
+```
+
+**Validation Commands**:
+```bash
+# Run structured validation command (pre-flight checks, env export, retry)
+python scripts/tasks.py --run-validation TASK-0123 --command-id val-001
+
+# Run all validation commands
+python scripts/tasks.py --run-validation TASK-0123 --all
+```
+
+**Metrics**:
+```bash
+# Collect task metrics (file reads, warnings, QA coverage, prompt size)
+python scripts/tasks.py --collect-metrics TASK-0123
+
+# Generate rollup dashboard across multiple tasks
+python scripts/tasks.py --generate-dashboard \
+  --from 2025-11-01 \
+  --to 2025-11-19 \
+  --output docs/evidence/metrics/cache-hardening-dashboard.json
+
+# Compare baseline to current metrics
+python scripts/tasks.py --compare-metrics \
+  --baseline docs/evidence/metrics/pilot-baseline-backend.json \
+  --current docs/evidence/metrics/pilot-hardening-backend.json
+```
+
+#### Enhanced --init-context Workflow
+
+Context initialization now includes full validation:
+
+```bash
+python scripts/tasks.py --init-context TASK-0123
+# Validates:
+# - Acceptance criteria non-empty (E001 if empty)
+# - Task not quarantined (E030 if quarantined)
+# - Working tree clean or expected dirty (E050 if unexpected changes)
+# Creates:
+# - Task snapshot with embedded AC/plan/scope
+# - Standards excerpts cache (if referenced)
+# - Checklist snapshots
+# - Evidence directory structure
+```
+
+**Exit codes**:
+- `0`: Success
+- `10-19`: Validation errors (E001: empty fields, E010: schema invalid)
+- `20-29`: Drift errors (E020: file modified)
+- `30-39`: Blocker errors (E030: quarantined, E031: blocked by task)
+- `40-49`: I/O errors (E040: file not found)
+- `50-59`: Context errors (E050: context exists, E051: not found)
+- `60-69`: Git errors (E060: dirty tree)
+
+#### Agent Workflow Updates
+
+**Implementer**:
+```bash
+# 1. Load context (embedded AC, plan, scope, standards excerpts)
+python scripts/tasks.py --get-context TASK-0123 --format json
+
+# 2. Implement changes...
+
+# 3. Run QA commands
+pnpm turbo run lint:fix --filter=@photoeditor/backend
+pnpm turbo run qa:static --filter=@photoeditor/backend
+pnpm turbo run test --filter=@photoeditor/backend
+
+# 4. Record QA results (with log parsing)
+python scripts/tasks.py --record-qa TASK-0123 \
+  --command "pnpm turbo run qa:static --filter=@photoeditor/backend" \
+  --log-path .agent-output/TASK-0123/qa-static.log \
+  --command-type lint
+
+# 5. Attach implementation summary
+python scripts/tasks.py --attach-evidence TASK-0123 \
+  --type summary \
+  --path .agent-output/TASK-0123/implementer-summary.md \
+  --description "Implementation summary"
+```
+
+**Reviewer**:
+```bash
+# 1. Load context and evidence
+python scripts/tasks.py --get-context TASK-0123 --format json
+python scripts/tasks.py --list-evidence TASK-0123
+
+# 2. Review implementation, run QA
+# 3. Attach reviewer summary
+```
+
+**Validator**:
+```bash
+# 1. Load QA baseline from context
+python scripts/tasks.py --get-context TASK-0123 --format json
+
+# 2. Run validation commands with structured execution
+python scripts/tasks.py --run-validation TASK-0123 --all
+
+# 3. Compare to baseline (drift detection automatic)
+```
+
+#### Migration to Schema 1.1
+
+**Required Updates**:
+- `acceptance_criteria` MUST be non-empty
+- `validation.pipeline` MUST be non-empty
+- Plan step `outputs` cannot be empty arrays
+- Standards references must cite verifiable anchor headings
+
+**Migration Steps**:
+1. Run `python scripts/tasks.py --lint tasks/<area>/TASK-XXXX.task.yaml`
+2. Fix E001 errors (empty required fields) or add to exception ledger
+3. Add `validation.pipeline` if missing (see `docs/templates/validation-section-examples.md`)
+4. Test `--init-context` (should succeed without E001)
+
+**See**: `docs/guides/task-cache-hardening-migration.md` for complete migration guide
+
+#### Troubleshooting
+
+**Error E001 - Required field empty**:
+```
+ValidationError: Required field 'acceptance_criteria' is empty
+Fix: Populate acceptance_criteria or add to exception ledger temporarily
+```
+
+**Error E030 - Task quarantined**:
+```
+BlockerError: Task TASK-0123 is quarantined (reason: malformed_yaml)
+Fix: Repair task file and release from quarantine
+```
+
+**Warning - Stale standards excerpt**:
+```
+Warning: Standards excerpt is stale (file modified)
+Fix: python scripts/tasks.py --invalidate-excerpts TASK-0123
+```
+
+**JSON parse failures** (pre-hardening):
+```
+Fixed: Hardening v1.0 routes warnings to stderr, JSON to stdout (no interleaving)
+```
+
+**See**: `docs/troubleshooting.md` for complete error code reference and recovery procedures
+
 ## Keep the Template Authoritative
 - Use a single canonical template: `docs/templates/TASK-0000-template.task.yaml`.
 - If you find a gap, improve the canonical template and reference that change in your task/PR/ADR. Do not diverge per‑task.

@@ -2998,6 +2998,33 @@ def parse_env_vars(env_list: Optional[List[str]]) -> Dict[str, str]:
 
 def main():
     """Main CLI entry point."""
+    # Check if this is a Typer subcommand (e.g., "context")
+    # If so, dispatch to Typer app directly
+    if len(sys.argv) > 1 and sys.argv[1] in ('context',):
+        from .app import app, initialize_commands
+
+        # Find repo root
+        repo_root = find_repo_root()
+
+        # Initialize Typer commands with context
+        initialize_commands(repo_root)
+
+        # Remove script name and invoke Typer app
+        # sys.argv[0] = 'tasks'  # Keep original name
+        typer_args = sys.argv[1:]  # Pass everything except script name
+
+        try:
+            app(typer_args, standalone_mode=False)
+            return 0
+        except SystemExit as e:
+            return e.code if e.code is not None else 0
+        except Exception as e:
+            print(f"Error executing command: {e}", file=sys.stderr)
+            import traceback
+            traceback.print_exc()
+            return 1
+
+    # Otherwise, use legacy argparse CLI
     parser = argparse.ArgumentParser(
         description="Task workflow CLI for PhotoEditor project",
         formatter_class=argparse.RawDescriptionHelpFormatter,

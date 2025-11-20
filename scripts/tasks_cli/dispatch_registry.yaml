@@ -217,3 +217,24 @@ commands:
     handler: legacy
     migrated: false
     description: "Compare baseline and current metrics"
+
+  # Context store management (Wave 3)
+  context:
+    handler: typer
+    migrated: true
+    description: "Context store management commands"
+
+  context-migrate:
+    handler: typer
+    migrated: true
+    description: "Migrate context bundles to current schema"
+
+  context-info:
+    handler: typer
+    migrated: true
+    description: "Show context bundle metadata"
+
+  context-validate:
+    handler: typer
+    migrated: true
+    description: "Validate context bundle integrity"

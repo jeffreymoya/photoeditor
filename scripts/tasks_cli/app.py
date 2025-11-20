@@ -50,9 +50,13 @@ def initialize_commands(repo_root: Path) -> None:
         repo_root: Repository root path for context initialization
     """
     from .commands.tasks import register_commands
+    from .commands.context import register_context_commands
 
     # Create context
     ctx = TaskCliContext.from_repo_root(repo_root)
 
     # Register Wave 1 commands
     register_commands(app, ctx)
+
+    # Register Wave 3 context commands
+    register_context_commands(app, ctx)

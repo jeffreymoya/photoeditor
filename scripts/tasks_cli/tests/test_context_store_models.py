@@ -8,7 +8,7 @@ import pytest
 from dataclasses import FrozenInstanceError
 from datetime import datetime, timezone
 
-from scripts.tasks_cli.context_store.models import (
+from tasks_cli.context_store.models import (
     MANIFEST_SCHEMA_VERSION,
     CONTEXT_SCHEMA_VERSION,
     TaskSnapshot,

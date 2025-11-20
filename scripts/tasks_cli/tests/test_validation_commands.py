@@ -50,7 +50,7 @@ def test_blocker_skip_logic(temp_repo):
         mock_task.status = "in_progress"
 
         mock_instance = Mock()
-        mock_instance.load_all_tasks.return_value = [mock_task]
+        mock_instance.load_tasks.return_value = [mock_task]
         mock_ds.return_value = mock_instance
 
         result = execute_validation_command(cmd, "TASK-0824", temp_repo)
@@ -77,7 +77,7 @@ def test_blocker_completed_allows_execution(temp_repo):
         mock_task.status = "completed"
 
         mock_instance = Mock()
-        mock_instance.load_all_tasks.return_value = [mock_task]
+        mock_instance.load_tasks.return_value = [mock_task]
         mock_ds.return_value = mock_instance
 
         result = execute_validation_command(cmd, "TASK-0824", temp_repo)

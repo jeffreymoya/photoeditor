@@ -59,6 +59,9 @@ normalize_multiline = _context_store_main.normalize_multiline
 normalize_diff_for_hashing = _context_store_main.normalize_diff_for_hashing
 calculate_scope_hash = _context_store_main.calculate_scope_hash
 
+# Import QA baseline manager (S3.5)
+from .qa import QABaselineManager
+
 __all__ = [
     # Models
     'MANIFEST_SCHEMA_VERSION',
@@ -93,4 +96,6 @@ __all__ = [
     'normalize_multiline',
     'normalize_diff_for_hashing',
     'calculate_scope_hash',
+    # QA baseline manager (S3.5)
+    'QABaselineManager',
 ]

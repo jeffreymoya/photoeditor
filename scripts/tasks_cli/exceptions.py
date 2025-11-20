@@ -42,3 +42,18 @@ class ValidationError(Exception):
     - Invalid field values
     """
     pass
+
+
+class ContextExistsError(Exception):
+    """Raised when attempting to initialize context that already exists."""
+    pass
+
+
+class ContextNotFoundError(Exception):
+    """Raised when context not found for task."""
+    pass
+
+
+class DriftError(Exception):
+    """Raised when working tree drift detected."""
+    pass

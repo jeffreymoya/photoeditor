@@ -3,7 +3,7 @@
 from pathlib import Path
 from typing import Dict, Any, Optional, List
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from dataclasses import dataclass, field, asdict
 
 
@@ -81,7 +81,7 @@ class TaskMetricsSummary:
     # Success criteria validation
     success_criteria_met: Dict[str, bool] = field(default_factory=dict)
 
-    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat() + "Z")
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
 @dataclass
@@ -109,7 +109,7 @@ class MetricsDashboard:
     all_criteria_met: bool
     criteria_pass_summary: Dict[str, Dict[str, Any]]
 
-    generated_at: str = field(default_factory=lambda: datetime.utcnow().isoformat() + "Z")
+    generated_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
 def collect_task_metrics(
@@ -191,7 +191,18 @@ def collect_task_metrics(
             context = json.load(f)
 
         validation_baseline = context.get("validation_baseline", {})
-        initial_results = validation_baseline.get("initial_results", [])
+        initial_results_data = validation_baseline.get("initial_results")
+
+        # Handle both new format (QAResults dict) and legacy format (list)
+        if isinstance(initial_results_data, dict):
+            # New format: QAResults with "results" array
+            initial_results = initial_results_data.get("results", [])
+        elif isinstance(initial_results_data, list):
+            # Legacy format: direct list
+            initial_results = initial_results_data
+        else:
+            # None or other
+            initial_results = []
 
         qa_commands = len(initial_results)
         qa_with_logs = sum(
@@ -461,7 +472,7 @@ def compare_metrics(
         }
 
     return {
-        "comparison_date": datetime.utcnow().isoformat() + "Z",
+        "comparison_date": datetime.now(timezone.utc).isoformat(),
         "baseline_file": str(baseline_path),
         "current_file": str(current_path),
         "deltas": deltas,

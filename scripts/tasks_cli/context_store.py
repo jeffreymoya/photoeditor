@@ -1382,6 +1382,47 @@ class TaskContextStore:
 
         return context
 
+    def _normalize_repo_paths_for_migration(self, paths: List[str]) -> List[str]:
+        """
+        Normalize legacy file paths to directory paths for backward compatibility.
+
+        FIX #3 (2025-11-19): Pre-hardening contexts stored individual file paths
+        (e.g., "mobile/src/components/Foo.tsx"). Post-hardening code expects
+        directory prefixes (e.g., "mobile/src/components"). This migration step
+        collapses file paths to their parent directories so existing tasks don't
+        break when the new code runs.
+
+        Args:
+            paths: List of paths (may be files or directories from legacy contexts)
+
+        Returns:
+            Normalized list of directory paths
+
+        Examples:
+            ["mobile/src/App.tsx", "backend/services/"] →
+            ["mobile/src", "backend/services"]
+        """
+        normalized = set()
+
+        for path_str in paths:
+            path_obj = Path(path_str)
+
+            # Check if this looks like a file path (has extension in the last component)
+            # This heuristic handles most cases: .ts, .tsx, .py, .yaml, etc.
+            if '.' in path_obj.name and not path_str.endswith('/'):
+                # File path - use parent directory
+                parent = str(path_obj.parent)
+                # Handle edge case: root files like ".env", "Makefile", etc. → "."
+                if parent == '.':
+                    normalized.add('.')
+                else:
+                    normalized.add(parent)
+            else:
+                # Already a directory path - normalize (remove trailing slash)
+                normalized.add(path_str.rstrip('/'))
+
+        return sorted(normalized)
+
     def _load_context_file(self, task_id: str) -> Optional[TaskContext]:
         """
         Load context from file without acquiring lock.
@@ -1403,6 +1444,19 @@ class TaskContextStore:
             data = json.load(f)
 
         context = TaskContext.from_dict(data)
+
+        # FIX #3: Migrate legacy file paths to directory paths (2025-11-19)
+        # Pre-hardening contexts contain individual file paths; normalize them
+        # to directory prefixes so _get_untracked_files_in_scope works correctly
+        if context.repo_paths:
+            original_count = len(context.repo_paths)
+            context.repo_paths = self._normalize_repo_paths_for_migration(context.repo_paths)
+            normalized_count = len(context.repo_paths)
+
+            # Log migration if paths changed (debug aid)
+            if original_count != normalized_count:
+                # Collapsed some file paths to common parent directories
+                pass  # Silent migration - no warnings needed
 
         # Check staleness
         self._check_staleness(context)
@@ -1526,19 +1580,36 @@ class TaskContextStore:
 
     def _is_working_tree_dirty(self) -> bool:
         """
-        Check if working tree has uncommitted changes.
+        Check if working tree has uncommitted changes or untracked files.
 
         Returns:
-            True if working tree is dirty (has changes)
+            True if working tree is dirty (has changes or untracked files)
         """
+        # Check for modified/staged files
         result = subprocess.run(
             ['git', 'diff-index', '--quiet', 'HEAD'],
             cwd=self.repo_root,
             capture_output=True,
             check=False  # Exit code signals dirty state
         )
-        # Exit code 1 means dirty, 0 means clean
-        return result.returncode != 0
+        if result.returncode != 0:
+            return True  # Has modified files
+
+        # Also check for untracked files (excluding .agent-output)
+        result = subprocess.run(
+            ['git', 'ls-files', '--others', '--exclude-standard'],
+            cwd=self.repo_root,
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        untracked = result.stdout.strip()
+        if untracked:
+            # Filter out .agent-output directory
+            untracked_files = [f for f in untracked.split('\n') if f and not f.startswith('.agent-output/')]
+            return len(untracked_files) > 0
+
+        return False
 
     def _calculate_file_checksum(self, file_path: Path) -> str:
         """
@@ -1556,12 +1627,77 @@ class TaskContextStore:
                 sha256.update(chunk)
         return sha256.hexdigest()
 
-    def _get_changed_files(self, base_commit: str) -> List[FileSnapshot]:
+    def _get_untracked_files_in_scope(
+        self,
+        repo_paths: List[str]
+    ) -> Tuple[List[str], List[str]]:
+        """
+        Get untracked files filtered to task scope.
+
+        Args:
+            repo_paths: List of paths defining task scope (from context)
+
+        Returns:
+            Tuple of (in_scope_files, out_of_scope_files)
+            - in_scope_files: Untracked files matching repo_paths prefixes
+            - out_of_scope_files: Untracked files outside declared scope
+        """
+        # Get all untracked files (respecting .gitignore)
+        result = subprocess.run(
+            ['git', 'ls-files', '--others', '--exclude-standard'],
+            cwd=self.repo_root,
+            capture_output=True,
+            text=True,
+            check=True
+        )
+
+        all_untracked = [
+            line.strip()
+            for line in result.stdout.strip().split('\n')
+            if line.strip()
+        ]
+
+        # Filter to task scope
+        in_scope = []
+        out_of_scope = []
+
+        for untracked_path in all_untracked:
+            # Check if untracked file matches any repo_paths prefix
+            matches_scope = False
+            for scope_path in repo_paths:
+                # Normalize scope_path to not have trailing slash for consistent matching
+                normalized_scope = scope_path.rstrip('/')
+
+                # Special case: '.' means root directory (matches all files)
+                if normalized_scope == '.':
+                    matches_scope = True
+                    break
+
+                # Handle both file and directory scopes
+                # e.g., "backend" should match "backend/foo.ts"
+                # e.g., "mobile/src/App.tsx" should match exactly
+                if untracked_path == normalized_scope or untracked_path.startswith(normalized_scope + '/'):
+                    matches_scope = True
+                    break
+
+            if matches_scope:
+                in_scope.append(untracked_path)
+            else:
+                out_of_scope.append(untracked_path)
+
+        return (in_scope, out_of_scope)
+
+    def _get_changed_files(
+        self,
+        base_commit: str,
+        env: Optional[Dict[str, str]] = None
+    ) -> List[FileSnapshot]:
         """
         Get list of changed files with checksums.
 
         Args:
             base_commit: Base commit to diff against
+            env: Optional environment dict (e.g., for GIT_INDEX_FILE)
 
         Returns:
             List of FileSnapshot objects
@@ -1570,6 +1706,7 @@ class TaskContextStore:
         result = subprocess.run(
             ['git', 'diff', '--name-status', base_commit],
             cwd=self.repo_root,
+            env=env,
             capture_output=True,
             text=True,
             check=True
@@ -1705,16 +1842,87 @@ class TaskContextStore:
         context_dir = self._get_context_dir(task_id)
         context_dir.mkdir(parents=True, exist_ok=True)
 
-        # 2. Generate cumulative diff from base
-        diff_file = context_dir / f"{agent_role}-from-base.diff"
-        result = subprocess.run(
-            ['git', 'diff', base_commit],
-            cwd=self.repo_root,
-            capture_output=True,
-            text=True,
-            check=True
+        # 2. Filter untracked files to task scope
+        in_scope_untracked, out_of_scope_untracked = self._get_untracked_files_in_scope(
+            context.repo_paths
         )
-        diff_content = result.stdout
+
+        # Warn if untracked files exist outside declared scope
+        if out_of_scope_untracked:
+            import sys
+            print(
+                f"⚠️  Warning: {len(out_of_scope_untracked)} untracked file(s) "
+                f"outside task scope (will be ignored):\n  "
+                + "\n  ".join(out_of_scope_untracked[:5])
+                + (f"\n  ... and {len(out_of_scope_untracked) - 5} more"
+                   if len(out_of_scope_untracked) > 5 else ""),
+                file=sys.stderr
+            )
+
+        # 3. Generate diff using temporary index to avoid polluting real index
+        # This mirrors the pattern from _calculate_incremental_diff()
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.index', delete=False) as tmp_index:
+            tmp_index_path = tmp_index.name
+
+        try:
+            # Set up environment to use temporary index
+            env = os.environ.copy()
+            env['GIT_INDEX_FILE'] = tmp_index_path
+
+            # Read current HEAD into temporary index
+            subprocess.run(
+                ['git', 'read-tree', 'HEAD'],
+                cwd=self.repo_root,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=True
+            )
+
+            # Stage in-scope untracked files in temporary index only
+            # Exclude only generated .agent-output diffs, not all .diff files
+            if in_scope_untracked:
+                # Build pathspec: exclude .agent-output directory and its diffs
+                pathspec = ['--'] + in_scope_untracked + [':!.agent-output/**']
+                subprocess.run(
+                    ['git', 'add', '-N'] + pathspec,
+                    cwd=self.repo_root,
+                    env=env,
+                    capture_output=True,
+                    text=True,
+                    check=False  # Ignore errors if files already tracked
+                )
+
+            # Generate cumulative diff from base using temporary index
+            diff_file = context_dir / f"{agent_role}-from-base.diff"
+            result = subprocess.run(
+                ['git', 'diff', base_commit],
+                cwd=self.repo_root,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            diff_content = result.stdout
+
+            # 5. Calculate file checksums using temporary index
+            files_changed = self._get_changed_files(base_commit, env=env)
+
+            # 8. Get diff stat using temporary index
+            result_stat = subprocess.run(
+                ['git', 'diff', '--stat', base_commit],
+                cwd=self.repo_root,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            diff_stat = result_stat.stdout.strip()
+
+        finally:
+            # Clean up temporary index file
+            if os.path.exists(tmp_index_path):
+                os.unlink(tmp_index_path)
 
         # Save diff file
         diff_file.write_text(diff_content, encoding='utf-8')
@@ -1729,17 +1937,14 @@ class TaskContextStore:
                 file=sys.stderr
             )
 
-        # 3. Normalize and hash diff
+        # 4. Normalize and hash diff
         normalized_diff = normalize_diff_for_hashing(diff_content)
         diff_sha = hashlib.sha256(normalized_diff.encode('utf-8')).hexdigest()
 
-        # 4. Calculate file checksums
-        files_changed = self._get_changed_files(base_commit)
-
-        # 5. Calculate scope hash
+        # 6. Calculate scope hash
         scope_hash = calculate_scope_hash(context.repo_paths)
 
-        # 6. Capture git status report
+        # 7. Capture git status report
         result = subprocess.run(
             ['git', 'status', '--porcelain', '-z'],
             cwd=self.repo_root,
@@ -1749,17 +1954,7 @@ class TaskContextStore:
         )
         status_report = result.stdout
 
-        # 7. Get diff stat
-        result = subprocess.run(
-            ['git', 'diff', '--stat', base_commit],
-            cwd=self.repo_root,
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        diff_stat = result.stdout.strip()
-
-        # 8. Calculate incremental diff (reviewer only)
+        # 9. Calculate incremental diff (reviewer only)
         diff_from_implementer = None
         incremental_diff_sha = None
         incremental_diff_error = None
@@ -1769,7 +1964,8 @@ class TaskContextStore:
             if implementer_diff_file.exists():
                 inc_diff, inc_error = self._calculate_incremental_diff(
                     implementer_diff_file,
-                    base_commit
+                    base_commit,
+                    task_id
                 )
                 if inc_diff:
                     # Save incremental diff
@@ -1785,7 +1981,7 @@ class TaskContextStore:
                 else:
                     incremental_diff_error = inc_error
 
-        # 9. Create WorktreeSnapshot
+        # 10. Create WorktreeSnapshot
         snapshot = WorktreeSnapshot(
             base_commit=base_commit,
             snapshot_time=datetime.now(timezone.utc).isoformat(),
@@ -1800,7 +1996,7 @@ class TaskContextStore:
             incremental_diff_error=incremental_diff_error,
         )
 
-        # 10. Update coordination state
+        # 11. Update coordination state
         self.update_coordination(
             task_id=task_id,
             agent_role=agent_role,
@@ -1813,7 +2009,8 @@ class TaskContextStore:
     def _calculate_incremental_diff(
         self,
         implementer_diff_file: Path,
-        base_commit: str
+        base_commit: str,
+        task_id: str
     ) -> Tuple[Optional[str], Optional[str]]:
         """
         Calculate reviewer's incremental changes by reverse-applying implementer diff.
@@ -1825,6 +2022,7 @@ class TaskContextStore:
         Args:
             implementer_diff_file: Path to implementer's diff file
             base_commit: Base commit SHA to start from
+            task_id: Task identifier to load context for scope filtering
 
         Returns:
             Tuple of (incremental_diff_content, error_message)
@@ -1883,10 +2081,28 @@ class TaskContextStore:
 
                     return (None, error_msg)
 
+                # 2.5. Add in-scope untracked files to the temporary index as intent-to-add
+                # This ensures new files created by reviewer are included in the diff
+                # Only exclude .agent-output directory (not all .diff files)
+                context = self.get_context(task_id)
+                if context:
+                    in_scope_untracked, _ = self._get_untracked_files_in_scope(context.repo_paths)
+
+                    if in_scope_untracked:
+                        pathspec = ['--'] + in_scope_untracked + [':!.agent-output/**']
+                        subprocess.run(
+                            ['git', 'add', '-N'] + pathspec,
+                            cwd=self.repo_root,
+                            env=env,
+                            capture_output=True,
+                            text=True,
+                            check=False  # Ignore errors if files already tracked
+                        )
+
                 # 3. Diff working tree against temporary index
                 # This shows what the reviewer changed on top of implementer's work
                 result = subprocess.run(
-                    ['git', 'diff', '--cached'],
+                    ['git', 'diff'],
                     cwd=self.repo_root,
                     env=env,
                     capture_output=True,
@@ -1985,14 +2201,53 @@ class TaskContextStore:
             )
 
         # 5. Calculate current diff and compare SHA
-        result = subprocess.run(
-            ['git', 'diff', snapshot.base_commit],
-            cwd=self.repo_root,
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        current_diff = result.stdout
+        # Use temporary index to include in-scope untracked files (mirrors snapshot_worktree)
+        in_scope_untracked, _ = self._get_untracked_files_in_scope(context.repo_paths)
+
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.index', delete=False) as tmp_index:
+            tmp_index_path = tmp_index.name
+
+        try:
+            # Set up environment to use temporary index
+            env = os.environ.copy()
+            env['GIT_INDEX_FILE'] = tmp_index_path
+
+            # Read current HEAD into temporary index
+            subprocess.run(
+                ['git', 'read-tree', 'HEAD'],
+                cwd=self.repo_root,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=True
+            )
+
+            # Stage in-scope untracked files in temporary index only
+            if in_scope_untracked:
+                pathspec = ['--'] + in_scope_untracked + [':!.agent-output/**']
+                subprocess.run(
+                    ['git', 'add', '-N'] + pathspec,
+                    cwd=self.repo_root,
+                    env=env,
+                    capture_output=True,
+                    text=True,
+                    check=False  # Ignore errors if files already tracked
+                )
+
+            # Generate diff from base using temporary index
+            result = subprocess.run(
+                ['git', 'diff', snapshot.base_commit],
+                cwd=self.repo_root,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            current_diff = result.stdout
+        finally:
+            # Clean up temporary index
+            if os.path.exists(tmp_index_path):
+                os.unlink(tmp_index_path)
 
         current_diff_normalized = normalize_diff_for_hashing(current_diff)
         current_diff_sha = hashlib.sha256(

@@ -2,6 +2,17 @@
 Validation command execution and QA drift detection.
 
 Per Section 2 and Section 4 of task-context-cache-hardening-schemas.md.
+
+SECURITY NOTE:
+--------------
+This module uses subprocess with shell=True for command execution.
+This is ONLY safe because:
+1. Commands are sourced from task.yaml files, which are part of the trusted repository
+2. Task files are committed and reviewed before execution
+3. The codebase is maintained by a solo developer with full trust in their own task definitions
+4. No user input or external data is passed to subprocess commands
+
+DO NOT use this module with untrusted command sources or user-provided task files.
 """
 
 import os

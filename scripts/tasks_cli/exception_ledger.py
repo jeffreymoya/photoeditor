@@ -6,7 +6,7 @@ file updates and idempotent operations per task-context-cache-hardening-schemas.
 """
 
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import List, Optional
 
@@ -46,7 +46,7 @@ def _load_ledger(ledger_path: Path) -> dict:
     if not ledger_path.exists():
         return {
             "version": "1.0",
-            "last_updated": datetime.utcnow().isoformat() + "Z",
+            "last_updated": datetime.now(timezone.utc).isoformat(),
             "exceptions": []
         }
 
@@ -66,7 +66,7 @@ def _save_ledger(ledger_path: Path, ledger: dict) -> None:
     ledger_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Update last_updated timestamp
-    ledger["last_updated"] = datetime.utcnow().isoformat() + "Z"
+    ledger["last_updated"] = datetime.now(timezone.utc).isoformat()
 
     # Write with deterministic formatting
     with open(ledger_path, 'w', encoding='utf-8') as f:
@@ -105,7 +105,7 @@ def add_exception(
                 existing_idx = idx
                 break
 
-        now = datetime.utcnow().isoformat() + "Z"
+        now = datetime.now(timezone.utc).isoformat()
 
         if existing_idx is not None:
             # Update existing entry
@@ -114,7 +114,7 @@ def add_exception(
                 ledger["exceptions"][existing_idx]["parse_error"] = parse_error
         else:
             # Create new entry with 30-day deadline
-            deadline = (datetime.utcnow() + timedelta(days=30)).date().isoformat()
+            deadline = (datetime.now(timezone.utc) + timedelta(days=30)).date().isoformat()
             remediation = RemediationStatus(
                 owner="system",
                 status="open",
@@ -252,7 +252,7 @@ def resolve_exception(
         for entry_dict in ledger["exceptions"]:
             if entry_dict["task_id"] == task_id:
                 found = True
-                now = datetime.utcnow().isoformat() + "Z"
+                now = datetime.now(timezone.utc).isoformat()
                 entry_dict["remediation"]["status"] = "resolved"
                 entry_dict["remediation"]["resolved_at"] = now
                 if notes is not None:

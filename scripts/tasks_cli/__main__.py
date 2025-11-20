@@ -880,23 +880,84 @@ TODO: Document manual verification steps if needed
 # Context Cache Commands (Phase 2)
 # ============================================================================
 
+def _extract_glob_base(pattern: str) -> str:
+    """
+    Extract the stable base directory from a glob pattern.
+
+    This is the directory prefix before any wildcards appear, which serves
+    as the root scope for the pattern. Used as a fallback when no files
+    match yet (bootstrapping) and as the stable scope boundary.
+
+    Args:
+        pattern: Glob pattern (e.g., "mobile/src/components/**/*.tsx")
+
+    Returns:
+        Base directory path (e.g., "mobile/src/components")
+
+    Examples:
+        "mobile/src/components/**/*.tsx" → "mobile/src/components"
+        "backend/services/*/index.ts" → "backend/services"
+        "shared/**" → "shared"
+        "mobile/src/App.tsx" → "mobile/src" (no wildcards, use parent)
+    """
+    # Split on first wildcard character
+    # Common wildcards: *, ?, [, {
+    wildcard_chars = ['*', '?', '[', '{']
+    first_wildcard_pos = len(pattern)
+
+    for char in wildcard_chars:
+        pos = pattern.find(char)
+        if pos != -1 and pos < first_wildcard_pos:
+            first_wildcard_pos = pos
+
+    if first_wildcard_pos == len(pattern):
+        # No wildcards - this is a literal path, use its parent directory
+        base = str(Path(pattern).parent)
+    else:
+        # Extract prefix before wildcard
+        prefix = pattern[:first_wildcard_pos]
+
+        # Trim to last complete directory (remove incomplete path component)
+        # Cases:
+        # - "mobile/src/components/" → "mobile/src/components"
+        # - "mobile/src/components/**" → "mobile/src/components"
+        # - "backend/services/*" → "backend/services"
+        # - "shared/types/?" → "shared/types"
+        base = prefix.rstrip('/')
+
+        # If nothing left after stripping, use first component
+        if not base:
+            base = pattern.split('/')[0].split('*')[0].split('?')[0].split('[')[0].split('{')[0]
+
+    # Normalize: remove trailing slash, handle empty
+    base = base.rstrip('/')
+    return base if base else '.'
+
+
 def _expand_repo_paths(repo_paths: List[str], repo_root: Path) -> List[str]:
     """
-    Expand macros and globs to concrete file paths.
+    Expand macros and globs to directory roots.
 
     Macros starting with ':' (e.g., ':mobile-shared-ui') are expanded using
-    glob patterns defined in docs/templates/scope-globs.json.
+    glob patterns defined in docs/templates/scope-globs.json. Uses stable
+    glob base directories to ensure:
+    1. Bootstrapping works (empty directories get base dir as fallback)
+    2. Complete coverage (all levels under base are in scope, not just parents of existing files)
 
     Args:
         repo_paths: List of paths (may include macros)
         repo_root: Repository root directory
 
     Returns:
-        Sorted, deduplicated list of expanded paths
+        Sorted, deduplicated list of directory paths
 
     Example:
         [':mobile-shared-ui', 'backend/services/'] ->
-        ['mobile/src/components/Foo.tsx', 'mobile/src/hooks/useBar.ts', 'backend/services/']
+        ['mobile/src/components', 'mobile/src/hooks', 'backend/services']
+
+    Critical fixes (2025-11-19):
+    - Issue #1: Falls back to glob base when no matches (enables bootstrapping)
+    - Issue #2: Uses stable glob base instead of file parents (complete coverage)
     """
     import glob
 
@@ -918,22 +979,50 @@ def _expand_repo_paths(repo_paths: List[str], repo_root: Path) -> List[str]:
         if path.startswith(':'):
             # Macro expansion
             if path in globs_config.get('globs', {}):
+                # Track all base directories for this macro (one per pattern)
+                macro_bases = set()
+
                 for pattern in globs_config['globs'][path]:
+                    # FIX #2: Extract stable glob base FIRST
+                    # This is the definitive scope boundary for the pattern
+                    glob_base = _extract_glob_base(pattern)
+                    macro_bases.add(glob_base)
+
                     # Expand glob pattern relative to repo root
                     full_pattern = str(repo_root / pattern)
                     matches = glob.glob(full_pattern, recursive=True)
-                    # Convert back to relative paths
-                    relative_matches = [
-                        str(Path(match).relative_to(repo_root))
-                        for match in matches
-                    ]
-                    expanded.extend(relative_matches)
+
+                    # FIX #1: If no matches, use glob base as fallback (bootstrapping)
+                    if not matches:
+                        # Empty directory - use the stable base so future files are in scope
+                        continue  # Base already added to macro_bases
+
+                    # If we have matches, verify they're under the expected base
+                    # (This is a safety check - all matches should be under glob_base)
+                    for match in matches:
+                        abs_path = Path(match)
+                        rel_path = abs_path.relative_to(repo_root)
+
+                        # Verify match is under glob_base (sanity check)
+                        if not str(rel_path).startswith(glob_base):
+                            # Unexpected - log and skip (shouldn't happen with correct globs)
+                            continue
+
+                # Add all base directories for this macro
+                expanded.extend(sorted(macro_bases))
             else:
                 # Unknown macro, keep as-is (will be caught by validation)
                 expanded.append(path)
         else:
-            # Regular path
-            expanded.append(path)
+            # Regular path - normalize to directory
+            # If it's a file path, convert to parent directory
+            path_obj = Path(path)
+            if '.' in path_obj.name and not path.endswith('/'):
+                # Looks like a file (has extension), use parent
+                expanded.append(str(path_obj.parent))
+            else:
+                # Directory path
+                expanded.append(path.rstrip('/'))
 
     # Deduplicate and sort for deterministic output
     return sorted(set(expanded))
@@ -1326,9 +1415,10 @@ def _check_drift_budget(context_store: TaskContextStore, task_id: str) -> None:
                 )
 
 
-def cmd_init_context(args, repo_root: Path) -> int:
+def cmd_init_context_legacy(args, repo_root: Path) -> int:
     """
-    Initialize task context with immutable snapshot.
+    Legacy: Initialize task context with immutable snapshot.
+    Use cmd_init_context from commands.py instead.
 
     Args:
         args: Parsed command-line arguments
@@ -1890,7 +1980,7 @@ def cmd_rebuild_context(args, repo_root: Path) -> int:
 
     # Re-initialize context
     try:
-        context = context_store.init_context(
+        _context = context_store.init_context(
             task_id=task_id,
             immutable=immutable,
             git_head=current_head,
@@ -2016,9 +2106,10 @@ def cmd_snapshot_worktree(args, repo_root: Path) -> int:
         return 1
 
 
-def cmd_verify_worktree(args, repo_root: Path) -> int:
+def cmd_verify_worktree_legacy(args, repo_root: Path) -> int:
     """
-    Verify working tree matches expected state from previous agent.
+    Legacy: Verify working tree matches expected state from previous agent.
+    Use cmd_verify_worktree from commands.py instead.
 
     Args:
         args: Parsed command-line arguments
@@ -2341,9 +2432,10 @@ def _parse_coverage_output(log_content: str) -> dict:
     return results
 
 
-def cmd_record_qa(args, repo_root: Path) -> int:
+def cmd_record_qa_legacy(args, repo_root: Path) -> int:
     """
-    Update validation baseline with QA results.
+    Legacy: Update validation baseline with QA results.
+    Use cmd_record_qa from commands.py instead.
 
     Args:
         args: Parsed command-line arguments
@@ -2555,7 +2647,7 @@ def cmd_compare_qa(args, repo_root: Path) -> int:
         )
 
         # Current
-        current_sha = hashlib.sha256(qa_log_content.encode('utf-8')).hexdigest()
+        _current_sha = hashlib.sha256(qa_log_content.encode('utf-8')).hexdigest()
         current_qa_results = QAResults(
             recorded_at=datetime.now(timezone.utc).isoformat(),
             agent=agent_role,
@@ -3331,7 +3423,8 @@ For more information, see: docs/proposals/task-context-cache-hardening.md
 
         # Context cache commands
         elif args.init_context:
-            return cmd_init_context(args, repo_root)
+            args.task_id = args.init_context
+            return cmd_init_context(args)
 
         elif args.get_context:
             return cmd_get_context(args, repo_root)
@@ -3353,13 +3446,15 @@ For more information, see: docs/proposals/task-context-cache-hardening.md
             return cmd_snapshot_worktree(args, repo_root)
 
         elif args.verify_worktree:
-            return cmd_verify_worktree(args, repo_root)
+            args.task_id = args.verify_worktree
+            return cmd_verify_worktree(args)
 
         elif args.get_diff:
             return cmd_get_diff(args, repo_root)
 
         elif args.record_qa:
-            return cmd_record_qa(args, repo_root)
+            args.task_id = args.record_qa
+            return cmd_record_qa(args)
 
         elif args.compare_qa:
             return cmd_compare_qa(args, repo_root)
@@ -3408,28 +3503,19 @@ For more information, see: docs/proposals/task-context-cache-hardening.md
             args.task_id = args.release_quarantine
             return cmd_release_quarantine(args)
 
-        # Enhanced context lifecycle commands (Session S15)
-        # Note: These override the older implementations in __main__.py
-        elif hasattr(args, 'init_context') and args.init_context:
-            args.task_id = args.init_context
-            return cmd_init_context(args)
-
+        # Enhanced commands (Session S15)
         elif hasattr(args, 'run_validation') and args.run_validation:
             args.task_id = args.run_validation
             return cmd_run_validation(args)
-
-        elif hasattr(args, 'verify_worktree') and args.verify_worktree:
-            args.task_id = args.verify_worktree
-            return cmd_verify_worktree(args)
 
         elif hasattr(args, 'collect_metrics') and args.collect_metrics:
             args.task_id = args.collect_metrics
             return cmd_collect_metrics(args)
 
-        elif args.generate_dashboard:
+        elif hasattr(args, 'generate_dashboard') and args.generate_dashboard:
             return cmd_generate_dashboard(args)
 
-        elif args.compare_metrics:
+        elif hasattr(args, 'compare_metrics') and args.compare_metrics:
             return cmd_compare_metrics(args)
 
     except KeyboardInterrupt:

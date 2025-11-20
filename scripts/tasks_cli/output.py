@@ -203,26 +203,33 @@ def format_json_response(
 def format_error_response(
     code: str,
     message: str,
-    details: Optional[Dict[str, Any]] = None
+    details: Optional[Dict[str, Any]] = None,
+    name: Optional[str] = None,
+    recovery_action: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Create standardized error response.
 
     Convenience function for formatting error responses with consistent
-    structure.
+    structure. Per schemas doc Section 6.3, all error responses must include
+    code, name, message, details, and recovery_action.
 
     Args:
-        code: Error code (e.g., "VALIDATION_ERROR", "NOT_FOUND")
+        code: Error code (e.g., "E001", "E040")
         message: Human-readable error message
         details: Optional additional error details
+        name: Error name (e.g., "ValidationError", "FileNotFound")
+        recovery_action: Suggested recovery action for the user
 
     Returns:
         Standardized error response dictionary
     """
     error_obj = {
         "code": code,
+        "name": name or "Error",
         "message": message,
-        "details": details
+        "details": details or {},
+        "recovery_action": recovery_action or "Check error details and retry"
     }
 
     return format_json_response(success=False, data=None, error=error_obj)

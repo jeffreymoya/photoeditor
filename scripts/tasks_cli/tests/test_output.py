@@ -325,7 +325,7 @@ class TestFormatErrorResponse:
         assert response["data"] is None
         assert response["error"]["code"] == "NOT_FOUND"
         assert response["error"]["message"] == "Task not found"
-        assert response["error"]["details"] is None
+        assert response["error"]["details"] == {}  # Empty dict, not None
 
     def test_error_response_with_details(self):
         """Should include optional details."""

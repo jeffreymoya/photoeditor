@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional, List
 import hashlib
 import shutil
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def create_task_snapshot(
@@ -53,7 +53,7 @@ def create_task_snapshot(
         "sha256": sha256_hash,
         "original_path": str(original_rel),
         "completed_path": str(completed_rel),
-        "created_at": datetime.utcnow().isoformat() + "Z"
+        "created_at": datetime.now(timezone.utc).isoformat()
     }
 
 

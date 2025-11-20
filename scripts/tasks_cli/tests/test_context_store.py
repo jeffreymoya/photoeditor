@@ -1157,7 +1157,7 @@ def test_init_context_normalizes_task_fields(temp_repo, sample_immutable_data):
 # ============================================================================
 
 def test_expand_repo_paths_replaces_macros(temp_repo):
-    """Test that macro paths are expanded to concrete file paths."""
+    """Test that macro paths are expanded to directory roots."""
     from tasks_cli.__main__ import _expand_repo_paths
 
     # Create test files
@@ -1184,11 +1184,14 @@ def test_expand_repo_paths_replaces_macros(temp_repo):
     repo_paths = [':test-macro', 'backend/services/']
     result = _expand_repo_paths(repo_paths, temp_repo)
 
-    # Should expand macro to concrete files
-    assert 'mobile/src/components/Foo.tsx' in result
-    assert 'mobile/src/hooks/useBar.ts' in result
-    # Should preserve non-macro paths
-    assert 'backend/services/' in result
+    # Should expand macro to directory roots (not individual files)
+    assert 'mobile/src/components' in result
+    assert 'mobile/src/hooks' in result
+    # Individual files should NOT be in result
+    assert 'mobile/src/components/Foo.tsx' not in result
+    assert 'mobile/src/hooks/useBar.ts' not in result
+    # Should preserve non-macro paths (normalized without trailing slash)
+    assert 'backend/services' in result
     # Should not include the macro itself
     assert ':test-macro' not in result
 
@@ -1206,12 +1209,13 @@ def test_expand_repo_paths_handles_missing_config(temp_repo):
 
 
 def test_expand_repo_paths_deduplicates_results(temp_repo):
-    """Test that duplicate paths are removed."""
+    """Test that duplicate directory paths are removed."""
     from tasks_cli.__main__ import _expand_repo_paths
 
     # Create test files
     (temp_repo / 'mobile' / 'src').mkdir(parents=True)
     (temp_repo / 'mobile' / 'src' / 'App.tsx').write_text('// App')
+    (temp_repo / 'mobile' / 'src' / 'Other.tsx').write_text('// Other')
 
     # Create globs config with overlapping patterns
     globs_dir = temp_repo / 'docs' / 'templates'
@@ -1225,23 +1229,28 @@ def test_expand_repo_paths_deduplicates_results(temp_repo):
         }
     }))
 
-    # Expand multiple macros that match the same file
+    # Expand multiple macros that match files in the same directory
     repo_paths = [':macro1', ':macro2']
     result = _expand_repo_paths(repo_paths, temp_repo)
 
-    # Should deduplicate (App.tsx should appear only once)
-    assert result.count('mobile/src/App.tsx') == 1
+    # Should deduplicate directory (mobile/src should appear only once)
+    assert result.count('mobile/src') == 1
+    # No individual files in result
+    assert 'mobile/src/App.tsx' not in result
+    assert 'mobile/src/Other.tsx' not in result
 
 
 def test_expand_repo_paths_sorts_output(temp_repo):
     """Test that output is deterministically sorted."""
     from tasks_cli.__main__ import _expand_repo_paths
 
-    # Create test files in non-alphabetical order
-    (temp_repo / 'mobile' / 'src').mkdir(parents=True)
-    (temp_repo / 'mobile' / 'src' / 'Zebra.tsx').write_text('// Zebra')
-    (temp_repo / 'mobile' / 'src' / 'Apple.tsx').write_text('// Apple')
-    (temp_repo / 'mobile' / 'src' / 'Mango.tsx').write_text('// Mango')
+    # Create test files in multiple directories
+    (temp_repo / 'mobile' / 'src' / 'components').mkdir(parents=True)
+    (temp_repo / 'mobile' / 'src' / 'hooks').mkdir(parents=True)
+    (temp_repo / 'backend' / 'services').mkdir(parents=True)
+    (temp_repo / 'mobile' / 'src' / 'components' / 'Foo.tsx').write_text('// Foo')
+    (temp_repo / 'mobile' / 'src' / 'hooks' / 'useBar.ts').write_text('// useBar')
+    (temp_repo / 'backend' / 'services' / 'api.ts').write_text('// api')
 
     # Create globs config
     globs_dir = temp_repo / 'docs' / 'templates'
@@ -1250,7 +1259,11 @@ def test_expand_repo_paths_sorts_output(temp_repo):
     globs_file.write_text(json.dumps({
         'version': 1,
         'globs': {
-            ':test-macro': ['mobile/src/**/*.tsx']
+            ':test-macro': [
+                'mobile/src/**/*.tsx',
+                'mobile/src/**/*.ts',
+                'backend/services/**/*.ts'
+            ]
         }
     }))
 
@@ -1258,10 +1271,17 @@ def test_expand_repo_paths_sorts_output(temp_repo):
     repo_paths = [':test-macro']
     result = _expand_repo_paths(repo_paths, temp_repo)
 
-    # Should be sorted alphabetically
+    # Should be sorted alphabetically (stable glob bases, not parent of files)
+    # FIX #2 (2025-11-19): Uses stable glob base, not individual file parents
     assert result == sorted(result)
-    assert result[0] == 'mobile/src/Apple.tsx'
-    assert result[2] == 'mobile/src/Zebra.tsx'
+    assert 'backend/services' in result
+    # mobile/src/**/*.tsx and mobile/src/**/*.ts both have glob base "mobile/src"
+    assert 'mobile/src' in result
+    # Should NOT have nested directories like mobile/src/components (too specific)
+    assert 'mobile/src/components' not in result
+    assert 'mobile/src/hooks' not in result
+    # Individual files should NOT be in result
+    assert 'mobile/src/components/Foo.tsx' not in result
 
 
 # ============================================================================
@@ -1279,9 +1299,15 @@ def test_incremental_diff_success(context_store, sample_immutable_data, temp_rep
     )
     git_head = result.stdout.strip()
 
+    # FIX #3 (2025-11-19): Use root scope to include test.txt and test2.txt
+    # The existing test creates files at repo root but sample_immutable_data
+    # has scope 'backend/src/', 'backend/tests/' which don't match root files
+    immutable_data = sample_immutable_data.copy()
+    immutable_data['repo_paths'] = ['.']  # Root scope includes all files
+
     context_store.init_context(
         task_id='TASK-0003',
-        immutable=sample_immutable_data,
+        immutable=immutable_data,
         git_head=git_head,
         task_file_sha='file_sha',
     )
@@ -1360,7 +1386,7 @@ def test_incremental_diff_overlapping_edits(context_store, sample_immutable_data
     # Reviewer changes same file (overlapping edit)
     test_file.write_text('reviewer changes line 1\nreviewer adds line 2\n')
 
-    # Snapshot reviewer - should detect conflict
+    # Snapshot reviewer - overlapping edits should be handled correctly
     snapshot = context_store.snapshot_worktree(
         task_id='TASK-0004',
         agent_role='reviewer',
@@ -1369,11 +1395,19 @@ def test_incremental_diff_overlapping_edits(context_store, sample_immutable_data
         previous_agent='implementer',
     )
 
-    # Incremental diff should have error due to overlapping edits
-    assert snapshot.diff_from_implementer is None
-    assert snapshot.incremental_diff_sha is None
-    assert snapshot.incremental_diff_error is not None
-    assert 'Cannot calculate incremental diff' in snapshot.incremental_diff_error
+    # Incremental diff should successfully show reviewer's changes on top of implementer's work
+    assert snapshot.diff_from_implementer is not None
+    assert snapshot.incremental_diff_sha is not None
+    assert snapshot.incremental_diff_error is None
+
+    # Verify incremental diff shows the reviewer's changes
+    inc_diff_file = temp_repo / '.agent-output' / 'TASK-0004' / 'reviewer-incremental.diff'
+    assert inc_diff_file.exists()
+    inc_diff_content = inc_diff_file.read_text()
+
+    # Should show reviewer changed line 1 and added line 2
+    assert 'reviewer changes line 1' in inc_diff_content
+    assert 'reviewer adds line 2' in inc_diff_content
 
 
 def test_incremental_diff_no_reviewer_changes(context_store, sample_immutable_data, temp_repo):
@@ -1570,8 +1604,10 @@ def test_snapshot_worktree_large_diff_warning(context_store, sample_immutable_da
         task_file_sha='file_sha',
     )
 
-    # Create a large file (>10MB worth of changes)
-    large_file = temp_repo / 'large.txt'
+    # Create a large file in scope (backend/src/ is in repo_paths)
+    backend_src = temp_repo / 'backend' / 'src'
+    backend_src.mkdir(parents=True, exist_ok=True)
+    large_file = backend_src / 'large.txt'
     large_content = 'x' * (11 * 1024 * 1024)  # 11MB
     large_file.write_text(large_content)
 
@@ -1606,8 +1642,10 @@ def test_snapshot_worktree_binary_files(context_store, sample_immutable_data, te
         task_file_sha='file_sha',
     )
 
-    # Create a binary file
-    binary_file = temp_repo / 'image.bin'
+    # Create a binary file in scope (backend/src/ is in repo_paths)
+    backend_src = temp_repo / 'backend' / 'src'
+    backend_src.mkdir(parents=True, exist_ok=True)
+    binary_file = backend_src / 'image.bin'
     binary_file.write_bytes(bytes([0, 1, 2, 3, 255, 254, 253]))
 
     # Snapshot should succeed (binary files handled via checksums)
@@ -1768,3 +1806,536 @@ def test_concurrent_update_coordination_with_lock(context_store, sample_immutabl
     context = context_store.get_context('TASK-0013')
     assert context.implementer.status == 'done'
     assert context.audit_update_count == 2
+
+
+# ============================================================================
+# Test Snapshot Worktree - Index Cleanup & Scope Filtering
+# ============================================================================
+
+def test_snapshot_worktree_temp_index_cleanup(context_store, sample_immutable_data, temp_repo):
+    """Test that snapshot_worktree doesn't pollute the real git index."""
+    result = subprocess.run(
+        ['git', 'rev-parse', 'HEAD'],
+        cwd=temp_repo,
+        capture_output=True,
+        text=True,
+        check=True
+    )
+    git_head = result.stdout.strip()
+
+    # Update sample data with repo_paths for scoping
+    immutable_data = sample_immutable_data.copy()
+    immutable_data['repo_paths'] = ['backend/', 'shared/']
+
+    context_store.init_context(
+        task_id='TASK-0014',
+        immutable=immutable_data,
+        git_head=git_head,
+        task_file_sha='file_sha',
+    )
+
+    # Create in-scope untracked file
+    backend_dir = temp_repo / 'backend'
+    backend_dir.mkdir(exist_ok=True)
+    untracked_file = backend_dir / 'new_file.py'
+    untracked_file.write_text('# New file\n')
+
+    # Make a tracked change to ensure dirty tree
+    test_file = temp_repo / 'test.txt'
+    test_file.write_text('modified content\n')
+
+    # Capture index state before snapshot
+    result_before = subprocess.run(
+        ['git', 'status', '--porcelain'],
+        cwd=temp_repo,
+        capture_output=True,
+        text=True,
+        check=True
+    )
+    index_before = result_before.stdout
+
+    # Snapshot
+    context_store.snapshot_worktree(
+        task_id='TASK-0014',
+        agent_role='implementer',
+        actor='test',
+        base_commit=git_head,
+    )
+
+    # Capture index state after snapshot
+    result_after = subprocess.run(
+        ['git', 'status', '--porcelain'],
+        cwd=temp_repo,
+        capture_output=True,
+        text=True,
+        check=True
+    )
+    index_after = result_after.stdout
+
+    # Verify index unchanged (no pollution from git add -N)
+    assert index_before == index_after, "Real git index was modified by snapshot_worktree"
+    # Should still show the untracked file (not staged)
+    assert '?? backend/new_file.py' in index_after or '?? backend/' in index_after
+
+
+def test_snapshot_worktree_scope_filtering(context_store, sample_immutable_data, temp_repo):
+    """Test that only in-scope untracked files are included in snapshot."""
+    result = subprocess.run(
+        ['git', 'rev-parse', 'HEAD'],
+        cwd=temp_repo,
+        capture_output=True,
+        text=True,
+        check=True
+    )
+    git_head = result.stdout.strip()
+
+    # Define narrow scope: only backend/
+    immutable_data = sample_immutable_data.copy()
+    immutable_data['repo_paths'] = ['backend/']
+
+    context_store.init_context(
+        task_id='TASK-0015',
+        immutable=immutable_data,
+        git_head=git_head,
+        task_file_sha='file_sha',
+    )
+
+    # Create in-scope untracked file
+    backend_dir = temp_repo / 'backend'
+    backend_dir.mkdir(exist_ok=True)
+    in_scope_file = backend_dir / 'in_scope.py'
+    in_scope_file.write_text('# In scope\n')
+
+    # Create out-of-scope untracked file
+    mobile_dir = temp_repo / 'mobile'
+    mobile_dir.mkdir(exist_ok=True)
+    out_of_scope_file = mobile_dir / 'out_of_scope.tsx'
+    out_of_scope_file.write_text('// Out of scope\n')
+
+    # Make a tracked change to ensure dirty tree
+    test_file = temp_repo / 'test.txt'
+    test_file.write_text('modified content\n')
+
+    # Snapshot
+    snapshot = context_store.snapshot_worktree(
+        task_id='TASK-0015',
+        agent_role='implementer',
+        actor='test',
+        base_commit=git_head,
+    )
+
+    # Read the generated diff to verify in-scope file included, out-of-scope excluded
+    diff_file = temp_repo / '.agent-output' / 'TASK-0015' / 'implementer-from-base.diff'
+    assert diff_file.exists()
+    diff_content = diff_file.read_text()
+
+    # In-scope file should appear in diff
+    assert 'backend/in_scope.py' in diff_content
+
+    # Out-of-scope file should NOT appear in diff
+    assert 'mobile/out_of_scope.tsx' not in diff_content
+
+
+def test_snapshot_worktree_out_of_scope_warning(context_store, sample_immutable_data, temp_repo, capsys):
+    """Test that out-of-scope untracked files trigger a warning."""
+    result = subprocess.run(
+        ['git', 'rev-parse', 'HEAD'],
+        cwd=temp_repo,
+        capture_output=True,
+        text=True,
+        check=True
+    )
+    git_head = result.stdout.strip()
+
+    # Define narrow scope
+    immutable_data = sample_immutable_data.copy()
+    immutable_data['repo_paths'] = ['backend/']
+
+    context_store.init_context(
+        task_id='TASK-0016',
+        immutable=immutable_data,
+        git_head=git_head,
+        task_file_sha='file_sha',
+    )
+
+    # Create out-of-scope untracked file
+    notes_file = temp_repo / 'notes.md'
+    notes_file.write_text('# Personal notes\n')
+
+    # Make a tracked change
+    test_file = temp_repo / 'test.txt'
+    test_file.write_text('modified content\n')
+
+    # Snapshot
+    context_store.snapshot_worktree(
+        task_id='TASK-0016',
+        agent_role='implementer',
+        actor='test',
+        base_commit=git_head,
+    )
+
+    # Check stderr for warning
+    captured = capsys.readouterr()
+    assert 'outside task scope' in captured.err
+    assert 'notes.md' in captured.err
+
+
+def test_snapshot_worktree_includes_diff_artifacts(context_store, sample_immutable_data, temp_repo):
+    """Test that legitimate .diff evidence files are included in snapshot."""
+    result = subprocess.run(
+        ['git', 'rev-parse', 'HEAD'],
+        cwd=temp_repo,
+        capture_output=True,
+        text=True,
+        check=True
+    )
+    git_head = result.stdout.strip()
+
+    # Define scope including docs/
+    immutable_data = sample_immutable_data.copy()
+    immutable_data['repo_paths'] = ['docs/']
+
+    context_store.init_context(
+        task_id='TASK-0017',
+        immutable=immutable_data,
+        git_head=git_head,
+        task_file_sha='file_sha',
+    )
+
+    # Create legitimate .diff evidence file in scope
+    docs_dir = temp_repo / 'docs'
+    docs_dir.mkdir(exist_ok=True)
+    diff_artifact = docs_dir / 'proposed-changes.diff'
+    diff_artifact.write_text('--- a/file.txt\n+++ b/file.txt\n@@ -1 +1 @@\n-old\n+new\n')
+
+    # Make a tracked change
+    test_file = temp_repo / 'test.txt'
+    test_file.write_text('modified content\n')
+
+    # Snapshot
+    snapshot = context_store.snapshot_worktree(
+        task_id='TASK-0017',
+        agent_role='implementer',
+        actor='test',
+        base_commit=git_head,
+    )
+
+    # Read generated diff
+    diff_file = temp_repo / '.agent-output' / 'TASK-0017' / 'implementer-from-base.diff'
+    assert diff_file.exists()
+    diff_content = diff_file.read_text()
+
+    # Legitimate .diff file should appear in snapshot
+    assert 'docs/proposed-changes.diff' in diff_content
+
+    # Verify .agent-output diffs are still excluded
+    # (implicitly tested by successful execution - would fail if .agent-output included)
+
+
+# ============================================================================
+# Regression Tests for Cache Hardening Drift Detection Issues
+# ============================================================================
+
+def test_verify_worktree_state_with_new_untracked_files(context_store, sample_immutable_data, temp_repo):
+    """
+    Regression test for Issue #1 (HIGH):
+    verify_worktree_state should NOT raise DriftError when new untracked files
+    are added after implementer snapshot, as long as they're in scope and match
+    the snapshot diff hash (which now includes untracked files via temporary index).
+    """
+    # Create initial tracked file and commit FIRST
+    test_file = temp_repo / 'src' / 'app.ts'
+    test_file.parent.mkdir(parents=True, exist_ok=True)
+    test_file.write_text('console.log("initial");')
+
+    subprocess.run(['git', 'add', '.'], cwd=temp_repo, check=True)
+    subprocess.run(['git', 'commit', '-m', 'Initial commit'], cwd=temp_repo, check=True)
+    git_head = subprocess.run(
+        ['git', 'rev-parse', 'HEAD'],
+        cwd=temp_repo,
+        capture_output=True,
+        text=True,
+        check=True
+    ).stdout.strip()
+
+    # Initialize context with src/ in scope
+    immutable_data = sample_immutable_data.copy()
+    immutable_data['repo_paths'] = ['src/']
+
+    context_store.init_context(
+        task_id='TASK-0100',
+        immutable=immutable_data,
+        git_head=git_head,
+        task_file_sha='test_sha_100',
+    )
+
+    # Implementer: modify tracked file and add new untracked file
+    test_file.write_text('console.log("modified by implementer");')
+
+    new_file = temp_repo / 'src' / 'new-feature.ts'
+    new_file.write_text('export const newFeature = () => {};')
+
+    # Snapshot should include both tracked changes AND new untracked file
+    snapshot = context_store.snapshot_worktree(
+        task_id='TASK-0100',
+        agent_role='implementer',
+        actor='test',
+        base_commit=git_head,
+    )
+
+    # Verify snapshot captured both files
+    assert snapshot.diff_sha is not None
+    diff_file = temp_repo / '.agent-output' / 'TASK-0100' / 'implementer-from-base.diff'
+    diff_content = diff_file.read_text()
+    assert 'app.ts' in diff_content  # Tracked file modification
+    assert 'new-feature.ts' in diff_content  # New untracked file
+
+    # CRITICAL: verify_worktree_state should NOT raise DriftError
+    # because the current state matches the snapshot (including untracked files)
+    # This was broken before the fix - would always fail with new untracked files
+    context_store.verify_worktree_state(
+        task_id='TASK-0100',
+        expected_agent='implementer'
+    )
+
+    # Test should pass without DriftError
+
+
+def test_verify_worktree_state_detects_drift_with_additional_untracked_file(context_store, sample_immutable_data, temp_repo):
+    """
+    Regression test for Issue #1 (HIGH) - verification path:
+    verify_worktree_state SHOULD raise DriftError when a new untracked file
+    is added AFTER the snapshot was taken (actual drift).
+    """
+    # Create and commit initial file
+    test_file = temp_repo / 'src' / 'app.ts'
+    test_file.parent.mkdir(parents=True, exist_ok=True)
+    test_file.write_text('console.log("initial");')
+
+    subprocess.run(['git', 'add', '.'], cwd=temp_repo, check=True)
+    subprocess.run(['git', 'commit', '-m', 'Initial commit'], cwd=temp_repo, check=True)
+    git_head = subprocess.run(
+        ['git', 'rev-parse', 'HEAD'],
+        cwd=temp_repo,
+        capture_output=True,
+        text=True,
+        check=True
+    ).stdout.strip()
+
+    # Initialize context with src/ in scope
+    immutable_data = sample_immutable_data.copy()
+    immutable_data['repo_paths'] = ['src/']
+
+    context_store.init_context(
+        task_id='TASK-0101',
+        immutable=immutable_data,
+        git_head=git_head,
+        task_file_sha='test_sha_101',
+    )
+
+    # Implementer: modify file
+    test_file.write_text('console.log("modified");')
+
+    # Take snapshot with just the modification
+    context_store.snapshot_worktree(
+        task_id='TASK-0101',
+        agent_role='implementer',
+        actor='test',
+        base_commit=git_head,
+    )
+
+    # AFTER snapshot: add new untracked file (simulates drift)
+    drift_file = temp_repo / 'src' / 'drift.ts'
+    drift_file.write_text('// This is drift')
+
+    # verify_worktree_state SHOULD detect this drift
+    with pytest.raises(DriftError) as exc_info:
+        context_store.verify_worktree_state(
+            task_id='TASK-0101',
+            expected_agent='implementer'
+        )
+
+    assert 'drift detected' in str(exc_info.value).lower()
+
+
+def test_incremental_diff_excludes_only_agent_output(context_store, sample_immutable_data, temp_repo):
+    """
+    Regression test for Issue #3 (MEDIUM) - verification path:
+    Incremental diff should exclude only .agent-output/** artifacts,
+    not all .diff files or .agent-output directory (without **).
+    """
+    # Create and commit base
+    test_file = temp_repo / 'src' / 'app.ts'
+    test_file.parent.mkdir(parents=True, exist_ok=True)
+    test_file.write_text('console.log("base");')
+
+    subprocess.run(['git', 'add', '.'], cwd=temp_repo, check=True)
+    subprocess.run(['git', 'commit', '-m', 'Base'], cwd=temp_repo, check=True)
+    git_head = subprocess.run(
+        ['git', 'rev-parse', 'HEAD'],
+        cwd=temp_repo,
+        capture_output=True,
+        text=True,
+        check=True
+    ).stdout.strip()
+
+    # Initialize context with src/ and docs/ in scope
+    immutable_data = sample_immutable_data.copy()
+    immutable_data['repo_paths'] = ['src/', 'docs/']
+
+    context_store.init_context(
+        task_id='TASK-0103',
+        immutable=immutable_data,
+        git_head=git_head,
+        task_file_sha='test_sha_103',
+    )
+
+    # Implementer snapshot
+    test_file.write_text('console.log("implementer");')
+    context_store.snapshot_worktree(
+        task_id='TASK-0103',
+        agent_role='implementer',
+        actor='test',
+        base_commit=git_head,
+    )
+
+    # Reviewer: Create multiple .diff files in different locations
+    # 1. Legitimate evidence .diff (should be included)
+    evidence_dir = temp_repo / 'docs' / 'evidence'
+    evidence_dir.mkdir(parents=True, exist_ok=True)
+    (evidence_dir / 'migration.diff').write_text('--- a\n+++ b\n')
+
+    # 2. Legitimate docs .diff (should be included)
+    docs_dir = temp_repo / 'docs'
+    (docs_dir / 'proposed-api.diff').write_text('--- a\n+++ b\n')
+
+    # 3. .agent-output .diff (should be excluded - already exists from implementer)
+    # This is automatically created by snapshot_worktree, no need to create manually
+
+    # Reviewer snapshot with incremental diff
+    reviewer_snapshot = context_store.snapshot_worktree(
+        task_id='TASK-0103',
+        agent_role='reviewer',
+        actor='test',
+        base_commit=git_head,
+        previous_agent='implementer',
+    )
+
+    assert reviewer_snapshot.incremental_diff_sha is not None
+    inc_diff_file = temp_repo / '.agent-output' / 'TASK-0103' / 'reviewer-incremental.diff'
+    inc_diff_content = inc_diff_file.read_text()
+
+    # Legitimate .diff files MUST be included
+    assert 'migration.diff' in inc_diff_content
+    assert 'proposed-api.diff' in inc_diff_content
+
+    # .agent-output artifacts MUST NOT appear in incremental diff
+    # (They're in the cumulative diff but not incremental)
+    # Verified implicitly - if included, snapshot would fail
+
+
+def test_macro_expanded_directories_allow_new_files(context_store, sample_immutable_data, temp_repo):
+    """
+    Regression test for Issue #2 (HIGH):
+    When a task uses a macro like ':mobile-shared-ui', and that macro expands to
+    files under 'mobile/src/components/', new files created under that directory
+    should be recognized as in-scope (not quarantined as out-of-scope).
+
+    Previously broken: _expand_repo_paths expanded macros to concrete file lists,
+    so new files under those directories didn't match any repo_paths entry.
+
+    Fixed: _expand_repo_paths now expands to directory roots, allowing new files
+    under those directories to be in-scope.
+    """
+    # Create globs config with test macro
+    globs_dir = temp_repo / 'docs' / 'templates'
+    globs_dir.mkdir(parents=True)
+    globs_file = globs_dir / 'scope-globs.json'
+    globs_file.write_text(json.dumps({
+        'version': 1,
+        'globs': {
+            ':test-ui-macro': [
+                'mobile/src/components/**/*.tsx',
+                'mobile/src/hooks/**/*.ts'
+            ]
+        }
+    }))
+
+    # Create existing files that match the macro
+    components_dir = temp_repo / 'mobile' / 'src' / 'components'
+    components_dir.mkdir(parents=True)
+    (components_dir / 'ExistingComponent.tsx').write_text('export const Existing = () => {};')
+
+    hooks_dir = temp_repo / 'mobile' / 'src' / 'hooks'
+    hooks_dir.mkdir(parents=True)
+    (hooks_dir / 'useExisting.ts').write_text('export const useExisting = () => {};')
+
+    # Commit base state
+    subprocess.run(['git', 'add', '.'], cwd=temp_repo, check=True)
+    subprocess.run(['git', 'commit', '-m', 'Base with existing files'], cwd=temp_repo, check=True)
+    git_head = subprocess.run(
+        ['git', 'rev-parse', 'HEAD'],
+        cwd=temp_repo,
+        capture_output=True,
+        text=True,
+        check=True
+    ).stdout.strip()
+
+    # Initialize context with macro in repo_paths
+    # Manually expand the macro using _expand_repo_paths
+    from tasks_cli.__main__ import _expand_repo_paths
+    expanded_paths = _expand_repo_paths([':test-ui-macro'], temp_repo)
+
+    immutable_data_with_macro = sample_immutable_data.copy()
+    immutable_data_with_macro['repo_paths'] = expanded_paths
+
+    context_store.init_context(
+        task_id='TASK-0104',
+        immutable=immutable_data_with_macro,
+        git_head=git_head,
+        task_file_sha='test_sha_104',
+    )
+
+    # Implementer: Create NEW file under macro-expanded directory
+    # This file did NOT exist when the macro was expanded during init_context
+    new_component = components_dir / 'NewComponent.tsx'
+    new_component.write_text('export const NewComponent = () => {};')
+
+    new_hook = hooks_dir / 'useNewFeature.ts'
+    new_hook.write_text('export const useNewFeature = () => {};')
+
+    # Snapshot should recognize these as in-scope (not quarantine them)
+    snapshot = context_store.snapshot_worktree(
+        task_id='TASK-0104',
+        agent_role='implementer',
+        actor='test',
+        base_commit=git_head,
+    )
+
+    # Verify new files are included in diff
+    diff_file = temp_repo / '.agent-output' / 'TASK-0104' / 'implementer-from-base.diff'
+    assert diff_file.exists()
+    diff_content = diff_file.read_text()
+
+    # CRITICAL: New files under macro-expanded directories MUST be in-scope
+    # This was broken before the fix - they would be quarantined as out-of-scope
+    assert 'NewComponent.tsx' in diff_content
+    assert 'useNewFeature.ts' in diff_content
+
+    # Verify snapshot succeeded (files were not quarantined)
+    assert snapshot.diff_sha is not None
+
+    # Additional verification: Check that _get_untracked_files_in_scope
+    # correctly identifies these new files as in-scope
+    context = context_store.get_context('TASK-0104')
+    assert context is not None
+
+    in_scope, out_of_scope = context_store._get_untracked_files_in_scope(context.repo_paths)
+
+    # New files should be in-scope
+    assert any('NewComponent.tsx' in f for f in in_scope)
+    assert any('useNewFeature.ts' in f for f in in_scope)
+
+    # Out-of-scope should only contain .agent-output files (not our new files)
+    for oos_file in out_of_scope:
+        assert '.agent-output' in oos_file, f"Unexpected out-of-scope file: {oos_file}"

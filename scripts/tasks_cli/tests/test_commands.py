@@ -39,6 +39,9 @@ def mock_context_store():
 
 def test_cmd_attach_evidence_success(mock_args, mock_context_store):
     """Test successful evidence attachment."""
+    from scripts.tasks_cli.context_store import EvidenceAttachment
+
+    mock_args.task_id = "TASK-0001"
     mock_args.type = "file"
     mock_args.path = "test.py"
     mock_args.description = "Test file"
@@ -46,11 +49,16 @@ def test_cmd_attach_evidence_success(mock_args, mock_context_store):
 
     # Mock context store instance
     mock_instance = Mock()
-    mock_instance.attach_evidence.return_value = {
-        "id": "abc123",
-        "type": "file",
-        "path": "test.py"
-    }
+    mock_evidence = EvidenceAttachment(
+        id="abc123",
+        type="file",
+        path="test.py",
+        description="Test file",
+        sha256="abc" * 16,
+        size=100,
+        created_at="2025-01-01T00:00:00Z"
+    )
+    mock_instance.attach_evidence.return_value = mock_evidence
     mock_context_store.return_value = mock_instance
 
     # Mock output
@@ -97,10 +105,20 @@ def test_cmd_attach_evidence_file_not_found(mock_args, mock_context_store):
 
 def test_cmd_list_evidence_success(mock_args, mock_context_store):
     """Test listing evidence."""
+    from scripts.tasks_cli.context_store import EvidenceAttachment
+
+    mock_args.task_id = "TASK-0001"
     mock_instance = Mock()
-    mock_instance.list_evidence.return_value = [
-        {"id": "abc123", "type": "file", "description": "Test"}
-    ]
+    mock_evidence = EvidenceAttachment(
+        id="abc123",
+        type="file",
+        path="test.py",
+        description="Test",
+        sha256="abc" * 16,
+        size=100,
+        created_at="2025-01-01T00:00:00Z"
+    )
+    mock_instance.list_evidence.return_value = [mock_evidence]
     mock_context_store.return_value = mock_instance
 
     with patch('tasks_cli.commands.is_json_mode', return_value=False):
@@ -125,10 +143,20 @@ def test_cmd_list_evidence_empty(mock_args, mock_context_store):
 
 def test_cmd_list_evidence_json_mode(mock_args, mock_context_store):
     """Test listing evidence in JSON mode."""
+    from scripts.tasks_cli.context_store import EvidenceAttachment
+
+    mock_args.task_id = "TASK-0001"
     mock_instance = Mock()
-    mock_instance.list_evidence.return_value = [
-        {"id": "abc123", "type": "file", "description": "Test"}
-    ]
+    mock_evidence = EvidenceAttachment(
+        id="abc123",
+        type="file",
+        path="test.py",
+        description="Test",
+        sha256="abc" * 16,
+        size=100,
+        created_at="2025-01-01T00:00:00Z"
+    )
+    mock_instance.list_evidence.return_value = [mock_evidence]
     mock_context_store.return_value = mock_instance
 
     with patch('tasks_cli.commands.is_json_mode', return_value=True):
@@ -145,16 +173,22 @@ def test_cmd_list_evidence_json_mode(mock_args, mock_context_store):
 
 def test_cmd_attach_standard_success(mock_args, mock_context_store):
     """Test attaching standards excerpt."""
+    from scripts.tasks_cli.context_store import StandardsExcerpt
+
+    mock_args.task_id = "TASK-0001"
     mock_args.file = "standards/backend-tier.md"
     mock_args.section = "Handler Constraints"
 
     mock_instance = Mock()
-    mock_instance.extract_standards_excerpt.return_value = {
-        "excerpt_id": "abc123",
-        "file": "standards/backend-tier.md",
-        "section": "Handler Constraints",
-        "line_span": [100, 150]
-    }
+    mock_excerpt = StandardsExcerpt(
+        excerpt_id="abc123",
+        file="standards/backend-tier.md",
+        section="Handler Constraints",
+        requirement="Test requirement",
+        line_span=(100, 150),
+        content_sha256="abc" * 16
+    )
+    mock_instance.extract_standards_excerpt.return_value = mock_excerpt
     mock_context_store.return_value = mock_instance
 
     with patch('tasks_cli.commands.is_json_mode', return_value=False):
@@ -449,17 +483,25 @@ def test_cmd_quarantine_task_validation_error(mock_args):
 
 def test_cmd_attach_evidence_with_metadata(mock_args, mock_context_store):
     """Test evidence attachment with metadata."""
+    from scripts.tasks_cli.context_store import EvidenceAttachment
+
+    mock_args.task_id = "TASK-0001"
     mock_args.type = "qa_output"
     mock_args.path = "qa.log"
     mock_args.description = "QA output"
     mock_args.metadata = '{"command": "pnpm test", "exit_code": 0}'
 
     mock_instance = Mock()
-    mock_instance.attach_evidence.return_value = {
-        "id": "abc123",
-        "type": "qa_output",
-        "path": "qa.log"
-    }
+    mock_evidence = EvidenceAttachment(
+        id="abc123",
+        type="qa_output",
+        path="qa.log",
+        description="QA output",
+        sha256="abc" * 16,
+        size=100,
+        created_at="2025-01-01T00:00:00Z"
+    )
+    mock_instance.attach_evidence.return_value = mock_evidence
     mock_context_store.return_value = mock_instance
 
     with patch('tasks_cli.commands.is_json_mode', return_value=False):

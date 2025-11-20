@@ -1,0 +1,214 @@
+# Dispatch Registry for Tasks CLI Command Routing
+#
+# This registry maps CLI commands to their handler type:
+# - 'legacy': Uses argparse-based handlers in __main__.py
+# - 'typer': Uses Typer framework handlers (to be implemented in Wave 1)
+#
+# Wave 1 Migration Plan:
+# - list, validate, explain will be first to migrate to Typer
+# - Other commands will follow in subsequent waves
+#
+# Environment Variable Override:
+# - TASKS_CLI_LEGACY_DISPATCH=1 forces all commands to use legacy handlers
+#   regardless of this registry (for emergency rollback)
+
+commands:
+  # Core task queries (Wave 1 candidates)
+  list:
+    handler: legacy
+    migrated: false
+    description: "List tasks with optional filtering"
+
+  validate:
+    handler: legacy
+    migrated: false
+    description: "Validate dependency graph for cycles and missing deps"
+
+  explain:
+    handler: legacy
+    migrated: false
+    description: "Explain dependency chain for a task"
+
+  # Task workflow operations
+  pick:
+    handler: legacy
+    migrated: false
+    description: "Pick next task using priority algorithm"
+
+  claim:
+    handler: legacy
+    migrated: false
+    description: "Claim a task (transition to in_progress)"
+
+  complete:
+    handler: legacy
+    migrated: false
+    description: "Complete a task and archive it"
+
+  archive:
+    handler: legacy
+    migrated: false
+    description: "Archive a completed task without status change"
+
+  # Graph and cache operations
+  graph:
+    handler: legacy
+    migrated: false
+    description: "Export dependency graph in DOT format"
+
+  refresh-cache:
+    handler: legacy
+    migrated: false
+    description: "Force rebuild of task cache"
+
+  check-halt:
+    handler: legacy
+    migrated: false
+    description: "Check for workflow halt conditions"
+
+  # Task validation and quality
+  lint:
+    handler: legacy
+    migrated: false
+    description: "Lint task file for schema compliance"
+
+  bootstrap-evidence:
+    handler: legacy
+    migrated: false
+    description: "Create evidence file stub"
+
+  # Context cache lifecycle
+  init-context:
+    handler: legacy
+    migrated: false
+    description: "Initialize task context with validations"
+
+  get-context:
+    handler: legacy
+    migrated: false
+    description: "Read context (immutable + coordination)"
+
+  update-agent:
+    handler: legacy
+    migrated: false
+    description: "Update coordination state for agent"
+
+  mark-blocked:
+    handler: legacy
+    migrated: false
+    description: "Add blocking finding to coordination"
+
+  purge-context:
+    handler: legacy
+    migrated: false
+    description: "Manual context cleanup"
+
+  rebuild-context:
+    handler: legacy
+    migrated: false
+    description: "Rebuild context from manifest"
+
+  # Delta tracking
+  snapshot-worktree:
+    handler: legacy
+    migrated: false
+    description: "Snapshot working tree state"
+
+  verify-worktree:
+    handler: legacy
+    migrated: false
+    description: "Verify working tree for drift"
+
+  get-diff:
+    handler: legacy
+    migrated: false
+    description: "Retrieve diff file path"
+
+  record-qa:
+    handler: legacy
+    migrated: false
+    description: "Record QA command results"
+
+  compare-qa:
+    handler: legacy
+    migrated: false
+    description: "Compare QA results against baseline"
+
+  resolve-drift:
+    handler: legacy
+    migrated: false
+    description: "Reset drift budget and record resolution"
+
+  # Evidence and standards
+  attach-evidence:
+    handler: legacy
+    migrated: false
+    description: "Attach evidence to task context"
+
+  list-evidence:
+    handler: legacy
+    migrated: false
+    description: "List evidence attachments"
+
+  attach-standard:
+    handler: legacy
+    migrated: false
+    description: "Attach standards excerpt to context"
+
+  # Exception ledger
+  add-exception:
+    handler: legacy
+    migrated: false
+    description: "Add exception to ledger"
+
+  list-exceptions:
+    handler: legacy
+    migrated: false
+    description: "List exceptions from ledger"
+
+  resolve-exception:
+    handler: legacy
+    migrated: false
+    description: "Resolve exception in ledger"
+
+  cleanup-exceptions:
+    handler: legacy
+    migrated: false
+    description: "Cleanup exceptions based on trigger"
+
+  # Quarantine management
+  quarantine-task:
+    handler: legacy
+    migrated: false
+    description: "Quarantine a task"
+
+  list-quarantined:
+    handler: legacy
+    migrated: false
+    description: "List quarantined tasks"
+
+  release-quarantine:
+    handler: legacy
+    migrated: false
+    description: "Release task from quarantine"
+
+  # Validation and metrics
+  run-validation:
+    handler: legacy
+    migrated: false
+    description: "Run validation command with features"
+
+  collect-metrics:
+    handler: legacy
+    migrated: false
+    description: "Collect metrics for a task"
+
+  generate-dashboard:
+    handler: legacy
+    migrated: false
+    description: "Generate metrics dashboard"
+
+  compare-metrics:
+    handler: legacy
+    migrated: false
+    description: "Compare baseline and current metrics"

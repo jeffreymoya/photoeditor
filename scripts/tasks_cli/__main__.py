@@ -26,25 +26,27 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+# Import legacy command functions (re-exported through commands/ package __init__.py)
 from .commands import (
-    cmd_attach_evidence,
-    cmd_list_evidence,
-    cmd_attach_standard,
     cmd_add_exception,
-    cmd_list_exceptions,
-    cmd_resolve_exception,
+    cmd_attach_evidence,
+    cmd_attach_standard,
     cmd_cleanup_exceptions,
-    cmd_list_quarantined,
-    cmd_release_quarantine,
-    cmd_quarantine_task,
+    cmd_collect_metrics,
+    cmd_compare_metrics,
+    cmd_generate_dashboard,
     cmd_init_context,
+    cmd_list_evidence,
+    cmd_list_exceptions,
+    cmd_list_quarantined,
+    cmd_quarantine_task,
     cmd_record_qa,
+    cmd_release_quarantine,
+    cmd_resolve_exception,
     cmd_run_validation,
     cmd_verify_worktree,
-    cmd_collect_metrics,
-    cmd_generate_dashboard,
-    cmd_compare_metrics,
 )
+from .context import TaskCliContext
 from .context_store import (
     ContextExistsError,
     ContextNotFoundError,
@@ -54,6 +56,7 @@ from .context_store import (
     normalize_multiline,
 )
 from .datastore import TaskDatastore
+from .dispatcher import dispatch_command, should_use_legacy
 from .exceptions import ValidationError, WorkflowHaltError
 from .graph import DependencyGraph
 from .models import Task
@@ -1077,6 +1080,57 @@ def _build_immutable_context_from_task(task_path: Path) -> dict:
     if not isinstance(acceptance_criteria, list):
         acceptance_criteria = []
 
+    # Extract plan steps (per §3.1 requirement for prompt-ready context)
+    plan_raw = data.get('plan', [])
+    plan_steps = []
+    if isinstance(plan_raw, list):
+        for step in plan_raw:
+            if isinstance(step, dict):
+                # Normalize multiline fields within plan steps
+                normalized_step = {
+                    'id': step.get('id'),
+                    'title': step.get('title', ''),
+                    'details': normalize_multiline(str(step.get('details', '')), preserve_formatting=True) if step.get('details') else '',
+                    'actor': step.get('actor'),
+                    'inputs': step.get('inputs', []),
+                    'outputs': step.get('outputs', []),
+                    'definition_of_done': step.get('definition_of_done', []),
+                    'estimate': step.get('estimate'),
+                    'expected_files_touched': step.get('expected_files_touched', [])
+                }
+                plan_steps.append(normalized_step)
+
+    # Extract deliverables (per §3.1 requirement)
+    deliverables = data.get('deliverables', [])
+    if not isinstance(deliverables, list):
+        deliverables = []
+
+    # Extract validation pipeline (per §3.1 requirement for typed commands)
+    validation = data.get('validation', {})
+    validation_commands = []
+    if isinstance(validation, dict):
+        pipeline_raw = validation.get('pipeline', validation.get('commands', []))
+        if isinstance(pipeline_raw, list):
+            for cmd in pipeline_raw:
+                if isinstance(cmd, str):
+                    # Simple string format - convert to minimal dict
+                    validation_commands.append({'command': cmd})
+                elif isinstance(cmd, dict):
+                    # Rich schema format - preserve full structure
+                    normalized_cmd = {
+                        'command': cmd.get('command', ''),
+                        'description': cmd.get('description'),
+                        'cwd': cmd.get('cwd'),
+                        'env': cmd.get('env'),
+                        'expected_paths': cmd.get('expected_paths'),
+                        'blockers': cmd.get('blockers'),
+                        'retry': cmd.get('retry'),
+                        'timeout': cmd.get('timeout'),
+                        'expected_exit_codes': cmd.get('expected_exit_codes')
+                    }
+                    # Remove None values to keep JSON clean
+                    validation_commands.append({k: v for k, v in normalized_cmd.items() if v is not None})
+
     # Build task snapshot (with text normalization for cross-platform determinism)
     task_snapshot = {
         'title': title,  # No normalization (single line)
@@ -1086,6 +1140,9 @@ def _build_immutable_context_from_task(task_path: Path) -> dict:
         'scope_in': [normalize_multiline(str(item), preserve_formatting=True) for item in scope_in],
         'scope_out': [normalize_multiline(str(item), preserve_formatting=True) for item in scope_out],
         'acceptance_criteria': [normalize_multiline(str(item), preserve_formatting=True) for item in acceptance_criteria],
+        'plan_steps': plan_steps,
+        'deliverables': [str(d) for d in deliverables],
+        'validation_commands': validation_commands,
     }
 
     # Extract repo paths from context
@@ -1495,6 +1552,48 @@ def cmd_init_context_legacy(args, repo_root: Path) -> int:
             print(f"Error: Failed to build context: {e}", file=sys.stderr)
         return 1
 
+    # Enrich standards citations with excerpts (Issue #2 fix - per §3.1 and §7)
+    context_store = TaskContextStore(repo_root)
+    enriched_citations = []
+    for citation in immutable.get('standards_citations', []):
+        std_file = citation.get('file')
+        std_section = citation.get('section')
+
+        if std_file and std_section:
+            try:
+                # Extract full excerpt with hash and line span
+                excerpt = context_store.extract_standards_excerpt(
+                    task_id=task_id,
+                    standards_file=std_file,
+                    section_heading=std_section
+                )
+                # Replace basic citation with enriched excerpt
+                enriched_citations.append({
+                    'file': excerpt.file,
+                    'section': excerpt.section,
+                    'requirement': excerpt.requirement,
+                    'line_span': excerpt.line_span,
+                    'content_sha256': excerpt.content_sha256,
+                    'excerpt_id': excerpt.excerpt_id,
+                    'cached_path': excerpt.cached_path,
+                    'extracted_at': excerpt.extracted_at,
+                })
+            except (FileNotFoundError, ValueError) as e:
+                # If excerpt extraction fails, keep basic citation but log warning
+                import sys
+                print(
+                    f"Warning: Failed to extract excerpt for {std_file}#{std_section}: {e}",
+                    file=sys.stderr,
+                    flush=True
+                )
+                enriched_citations.append(citation)
+        else:
+            # Keep citation as-is if missing required fields
+            enriched_citations.append(citation)
+
+    # Replace citations with enriched versions
+    immutable['standards_citations'] = enriched_citations
+
     # Calculate task file SHA
     task_content = Path(task.path).read_bytes()
     task_file_sha = hashlib.sha256(task_content).hexdigest()
@@ -1526,9 +1625,7 @@ def cmd_init_context_legacy(args, repo_root: Path) -> int:
                     purpose='standards_citation'
                 ))
 
-    # Initialize context
-    context_store = TaskContextStore(repo_root)
-
+    # Initialize context (context_store already created above for excerpt extraction)
     try:
         context = context_store.init_context(
             task_id=task_id,
@@ -1949,6 +2046,47 @@ def cmd_rebuild_context(args, repo_root: Path) -> int:
         else:
             print(f"Error: Failed to build context: {e}", file=sys.stderr)
         return 1
+
+    # Enrich standards citations with excerpts (Issue #2 fix - per §3.1 and §7)
+    enriched_citations = []
+    for citation in immutable.get('standards_citations', []):
+        std_file = citation.get('file')
+        std_section = citation.get('section')
+
+        if std_file and std_section:
+            try:
+                # Extract full excerpt with hash and line span
+                excerpt = context_store.extract_standards_excerpt(
+                    task_id=task_id,
+                    standards_file=std_file,
+                    section_heading=std_section
+                )
+                # Replace basic citation with enriched excerpt
+                enriched_citations.append({
+                    'file': excerpt.file,
+                    'section': excerpt.section,
+                    'requirement': excerpt.requirement,
+                    'line_span': excerpt.line_span,
+                    'content_sha256': excerpt.content_sha256,
+                    'excerpt_id': excerpt.excerpt_id,
+                    'cached_path': excerpt.cached_path,
+                    'extracted_at': excerpt.extracted_at,
+                })
+            except (FileNotFoundError, ValueError) as e:
+                # If excerpt extraction fails, keep basic citation but log warning
+                import sys
+                print(
+                    f"Warning: Failed to extract excerpt for {std_file}#{std_section}: {e}",
+                    file=sys.stderr,
+                    flush=True
+                )
+                enriched_citations.append(citation)
+        else:
+            # Keep citation as-is if missing required fields
+            enriched_citations.append(citation)
+
+    # Replace citations with enriched versions
+    immutable['standards_citations'] = enriched_citations
 
     # Calculate current task file SHA
     task_content = Path(task.path).read_bytes()
@@ -3310,9 +3448,10 @@ For more information, see: docs/proposals/task-context-cache-hardening.md
     )
     parser.add_argument(
         '--criticality',
-        choices=['error', 'warning'],
+        choices=['required', 'recommended', 'optional'],
+        default='required',
         metavar='LEVEL',
-        help='Validation criticality level'
+        help='Validation criticality level (required, recommended, or optional)'
     )
     parser.add_argument(
         '--expected-exit-codes',
@@ -3365,6 +3504,115 @@ For more information, see: docs/proposals/task-context-cache-hardening.md
     # Find repository root
     repo_root = find_repo_root()
 
+    # Determine which command was invoked
+    command = None
+    if args.list is not None:
+        command = 'list'
+        args.filter = args.list if args.list != 'all' else None
+    elif args.pick is not None:
+        command = 'pick'
+        args.filter = args.pick
+    elif args.validate:
+        command = 'validate'
+    elif args.refresh_cache:
+        command = 'refresh-cache'
+    elif args.graph:
+        command = 'graph'
+    elif args.claim:
+        command = 'claim'
+        args.task_path = args.claim
+    elif args.complete:
+        command = 'complete'
+        args.task_path = args.complete
+    elif args.archive:
+        command = 'archive'
+        args.task_path = args.archive
+    elif args.explain:
+        command = 'explain'
+    elif args.check_halt:
+        command = 'check-halt'
+    elif args.lint:
+        command = 'lint'
+        args.task_path = args.lint
+    elif args.bootstrap_evidence:
+        command = 'bootstrap-evidence'
+        args.task_id = args.bootstrap_evidence
+    elif args.init_context:
+        command = 'init-context'
+        args.task_id = args.init_context
+    elif args.get_context:
+        command = 'get-context'
+    elif args.update_agent:
+        command = 'update-agent'
+    elif args.mark_blocked:
+        command = 'mark-blocked'
+    elif args.purge_context:
+        command = 'purge-context'
+    elif args.rebuild_context:
+        command = 'rebuild-context'
+    elif args.snapshot_worktree:
+        command = 'snapshot-worktree'
+    elif args.verify_worktree:
+        command = 'verify-worktree'
+        args.task_id = args.verify_worktree
+    elif args.get_diff:
+        command = 'get-diff'
+    elif args.record_qa:
+        command = 'record-qa'
+        args.task_id = args.record_qa
+    elif args.compare_qa:
+        command = 'compare-qa'
+    elif args.resolve_drift:
+        command = 'resolve-drift'
+    elif args.attach_evidence:
+        command = 'attach-evidence'
+        args.task_id = args.attach_evidence
+    elif args.list_evidence:
+        command = 'list-evidence'
+        args.task_id = args.list_evidence
+    elif args.attach_standard:
+        command = 'attach-standard'
+        args.task_id = args.attach_standard
+    elif args.add_exception:
+        command = 'add-exception'
+        args.task_id = args.add_exception
+    elif args.list_exceptions:
+        command = 'list-exceptions'
+    elif args.resolve_exception:
+        command = 'resolve-exception'
+        args.task_id = args.resolve_exception
+    elif args.cleanup_exceptions:
+        command = 'cleanup-exceptions'
+        args.task_id = args.cleanup_exceptions
+    elif args.quarantine_task:
+        command = 'quarantine-task'
+        args.task_id = args.quarantine_task
+    elif args.list_quarantined:
+        command = 'list-quarantined'
+    elif args.release_quarantine:
+        command = 'release-quarantine'
+        args.task_id = args.release_quarantine
+    elif hasattr(args, 'run_validation') and args.run_validation:
+        command = 'run-validation'
+        args.task_id = args.run_validation
+    elif hasattr(args, 'collect_metrics') and args.collect_metrics:
+        command = 'collect-metrics'
+        args.task_id = args.collect_metrics
+    elif hasattr(args, 'generate_dashboard') and args.generate_dashboard:
+        command = 'generate-dashboard'
+    elif hasattr(args, 'compare_metrics') and args.compare_metrics:
+        command = 'compare-metrics'
+
+    # Check if we should use the new dispatcher (for Typer-migrated commands)
+    # Wave 2 will remove legacy handlers once migration completes
+    if command and not should_use_legacy(command):
+        # Build context for dispatcher
+        context = {
+            'repo_root': repo_root,
+        }
+        return dispatch_command(command, args, context)
+
+    # Legacy dispatch path (will be removed in Wave 2)
     # Initialize datastore
     datastore = TaskDatastore(repo_root)
 

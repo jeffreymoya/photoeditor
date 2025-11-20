@@ -236,13 +236,48 @@ def _dispatch_typer(
     Returns:
         Exit code from Typer handler
 
-    Raises:
-        NotImplementedError: Typer handlers not yet implemented (Wave 1)
+    Note:
+        This implementation invokes the Typer app via its command-line interface.
+        The TaskCliContext is initialized and passed through to commands.
     """
-    raise NotImplementedError(
-        f"Typer handler for '{command}' not yet implemented. "
-        f"Set TASKS_CLI_LEGACY_DISPATCH=1 to use legacy handler."
-    )
+    from .app import app, initialize_commands
+
+    # Get repo_root from context
+    repo_root = context.get('repo_root') if context else None
+    if not repo_root:
+        print("Error: repo_root not found in context", file=sys.stderr)
+        return 1
+
+    # Initialize Typer commands with context
+    initialize_commands(repo_root)
+
+    # Build Typer command-line arguments
+    typer_args = [command]
+
+    # Map argparse args to Typer args based on command
+    if command == 'list':
+        if hasattr(args, 'filter') and args.filter:
+            typer_args.append(args.filter)
+        if hasattr(args, 'format') and args.format:
+            typer_args.extend(['--format', args.format])
+    elif command == 'validate':
+        if hasattr(args, 'format') and args.format:
+            typer_args.extend(['--format', args.format])
+    elif command == 'show':
+        if hasattr(args, 'task_id') and args.task_id:
+            typer_args.append(args.task_id)
+        if hasattr(args, 'format') and args.format:
+            typer_args.extend(['--format', args.format])
+
+    # Invoke Typer app
+    try:
+        app(typer_args, standalone_mode=False)
+        return 0
+    except SystemExit as e:
+        return e.code if e.code is not None else 0
+    except Exception as e:
+        print(f"Error executing Typer command: {e}", file=sys.stderr)
+        return 1
 
 
 def validate_registry() -> bool:

@@ -28,6 +28,7 @@ from .context_store.delta_tracking import (
     normalize_diff_for_hashing,
     calculate_scope_hash,
 )
+from .context_store.runtime import RuntimeHelper
 
 
 # ============================================================================
@@ -1068,34 +1069,49 @@ class TaskContextStore:
         # Ensure context directory exists
         self.context_root.mkdir(parents=True, exist_ok=True)
 
+        # Initialize runtime helper (S3.6)
+        self._runtime = RuntimeHelper(self.repo_root, self.context_root)
+
         # Initialize immutable snapshot builder (S3.2)
         self._snapshot_builder = ImmutableSnapshotBuilder(
             repo_root=self.repo_root,
             context_root=self.context_root,
-            atomic_write_fn=self._atomic_write,
-            get_context_dir_fn=self._get_context_dir,
-            get_evidence_dir_fn=self._get_evidence_dir,
-            get_manifest_file_fn=self._get_manifest_file,
-            resolve_task_path_fn=self.resolve_task_path,
+            atomic_write_fn=self._runtime.atomic_write,
+            get_context_dir_fn=self._runtime.get_context_dir,
+            get_evidence_dir_fn=self._runtime.get_evidence_dir,
+            get_manifest_file_fn=self._runtime.get_manifest_file,
+            resolve_task_path_fn=self._runtime.resolve_task_path,
         )
 
     def _get_context_dir(self, task_id: str) -> Path:
-        """Get context directory path for task."""
-        return self.context_root / task_id
+        """
+        Get context directory path for task.
+
+        DEPRECATED: Use self._runtime.get_context_dir() directly.
+        """
+        return self._runtime.get_context_dir(task_id)
 
     def _get_context_file(self, task_id: str) -> Path:
-        """Get context.json file path for task."""
-        return self._get_context_dir(task_id) / "context.json"
+        """
+        Get context.json file path for task.
+
+        DEPRECATED: Use self._runtime.get_context_file() directly.
+        """
+        return self._runtime.get_context_file(task_id)
 
     def _get_manifest_file(self, task_id: str) -> Path:
-        """Get context.manifest file path for task (GAP-4)."""
-        return self._get_context_dir(task_id) / "context.manifest"
+        """
+        Get context.manifest file path for task (GAP-4).
+
+        DEPRECATED: Use self._runtime.get_manifest_file() directly.
+        """
+        return self._runtime.get_manifest_file(task_id)
 
     def _calculate_file_sha256(self, file_path: Path) -> str:
         """
         Calculate SHA256 hash of file contents.
 
-        Delegates to DeltaTracker (S3.3).
+        DEPRECATED: Use self._runtime.calculate_file_sha256() directly.
 
         Args:
             file_path: Path to file (absolute or relative to repo_root)
@@ -1103,44 +1119,25 @@ class TaskContextStore:
         Returns:
             Full SHA256 hex digest
         """
-        tracker = DeltaTracker(self.repo_root)
-        return tracker._calculate_file_sha256(file_path)
+        return self._runtime.calculate_file_sha256(file_path)
 
     def _atomic_write(self, path: Path, content: str) -> None:
         """
         Write content atomically via temp file + os.replace().
 
+        DEPRECATED: Use self._runtime.atomic_write() directly.
+
         Args:
             path: Target file path
             content: Content to write
         """
-        # Ensure parent directory exists
-        path.parent.mkdir(parents=True, exist_ok=True)
-
-        # Write to temp file in same directory
-        fd, temp_path = tempfile.mkstemp(
-            dir=path.parent,
-            prefix=f".{path.name}.tmp",
-            text=True
-        )
-
-        try:
-            with os.fdopen(fd, 'w', encoding='utf-8') as f:
-                f.write(content)
-
-            # Atomic replace
-            os.replace(temp_path, path)
-        except Exception:
-            # Clean up temp file on error
-            try:
-                os.unlink(temp_path)
-            except FileNotFoundError:
-                pass
-            raise
+        self._runtime.atomic_write(path, content)
 
     def _scan_for_secrets(self, data: dict, force: bool = False) -> None:
         """
         Recursively scan dict for secret patterns.
+
+        DEPRECATED: Use self._runtime.scan_for_secrets() directly.
 
         Args:
             data: Dictionary to scan
@@ -1149,42 +1146,15 @@ class TaskContextStore:
         Raises:
             ValidationError: On secret match (unless force=True)
         """
-        if force:
-            return
-
-        def scan_value(value: Any) -> Optional[str]:
-            """Scan a single value, return pattern name if matched."""
-            if isinstance(value, str):
-                for pattern, name in self.SECRET_PATTERNS:
-                    if re.search(pattern, value):
-                        return name
-            elif isinstance(value, dict):
-                for v in value.values():
-                    result = scan_value(v)
-                    if result:
-                        return result
-            elif isinstance(value, (list, tuple)):
-                for item in value:
-                    result = scan_value(item)
-                    if result:
-                        return result
-            return None
-
-        matched_pattern = scan_value(data)
-        if matched_pattern:
-            raise ValidationError(
-                f"Potential secret detected (pattern: {matched_pattern}). "
-                "Use --force-secrets to bypass."
-            )
+        self._runtime.scan_for_secrets(data, force)
 
     def _get_current_git_head(self) -> str:
         """
         Get current git HEAD SHA.
 
-        Delegates to DeltaTracker (S3.3).
+        DEPRECATED: Use self._runtime.get_current_git_head() directly.
         """
-        tracker = DeltaTracker(self.repo_root)
-        return tracker._get_current_git_head()
+        return self._runtime.get_current_git_head()
 
     def _check_staleness(self, context: TaskContext) -> None:
         """
@@ -1192,13 +1162,12 @@ class TaskContextStore:
 
         Logs warning if mismatched (not an error).
 
-        Delegates to DeltaTracker (S3.3).
+        DEPRECATED: Use self._runtime.check_staleness() directly.
 
         Args:
             context: Task context to check
         """
-        tracker = DeltaTracker(self.repo_root)
-        tracker._check_staleness(context.git_head)
+        self._runtime.check_staleness(context.git_head)
 
     def init_context(
         self,
@@ -1261,6 +1230,8 @@ class TaskContextStore:
         """
         Normalize legacy file paths to directory paths for backward compatibility.
 
+        DEPRECATED: Use self._runtime.normalize_repo_paths() directly.
+
         FIX #3 (2025-11-19): Pre-hardening contexts stored individual file paths
         (e.g., "mobile/src/components/Foo.tsx"). Post-hardening code expects
         directory prefixes (e.g., "mobile/src/components"). This migration step
@@ -1277,26 +1248,7 @@ class TaskContextStore:
             ["mobile/src/App.tsx", "backend/services/"] →
             ["mobile/src", "backend/services"]
         """
-        normalized = set()
-
-        for path_str in paths:
-            path_obj = Path(path_str)
-
-            # Check if this looks like a file path (has extension in the last component)
-            # This heuristic handles most cases: .ts, .tsx, .py, .yaml, etc.
-            if '.' in path_obj.name and not path_str.endswith('/'):
-                # File path - use parent directory
-                parent = str(path_obj.parent)
-                # Handle edge case: root files like ".env", "Makefile", etc. → "."
-                if parent == '.':
-                    normalized.add('.')
-                else:
-                    normalized.add(parent)
-            else:
-                # Already a directory path - normalize (remove trailing slash)
-                normalized.add(path_str.rstrip('/'))
-
-        return sorted(normalized)
+        return self._runtime.normalize_repo_paths(paths)
 
     def _load_context_file(self, task_id: str) -> Optional[TaskContext]:
         """
@@ -1321,17 +1273,9 @@ class TaskContextStore:
         context = TaskContext.from_dict(data)
 
         # FIX #3: Migrate legacy file paths to directory paths (2025-11-19)
-        # Pre-hardening contexts contain individual file paths; normalize them
-        # to directory prefixes so _get_untracked_files_in_scope works correctly
-        if context.repo_paths:
-            original_count = len(context.repo_paths)
-            context.repo_paths = self._normalize_repo_paths_for_migration(context.repo_paths)
-            normalized_count = len(context.repo_paths)
-
-            # Log migration if paths changed (debug aid)
-            if original_count != normalized_count:
-                # Collapsed some file paths to common parent directories
-                pass  # Silent migration - no warnings needed
+        # NOTE: Auto-normalization disabled to avoid breaking valid file-level scope tracking.
+        # Legacy contexts should use explicit migration command instead.
+        # See: _normalize_repo_paths_for_migration() for manual migration.
 
         # Check staleness
         self._check_staleness(context)
@@ -1730,14 +1674,15 @@ class TaskContextStore:
         """
         Get evidence directory path for task.
 
+        DEPRECATED: Use self._runtime.get_evidence_dir() directly.
+
         Args:
             task_id: Task identifier
 
         Returns:
             Path to .agent-output/TASK-XXXX/evidence/
         """
-        context_dir = self._get_context_dir(task_id)
-        return context_dir / 'evidence'
+        return self._runtime.get_evidence_dir(task_id)
 
     # _validate_artifact_type moved to context_store/evidence.py (S3.4)
 
@@ -2280,6 +2225,8 @@ class TaskContextStore:
         """
         Resolve task file path, checking multiple locations.
 
+        DEPRECATED: Use self._runtime.resolve_task_path() directly.
+
         Checks in order:
         1. Active tasks: tasks/{tier}/TASK-XXXX-....yaml
         2. Completed tasks: docs/completed-tasks/TASK-XXXX-....yaml
@@ -2291,27 +2238,7 @@ class TaskContextStore:
         Returns:
             Resolved Path to task file, or None if not found
         """
-        # Try active tasks in each tier
-        for tier in ['mobile', 'backend', 'shared', 'infrastructure', 'ops']:
-            tasks_dir = self.repo_root / 'tasks' / tier
-            if tasks_dir.exists():
-                for task_file in tasks_dir.glob(f'{task_id}-*.task.yaml'):
-                    return task_file
-
-        # Try completed tasks
-        completed_dir = self.repo_root / 'docs' / 'completed-tasks'
-        if completed_dir.exists():
-            for task_file in completed_dir.glob(f'{task_id}-*.task.yaml'):
-                return task_file
-
-        # Try quarantine
-        quarantine_dir = self.repo_root / 'docs' / 'compliance' / 'quarantine'
-        if quarantine_dir.exists():
-            quarantine_file = quarantine_dir / f'{task_id}.quarantine.json'
-            if quarantine_file.exists():
-                return quarantine_file
-
-        return None
+        return self._runtime.resolve_task_path(task_id)
 
     def create_task_snapshot(self, task_id: str, task_file_path: Optional[Path] = None) -> dict:
         """

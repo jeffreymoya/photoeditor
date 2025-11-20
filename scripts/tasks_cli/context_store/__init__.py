@@ -62,6 +62,9 @@ calculate_scope_hash = _context_store_main.calculate_scope_hash
 # Import QA baseline manager (S3.5)
 from .qa import QABaselineManager
 
+# Import runtime helper (S3.6)
+from .runtime import RuntimeHelper
+
 __all__ = [
     # Models
     'MANIFEST_SCHEMA_VERSION',
@@ -98,4 +101,6 @@ __all__ = [
     'calculate_scope_hash',
     # QA baseline manager (S3.5)
     'QABaselineManager',
+    # Runtime helper (S3.6)
+    'RuntimeHelper',
 ]

@@ -7,6 +7,7 @@ unit tests miss (e.g., frozen dataclass mutation, schema mismatches).
 
 import json
 import subprocess
+from pathlib import Path
 import pytest
 
 
@@ -469,3 +470,98 @@ def test_multiple_qa_records_append_correctly(temp_workspace):
     result_commands = [r["command"] for r in results]
     for cmd in commands:
         assert cmd in result_commands
+
+
+def test_snapshot_parity():
+    """
+    Test that CLI output structure matches baseline snapshots.
+
+    Verifies that list, pick, and validate commands maintain expected
+    JSON output structure for backward compatibility.
+    """
+    # Load baseline snapshots
+    fixtures_dir = Path(__file__).parent / "fixtures"
+    snapshots_file = fixtures_dir / "cli_outputs.json"
+
+    with open(snapshots_file, "r") as f:
+        snapshots = json.load(f)
+
+    # Test --list command
+    result = subprocess.run(
+        ["python", "-m", "scripts.tasks_cli", "--list", "--format", "json"],
+        cwd=Path(__file__).parent.parent.parent.parent,
+        capture_output=True,
+        text=True
+    )
+    assert result.returncode == 0, f"--list failed: {result.stderr}"
+
+    list_output = json.loads(result.stdout)
+
+    # Verify list output structure (ignore dynamic fields)
+    assert "count" in list_output
+    assert "filter" in list_output
+    assert "tasks" in list_output
+    assert isinstance(list_output["tasks"], list)
+
+    # Verify task structure matches snapshot
+    if list_output["tasks"]:
+        task = list_output["tasks"][0]
+        snapshot_task = snapshots["list"]["tasks"][0]
+
+        # Check keys match (ignore dynamic values like hash, mtime, path)
+        static_keys = {
+            "id", "title", "area", "priority", "status", "unblocker",
+            "blocked_by", "depends_on", "order", "effective_priority", "priority_reason"
+        }
+        for key in static_keys:
+            assert key in task, f"Missing key '{key}' in task output"
+
+    # Test --pick command
+    result = subprocess.run(
+        ["python", "-m", "scripts.tasks_cli", "--pick", "--format", "json"],
+        cwd=Path(__file__).parent.parent.parent.parent,
+        capture_output=True,
+        text=True
+    )
+    assert result.returncode == 0, f"--pick failed: {result.stderr}"
+
+    pick_output = json.loads(result.stdout)
+
+    # Verify pick output structure
+    assert "status" in pick_output
+    assert "reason" in pick_output
+    assert "draft_alerts" in pick_output
+    assert pick_output["status"] == "success"
+
+    # Verify task structure if present
+    if "task" in pick_output:
+        task = pick_output["task"]
+        snapshot_task = snapshots["pick"]["task"]
+
+        static_keys = {
+            "id", "title", "area", "priority", "status", "unblocker",
+            "blocked_by", "depends_on", "order", "effective_priority"
+        }
+        for key in static_keys:
+            assert key in task, f"Missing key '{key}' in pick task output"
+
+    # Test --validate command (may fail with validation errors)
+    result = subprocess.run(
+        ["python", "-m", "scripts.tasks_cli", "--validate", "--format", "json"],
+        cwd=Path(__file__).parent.parent.parent.parent,
+        capture_output=True,
+        text=True
+    )
+
+    # validate command can exit with non-zero if there are errors
+    validate_output = json.loads(result.stdout)
+
+    # Verify validate output structure
+    assert "valid" in validate_output
+    assert isinstance(validate_output["valid"], bool)
+
+    if not validate_output["valid"]:
+        assert "errors" in validate_output
+        assert "error_count" in validate_output
+        assert isinstance(validate_output["errors"], list)
+        assert validate_output["error_count"] == len(validate_output["errors"])

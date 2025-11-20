@@ -1,0 +1,99 @@
+{
+  "list": {
+    "count": 120,
+    "filter": {
+      "status": null,
+      "unblocker_only": false
+    },
+    "tasks": [
+      {
+        "area": "ops",
+        "blocked_by": [],
+        "depends_on": [],
+        "effective_priority": null,
+        "id": "TASK-1001",
+        "order": 1,
+        "priority": "P0",
+        "priority_reason": null,
+        "status": "completed",
+        "title": "Storybook parser override audit tooling",
+        "unblocker": true
+      },
+      {
+        "area": "mobile",
+        "blocked_by": [],
+        "depends_on": [],
+        "effective_priority": null,
+        "id": "TASK-0911G",
+        "order": 3,
+        "priority": "P0",
+        "priority_reason": null,
+        "status": "completed",
+        "title": "Complete Skia Canvas Integration for Android Pilot",
+        "unblocker": true
+      },
+      {
+        "area": "mobile",
+        "blocked_by": [],
+        "depends_on": [],
+        "effective_priority": null,
+        "id": "TASK-0828",
+        "order": null,
+        "priority": "P0",
+        "priority_reason": null,
+        "status": "completed",
+        "title": "Create notification adapter test suite",
+        "unblocker": true
+      }
+    ]
+  },
+  "pick": {
+    "draft_alerts": {
+      "downstream": [],
+      "draft_count": 0,
+      "draft_unblockers": [],
+      "drafts": [],
+      "filtered_out_by_picker": [],
+      "has_drafts": false,
+      "violations": {
+        "missing_blocked_by": [],
+        "needs_blocked_status": []
+      }
+    },
+    "reason": "highest_priority",
+    "status": "success",
+    "task": {
+      "area": "mobile",
+      "blocked_by": [
+        "TASK-1001"
+      ],
+      "depends_on": [],
+      "effective_priority": "P0",
+      "id": "TASK-1002",
+      "order": 2,
+      "priority": "P0",
+      "priority_reason": null,
+      "status": "todo",
+      "title": "Storybook Babel preset with parser override governance & NativeWind adapters",
+      "unblocker": false
+    }
+  },
+  "validate": {
+    "error_count": 12,
+    "errors": [
+      "Task TASK-0810 references non-existent dependencies: TASK-0816",
+      "Duplicate task ID: TASK-0101",
+      "Duplicate task ID: TASK-0001",
+      "Duplicate task ID: TASK-0818",
+      "Duplicate task ID: TASK-0501",
+      "Duplicate task ID: TASK-0100",
+      "Duplicate task ID: TASK-0102",
+      "Duplicate task ID: TASK-0201",
+      "Duplicate task ID: TASK-0104",
+      "Duplicate task ID: TASK-0702",
+      "Duplicate task ID: TASK-0701",
+      "Duplicate task ID: TASK-0105"
+    ],
+    "valid": false
+  }
+}

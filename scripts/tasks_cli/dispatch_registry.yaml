@@ -13,16 +13,21 @@
 #   regardless of this registry (for emergency rollback)
 
 commands:
-  # Core task queries (Wave 1 candidates)
+  # Core task queries (Wave 1 - MIGRATED)
   list:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "List tasks with optional filtering"
 
   validate:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "Validate dependency graph for cycles and missing deps"
+
+  show:
+    handler: typer
+    migrated: true
+    description: "Show detailed information for a specific task"
 
   explain:
     handler: legacy

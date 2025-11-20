@@ -1,14 +1,17 @@
 """
 Typer application for task CLI.
 
-This module defines the Typer app instance and will host all command
-definitions during the Typer migration. Initially contains only a
-placeholder version command for testing the app shell.
+This module defines the Typer app instance and registers all Typer-migrated
+commands. Commands are progressively migrated from the legacy argparse
+implementation.
 
-Commands will be progressively migrated from commands.py in later sessions.
+Wave 1 (Active): list, validate, show commands via commands/tasks.py
 """
 
 import typer
+from pathlib import Path
+
+from .context import TaskCliContext
 
 # Create Typer app instance
 app = typer.Typer(
@@ -34,3 +37,22 @@ def get_app() -> typer.Typer:
         Typer app instance
     """
     return app
+
+
+def initialize_commands(repo_root: Path) -> None:
+    """
+    Initialize and register Typer commands with context.
+
+    This function creates the TaskCliContext and registers all Typer-migrated
+    commands. It should be called once at application startup.
+
+    Args:
+        repo_root: Repository root path for context initialization
+    """
+    from .commands.tasks import register_commands
+
+    # Create context
+    ctx = TaskCliContext.from_repo_root(repo_root)
+
+    # Register Wave 1 commands
+    register_commands(app, ctx)

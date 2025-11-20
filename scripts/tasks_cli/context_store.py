@@ -1687,6 +1687,8 @@ class TaskContextStore:
         """
         Verify working tree matches expected state from previous agent.
 
+        Delegates to DeltaTracker (S3.3), loads context to get snapshot and repo_paths.
+
         Args:
             task_id: Task identifier
             expected_agent: Agent whose snapshot to verify against
@@ -1710,105 +1712,15 @@ class TaskContextStore:
                 f"Agent must call snapshot_worktree() before handoff."
             )
 
-        # 3. Verify base commit unchanged
-        try:
-            current_head = self._get_current_git_head()
-        except subprocess.CalledProcessError as exc:
-            raise DriftError("Unable to determine current git HEAD") from exc
-
-        if current_head != snapshot.base_commit:
-            raise DriftError(
-                f"Base commit changed (rebase/merge detected):\n"
-                f"  Expected: {snapshot.base_commit[:8]}\n"
-                f"  Current:  {current_head[:8]}\n\n"
-                f"Cannot verify deltas - base commit must remain unchanged."
-            )
-
-        # 4. Verify working tree still dirty
-        if not self._is_working_tree_dirty():
-            raise DriftError(
-                "Working tree is clean (no uncommitted changes).\n"
-                "Expected dirty state based on snapshot.\n\n"
-                "Working tree may have been committed prematurely, "
-                "invalidating delta tracking."
-            )
-
-        # 5. Calculate current diff and compare SHA
-        # Use temporary index to include in-scope untracked files (mirrors snapshot_worktree)
-        in_scope_untracked, _ = self._get_untracked_files_in_scope(context.repo_paths)
-
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.index', delete=False) as tmp_index:
-            tmp_index_path = tmp_index.name
-
-        try:
-            # Set up environment to use temporary index
-            env = os.environ.copy()
-            env['GIT_INDEX_FILE'] = tmp_index_path
-
-            # Read current HEAD into temporary index
-            subprocess.run(
-                ['git', 'read-tree', 'HEAD'],
-                cwd=self.repo_root,
-                env=env,
-                capture_output=True,
-                text=True,
-                check=True
-            )
-
-            # Stage in-scope untracked files in temporary index only
-            if in_scope_untracked:
-                pathspec = ['--'] + in_scope_untracked + [':!.agent-output/**']
-                subprocess.run(
-                    ['git', 'add', '-N'] + pathspec,
-                    cwd=self.repo_root,
-                    env=env,
-                    capture_output=True,
-                    text=True,
-                    check=False  # Ignore errors if files already tracked
-                )
-
-            # Generate diff from base using temporary index
-            result = subprocess.run(
-                ['git', 'diff', snapshot.base_commit],
-                cwd=self.repo_root,
-                env=env,
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            current_diff = result.stdout
-        finally:
-            # Clean up temporary index
-            if os.path.exists(tmp_index_path):
-                os.unlink(tmp_index_path)
-
-        current_diff_normalized = normalize_diff_for_hashing(current_diff)
-        current_diff_sha = hashlib.sha256(
-            current_diff_normalized.encode('utf-8')
-        ).hexdigest()
-
-        if current_diff_sha != snapshot.diff_sha:
-            # Detailed file-by-file comparison
-            drift_details = self._compare_file_checksums(snapshot.files_changed)
-
-            raise DriftError(
-                f"Working tree drift detected after {expected_agent} finished:\n"
-                f"{drift_details}\n\n"
-                f"Files were modified outside the agent workflow.\n"
-                f"Cannot validate - working tree state is inconsistent."
-            )
-
-        # 6. Verify scope hash unchanged
-        current_scope_hash = calculate_scope_hash(context.repo_paths)
-        if current_scope_hash != snapshot.scope_hash:
-            raise DriftError(
-                f"Task scope changed (file renamed/deleted):\n"
-                f"  Expected scope hash: {snapshot.scope_hash}\n"
-                f"  Current scope hash:  {current_scope_hash}\n\n"
-                f"Files in task scope may have been renamed or deleted."
-            )
-
-        # All checks passed - no drift detected
+        # 3. Delegate to DeltaTracker
+        tracker = DeltaTracker(self.repo_root)
+        tracker.verify_worktree_state(
+            base_commit=snapshot.base_commit,
+            diff_sha=snapshot.diff_sha,
+            files_changed=snapshot.files_changed,
+            scope_hash=snapshot.scope_hash,
+            repo_paths=context.repo_paths
+        )
 
     # ========================================================================
     # Evidence Directory Methods

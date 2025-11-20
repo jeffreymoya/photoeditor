@@ -174,7 +174,7 @@ class ImmutableSnapshotBuilder:
                 for pattern, secret_type in self.SECRET_PATTERNS:
                     if re.search(pattern, value):
                         raise ValidationError(
-                            f"Potential {secret_type} detected in {path}. "
+                            f"Potential secret detected (pattern: {secret_type}). "
                             "Secrets must not be committed to context."
                         )
             elif isinstance(value, dict):

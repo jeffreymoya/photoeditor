@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import tempfile
 from dataclasses import dataclass, field
@@ -21,6 +22,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from filelock import FileLock
 
 from .exceptions import ValidationError
+from .context_store.immutable import ImmutableSnapshotBuilder, normalize_multiline
 
 
 # ============================================================================
@@ -66,66 +68,8 @@ class DriftError(Exception):
 # Text Normalization Utilities
 # ============================================================================
 
-def normalize_multiline(text: str, preserve_formatting: bool = False) -> str:
-    """
-    Normalize multiline text for deterministic context snapshots.
-
-    Ensures identical snapshots across Windows (CRLF), macOS (LF), and Linux (LF)
-    by converting all line endings to POSIX LF and applying consistent formatting.
-
-    Steps:
-    1. Convert all line endings to LF (POSIX)
-    2. Strip YAML comments (lines starting with #)
-    3. Remove blank lines (whitespace-only)
-    4. Wrap at 120 chars on word boundaries (unless preserving)
-    5. Preserve bullet lists (-, *, digit.)
-    6. Ensure single trailing newline
-
-    Args:
-        text: Raw text from task YAML (may contain comments, extra whitespace)
-        preserve_formatting: If True, preserve bullet lists and code blocks
-
-    Returns:
-        Normalized text with consistent formatting
-
-    Version: 1.0.0 (stamped in context.manifest)
-    """
-    import re
-    from textwrap import fill
-
-    # Step 1: Normalize line endings to LF
-    normalized = text.replace('\r\n', '\n').replace('\r', '\n')
-
-    # Step 2: Strip YAML comments (lines starting with #)
-    lines = normalized.split('\n')
-    lines = [line for line in lines if not line.strip().startswith('#')]
-
-    # Step 3: Remove blank lines (whitespace-only lines)
-    lines = [line for line in lines if line.strip()]
-
-    # Step 4: Join and normalize whitespace
-    normalized = '\n'.join(lines)
-
-    # Step 5: Wrap at 120 chars on word boundaries (if not preserving formatting)
-    if not preserve_formatting:
-        # Use textwrap.fill with US locale sorting
-        paragraphs = normalized.split('\n\n')
-        wrapped_paragraphs = []
-        for para in paragraphs:
-            # Check if paragraph is a bullet list (starts with -, *, or digit.)
-            if re.match(r'^\s*[-*\d]+[.)]?\s', para):
-                # Preserve bullet list formatting
-                wrapped_paragraphs.append(para)
-            else:
-                # Wrap regular paragraphs at 120 chars
-                wrapped = fill(para, width=120, break_long_words=False, break_on_hyphens=False)
-                wrapped_paragraphs.append(wrapped)
-        normalized = '\n\n'.join(wrapped_paragraphs)
-
-    # Step 6: Ensure single trailing newline
-    normalized = normalized.rstrip('\n') + '\n'
-
-    return normalized
+# normalize_multiline has been moved to context_store/immutable.py (S3.2)
+# It is imported above and re-exported here for backward compatibility
 
 
 # ============================================================================
@@ -134,7 +78,13 @@ def normalize_multiline(text: str, preserve_formatting: bool = False) -> str:
 
 @dataclass(frozen=True)
 class TaskSnapshot:
-    """Immutable snapshot of task metadata from .task.yaml"""
+    """
+    Immutable snapshot of task metadata from .task.yaml
+
+    Includes both task content (title, plan, deliverables) and optional
+    file snapshot metadata (paths, hashes) for audit trail.
+    """
+    # Core task metadata
     title: str
     priority: str
     area: str
@@ -143,9 +93,21 @@ class TaskSnapshot:
     scope_out: List[str]
     acceptance_criteria: List[str]
 
+    # Plan and deliverables (GAP-1: extend payload per proposal §3.1)
+    plan_steps: List[Dict[str, Any]]
+    deliverables: List[str]
+    validation_commands: List[Dict[str, str]]
+
+    # Optional file snapshot metadata (for create_snapshot_and_embed)
+    snapshot_path: Optional[str] = None
+    snapshot_sha256: Optional[str] = None
+    original_path: Optional[str] = None
+    completed_path: Optional[str] = None
+    created_at: Optional[str] = None
+
     def to_dict(self) -> dict:
         """Convert to JSON-serializable dict."""
-        return {
+        result = {
             'title': self.title,
             'priority': self.priority,
             'area': self.area,
@@ -153,7 +115,24 @@ class TaskSnapshot:
             'scope_in': list(self.scope_in),
             'scope_out': list(self.scope_out),
             'acceptance_criteria': list(self.acceptance_criteria),
+            'plan_steps': list(self.plan_steps),
+            'deliverables': list(self.deliverables),
+            'validation_commands': list(self.validation_commands),
         }
+
+        # Include snapshot metadata only if present
+        if self.snapshot_path is not None:
+            result['snapshot_path'] = self.snapshot_path
+        if self.snapshot_sha256 is not None:
+            result['snapshot_sha256'] = self.snapshot_sha256
+        if self.original_path is not None:
+            result['original_path'] = self.original_path
+        if self.completed_path is not None:
+            result['completed_path'] = self.completed_path
+        if self.created_at is not None:
+            result['created_at'] = self.created_at
+
+        return result
 
     @classmethod
     def from_dict(cls, data: dict) -> 'TaskSnapshot':
@@ -166,6 +145,14 @@ class TaskSnapshot:
             scope_in=data['scope_in'],
             scope_out=data['scope_out'],
             acceptance_criteria=data['acceptance_criteria'],
+            plan_steps=data.get('plan_steps', []),
+            deliverables=data.get('deliverables', []),
+            validation_commands=data.get('validation_commands', []),
+            snapshot_path=data.get('snapshot_path'),
+            snapshot_sha256=data.get('snapshot_sha256'),
+            original_path=data.get('original_path'),
+            completed_path=data.get('completed_path'),
+            created_at=data.get('created_at'),
         )
 
 
@@ -210,7 +197,7 @@ class StandardsExcerpt:
     file: str                           # e.g., "standards/backend-tier.md"
     section: str                        # e.g., "Handler Constraints"
     requirement: str                    # First sentence summary (≤140 chars)
-    line_span: Tuple[int, int]         # (start_line, end_line) for content body
+    line_span: str                      # 1-based line span (e.g., "L42-L89") per schema §7.1
     content_sha256: str                 # Full SHA256 hash of excerpt content
     excerpt_id: str                     # 8-char SHA256 prefix
     cached_path: Optional[str] = None   # Relative path to cached excerpt file
@@ -222,8 +209,9 @@ class StandardsExcerpt:
             'file': self.file,
             'section': self.section,
             'requirement': self.requirement,
-            'line_span': list(self.line_span),
+            'line_span': self.line_span,
             'content_sha256': self.content_sha256,
+            'content_sha': self.content_sha256[:16],  # 16-char prefix for StandardsCitation compatibility
             'excerpt_id': self.excerpt_id,
             'cached_path': self.cached_path,
             'extracted_at': self.extracted_at,
@@ -236,7 +224,7 @@ class StandardsExcerpt:
             file=data['file'],
             section=data['section'],
             requirement=data['requirement'],
-            line_span=tuple(data['line_span']),
+            line_span=data['line_span'],
             content_sha256=data['content_sha256'],
             excerpt_id=data['excerpt_id'],
             cached_path=data.get('cached_path'),
@@ -439,11 +427,13 @@ class ArtifactMetadata:
     Type-specific metadata for evidence attachments.
 
     Per Section 1.1 of task-context-cache-hardening-schemas.md.
-    Used primarily for qa_output type artifacts.
+    Used primarily for qa_output type artifacts, but supports arbitrary additional
+    fields for audit trails (e.g., sha256, original_path, completed_path for snapshots).
     """
     command: Optional[str] = None  # Command that generated this artifact
     exit_code: Optional[int] = None  # Command exit code
     duration_ms: Optional[int] = None  # Execution time in milliseconds
+    additional_fields: Dict[str, Any] = field(default_factory=dict)  # Arbitrary metadata (e.g., audit fields)
 
     def to_dict(self) -> dict:
         """Convert to JSON-serializable dict."""
@@ -454,15 +444,27 @@ class ArtifactMetadata:
             result['exit_code'] = self.exit_code
         if self.duration_ms is not None:
             result['duration_ms'] = self.duration_ms
+        # Merge additional fields
+        result.update(self.additional_fields)
         return result
 
     @classmethod
     def from_dict(cls, data: dict) -> 'ArtifactMetadata':
-        """Deserialize from dict."""
+        """Deserialize from dict, preserving all fields."""
+        # Extract known fields
+        known_fields = {'command', 'exit_code', 'duration_ms'}
+        command = data.get('command')
+        exit_code = data.get('exit_code')
+        duration_ms = data.get('duration_ms')
+
+        # Preserve all other fields as additional_fields
+        additional = {k: v for k, v in data.items() if k not in known_fields}
+
         return cls(
-            command=data.get('command'),
-            exit_code=data.get('exit_code'),
-            duration_ms=data.get('duration_ms'),
+            command=command,
+            exit_code=exit_code,
+            duration_ms=duration_ms,
+            additional_fields=additional
         )
 
 
@@ -1129,6 +1131,17 @@ class TaskContextStore:
         # Ensure context directory exists
         self.context_root.mkdir(parents=True, exist_ok=True)
 
+        # Initialize immutable snapshot builder (S3.2)
+        self._snapshot_builder = ImmutableSnapshotBuilder(
+            repo_root=self.repo_root,
+            context_root=self.context_root,
+            atomic_write_fn=self._atomic_write,
+            get_context_dir_fn=self._get_context_dir,
+            get_evidence_dir_fn=self._get_evidence_dir,
+            get_manifest_file_fn=self._get_manifest_file,
+            resolve_task_path_fn=self.resolve_task_path,
+        )
+
     def _get_context_dir(self, task_id: str) -> Path:
         """Get context directory path for task."""
         return self.context_root / task_id
@@ -1301,60 +1314,15 @@ class TaskContextStore:
                 f"Use purge_context() first to re-initialize."
             )
 
-        # Validate immutable data
-        self._scan_for_secrets(immutable, force=force_secrets)
-
-        # Validate completeness
-        required_fields = ['task_snapshot', 'standards_citations', 'validation_baseline', 'repo_paths']
-        for field_name in required_fields:
-            if field_name not in immutable:
-                raise ValidationError(f"Missing required field in immutable data: {field_name}")
-
-        task_snapshot_data = immutable['task_snapshot']
-        if not task_snapshot_data.get('description'):
-            raise ValidationError("task_snapshot.description cannot be empty")
-
-        # Validate standards_citations not empty (GAP-7: Quality gate per proposal Section 5.3)
-        standards_citations_data = immutable.get('standards_citations', [])
-        if not standards_citations_data:
-            raise ValidationError(
-                "standards_citations cannot be empty. Task must reference at least one standard."
-            )
-
-        # Apply text normalization to task_snapshot fields (GAP-1: ensure deterministic snapshots)
-        normalized_snapshot_data = {
-            'title': task_snapshot_data['title'],  # No normalization (single line)
-            'priority': task_snapshot_data['priority'],
-            'area': task_snapshot_data['area'],
-            'description': normalize_multiline(task_snapshot_data['description']) if task_snapshot_data.get('description') else '',
-            'scope_in': [normalize_multiline(str(item), preserve_formatting=True) for item in task_snapshot_data.get('scope_in', [])],
-            'scope_out': [normalize_multiline(str(item), preserve_formatting=True) for item in task_snapshot_data.get('scope_out', [])],
-            'acceptance_criteria': [normalize_multiline(str(item), preserve_formatting=True) for item in task_snapshot_data.get('acceptance_criteria', [])],
-        }
-
-        # Create TaskContext
-        now = datetime.now(timezone.utc).isoformat()
-
-        context = TaskContext(
-            version=1,
+        # Delegate to immutable snapshot builder (S3.2)
+        context = self._snapshot_builder.init_context(
             task_id=task_id,
-            created_at=now,
-            created_by=created_by,
+            immutable=immutable,
             git_head=git_head,
             task_file_sha=task_file_sha,
-            task_snapshot=TaskSnapshot.from_dict(normalized_snapshot_data),
-            standards_citations=[
-                StandardsCitation.from_dict(c)
-                for c in immutable['standards_citations']
-            ],
-            validation_baseline=ValidationBaseline.from_dict(immutable['validation_baseline']),
-            repo_paths=sorted(immutable['repo_paths']),
-            implementer=AgentCoordination(),
-            reviewer=AgentCoordination(),
-            validator=AgentCoordination(),
-            audit_updated_at=now,
-            audit_updated_by=created_by,
-            audit_update_count=0,
+            created_by=created_by,
+            force_secrets=force_secrets,
+            source_files=source_files
         )
 
         # Write atomically with lock
@@ -1362,23 +1330,6 @@ class TaskContextStore:
             json_content = json.dumps(context.to_dict(), indent=2, sort_keys=True, ensure_ascii=False)
             json_content += '\n'  # Trailing newline
             self._atomic_write(context_file, json_content)
-
-            # Write manifest if source_files provided (GAP-4)
-            if source_files is not None:
-                manifest = ContextManifest(
-                    version=1,
-                    created_at=now,
-                    created_by=created_by,
-                    git_head=git_head,
-                    task_id=task_id,
-                    context_schema_version=context.version,
-                    source_files=source_files,
-                    normalization_version='1.0.0',  # Text normalization applied (GAP-1 complete)
-                )
-                manifest_file = self._get_manifest_file(task_id)
-                manifest_content = json.dumps(manifest.to_dict(), indent=2, sort_keys=True, ensure_ascii=False)
-                manifest_content += '\n'
-                self._atomic_write(manifest_file, manifest_content)
 
         return context
 
@@ -2321,6 +2272,66 @@ class TaskContextStore:
                 f"({limit_mb:.2f}MB)"
             )
 
+    def _validate_artifact_metadata(self, artifact_type: str, metadata: Optional[Dict[str, Any]]) -> None:
+        """
+        Validate type-specific metadata requirements.
+
+        Per schema Section 1.2 (task-context-cache-hardening-schemas.md):
+        - qa_output: requires command, exit_code, duration_ms
+        - log: requires command, exit_code (if from command)
+        - Other types: no required metadata
+
+        Note: Archive compression is validated separately via _validate_compression.
+
+        Raises:
+            ValidationError: If required metadata is missing
+        """
+        if artifact_type == 'qa_output':
+            if not metadata:
+                raise ValidationError(
+                    "qa_output artifacts require metadata with command, exit_code, duration_ms"
+                )
+            required = ['command', 'exit_code', 'duration_ms']
+            missing = [f for f in required if f not in metadata]
+            if missing:
+                raise ValidationError(
+                    f"qa_output artifact missing required metadata fields: {', '.join(missing)}"
+                )
+        elif artifact_type == 'log':
+            # Log artifacts from commands require command and exit_code per Table 1.2
+            # Logs not from commands (e.g., application logs) don't have these requirements
+            if metadata and 'command' in metadata:
+                # If command is present, exit_code must also be present
+                if 'exit_code' not in metadata:
+                    raise ValidationError(
+                        "log artifact with command metadata must include exit_code"
+                    )
+
+    def _validate_compression(self, artifact_type: str, compression: Optional[Any]) -> None:
+        """
+        Validate compression field for archive artifacts.
+
+        Per schema Section 1.2 (task-context-cache-hardening-schemas.md):
+        - archive: requires compression with format and index_path
+
+        Raises:
+            ValidationError: If compression requirements not met
+        """
+        if artifact_type == 'archive':
+            if not compression:
+                raise ValidationError(
+                    "archive artifacts require compression field with format and index_path"
+                )
+            # Check if compression has required attributes
+            if not hasattr(compression, 'format') or not hasattr(compression, 'index_path'):
+                raise ValidationError(
+                    "archive compression must have format and index_path attributes"
+                )
+            if not compression.format or not compression.index_path:
+                raise ValidationError(
+                    "archive compression format and index_path cannot be empty"
+                )
+
     def _create_directory_archive(
         self,
         dir_path: Path,
@@ -2461,8 +2472,15 @@ class TaskContextStore:
         if not artifact_path.exists():
             raise ValidationError(f"Artifact path does not exist: {artifact_path}")
 
+        # Prepare evidence directory
+        evidence_dir = self._get_evidence_dir(task_id)
+        evidence_dir.mkdir(parents=True, exist_ok=True)
+
         # Handle directory type by converting to archive
         compression = None
+        artifact_bytes = None  # Will be set for regular files, recalculated for archives
+        sha256_hash = None
+
         if artifact_path.is_dir():
             if artifact_type != 'directory':
                 raise ValidationError(
@@ -2471,9 +2489,6 @@ class TaskContextStore:
                 )
 
             # Create archive in evidence directory
-            evidence_dir = self._get_evidence_dir(task_id)
-            evidence_dir.mkdir(parents=True, exist_ok=True)
-
             archive_base = evidence_dir / f"{artifact_path.name}-archive"
             compression = self._create_directory_archive(
                 artifact_path,
@@ -2489,11 +2504,33 @@ class TaskContextStore:
 
             # Update type to archive
             artifact_type = 'archive'
+        else:
+            # Copy file to evidence directory (per Section 3.2 requirement)
+            # Use SHA256 hash as filename to avoid collisions and ensure stability
 
-        # Calculate size and hash
-        artifact_bytes = artifact_path.read_bytes()
+            # Read file and compute hash first
+            artifact_bytes = artifact_path.read_bytes()
+            sha256_hash = hashlib.sha256(artifact_bytes).hexdigest()
+
+            # Determine target filename with original extension
+            file_extension = artifact_path.suffix
+            target_filename = f"{sha256_hash[:16]}{file_extension}"
+            target_path = evidence_dir / target_filename
+
+            # Copy file to evidence directory if not already there
+            if not target_path.exists():
+                shutil.copy2(artifact_path, target_path)
+
+            # Update artifact_path to point to evidence copy
+            artifact_path = target_path
+
+        # Calculate size and hash (reuse for regular files, compute for archives)
+        if artifact_bytes is None:
+            artifact_bytes = artifact_path.read_bytes()
         size_bytes = len(artifact_bytes)
-        sha256_hash = hashlib.sha256(artifact_bytes).hexdigest()
+
+        if sha256_hash is None:
+            sha256_hash = hashlib.sha256(artifact_bytes).hexdigest()
 
         # Validate type and size
         self._validate_artifact_type(artifact_type, size_bytes)
@@ -2507,10 +2544,16 @@ class TaskContextStore:
         # Create evidence ID (16-char SHA256 prefix)
         evidence_id = sha256_hash[:16]
 
-        # Parse metadata if provided
+        # Parse and validate metadata (GAP-3: enforce type-specific requirements)
         artifact_metadata = None
         if metadata:
             artifact_metadata = ArtifactMetadata.from_dict(metadata)
+
+        # Validate type-specific metadata requirements per schema
+        self._validate_artifact_metadata(artifact_type, metadata)
+
+        # Validate compression for archive artifacts per schema Table 1.2
+        self._validate_compression(artifact_type, compression)
 
         # Create EvidenceAttachment
         attachment = EvidenceAttachment(
@@ -2606,43 +2649,8 @@ class TaskContextStore:
             3. Section ends at next same-level or higher-level heading (exclusive)
             4. If no subsequent heading, section extends to EOF
         """
-        lines = content.split('\n')
-
-        section_start = None
-        section_end = None
-        current_level = None
-
-        # Normalize heading for comparison
-        normalized_target = heading.lower().replace(' ', '-').replace('&', 'and')
-
-        for i, line in enumerate(lines):
-            # Match markdown headings (# through ######)
-            heading_match = re.match(r'^(#{1,6})\s+(.+)$', line)
-            if not heading_match:
-                continue
-
-            level = len(heading_match.group(1))
-            heading_text = heading_match.group(2).strip()
-
-            # Normalize current heading
-            normalized_current = heading_text.lower().replace(' ', '-').replace('&', 'and')
-
-            if normalized_current == normalized_target and section_start is None:
-                # Found target heading
-                section_start = i + 1  # Start after heading line
-                current_level = level
-            elif section_start is not None and level <= current_level:
-                # Found next heading at same or higher level
-                section_end = i
-                break
-
-        if section_start is None:
-            return None
-
-        if section_end is None:
-            section_end = len(lines)
-
-        return (section_start, section_end)
+        # Delegate to immutable snapshot builder (S3.2)
+        return self._snapshot_builder._find_section_boundaries(content, heading)
 
     def _compute_excerpt_hash(self, content: str) -> str:
         """
@@ -2766,30 +2774,31 @@ class TaskContextStore:
 
         section_start, section_end = boundaries
 
-        # Extract section content (excluding heading)
+        # Extract section content (excluding heading, per schema §7.1)
         lines = content.split('\n')
         section_lines = lines[section_start:section_end]
 
         # Track actual content boundaries (after trimming blank lines)
-        content_start = section_start
-        content_end = section_end
+        # Note: section_start/section_end are 0-based indices from _find_section_boundaries
+        content_start_idx = section_start
+        content_end_idx = section_end
 
         # Remove blank lines at start
         while section_lines and not section_lines[0].strip():
             section_lines.pop(0)
-            content_start += 1
+            content_start_idx += 1
 
         # Remove blank lines at end
         while section_lines and not section_lines[-1].strip():
             section_lines.pop()
-            content_end -= 1
+            content_end_idx -= 1
 
-        # Join section content
+        # Join section content (body only, heading excluded per schema §7.1)
         excerpt_content = '\n'.join(section_lines)
         if excerpt_content and not excerpt_content.endswith('\n'):
             excerpt_content += '\n'
 
-        # Compute deterministic hash
+        # Compute deterministic hash (body only per schema §7.1)
         content_sha256 = self._compute_excerpt_hash(excerpt_content)
         excerpt_id = content_sha256[:8]
 
@@ -2802,12 +2811,16 @@ class TaskContextStore:
         else:
             requirement = ''
 
-        # Create excerpt object
+        # Create excerpt object with 1-based line spans per schema §7.1 (L42-L89 format)
+        # Convert from 0-based Python indices to 1-based line numbers
+        line_start = content_start_idx + 1
+        line_end = content_end_idx  # content_end_idx is already exclusive in 0-based, so it equals the last line in 1-based
+
         excerpt = StandardsExcerpt(
             file=standards_file,
             section=section_heading,
             requirement=requirement,
-            line_span=(content_start, content_end),
+            line_span=f"L{line_start}-L{line_end}",
             content_sha256=content_sha256,
             excerpt_id=excerpt_id,
         )
@@ -2981,52 +2994,8 @@ class TaskContextStore:
             FileNotFoundError: If task file not found
             ValidationError: If task file cannot be read
         """
-        # Resolve task file path
-        if task_file_path is None:
-            task_file_path = self.resolve_task_path(task_id)
-            if task_file_path is None:
-                raise FileNotFoundError(f"Task file not found for {task_id}")
-
-        if not task_file_path.exists():
-            raise FileNotFoundError(f"Task file does not exist: {task_file_path}")
-
-        # Read task file content
-        try:
-            task_content = task_file_path.read_text(encoding='utf-8')
-        except Exception as exc:
-            raise ValidationError(f"Failed to read task file: {exc}") from exc
-
-        # Compute SHA256 hash
-        snapshot_sha256 = hashlib.sha256(task_content.encode('utf-8')).hexdigest()
-
-        # Determine paths
-        context_dir = self._get_context_dir(task_id)
-        context_dir.mkdir(parents=True, exist_ok=True)
-
-        snapshot_path = context_dir / 'task-snapshot.yaml'
-
-        # Write snapshot atomically
-        self._atomic_write(snapshot_path, task_content)
-
-        # Determine original and completed paths
-        original_path = str(task_file_path.relative_to(self.repo_root))
-
-        # Future completed path
-        if 'completed-tasks' in original_path:
-            completed_path = original_path
-        else:
-            completed_path = f"docs/completed-tasks/{task_file_path.name}"
-
-        # Create metadata
-        metadata = {
-            'snapshot_path': str(snapshot_path.relative_to(self.repo_root)),
-            'snapshot_sha256': snapshot_sha256,
-            'original_path': original_path,
-            'completed_path': completed_path,
-            'created_at': datetime.now(timezone.utc).isoformat()
-        }
-
-        return metadata
+        # Delegate to immutable snapshot builder (S3.2)
+        return self._snapshot_builder.create_task_snapshot(task_id, task_file_path)
 
     def embed_acceptance_criteria(
         self,
@@ -3050,32 +3019,8 @@ class TaskContextStore:
             This is a temporary helper for gradual migration. New code should
             use the enhanced TaskSnapshot model with these fields.
         """
-        # Extract data from task YAML
-        acceptance_criteria = task_data.get('acceptance_criteria', [])
-        scope_in = task_data.get('scope', {}).get('in', [])
-        scope_out = task_data.get('scope', {}).get('out', [])
-
-        # Extract plan steps
-        plan_steps = []
-        plan_data = task_data.get('plan', {})
-        if isinstance(plan_data, dict):
-            steps = plan_data.get('steps', [])
-            for step in steps:
-                if isinstance(step, dict):
-                    step_text = step.get('step', '')
-                    if step_text:
-                        plan_steps.append(step_text)
-                elif isinstance(step, str):
-                    plan_steps.append(step)
-
-        deliverables = task_data.get('deliverables', [])
-
-        # Store in context (we'll need to extend TaskSnapshot to include these fields)
-        # For now, we can store them in a temporary location or extend the model
-
-        # Note: The current TaskSnapshot model doesn't have these fields yet.
-        # This method is a placeholder for when we update the model.
-        # In the meantime, we can attach this as evidence or store in metadata.
+        # Delegate to immutable snapshot builder (S3.2)
+        self._snapshot_builder.embed_acceptance_criteria(task_data, context)
 
     def snapshot_checklists(self, task_id: str, tier: str) -> List[EvidenceAttachment]:
         """
@@ -3099,90 +3044,8 @@ class TaskContextStore:
             This method can be called independently or as part of init_context.
             It will create evidence directory structure if needed.
         """
-        attachments = []
-
-        # Default checklists
-        default_checklists = [
-            'docs/agents/implementation-preflight.md',
-            'docs/agents/diff-safety-checklist.md'
-        ]
-
-        # Tier-specific checklist (if exists)
-        tier_checklist = f'docs/agents/{tier}-implementation-checklist.md'
-        tier_checklist_path = self.repo_root / tier_checklist
-        if tier_checklist_path.exists():
-            default_checklists.append(tier_checklist)
-
-        # Ensure evidence directory exists
-        evidence_dir = self._get_evidence_dir(task_id)
-        evidence_dir.mkdir(parents=True, exist_ok=True)
-
-        # Snapshot each checklist by creating evidence attachments directly
-        for checklist_rel_path in default_checklists:
-            checklist_path = self.repo_root / checklist_rel_path
-
-            if not checklist_path.exists():
-                continue
-
-            try:
-                # Read checklist content
-                checklist_bytes = checklist_path.read_bytes()
-                size_bytes = len(checklist_bytes)
-
-                # Validate size (file type has 1MB limit)
-                if size_bytes > 1 * 1024 * 1024:
-                    continue  # Skip large files
-
-                # Calculate SHA256 hash
-                sha256_hash = hashlib.sha256(checklist_bytes).hexdigest()
-                evidence_id = sha256_hash[:16]
-
-                # Create EvidenceAttachment
-                attachment = EvidenceAttachment(
-                    id=evidence_id,
-                    type='file',
-                    path=checklist_rel_path,
-                    sha256=sha256_hash,
-                    size=size_bytes,
-                    created_at=datetime.now(timezone.utc).isoformat(),
-                    description=f"Checklist snapshot: {checklist_path.name}"
-                )
-
-                # Update evidence index
-                index_path = evidence_dir / 'index.json'
-
-                # Read existing index or create new
-                if index_path.exists():
-                    with open(index_path, 'r', encoding='utf-8') as f:
-                        index = json.load(f)
-                else:
-                    index = {
-                        "version": 1,
-                        "evidence": []
-                    }
-
-                # Add attachment (replace if ID exists)
-                existing_idx = next(
-                    (i for i, e in enumerate(index["evidence"]) if e["id"] == evidence_id),
-                    None
-                )
-                if existing_idx is not None:
-                    index["evidence"][existing_idx] = attachment.to_dict()
-                else:
-                    index["evidence"].append(attachment.to_dict())
-
-                # Write index atomically
-                index_content = json.dumps(index, indent=2, sort_keys=True, ensure_ascii=False)
-                index_content += '\n'
-                self._atomic_write(index_path, index_content)
-
-                attachments.append(attachment)
-
-            except Exception:
-                # Skip if processing fails (read error, etc.)
-                continue
-
-        return attachments
+        # Delegate to immutable snapshot builder (S3.2)
+        return self._snapshot_builder.snapshot_checklists(task_id, tier)
 
     def create_snapshot_and_embed(
         self,
@@ -3208,53 +3071,12 @@ class TaskContextStore:
         Returns:
             Snapshot metadata dict
         """
-        # Create snapshot
-        snapshot_meta = self.create_task_snapshot(
+        # Delegate to immutable snapshot builder (S3.2)
+        return self._snapshot_builder.create_snapshot_and_embed(
             task_id=task_id,
-            task_file_path=task_path
+            task_path=task_path,
+            task_data=task_data,
+            tier=tier,
+            context=context,
+            attach_evidence_fn=self.attach_evidence
         )
-
-        # Embed acceptance criteria into context
-        self.embed_acceptance_criteria(task_data, context)
-
-        # Snapshot checklists
-        checklist_attachments = self.snapshot_checklists(
-            task_id=task_id,
-            tier=tier
-        )
-
-        # Attach snapshot file as evidence
-        snapshot_path = self.repo_root / snapshot_meta['snapshot_path']
-        snapshot_evidence = self.attach_evidence(
-            task_id=task_id,
-            artifact_type="file",
-            artifact_path=snapshot_path,
-            description=f"Task snapshot for {task_id}",
-            metadata={
-                "sha256": snapshot_meta["snapshot_sha256"],
-                "original_path": snapshot_meta["original_path"],
-                "completed_path": snapshot_meta["completed_path"]
-            }
-        )
-
-        # Store snapshot metadata in context.task_snapshot
-        if not hasattr(context, 'task_snapshot') or context.task_snapshot is None:
-            context.task_snapshot = TaskSnapshot(
-                snapshot_path=snapshot_meta['snapshot_path'],
-                snapshot_sha256=snapshot_meta['snapshot_sha256'],
-                original_path=snapshot_meta['original_path'],
-                completed_path=snapshot_meta['completed_path'],
-                created_at=snapshot_meta['created_at'],
-                acceptance_criteria=[],
-                scope_in=[],
-                scope_out=[],
-                plan_steps=[],
-                deliverables=[]
-            )
-
-        # Return enhanced metadata
-        return {
-            **snapshot_meta,
-            "evidence_id": snapshot_evidence.id,
-            "checklist_evidence_ids": [att.id for att in checklist_attachments]
-        }

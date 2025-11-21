@@ -6,9 +6,17 @@ Static analysis checks:
 1. LOC limits: Fail if any non-test module exceeds 500 LOC
 2. Subprocess usage: Detect subprocess.run outside providers/ layer
 
+Provider Policy (S4.4):
+- subprocess.run usage is ONLY permitted in providers/ layer
+- Test files are exempted (can mock subprocess for testing)
+- Enforcement via --enforce-providers flag (warn-only by default)
+- Transition: warn-only until Wave 4 migration completes (S4.3)
+- After S4.3, all subprocess calls must be in providers/
+
 Usage:
     python scripts/tasks_cli/checks/module_limits.py
     python scripts/tasks_cli/checks/module_limits.py --hard-fail
+    python scripts/tasks_cli/checks/module_limits.py --enforce-providers
 """
 
 import argparse
@@ -98,36 +106,49 @@ def scan_module_loc(base_dir: Path, limit: int = 500) -> list[LOCViolation]:
     return violations
 
 
-def scan_subprocess_usage(base_dir: Path) -> list[SubprocessViolation]:
+def scan_subprocess_usage(base_dir: Path, enforce_providers: bool = False) -> list[SubprocessViolation]:
     """
     Scan for subprocess.run usage outside providers/ layer.
 
     Args:
         base_dir: Root directory of tasks_cli module
+        enforce_providers: If True, fail on subprocess.run outside providers/
 
     Returns:
-        List of subprocess usage violations
+        List of subprocess violations
     """
     violations: list[SubprocessViolation] = []
+    providers_dir = base_dir / 'providers'
 
-    # Scan all .py files in tasks_cli (excluding tests and providers)
-    for py_file in base_dir.glob("*.py"):
-        # Skip test files
-        if py_file.name.startswith("test_"):
-            continue
-
-        # Skip if in providers/ directory (when we have one)
-        if "providers" in py_file.parts:
+    # Scan all .py files recursively in tasks_cli
+    for py_file in base_dir.rglob('*.py'):
+        # Skip test files - they can mock subprocess
+        if 'tests' in py_file.parts or py_file.name.startswith('test_'):
             continue
 
         # Parse AST and detect subprocess.run
         try:
-            with open(py_file, "r", encoding="utf-8") as f:
+            with open(py_file, 'r', encoding='utf-8') as f:
                 tree = ast.parse(f.read(), filename=str(py_file))
 
             visitor = SubprocessVisitor(py_file)
             visitor.visit(tree)
-            violations.extend(visitor.violations)
+
+            # Filter violations based on enforce mode
+            if enforce_providers:
+                # Only violations outside providers/ are reported
+                for v in visitor.violations:
+                    # Check if file is under providers/ directory
+                    try:
+                        py_file.relative_to(providers_dir)
+                        # File is in providers/, skip this violation
+                    except ValueError:
+                        # File is NOT in providers/, add violation
+                        violations.append(v)
+            else:
+                # Warn-only: report all
+                violations.extend(visitor.violations)
+
         except SyntaxError:
             # Skip files with syntax errors
             continue
@@ -137,9 +158,19 @@ def scan_subprocess_usage(base_dir: Path) -> list[SubprocessViolation]:
 
 def format_violations(
     loc_violations: list[LOCViolation],
-    subprocess_violations: list[SubprocessViolation]
+    subprocess_violations: list[SubprocessViolation],
+    enforce_providers: bool = False
 ) -> str:
-    """Format violation reports."""
+    """Format violation reports.
+
+    Args:
+        loc_violations: LOC limit violations
+        subprocess_violations: Subprocess usage violations
+        enforce_providers: Whether provider policy is being enforced
+
+    Returns:
+        Formatted violation report
+    """
     lines = []
 
     if loc_violations:
@@ -152,13 +183,26 @@ def format_violations(
         lines.append("")
 
     if subprocess_violations:
-        lines.append("SUBPROCESS USAGE VIOLATIONS:")
-        lines.append("-" * 60)
-        for v in subprocess_violations:
-            lines.append(
-                f"  {v.file_path.name}:{v.line_number} "
-                f"in {v.function_name}()"
-            )
+        if enforce_providers:
+            lines.append("SUBPROCESS POLICY VIOLATIONS:")
+            lines.append("-" * 60)
+            lines.append("POLICY: subprocess.run usage ONLY permitted in providers/")
+            lines.append("")
+            for v in subprocess_violations:
+                lines.append(
+                    f"  VIOLATION: {v.file_path.name}:{v.line_number} "
+                    f"in {v.function_name}() - must be in providers/"
+                )
+        else:
+            lines.append("SUBPROCESS USAGE (informational):")
+            lines.append("-" * 60)
+            lines.append("Found subprocess.run usage (will be enforced in Phase 3+)")
+            lines.append("")
+            for v in subprocess_violations:
+                lines.append(
+                    f"  INFO: {v.file_path.name}:{v.line_number} "
+                    f"in {v.function_name}()"
+                )
         lines.append("")
 
     return "\n".join(lines)
@@ -174,6 +218,11 @@ def main() -> int:
         action="store_true",
         help="Exit with non-zero code on violations (future use)"
     )
+    parser.add_argument(
+        "--enforce-providers",
+        action="store_true",
+        help="Fail if subprocess.run found outside providers/ (Phase 3+)"
+    )
 
     args = parser.parse_args()
 
@@ -183,7 +232,7 @@ def main() -> int:
 
     # Run checks
     loc_violations = scan_module_loc(tasks_cli_dir, limit=500)
-    subprocess_violations = scan_subprocess_usage(tasks_cli_dir)
+    subprocess_violations = scan_subprocess_usage(tasks_cli_dir, args.enforce_providers)
 
     # Report results
     if loc_violations or subprocess_violations:
@@ -191,14 +240,15 @@ def main() -> int:
         print("TASKS_CLI MODULE LIMITS GUARDRAILS")
         print("=" * 60)
         print()
-        print(format_violations(loc_violations, subprocess_violations))
+        print(format_violations(loc_violations, subprocess_violations, args.enforce_providers))
 
-        if args.hard_fail:
-            print("ERROR: Violations detected in --hard-fail mode")
+        # Exit with failure if violations found and (hard_fail OR enforce_providers)
+        if (loc_violations or subprocess_violations) and (args.hard_fail or args.enforce_providers):
+            print("ERROR: Violations detected in enforcement mode")
             return 1
         else:
             print("WARNING: Violations detected (warn-only mode)")
-            print("Use --hard-fail to enforce limits")
+            print("Use --hard-fail or --enforce-providers to enforce limits")
             return 0
     else:
         print("✓ All module limit checks passed")

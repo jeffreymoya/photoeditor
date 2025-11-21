@@ -31,6 +31,7 @@
     "changeset:status": "changeset status --since=main",
     "infra:registry": "pnpm exec tsx scripts/infra/export-environment-registry.ts",
     "cli-guardrails": "python scripts/tasks_cli/checks/module_limits.py",
+    "lint:providers": "python scripts/tasks_cli/checks/module_limits.py --enforce-providers",
     "prepare": "husky"
   },
   "pnpm": {

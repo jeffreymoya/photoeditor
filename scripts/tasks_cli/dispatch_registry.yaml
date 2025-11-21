@@ -84,18 +84,18 @@ commands:
 
   # Context cache lifecycle
   init-context:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "Initialize task context with validations"
 
   get-context:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "Read context (immutable + coordination)"
 
   update-agent:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "Update coordination state for agent"
 
   mark-blocked:
@@ -104,13 +104,13 @@ commands:
     description: "Add blocking finding to coordination"
 
   purge-context:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "Manual context cleanup"
 
   rebuild-context:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "Rebuild context from manifest"
 
   # Delta tracking

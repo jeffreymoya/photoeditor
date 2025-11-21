@@ -30,8 +30,8 @@ commands:
     description: "Show detailed information for a specific task"
 
   explain:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "Explain dependency chain for a task"
 
   # Task workflow operations (Wave 2 - MIGRATED)
@@ -73,13 +73,13 @@ commands:
 
   # Task validation and quality
   lint:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "Lint task file for schema compliance"
 
   bootstrap-evidence:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "Create evidence file stub"
 
   # Context cache lifecycle
@@ -99,8 +99,8 @@ commands:
     description: "Update coordination state for agent"
 
   mark-blocked:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "Add blocking finding to coordination"
 
   purge-context:

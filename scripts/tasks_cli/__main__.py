@@ -39,11 +39,11 @@ from .commands import (
     cmd_list_exceptions,
     cmd_list_quarantined,
     cmd_quarantine_task,
-    cmd_record_qa,
     cmd_release_quarantine,
     cmd_resolve_exception,
     cmd_run_validation,
-    # cmd_verify_worktree removed in S5.2 - now in commands/worktree_commands.py
+    # cmd_record_qa migrated to Typer in S5.3
+    # cmd_verify_worktree migrated to Typer in S5.2
 )
 from .context import TaskCliContext
 from .context_store import (
@@ -291,307 +291,9 @@ def cmd_validate(args, graph: DependencyGraph) -> int:
     return 0 if is_valid else 1
 
 
-def cmd_explain(args, graph: DependencyGraph, datastore: TaskDatastore) -> int:
-    """
-    Explain dependency chain for a specific task.
+# cmd_explain moved to commands/workflow.py (S5.4)
 
-    Shows:
-    - Hard blockers (blocked_by) with status
-    - Artifact dependencies (depends_on) with availability
-    - Transitive dependency chain
-    - Readiness assessment and recommendations
-
-    Args:
-        args: Parsed command-line arguments (contains task_id)
-        graph: DependencyGraph instance
-        datastore: TaskDatastore instance
-
-    Returns:
-        Exit code (0 for success, 1 if task not found)
-    """
-    task_id = args.explain
-
-    # Verify task exists
-    if task_id not in graph.task_by_id:
-        print(f"Error: Task not found: {task_id}", file=sys.stderr)
-        return 1
-
-    task = graph.task_by_id[task_id]
-
-    # Compute dependency closure
-    closure = graph.compute_dependency_closure(task_id)
-
-    # Get completed task IDs for readiness check
-    tasks = datastore.load_tasks()
-    completed_ids = {t.id for t in tasks if t.is_completed()}
-
-    # Check readiness
-    is_ready = task.is_ready(completed_ids)
-    blocking_count = len([dep for dep in task.blocked_by if dep not in completed_ids])
-
-    # Output based on format
-    if args.format == 'json':
-        # JSON output with all dependency information
-        blocker_details = []
-        for dep_id in task.blocked_by:
-            if dep_id in graph.task_by_id:
-                dep_task = graph.task_by_id[dep_id]
-                blocker_details.append({
-                    'id': dep_id,
-                    'status': dep_task.status,
-                    'title': dep_task.title,
-                    'blocking': dep_id not in completed_ids
-                })
-            else:
-                blocker_details.append({
-                    'id': dep_id,
-                    'status': 'unknown',
-                    'title': None,
-                    'blocking': True
-                })
-
-        artifact_details = []
-        for dep_id in task.depends_on:
-            if dep_id in graph.task_by_id:
-                dep_task = graph.task_by_id[dep_id]
-                artifact_details.append({
-                    'id': dep_id,
-                    'status': dep_task.status,
-                    'title': dep_task.title,
-                    'available': dep_id in completed_ids
-                })
-            else:
-                artifact_details.append({
-                    'id': dep_id,
-                    'status': 'unknown',
-                    'title': None,
-                    'available': False
-                })
-
-        output_json({
-            'task': {
-                'id': task.id,
-                'title': task.title,
-                'status': task.status,
-                'priority': task.priority,
-                'unblocker': task.unblocker
-            },
-            'hard_blockers': blocker_details,
-            'artifact_dependencies': artifact_details,
-            'transitive_closure': sorted(closure['transitive']),
-            'readiness': {
-                'ready': is_ready,
-                'blocking_count': blocking_count,
-                'recommendation': (
-                    'Task is ready to start' if is_ready
-                    else f'Complete {blocking_count} hard blocker(s) first'
-                )
-            }
-        })
-    else:
-        # Human-readable text output
-        print(f"{task.id}: {task.title}")
-        print(f"  Status: {task.status}")
-        print(f"  Priority: {task.priority}")
-        if task.unblocker:
-            print("  Unblocker: YES")
-        print()
-
-        # Hard blockers (blocked_by)
-        if task.blocked_by:
-            print("  Hard Blockers (blocked_by):")
-            for dep_id in task.blocked_by:
-                if dep_id in graph.task_by_id:
-                    dep_task = graph.task_by_id[dep_id]
-                    status_indicator = "[BLOCKING]" if dep_id not in completed_ids else "[COMPLETED]"
-                    print(f"    ↳ {dep_id} (status: {dep_task.status}) - {dep_task.title} {status_indicator}")
-                else:
-                    print(f"    ↳ {dep_id} (MISSING) [BLOCKING]")
-            print()
-        else:
-            print("  Hard Blockers (blocked_by): None")
-            print()
-
-        # Artifact dependencies (depends_on)
-        if task.depends_on:
-            print("  Artifact Dependencies (depends_on):")
-            for dep_id in task.depends_on:
-                if dep_id in graph.task_by_id:
-                    dep_task = graph.task_by_id[dep_id]
-                    status_indicator = "[AVAILABLE]" if dep_id in completed_ids else "[IN PROGRESS]"
-                    print(f"    ↳ {dep_id} (status: {dep_task.status}) - {dep_task.title} {status_indicator}")
-                else:
-                    print(f"    ↳ {dep_id} (MISSING) [UNAVAILABLE]")
-            print()
-        else:
-            print("  Artifact Dependencies (depends_on): None")
-            print()
-
-        # Transitive chain
-        if closure['transitive']:
-            print("  Transitive Chain:")
-            # Build simple chain representation
-            chain_items = sorted(closure['transitive'])
-            if len(chain_items) <= 5:
-                print(f"    {task.id} → {' → '.join(chain_items)}")
-            else:
-                # Show first few and count
-                print(f"    {task.id} → {' → '.join(chain_items[:3])} → ... ({len(chain_items)} total)")
-            print()
-
-        # Readiness assessment
-        print(f"  Readiness: {'READY' if is_ready else 'NOT READY'}", end='')
-        if not is_ready and blocking_count > 0:
-            print(f" ({blocking_count} hard blocker(s) remain)")
-        else:
-            print()
-
-        if not is_ready and task.blocked_by:
-            # Provide recommendation
-            incomplete_blockers = [dep for dep in task.blocked_by if dep not in completed_ids]
-            if incomplete_blockers:
-                print(f"  Recommendation: Complete these tasks first: {', '.join(incomplete_blockers)}")
-
-    return 0
-
-
-def cmd_lint(args, repo_root: Path) -> int:
-    """
-    Lint a task file for schema 1.1 compliance.
-
-    Args:
-        args: Parsed command-line arguments
-        repo_root: Repository root path
-
-    Returns:
-        Exit code (0 = success, 1 = violations found)
-    """
-    from .linter import TaskLinter, format_violations, ViolationLevel
-
-    task_path = Path(args.task_path)
-
-    if not task_path.exists():
-        print(f"Error: Task file not found: {args.task_path}", file=sys.stderr)
-        return 1
-
-    linter = TaskLinter(repo_root)
-    violations = linter.lint_file(task_path)
-
-    if not violations:
-        print(f"✅ {task_path.name} passes all schema 1.1 checks")
-        return 0
-
-    # Format and display violations
-    print(f"\n📋 Lint results for {task_path.name}:")
-    print(format_violations(violations, show_suggestions=True))
-
-    # Count errors (warnings don't block)
-    errors = [v for v in violations if v.level == ViolationLevel.ERROR]
-
-    if errors:
-        print(f"\n❌ {len(errors)} error(s) must be fixed before transitioning to 'todo'")
-        return 1
-    else:
-        print("\n✅ No blocking errors (warnings should be addressed)")
-        return 0
-
-
-def cmd_bootstrap_evidence(args, repo_root: Path) -> int:
-    """
-    Create evidence file stub for a task.
-
-    Args:
-        args: Parsed command-line arguments
-        repo_root: Repository root path
-
-    Returns:
-        Exit code (0 = success, 1 = error)
-    """
-    task_id = args.task_id
-
-    # Validate task ID format
-    if not task_id.startswith('TASK-'):
-        print(f"Error: Invalid task ID format: {task_id} (expected TASK-XXXX)", file=sys.stderr)
-        return 1
-
-    # Create evidence directory if needed
-    evidence_dir = repo_root / "docs" / "evidence" / "tasks"
-    evidence_dir.mkdir(parents=True, exist_ok=True)
-
-    # Evidence file path
-    evidence_path = evidence_dir / f"{task_id}-clarifications.md"
-
-    if evidence_path.exists():
-        print(f"⚠️  Evidence file already exists: {evidence_path}")
-        print("   Not overwriting existing file")
-        return 0
-
-    # Create evidence stub
-    template = f"""# {task_id} Clarifications & Evidence
-
-## Purpose
-This document tracks clarifications, standards alignment notes, and validation evidence for {task_id}.
-
-## Clarifications
-
-### Outstanding Questions
-<!-- List any unresolved questions or ambiguities -->
-- [Resolved] Example question that was clarified
-
-### Resolved Items
-<!-- Document resolutions with timestamps -->
-- **2025-11-04**: Initial task drafted, no outstanding clarifications
-
-## Standards Alignment
-
-### Grounding References
-<!-- Cite specific standards sections this task satisfies -->
-- `standards/REPLACE-tier.md#REPLACE-section` - REPLACE: describe alignment
-- `standards/testing-standards.md#coverage-expectations` - Coverage thresholds verified
-
-### Gap Analysis
-<!-- Note any standards gaps or deviations discovered -->
-No gaps identified during planning.
-
-## Implementation Notes
-
-### Approach
-<!-- Document key implementation decisions and rationale -->
-TODO: Add implementation approach after plan refinement
-
-### Standards Compliance
-<!-- Evidence that implementation satisfies cited standards -->
-TODO: Add compliance evidence during implementation
-
-## Validation Evidence
-
-### Static Analysis
-<!-- Output from lint:fix and qa:static commands -->
-TODO: Add static analysis results
-
-### Test Results
-<!-- Unit test and coverage reports -->
-TODO: Add test results with coverage percentages
-
-### Manual Verification
-<!-- Any manual checks performed -->
-TODO: Document manual verification steps if needed
-
-## References
-- Task file: `tasks/REPLACE-area/{task_id}-REPLACE-slug.task.yaml`
-- Related docs: `docs/REPLACE-path`
-"""
-
-    with open(evidence_path, 'w', encoding='utf-8') as f:
-        f.write(template)
-
-    print(f"✅ Created evidence stub: {evidence_path}")
-    print("\nNext steps:")
-    print("1. Fill in REPLACE placeholders in the evidence file")
-    print(f"2. Update task YAML: clarifications.evidence_path: \"docs/evidence/tasks/{task_id}-clarifications.md\"")
-    print("3. Document any clarifications or standards gaps as you plan the task")
-
-    return 0
+# cmd_lint and cmd_bootstrap_evidence moved to commands/lint.py (S5.4)
 
 
 # ============================================================================
@@ -1116,78 +818,7 @@ def _get_default_qa_commands(area: str) -> list:
         ]
 
 
-def cmd_mark_blocked(args, repo_root: Path) -> int:
-    """
-    Add blocking finding to agent coordination.
-
-    Args:
-        args: Parsed command-line arguments
-        repo_root: Repository root path
-
-    Returns:
-        Exit code (0 = success, 1 = error)
-    """
-    from .commands.worktree_commands import _auto_verify_worktree, _check_drift_budget
-
-    task_id = args.mark_blocked
-    agent_role = args.agent
-    finding = args.finding
-
-    context_store = TaskContextStore(repo_root)
-
-    try:
-        # Check drift budget before mutations (Issue #3)
-        _check_drift_budget(context_store, task_id)
-
-        # Auto-verify worktree before mutations (Issue #2)
-        _auto_verify_worktree(context_store, task_id, agent_role)
-
-        # Get current context to retrieve existing findings
-        context = context_store.get_context(task_id)
-        if context is None:
-            raise ContextNotFoundError(f"No context found for {task_id}")
-
-        # Get current agent coordination
-        agent_coord = getattr(context, agent_role)
-        existing_findings = list(agent_coord.blocking_findings)
-        existing_findings.append(finding)
-
-        # Update coordination with new findings and blocked status
-        context_store.update_coordination(
-            task_id=task_id,
-            agent_role=agent_role,
-            updates={
-                'blocking_findings': existing_findings,
-                'status': 'blocked',
-            },
-            actor=args.actor if hasattr(args, 'actor') else "task-runner"
-        )
-
-        if args.format == 'json':
-            output_json({
-                'success': True,
-                'task_id': task_id,
-                'agent_role': agent_role,
-                'finding': finding,
-                'total_findings': len(existing_findings),
-            })
-        else:
-            print(f"✓ Marked {agent_role} as blocked for {task_id}")
-            print(f"  Finding: {finding}")
-            print(f"  Total findings: {len(existing_findings)}")
-
-        return 0
-
-    except (ContextNotFoundError, ValidationError) as e:
-        if args.format == 'json':
-            output_json({
-                'success': False,
-                'error': str(e),
-            })
-        else:
-            print(f"Error: {e}", file=sys.stderr)
-        return 1
-
+# cmd_mark_blocked moved to commands/workflow.py (S5.4)
 
 # ============================================================================
 # Delta Tracking Commands moved to commands/worktree_commands.py (S5.2)
@@ -2085,16 +1716,7 @@ For more information, see: docs/proposals/task-context-cache-hardening.md
         elif args.validate:
             return cmd_validate(args, graph)
 
-        elif args.explain:
-            return cmd_explain(args, graph, datastore)
-
-        elif args.lint:
-            args.task_path = args.lint
-            return cmd_lint(args, repo_root)
-
-        elif args.bootstrap_evidence:
-            args.task_id = args.bootstrap_evidence
-            return cmd_bootstrap_evidence(args, repo_root)
+        # explain, lint, bootstrap_evidence moved to Typer (S5.4)
 
         # Context cache commands
         elif args.init_context:
@@ -2107,8 +1729,7 @@ For more information, see: docs/proposals/task-context-cache-hardening.md
         elif args.update_agent:
             return cmd_update_agent(args, repo_root)
 
-        elif args.mark_blocked:
-            return cmd_mark_blocked(args, repo_root)
+        # mark_blocked moved to Typer (S5.4)
 
         elif args.purge_context:
             return cmd_purge_context(args, repo_root)
@@ -2121,15 +1742,7 @@ For more information, see: docs/proposals/task-context-cache-hardening.md
         # Use: python -m scripts.tasks_cli verify-worktree TASK-ID --expected-agent AGENT
         # Use: python -m scripts.tasks_cli get-diff TASK-ID --agent AGENT
 
-        elif args.record_qa:
-            args.task_id = args.record_qa
-            return cmd_record_qa(args)
-
-        elif args.compare_qa:
-            return cmd_compare_qa(args, repo_root)
-
-        elif args.resolve_drift:
-            return cmd_resolve_drift(args, repo_root)
+        # QA commands (record-qa, compare-qa, resolve-drift) migrated to Typer in S5.3
 
         # Evidence and standards commands
         elif args.attach_evidence:

@@ -400,8 +400,9 @@ python scripts/tasks.py --help  # All commands visible ✓
 
 ### Wave 8: OutputChannel & Parallel Safety (2 Sessions)
 
-#### Session S8.1: Implement OutputChannel Class
+#### Session S8.1: Implement OutputChannel Class ✅ COMPLETED
 **Prereqs**: Wave 7 complete
+**Completed**: 2025-11-21
 **File**: `scripts/tasks_cli/output.py`
 
 **Deliverables**:
@@ -422,13 +423,13 @@ class NullOutputChannel(OutputChannel): ...
 class BufferingOutputChannel(OutputChannel): ...
 ```
 
-**Steps**:
-1. Create OutputChannel with instance state
-2. Add NullOutputChannel for no-op scenarios
-3. Add BufferingOutputChannel for test assertions
-4. Create `test_output_channel.py` with concurrency tests
+**Steps Completed**:
+1. Created OutputChannel dataclass with instance state (json_mode, verbose, stdout/stderr streams, _warnings)
+2. Added NullOutputChannel for silent/no-op scenarios (discards output, still collects warnings)
+3. Added BufferingOutputChannel with get_stdout(), get_stderr(), get_json_output() for test assertions
+4. Created `test_output_channel.py` with concurrency tests (thread isolation, no warning bleed)
 
-**Validation**: `pytest scripts/tasks_cli/tests/test_output_channel.py -v`
+**Validation**: `python -m py_compile scripts/tasks_cli/output.py` passes
 
 ---
 

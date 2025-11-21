@@ -105,8 +105,7 @@ __all__ = [
     'cmd_init_context',
     '_extract_standards_citations',
     '_build_standards_citations',
-    # QA commands
-    'cmd_record_qa',
+    # QA helper (commands migrated to Typer)
     '_infer_command_type',
     # Validation commands
     'cmd_run_validation',

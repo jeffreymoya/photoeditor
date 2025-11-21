@@ -26,15 +26,8 @@ from .models import (
     ValidationBaseline,
 )
 
-# ValidationError is defined in parent context_store.py, so we'll define it here
-# or import it using absolute import
-try:
-    from tasks_cli.exceptions import ValidationError
-except ImportError:
-    # Fallback: define locally if import fails
-    class ValidationError(Exception):
-        """Raised when validation fails."""
-        pass
+# Import ValidationError from parent exceptions module
+from ..exceptions import ValidationError
 
 
 # ============================================================================

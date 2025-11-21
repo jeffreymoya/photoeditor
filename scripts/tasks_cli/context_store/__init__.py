@@ -4,6 +4,7 @@ Context store package.
 Backward-compatible imports for all models and main TaskContextStore class.
 """
 
+# Import all models from models.py
 from .models import (
     MANIFEST_SCHEMA_VERSION,
     CONTEXT_SCHEMA_VERSION,
@@ -31,39 +32,20 @@ from .models import (
     TaskContext,
 )
 
-# Import main TaskContextStore class and exceptions from parent context_store.py
-# Use importlib to avoid circular import issues
-import importlib
-import sys
-from pathlib import Path
+# Import main TaskContextStore wrapper
+from .wrapper import TaskContextStore
 
-# Get parent module (tasks_cli.context_store module, not package)
-_parent_module_name = __name__.rsplit('.', 1)[0]  # tasks_cli
-_context_store_module_path = Path(__file__).parent.parent / 'context_store.py'
+# Import exceptions
+from ..exceptions import ContextExistsError, ContextNotFoundError, DriftError
 
-# Load context_store.py as a module
-_spec = importlib.util.spec_from_file_location(
-    f"{_parent_module_name}._context_store_main",
-    _context_store_module_path
-)
-_context_store_main = importlib.util.module_from_spec(_spec)
-sys.modules[f"{_parent_module_name}._context_store_main"] = _context_store_main
-_spec.loader.exec_module(_context_store_main)
+# Import utility functions
+from .immutable import normalize_multiline
+from .delta_tracking import normalize_diff_for_hashing, calculate_scope_hash
 
-# Re-export main class and related items
-TaskContextStore = _context_store_main.TaskContextStore
-ContextExistsError = _context_store_main.ContextExistsError
-ContextNotFoundError = _context_store_main.ContextNotFoundError
-DriftError = _context_store_main.DriftError
-normalize_multiline = _context_store_main.normalize_multiline
-normalize_diff_for_hashing = _context_store_main.normalize_diff_for_hashing
-calculate_scope_hash = _context_store_main.calculate_scope_hash
-
-# Import QA baseline manager (S3.5)
+# Import managers for direct use
 from .qa import QABaselineManager
-
-# Import runtime helper (S3.6)
 from .runtime import RuntimeHelper
+from .facade import TaskContextService
 
 __all__ = [
     # Models
@@ -99,8 +81,8 @@ __all__ = [
     'normalize_multiline',
     'normalize_diff_for_hashing',
     'calculate_scope_hash',
-    # QA baseline manager (S3.5)
+    # Managers
     'QABaselineManager',
-    # Runtime helper (S3.6)
     'RuntimeHelper',
+    'TaskContextService',
 ]

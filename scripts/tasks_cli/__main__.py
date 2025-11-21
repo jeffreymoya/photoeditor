@@ -260,66 +260,6 @@ def cmd_list(args, picker: TaskPicker) -> int:
     return 0
 
 
-def cmd_pick(args, picker: TaskPicker, datastore: TaskDatastore) -> int:
-    """
-    Pick next task to work on.
-
-    Args:
-        args: Parsed command-line arguments
-        picker: TaskPicker instance
-        datastore: TaskDatastore instance
-
-    Returns:
-        Exit code (0 for success, 1 if no ready tasks)
-    """
-    # Get completed task IDs for readiness check
-    tasks = datastore.load_tasks()
-    graph = DependencyGraph(tasks)
-    picker.refresh(tasks, graph)
-    completed_ids = {task.id for task in tasks if task.is_completed()}
-
-    # Determine status filter
-    status_filter = args.filter if args.filter and args.filter != "auto" else None
-
-    # Gather draft alerts and emit warnings for text mode
-    draft_alerts = picker.get_draft_alerts()
-    if args.format != 'json':
-        emit_draft_warnings(draft_alerts)
-
-    # Pick next task (returns tuple of (task, reason) or None)
-    result = picker.pick_next_task(completed_ids, status_filter=status_filter)
-
-    if result:
-        task, reason = result
-        # Get snapshot_id for audit trail
-        snapshot_id = datastore.get_snapshot_id()
-
-        # Output based on format
-        if args.format == 'json':
-            output_json({
-                'task': task_to_dict(task),
-                'reason': reason,
-                'snapshot_id': snapshot_id,
-                'status': 'success',
-                'draft_alerts': draft_alerts,
-            })
-        else:
-            # Just the file path (backward compatible)
-            print(task.path)
-        return 0
-    else:
-        if args.format == 'json':
-            output_json({
-                'task': None,
-                'status': 'no_ready_tasks',
-                'message': 'No ready tasks found',
-                'draft_alerts': draft_alerts,
-            })
-        else:
-            print("No ready tasks found", file=sys.stderr)
-        return 1
-
-
 def cmd_validate(args, graph: DependencyGraph) -> int:
     """
     Validate dependency graph.
@@ -349,98 +289,6 @@ def cmd_validate(args, graph: DependencyGraph) -> int:
                 print(f"  - {error}", file=sys.stderr)
 
     return 0 if is_valid else 1
-
-
-def cmd_check_halt(args, tasks: List[Task]) -> int:
-    """
-    Check for workflow halt conditions (blocked unblockers).
-
-    Per docs/proposals/task-workflow-python-refactor.md Section 3.4,
-    the workflow must halt when unblocker tasks are blocked.
-
-    Args:
-        args: Parsed command-line arguments (contains format)
-        tasks: List of all tasks
-
-    Returns:
-        Exit code (0 if no halt conditions, 2 if halt detected)
-    """
-    try:
-        # Check for halt conditions
-        check_halt_conditions(tasks)
-
-        # No halt conditions detected
-        if args.format == 'json':
-            output_json({
-                'halt': False,
-                'type': None,
-                'tasks': [],
-                'message': 'No halt conditions detected'
-            })
-        else:
-            print("No halt conditions detected - workflow can proceed")
-
-        return 0
-
-    except WorkflowHaltError as e:
-        # Halt condition detected
-        if args.format == 'json':
-            output_json({
-                'halt': True,
-                'type': e.halt_type,
-                'tasks': e.task_ids,
-                'message': str(e)
-            })
-        else:
-            print(str(e), file=sys.stderr)
-
-        # Return exit code 2 (distinct from normal errors)
-        return 2
-
-
-def cmd_refresh_cache(args, datastore: TaskDatastore) -> int:
-    """
-    Force cache rebuild.
-
-    Args:
-        args: Parsed command-line arguments
-        datastore: TaskDatastore instance
-
-    Returns:
-        Exit code (0 for success)
-    """
-    tasks = datastore.load_tasks(force_refresh=True)
-    print(f"Cache refreshed: {len(tasks)} tasks loaded")
-
-    # Show cache info
-    info = datastore.get_cache_info()
-    if info.get('exists'):
-        print(f"Cache generated at: {info.get('generated_at')}")
-        print(f"Active tasks: {info.get('task_count', 0) - info.get('archive_count', 0)}")
-        print(f"Archived tasks: {info.get('archive_count', 0)}")
-
-    return 0
-
-
-def cmd_graph(args, graph: DependencyGraph) -> int:
-    """
-    Export dependency graph in DOT format.
-
-    Args:
-        args: Parsed command-line arguments
-        graph: DependencyGraph instance
-
-    Returns:
-        Exit code (0 for success)
-    """
-    # Generate DOT format
-    dot_output = graph.export_dot()
-
-    print(dot_output)
-    print("\n# Render with: dot -Tpng -o tasks.png", file=sys.stderr)
-    print("# Or view online: https://dreampuf.github.io/GraphvizOnline/", file=sys.stderr)
-
-    return 0
 
 
 def cmd_explain(args, graph: DependencyGraph, datastore: TaskDatastore) -> int:
@@ -605,139 +453,6 @@ def cmd_explain(args, graph: DependencyGraph, datastore: TaskDatastore) -> int:
                 print(f"  Recommendation: Complete these tasks first: {', '.join(incomplete_blockers)}")
 
     return 0
-
-
-def cmd_claim(args, datastore: TaskDatastore, repo_root: Path) -> int:
-    """
-    Claim a task (transition to in_progress).
-
-    Args:
-        args: Parsed command-line arguments (contains task_path)
-        datastore: TaskDatastore instance
-        repo_root: Repository root path
-
-    Returns:
-        Exit code (0 for success, 1 for errors)
-    """
-    # Find task by path
-    tasks = datastore.load_tasks()
-    task_path = Path(args.task_path).resolve()
-
-    task = None
-    for t in tasks:
-        if Path(t.path).resolve() == task_path:
-            task = t
-            break
-
-    if not task:
-        print(f"Error: Task not found: {args.task_path}", file=sys.stderr)
-        return 1
-
-    # Perform claim operation
-    ops = TaskOperations(repo_root)
-    try:
-        result_path = ops.claim_task(task)
-        print(f"✓ Claimed task {task.id}")
-        print(f"  Status: {task.status} → in_progress")
-        print(f"  File: {result_path}")
-
-        # Invalidate cache
-        datastore.load_tasks(force_refresh=True)
-
-        return 0
-
-    except TaskOperationError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        return 1
-
-
-def cmd_complete(args, datastore: TaskDatastore, repo_root: Path) -> int:
-    """
-    Complete a task and archive it.
-
-    Args:
-        args: Parsed command-line arguments (contains task_path)
-        datastore: TaskDatastore instance
-        repo_root: Repository root path
-
-    Returns:
-        Exit code (0 for success, 1 for errors)
-    """
-    # Find task by path
-    tasks = datastore.load_tasks()
-    task_path = Path(args.task_path).resolve()
-
-    task = None
-    for t in tasks:
-        if Path(t.path).resolve() == task_path:
-            task = t
-            break
-
-    if not task:
-        print(f"Error: Task not found: {args.task_path}", file=sys.stderr)
-        return 1
-
-    # Perform complete operation (with archiving per user preference)
-    ops = TaskOperations(repo_root)
-    try:
-        result_path = ops.complete_task(task, archive=True)
-
-        print(f"✓ Completed task {task.id}")
-        print(f"  Status: {task.status} → completed")
-        print(f"  Archived to: {result_path}")
-
-        # Invalidate cache
-        datastore.load_tasks(force_refresh=True)
-
-        return 0
-
-    except TaskOperationError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        return 1
-
-
-def cmd_archive(args, datastore: TaskDatastore, repo_root: Path) -> int:
-    """
-    Archive an already-completed task without modifying its status.
-
-    Args:
-        args: Parsed command-line arguments (contains task_path)
-        datastore: TaskDatastore instance
-        repo_root: Repository root path
-
-    Returns:
-        Exit code (0 for success, 1 for errors)
-    """
-    tasks = datastore.load_tasks()
-    task_path = Path(args.task_path).resolve()
-
-    task = None
-    for t in tasks:
-        if Path(t.path).resolve() == task_path:
-            task = t
-            break
-
-    if not task:
-        print(f"Error: Task not found: {args.task_path}", file=sys.stderr)
-        return 1
-
-    ops = TaskOperations(repo_root)
-    try:
-        result_path = ops.archive_task(task)
-
-        if Path(task.path).resolve() == Path(result_path).resolve():
-            print(f"✓ Task {task.id} already archived")
-            print(f"  File: {result_path}")
-        else:
-            print(f"✓ Archived task {task.id}")
-            print(f"  Moved to: {result_path}")
-
-        datastore.load_tasks(force_refresh=True)
-        return 0
-
-    except TaskOperationError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        return 1
 
 
 def cmd_lint(args, repo_root: Path) -> int:
@@ -3512,28 +3227,10 @@ For more information, see: docs/proposals/task-context-cache-hardening.md
     if args.list is not None:
         command = 'list'
         args.filter = args.list if args.list != 'all' else None
-    elif args.pick is not None:
-        command = 'pick'
-        args.filter = args.pick
     elif args.validate:
         command = 'validate'
-    elif args.refresh_cache:
-        command = 'refresh-cache'
-    elif args.graph:
-        command = 'graph'
-    elif args.claim:
-        command = 'claim'
-        args.task_path = args.claim
-    elif args.complete:
-        command = 'complete'
-        args.task_path = args.complete
-    elif args.archive:
-        command = 'archive'
-        args.task_path = args.archive
     elif args.explain:
         command = 'explain'
-    elif args.check_halt:
-        command = 'check-halt'
     elif args.lint:
         command = 'lint'
         args.task_path = args.lint
@@ -3633,36 +3330,11 @@ For more information, see: docs/proposals/task-context-cache-hardening.md
             args.filter = args.list if args.list != 'all' else None
             return cmd_list(args, picker)
 
-        elif args.pick is not None:
-            args.filter = args.pick
-            return cmd_pick(args, picker, datastore)
-
         elif args.validate:
             return cmd_validate(args, graph)
 
-        elif args.refresh_cache:
-            return cmd_refresh_cache(args, datastore)
-
-        elif args.graph:
-            return cmd_graph(args, graph)
-
-        elif args.claim:
-            args.task_path = args.claim
-            return cmd_claim(args, datastore, repo_root)
-
-        elif args.complete:
-            args.task_path = args.complete
-            return cmd_complete(args, datastore, repo_root)
-
-        elif args.archive:
-            args.task_path = args.archive
-            return cmd_archive(args, datastore, repo_root)
-
         elif args.explain:
             return cmd_explain(args, graph, datastore)
-
-        elif args.check_halt:
-            return cmd_check_halt(args, tasks)
 
         elif args.lint:
             args.task_path = args.lint

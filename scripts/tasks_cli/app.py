@@ -6,6 +6,7 @@ commands. Commands are progressively migrated from the legacy argparse
 implementation.
 
 Wave 1 (Active): list, validate, show commands via commands/tasks.py
+Wave 2 (Active): pick, claim, complete, archive, graph, refresh-cache, check-halt
 """
 
 import typer
@@ -51,12 +52,20 @@ def initialize_commands(repo_root: Path) -> None:
     """
     from .commands.tasks import register_commands
     from .commands.context import register_context_commands
+    from .commands.workflow import register_commands as register_workflow_commands
+    from .commands.graph import register_commands as register_graph_commands
 
     # Create context
     ctx = TaskCliContext.from_repo_root(repo_root)
 
     # Register Wave 1 commands
     register_commands(app, ctx)
+
+    # Register Wave 2 workflow commands
+    register_workflow_commands(app, ctx)
+
+    # Register Wave 2 graph commands
+    register_graph_commands(app, ctx)
 
     # Register Wave 3 context commands
     register_context_commands(app, ctx)

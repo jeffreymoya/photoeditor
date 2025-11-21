@@ -77,3 +77,6 @@ __pycache__/
 tasks/.cache/
 scripts/tasks_cli/__pycache__/.claude/command-audit.log
 mobile/storybook-static/
+
+# Prevent accidental pip redirect artifacts (e.g., =8.2.0)
+=*

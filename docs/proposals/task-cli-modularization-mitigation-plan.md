@@ -1,0 +1,518 @@
+# Task CLI Modularization - Mitigation Plan
+
+**Status**: Draft
+**Date**: 2025-11-21
+**Related**: `docs/proposals/task-cli-modularization-implementation-plan.md`
+
+This document addresses gaps identified in the Wave 1-4 implementation review.
+
+---
+
+## Executive Summary
+
+| Gap | Severity | Estimated Sessions | Priority |
+|-----|----------|-------------------|----------|
+| `__main__.py` still 3,458 LOC | HIGH | 3-4 | P0 |
+| `commands.py` still 1,209 LOC | HIGH | 2 | P0 |
+| 29 legacy handlers not migrated | MEDIUM | 4-5 | P1 |
+| OutputChannel not implemented | MEDIUM | 2 | P1 |
+| Typer parity doc missing | LOW | 1 | P2 |
+| Phase/Wave numbering drift | LOW | 0.5 | P2 |
+
+**Total Estimated Sessions**: 12-14 additional sessions
+
+---
+
+## M1: Decompose `__main__.py` (P0 - HIGH)
+
+### Problem
+`__main__.py` remains at 3,458 LOC despite proposal goal of moving handlers to `commands/`. This is the **core anti-pattern** the proposal aimed to fix.
+
+### Root Cause
+Wave 2 created the Typer infrastructure but only migrated 3 read-only commands. The remaining 17+ handler functions and the 200+ line dispatch block remain.
+
+### Mitigation Sessions
+
+#### M1.1: Extract Context Commands (Session 1)
+**Target Handlers**:
+- `cmd_init_context_legacy` → `commands/context.py`
+- `cmd_get_context` → `commands/context.py`
+- `cmd_update_agent` → `commands/context.py`
+- `cmd_purge_context` → `commands/context.py`
+- `cmd_rebuild_context` → `commands/context.py`
+
+**Steps**:
+1. Move handlers to existing `commands/context.py`
+2. Update dispatch_registry.yaml to mark as `typer`
+3. Wire into Typer app via `register_commands()`
+4. Delete from `__main__.py`
+5. Run: `pytest scripts/tasks_cli/tests/test_commands_context.py`
+
+**Expected LOC Reduction**: ~400-500 LOC
+
+#### M1.2: Extract Worktree/Diff Commands (Session 2)
+**Target Handlers**:
+- `cmd_snapshot_worktree` → `commands/worktree.py` (new)
+- `cmd_verify_worktree_legacy` → `commands/worktree.py`
+- `cmd_get_diff` → `commands/worktree.py`
+
+**Steps**:
+1. Create `commands/worktree.py`
+2. Move handlers with TaskCliContext injection
+3. Update dispatch_registry.yaml
+4. Add tests `test_commands_worktree.py`
+
+**Expected LOC Reduction**: ~200-300 LOC
+
+#### M1.3: Extract QA Commands (Session 3)
+**Target Handlers**:
+- `cmd_record_qa_legacy` → `commands/qa.py` (new)
+- `cmd_compare_qa` → `commands/qa.py`
+- `cmd_resolve_drift` → `commands/qa.py`
+
+**Steps**:
+1. Create `commands/qa.py`
+2. Migrate handlers using QABaselineManager from `context_store/qa.py`
+3. Wire to Typer, update registry
+4. Add tests
+
+**Expected LOC Reduction**: ~300-400 LOC
+
+#### M1.4: Extract Remaining Commands + Delete Dispatch Block (Session 4)
+**Target**:
+- `cmd_lint` → `commands/lint.py` (new)
+- `cmd_bootstrap_evidence` → `commands/evidence.py` (existing)
+- `cmd_explain` → `commands/graph.py` (existing)
+- `cmd_mark_blocked` → `commands/workflow.py` (existing)
+
+**Final Step**: Delete the 200+ line `if/elif` dispatch chain once all commands migrated.
+
+**Expected LOC Reduction**: ~500-700 LOC + dispatch block (~200 LOC)
+
+### Success Criteria
+- `__main__.py` < 500 LOC (entrypoint + argument parsing only)
+- All `cmd_*` functions removed from `__main__.py`
+- `pnpm run cli-guardrails` passes in enforce mode
+
+---
+
+## M2: Decompose `commands.py` (P0 - HIGH)
+
+### Problem
+`commands.py` is 1,209 LOC - still exceeds 500 LOC limit.
+
+### Analysis Needed
+```bash
+grep -E "^def " scripts/tasks_cli/commands.py | wc -l
+```
+
+### Mitigation Sessions
+
+#### M2.1: Audit and Split (Session 1)
+1. Identify function groupings in `commands.py`
+2. Move to appropriate existing command modules:
+   - Evidence functions → `commands/evidence.py`
+   - Exception functions → `commands/exceptions.py`
+   - Quarantine functions → `commands/quarantine.py`
+3. Delete `commands.py` or reduce to re-exports only
+
+#### M2.2: Migrate Remaining + Delete (Session 2)
+1. Complete migration of any remaining functions
+2. Update all imports across codebase
+3. Delete `commands.py`
+4. Verify no import errors
+
+### Success Criteria
+- `commands.py` deleted or < 100 LOC (re-exports only)
+- All command modules < 500 LOC each
+
+---
+
+## M3: Complete Typer Migration (P1 - MEDIUM)
+
+### Problem
+Only 15/47 commands (~32%) are marked `typer` in dispatch registry. 29 remain `legacy`.
+
+### Mitigation Strategy
+Batch remaining commands by domain alignment with existing command modules:
+
+| Batch | Commands | Target Module | Session |
+|-------|----------|---------------|---------|
+| 1 | pick, show (remaining), graph commands | tasks.py, graph.py | M3.1 |
+| 2 | evidence attach/list/validate | evidence.py | M3.2 |
+| 3 | exception add/list/resolve | exceptions.py | M3.3 |
+| 4 | quarantine commands | quarantine.py | M3.4 |
+| 5 | template/scaffold commands | templates.py (new) | M3.5 |
+
+### Sessions
+
+#### M3.1-M3.5: Batch Migration (5 Sessions)
+For each batch:
+1. Identify legacy commands from `dispatch_registry.yaml`
+2. Implement Typer equivalent in target module
+3. Update registry: `handler: legacy` → `handler: typer`
+4. Add/update tests
+5. Verify: `TASKS_CLI_LEGACY_DISPATCH=1` still works for rollback
+
+### Success Criteria
+- 0 commands with `handler: legacy` in registry
+- All commands accessible via Typer app
+- Emergency rollback flag still functional until Phase 5
+
+---
+
+## M4: Implement OutputChannel (P1 - MEDIUM)
+
+### Problem
+`output.py` still uses `_JSON_MODE` and `_WARNINGS` globals. This blocks concurrent command execution.
+
+### Mitigation Sessions
+
+#### M4.1: Create OutputChannel Class (Session 1)
+**File**: `scripts/tasks_cli/output.py`
+
+```python
+@dataclass
+class OutputChannel:
+    json_mode: bool = False
+    verbose: bool = False
+    _warnings: list[str] = field(default_factory=list)
+
+    @classmethod
+    def from_cli_flags(cls, json_mode: bool, verbose: bool) -> "OutputChannel":
+        return cls(json_mode=json_mode, verbose=verbose)
+
+    def emit_json(self, data: dict) -> None: ...
+    def emit_warning(self, msg: str) -> None: ...
+    def warnings_as_evidence(self) -> list[str]: ...
+```
+
+**Deliverables**:
+- OutputChannel class with instance state
+- NullOutputChannel for tests
+- BufferingOutputChannel for assertions
+- Unit tests: `test_output_channel.py`
+
+#### M4.2: Refactor Commands to Use OutputChannel (Session 2)
+1. Add `output_channel` field to TaskCliContext
+2. Update all command handlers to use `ctx.output_channel` instead of globals
+3. Remove global `_JSON_MODE`, `_WARNINGS`
+4. Add concurrency test (two commands in parallel threads)
+
+### Success Criteria
+- No global output state in `output.py`
+- `pytest -n 4` (parallel) passes without warning bleed
+- TaskCliContext includes output_channel field
+
+---
+
+## M5: Documentation Fixes (P2 - LOW)
+
+### M5.1: Create Typer Parity Doc (Session 1)
+**File**: `docs/tasks_cli-typer-parity.md`
+
+Content:
+- Table mapping every argparse flag to Typer equivalent
+- Shell completion regeneration instructions
+- Breaking changes (if any)
+- Migration guide for scripts using legacy flags
+
+### M5.2: Reconcile Phase/Wave Numbering
+Update `task-cli-modularization-implementation-plan.md`:
+- Align wave numbers with original proposal phases
+- Or document the intentional renumbering with rationale
+- Update "Next Steps" section
+
+---
+
+## Implementation Waves
+
+### Wave 5: Decompose `__main__.py` (4 Sessions)
+
+#### Session S5.1: Extract Context Handlers
+**Prereqs**: Wave 4 complete, read `commands/context.py`
+**Target Handlers**:
+- `cmd_init_context_legacy`
+- `cmd_get_context`
+- `cmd_update_agent`
+- `cmd_purge_context`
+- `cmd_rebuild_context`
+
+**Steps**:
+1. Move handlers to `commands/context.py`
+2. Inject TaskCliContext dependency
+3. Update dispatch_registry.yaml → `handler: typer`
+4. Delete from `__main__.py`
+5. Wire into Typer app
+
+**Validation**: `pytest scripts/tasks_cli/tests/test_commands_context.py -v`
+**Expected LOC Reduction**: ~400-500
+
+---
+
+#### Session S5.2: Extract Worktree/Diff Handlers
+**Prereqs**: S5.1 complete
+**Target Handlers**:
+- `cmd_snapshot_worktree`
+- `cmd_verify_worktree_legacy`
+- `cmd_get_diff`
+
+**Steps**:
+1. Create `commands/worktree.py`
+2. Move handlers with DeltaTracker integration
+3. Update dispatch_registry.yaml
+4. Add `test_commands_worktree.py`
+
+**Validation**: `pytest scripts/tasks_cli/tests/test_commands_worktree.py -v`
+**Expected LOC Reduction**: ~200-300
+
+---
+
+#### Session S5.3: Extract QA Handlers
+**Prereqs**: S5.2 complete
+**Target Handlers**:
+- `cmd_record_qa_legacy`
+- `cmd_compare_qa`
+- `cmd_resolve_drift`
+
+**Steps**:
+1. Create `commands/qa.py`
+2. Migrate using QABaselineManager from `context_store/qa.py`
+3. Update dispatch_registry.yaml
+4. Add `test_commands_qa.py`
+
+**Validation**: `pytest scripts/tasks_cli/tests/test_commands_qa.py -v`
+**Expected LOC Reduction**: ~300-400
+
+---
+
+#### Session S5.4: Extract Remaining + Delete Dispatch Block
+**Prereqs**: S5.3 complete
+**Target**:
+- `cmd_lint` → `commands/lint.py` (new)
+- `cmd_bootstrap_evidence` → `commands/evidence.py`
+- `cmd_explain` → `commands/graph.py`
+- `cmd_mark_blocked` → `commands/workflow.py`
+
+**Final Steps**:
+1. Move all remaining `cmd_*` functions
+2. Delete 200+ line `if/elif` dispatch chain
+3. Reduce `__main__.py` to entrypoint + arg parsing only
+
+**Validation**:
+```bash
+python scripts/tasks_cli/checks/module_limits.py
+wc -l scripts/tasks_cli/__main__.py  # Must be < 500
+pytest scripts/tasks_cli/tests/ -v
+```
+**Expected LOC Reduction**: ~700-900 (handlers + dispatch block)
+
+---
+
+### Wave 6: Decompose `commands.py` (2 Sessions)
+
+#### Session S6.1: Audit and Split
+**Prereqs**: Wave 5 complete
+**Steps**:
+1. Run `grep -E "^def " scripts/tasks_cli/commands.py` to inventory
+2. Categorize functions by domain
+3. Move to appropriate modules:
+   - Evidence functions → `commands/evidence.py`
+   - Exception functions → `commands/exceptions.py`
+   - Quarantine functions → `commands/quarantine.py`
+   - Graph functions → `commands/graph.py`
+4. Update imports in consuming modules
+
+**Validation**: `pytest scripts/tasks_cli/tests/ -v`
+
+---
+
+#### Session S6.2: Complete Migration + Delete
+**Prereqs**: S6.1 complete
+**Steps**:
+1. Move any remaining functions
+2. Search codebase for `from .commands import` or `from commands import`
+3. Update all import statements
+4. Delete `commands.py` (or reduce to <100 LOC re-exports)
+5. Verify no ImportError
+
+**Validation**:
+```bash
+python -c "from scripts.tasks_cli import commands; print('OK')"
+wc -l scripts/tasks_cli/commands.py  # Should be 0 or < 100
+pytest scripts/tasks_cli/tests/ -v
+```
+
+---
+
+### Wave 7: Complete Typer Migration (3 Sessions)
+
+#### Session S7.1: Migrate Core Commands
+**Prereqs**: Wave 6 complete
+**Target Commands** (from dispatch_registry.yaml where `handler: legacy`):
+- pick, show variants
+- graph export/visualize
+- template commands
+
+**Steps**:
+1. Implement Typer equivalents in target modules
+2. Update registry: `handler: legacy` → `handler: typer`
+3. Preserve all existing flags/options
+4. Add integration tests
+
+**Validation**: Compare output with legacy dispatch enabled vs disabled
+
+---
+
+#### Session S7.2: Migrate Evidence/Exception Commands
+**Target Commands**:
+- evidence attach, list, validate, export
+- exception add, list, resolve, defer
+
+**Steps**:
+1. Migrate to `commands/evidence.py` and `commands/exceptions.py`
+2. Update registry
+3. Test JSON output parity
+
+---
+
+#### Session S7.3: Migrate Remaining + Registry Cleanup
+**Target**: All remaining legacy commands
+**Final Steps**:
+1. Migrate any stragglers
+2. Verify 0 `handler: legacy` entries remain
+3. Add deprecation warning to legacy dispatch path
+4. Update shell completions
+
+**Validation**:
+```bash
+grep "handler: legacy" scripts/tasks_cli/dispatch_registry.yaml | wc -l  # Must be 0
+python scripts/tasks.py --help  # All commands visible
+```
+
+---
+
+### Wave 8: OutputChannel & Parallel Safety (2 Sessions)
+
+#### Session S8.1: Implement OutputChannel Class
+**Prereqs**: Wave 7 complete
+**File**: `scripts/tasks_cli/output.py`
+
+**Deliverables**:
+```python
+@dataclass
+class OutputChannel:
+    json_mode: bool = False
+    verbose: bool = False
+    _warnings: list[str] = field(default_factory=list)
+
+    @classmethod
+    def from_cli_flags(cls, json_mode: bool, verbose: bool) -> "OutputChannel": ...
+    def emit_json(self, data: dict) -> None: ...
+    def emit_warning(self, msg: str) -> None: ...
+    def warnings_as_evidence(self) -> list[str]: ...
+
+class NullOutputChannel(OutputChannel): ...
+class BufferingOutputChannel(OutputChannel): ...
+```
+
+**Steps**:
+1. Create OutputChannel with instance state
+2. Add NullOutputChannel for no-op scenarios
+3. Add BufferingOutputChannel for test assertions
+4. Create `test_output_channel.py` with concurrency tests
+
+**Validation**: `pytest scripts/tasks_cli/tests/test_output_channel.py -v`
+
+---
+
+#### Session S8.2: Refactor Commands to Use OutputChannel
+**Prereqs**: S8.1 complete
+**Steps**:
+1. Add `output_channel: OutputChannel` to TaskCliContext
+2. Update all command handlers: `ctx.output_channel.emit_*()` instead of globals
+3. Remove global `_JSON_MODE`, `_WARNINGS` from output.py
+4. Add parallel execution test (2 commands in threads)
+
+**Validation**:
+```bash
+pytest scripts/tasks_cli/tests/ -v -n 4  # Parallel execution
+grep "_JSON_MODE\|_WARNINGS" scripts/tasks_cli/output.py  # Should find nothing
+```
+
+---
+
+### Wave 9: Documentation & Cleanup (2 Sessions)
+
+#### Session S9.1: Create Typer Parity Documentation
+**File**: `docs/tasks_cli-typer-parity.md`
+
+**Content**:
+- Flag mapping table (argparse → Typer)
+- Shell completion regeneration: `python -m scripts.tasks_cli --install-completion`
+- Breaking changes (if any)
+- Migration guide for CI scripts
+
+---
+
+#### Session S9.2: Final Cleanup & Metrics
+**Steps**:
+1. Delete legacy dispatch code path
+2. Remove `TASKS_CLI_LEGACY_DISPATCH` env flag support
+3. Update implementation plan with final status
+4. Capture final metrics:
+   - LOC per module
+   - `--help` startup time
+   - Test count/coverage
+
+**Validation**:
+```bash
+python scripts/tasks_cli/checks/module_limits.py --enforce-providers
+pnpm turbo run qa:static --parallel
+time python scripts/tasks.py --help  # < 400ms target
+```
+
+---
+
+## Wave Summary
+
+| Wave | Sessions | Focus | Gate |
+|------|----------|-------|------|
+| **5** | S5.1-S5.4 | Decompose `__main__.py` | < 500 LOC |
+| **6** | S6.1-S6.2 | Decompose `commands.py` | File deleted |
+| **7** | S7.1-S7.3 | Complete Typer migration | 0 legacy handlers |
+| **8** | S8.1-S8.2 | OutputChannel | No global state |
+| **9** | S9.1-S9.2 | Docs & cleanup | All guardrails pass |
+
+**Total**: 13 sessions
+
+---
+
+## Validation Gates
+
+After each mitigation session:
+
+```bash
+# Must pass
+pytest scripts/tasks_cli/tests/ -v
+python scripts/tasks_cli/checks/module_limits.py
+pnpm turbo run qa:static --parallel
+
+# Smoke test
+python scripts/tasks.py --list
+python scripts/tasks.py --pick --format json
+TASKS_CLI_LEGACY_DISPATCH=1 python scripts/tasks.py --list  # Until M3 complete
+```
+
+---
+
+## Final State Checklist
+
+- [ ] `__main__.py` < 500 LOC
+- [ ] `commands.py` deleted or < 100 LOC
+- [ ] `context_store.py` < 400 LOC (currently 104 ✓)
+- [ ] All subprocess.run in providers/ only (currently ✓)
+- [ ] 0 legacy handlers in dispatch_registry.yaml
+- [ ] OutputChannel replaces global state
+- [ ] `docs/tasks_cli-typer-parity.md` exists
+- [ ] All modules pass 500 LOC guardrail in enforce mode

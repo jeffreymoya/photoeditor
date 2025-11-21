@@ -457,14 +457,19 @@ python -m py_compile scripts/tasks_cli/output.py  # Syntax valid ✓
 
 ### Wave 9: Documentation & Cleanup (2 Sessions)
 
-#### Session S9.1: Create Typer Parity Documentation
+#### Session S9.1: Create Typer Parity Documentation ✅ COMPLETED
+**Prereqs**: Wave 8 complete
+**Completed**: 2025-11-21
 **File**: `docs/tasks_cli-typer-parity.md`
 
 **Content**:
-- Flag mapping table (argparse → Typer)
-- Shell completion regeneration: `python -m scripts.tasks_cli --install-completion`
-- Breaking changes (if any)
+- Flag mapping table (argparse → Typer) for all 38 commands
+- Shell completion regeneration instructions
+- Breaking changes: None (full backwards compatibility)
 - Migration guide for CI scripts
+- Common options reference
+
+**Validation**: File created and updated with complete migration status
 
 ---
 

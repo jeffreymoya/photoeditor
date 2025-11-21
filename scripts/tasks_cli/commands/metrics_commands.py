@@ -214,3 +214,50 @@ def cmd_compare_metrics(args) -> int:
             "recovery_action": "Check logs and retry"
         }
         print_error(error, exit_code=EXIT_GENERAL_ERROR)
+
+
+# --- Typer Registration (Wave 7: S7.3) ---
+
+def register_metrics_commands(app, ctx) -> None:
+    """Register metrics commands with Typer app."""
+    import typer
+    from typing import Optional, List
+
+    @app.command("collect-metrics")
+    def collect_metrics_cmd(
+        task_id: str = typer.Argument(..., help="Task ID to collect metrics for"),
+        baseline_path: Optional[str] = typer.Option(None, "--baseline", help="Path to baseline metrics JSON"),
+    ):
+        """Collect metrics for a task."""
+        class Args:
+            pass
+        args = Args()
+        args.task_id = task_id
+        args.baseline_path = baseline_path
+        raise SystemExit(cmd_collect_metrics(args))
+
+    @app.command("generate-dashboard")
+    def generate_dashboard_cmd(
+        task_ids: List[str] = typer.Argument(..., help="Task IDs to include"),
+        output_path: str = typer.Option(..., "--output", "-o", help="Output path for dashboard"),
+    ):
+        """Generate metrics dashboard across tasks."""
+        class Args:
+            pass
+        args = Args()
+        args.task_ids = task_ids
+        args.output_path = output_path
+        raise SystemExit(cmd_generate_dashboard(args))
+
+    @app.command("compare-metrics")
+    def compare_metrics_cmd(
+        baseline_path: str = typer.Argument(..., help="Path to baseline metrics"),
+        current_path: str = typer.Argument(..., help="Path to current metrics"),
+    ):
+        """Compare baseline and current metrics."""
+        class Args:
+            pass
+        args = Args()
+        args.baseline_path = baseline_path
+        args.current_path = current_path
+        raise SystemExit(cmd_compare_metrics(args))

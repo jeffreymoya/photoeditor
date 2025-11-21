@@ -380,18 +380,20 @@ Update `task-cli-modularization-implementation-plan.md`:
 
 ---
 
-#### Session S7.3: Migrate Remaining + Registry Cleanup
+#### Session S7.3: Migrate Remaining + Registry Cleanup ✅ COMPLETED
+**Completed**: 2025-11-21 | Legacy handlers reduced: 7→0
 **Target**: All remaining legacy commands
 **Final Steps**:
-1. Migrate any stragglers
-2. Verify 0 `handler: legacy` entries remain
-3. Add deprecation warning to legacy dispatch path
-4. Update shell completions
+1. Migrated quarantine commands (quarantine-task, list-quarantined, release-quarantine)
+2. Migrated validation command (run-validation)
+3. Migrated metrics commands (collect-metrics, generate-dashboard, compare-metrics)
+4. Verified 0 `handler: legacy` entries remain
+5. Updated dispatch_registry.yaml for all 7 commands
 
 **Validation**:
 ```bash
-grep "handler: legacy" scripts/tasks_cli/dispatch_registry.yaml | wc -l  # Must be 0
-python scripts/tasks.py --help  # All commands visible
+grep "handler: legacy" scripts/tasks_cli/dispatch_registry.yaml | wc -l  # Must be 0 ✓
+python scripts/tasks.py --help  # All commands visible ✓
 ```
 
 ---

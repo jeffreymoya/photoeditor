@@ -178,3 +178,48 @@ def cmd_quarantine_task(args) -> int:
             "recovery_action": "Check logs and retry"
         }
         print_error(error, exit_code=EXIT_GENERAL_ERROR)
+
+
+# --- Typer Registration (Wave 7: S7.3) ---
+
+def register_quarantine_commands(app, ctx) -> None:
+    """Register quarantine commands with Typer app."""
+    import typer
+    from typing import Optional
+
+    @app.command("quarantine-task")
+    def quarantine_task_cmd(
+        task_id: str = typer.Argument(..., help="Task ID to quarantine"),
+        reason: str = typer.Option(..., "--reason", "-r", help="Quarantine reason"),
+        error_details: Optional[str] = typer.Option(None, "--error-details", help="Error details"),
+    ):
+        """Quarantine a task."""
+        class Args:
+            pass
+        args = Args()
+        args.task_id = task_id
+        args.reason = reason
+        args.error_details = error_details
+        raise SystemExit(cmd_quarantine_task(args))
+
+    @app.command("list-quarantined")
+    def list_quarantined_cmd(
+        status: Optional[str] = typer.Option(None, "--status", "-s", help="Filter by status"),
+    ):
+        """List quarantined tasks."""
+        class Args:
+            pass
+        args = Args()
+        args.status = status
+        raise SystemExit(cmd_list_quarantined(args))
+
+    @app.command("release-quarantine")
+    def release_quarantine_cmd(
+        task_id: str = typer.Argument(..., help="Task ID to release"),
+    ):
+        """Release task from quarantine."""
+        class Args:
+            pass
+        args = Args()
+        args.task_id = task_id
+        raise SystemExit(cmd_release_quarantine(args))

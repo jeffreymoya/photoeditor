@@ -109,3 +109,44 @@ def cmd_run_validation(args) -> int:
             "recovery_action": "Check logs and retry"
         }
         print_error(error, exit_code=EXIT_GENERAL_ERROR)
+
+
+# --- Typer Registration (Wave 7: S7.3) ---
+
+def register_validation_commands(app, ctx) -> None:
+    """Register validation commands with Typer app."""
+    import typer
+    from typing import Optional, List
+
+    @app.command("run-validation")
+    def run_validation_cmd(
+        task_id: str = typer.Argument(..., help="Task ID for validation"),
+        command_id: str = typer.Option(..., "--command-id", help="Validation command ID"),
+        command: str = typer.Option("echo 'placeholder'", "--command", help="Command to run"),
+        description: str = typer.Option("Validation command", "--description", help="Command description"),
+        cwd: Optional[str] = typer.Option(None, "--cwd", help="Working directory"),
+        package: Optional[str] = typer.Option(None, "--package", help="Package name"),
+        env_vars: Optional[List[str]] = typer.Option(None, "--env", help="Environment variables (KEY=VALUE)"),
+        expected_paths: Optional[List[str]] = typer.Option(None, "--expected-path", help="Expected output paths"),
+        blocker_id: Optional[str] = typer.Option(None, "--blocker-id", help="Blocker ID"),
+        timeout_ms: int = typer.Option(120000, "--timeout", help="Timeout in milliseconds"),
+        criticality: str = typer.Option("error", "--criticality", help="Criticality level"),
+        expected_exit_codes: Optional[List[int]] = typer.Option(None, "--exit-code", help="Expected exit codes"),
+    ):
+        """Run validation command with all features."""
+        class Args:
+            pass
+        args = Args()
+        args.task_id = task_id
+        args.command_id = command_id
+        args.command = command
+        args.description = description
+        args.cwd = cwd
+        args.package = package
+        args.env_vars = env_vars or []
+        args.expected_paths = expected_paths or []
+        args.blocker_id = blocker_id
+        args.timeout_ms = timeout_ms
+        args.criticality = criticality
+        args.expected_exit_codes = expected_exit_codes or [0]
+        raise SystemExit(cmd_run_validation(args))

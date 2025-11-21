@@ -27,15 +27,17 @@ def temp_repo(tmp_path):
     repo = tmp_path / "repo"
     repo.mkdir()
 
-    # Initialize git repo
-    subprocess.run(['git', 'init'], cwd=repo, check=True, capture_output=True)
-    subprocess.run(['git', 'config', 'user.name', 'Test User'], cwd=repo, check=True)
-    subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=repo, check=True)
+    # Initialize git repo with explicit branch name (required by newer git versions)
+    subprocess.run(['git', 'init', '-b', 'main'], cwd=repo, check=True, capture_output=True)
+    subprocess.run(['git', 'config', 'user.name', 'Test User'], cwd=repo, check=True, capture_output=True)
+    subprocess.run(['git', 'config', 'user.email', 'test@example.com'], cwd=repo, check=True, capture_output=True)
+    # Disable GPG signing for test commits
+    subprocess.run(['git', 'config', 'commit.gpgsign', 'false'], cwd=repo, check=True, capture_output=True)
 
     # Create initial commit
     test_file = repo / "test.txt"
     test_file.write_text("initial content\n")
-    subprocess.run(['git', 'add', '.'], cwd=repo, check=True)
+    subprocess.run(['git', 'add', '.'], cwd=repo, check=True, capture_output=True)
     subprocess.run(['git', 'commit', '-m', 'Initial commit'], cwd=repo, check=True, capture_output=True)
 
     # Create task directory

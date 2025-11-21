@@ -14,13 +14,13 @@ Provides runtime helper methods for:
 import hashlib
 import os
 import re
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
 from typing import Any, List, Optional
 
 from ..exceptions import ValidationError
+from ..providers import GitProvider
 
 
 # ============================================================================
@@ -44,16 +44,18 @@ SECRET_PATTERNS = [
 class RuntimeHelper:
     """Runtime utility helpers for context store operations."""
 
-    def __init__(self, repo_root: Path, context_root: Path):
+    def __init__(self, repo_root: Path, context_root: Path, git_provider=None):
         """
         Initialize runtime helper.
 
         Args:
             repo_root: Absolute path to repository root
             context_root: Absolute path to context storage root (.agent-output)
+            git_provider: Optional GitProvider instance (defaults to new instance)
         """
         self.repo_root = Path(repo_root)
         self.context_root = Path(context_root)
+        self._git_provider = git_provider or GitProvider(repo_root)
 
     # ========================================================================
     # Path Helpers
@@ -220,16 +222,9 @@ class RuntimeHelper:
             Full git commit SHA (40 chars)
 
         Raises:
-            subprocess.CalledProcessError: If git command fails
+            ProcessError: If git command fails
         """
-        result = subprocess.run(
-            ['git', 'rev-parse', 'HEAD'],
-            cwd=self.repo_root,
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        return result.stdout.strip()
+        return self._git_provider.get_current_commit()
 
     def check_staleness(self, context_git_head: str) -> None:
         """
@@ -250,7 +245,7 @@ class RuntimeHelper:
                     "Context may be stale.",
                     file=sys.stderr
                 )
-        except subprocess.CalledProcessError:
+        except Exception:
             # Git command failed (not a git repo, detached HEAD, etc.)
             pass
 

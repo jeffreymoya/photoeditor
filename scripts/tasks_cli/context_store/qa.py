@@ -17,12 +17,12 @@ DO NOT use this module with untrusted command sources or user-provided task file
 """
 
 import os
-import subprocess
 import time
 from pathlib import Path
 from typing import Dict
 
 from ..models import ValidationCommand
+from ..providers import ProcessProvider
 from .models import QAResults
 
 
@@ -36,14 +36,16 @@ class QABaselineManager:
     - Drift detection and reporting
     """
 
-    def __init__(self, repo_root: Path):
+    def __init__(self, repo_root: Path, process_provider=None):
         """
         Initialize QA baseline manager.
 
         Args:
             repo_root: Repository root path
+            process_provider: Optional ProcessProvider instance (defaults to new instance)
         """
         self.repo_root = repo_root
+        self._process_provider = process_provider or ProcessProvider()
 
     def execute_command(
         self,
@@ -122,17 +124,20 @@ class QABaselineManager:
         retry_policy = cmd.retry_policy
         start_time = time.time()
 
+        # Wrap command in shell invocation to support shell features (env vars, built-ins, etc.)
+        # This is safe because commands come from trusted task.yaml files
+        # Use sh -c to execute the command string in a shell context
+        cmd_args = ['sh', '-c', cmd.command]
+
         for attempt in range(retry_policy.max_attempts):
             try:
                 attempt_start = time.time()
-                result = subprocess.run(
-                    cmd.command,
-                    shell=True,
+                result = self._process_provider.run(
+                    cmd_args,
                     cwd=cwd,
                     env=env,
-                    capture_output=True,
-                    text=True,
-                    timeout=cmd.timeout_ms / 1000
+                    timeout=cmd.timeout_ms / 1000,
+                    check=False  # Don't raise on non-zero exit
                 )
                 attempt_duration = int((time.time() - attempt_start) * 1000)
 
@@ -149,41 +154,41 @@ class QABaselineManager:
                     "attempts": attempt + 1
                 }
 
-            except subprocess.TimeoutExpired as e:
-                if attempt < retry_policy.max_attempts - 1:
-                    # Retry after backoff
-                    time.sleep(retry_policy.backoff_ms / 1000)
-                    continue
-
-                # Final timeout
-                # Note: subprocess.run with text=True already returns strings, not bytes
-                total_duration = int((time.time() - start_time) * 1000)
-                return {
-                    "success": False,
-                    "exit_code": -1,
-                    "stdout": e.stdout or "",
-                    "stderr": f"Command timed out after {cmd.timeout_ms}ms",
-                    "skipped": False,
-                    "skip_reason": None,
-                    "duration_ms": total_duration,
-                    "attempts": attempt + 1,
-                    "timeout": True
-                }
-
             except Exception as e:
-                # Unexpected error
-                total_duration = int((time.time() - start_time) * 1000)
-                return {
-                    "success": False,
-                    "exit_code": -1,
-                    "stdout": "",
-                    "stderr": f"Unexpected error: {str(e)}",
-                    "skipped": False,
-                    "skip_reason": None,
-                    "duration_ms": total_duration,
-                    "attempts": attempt + 1,
-                    "error": str(e)
-                }
+                # Check if timeout
+                if "timeout" in str(e).lower() or "TimeoutExceeded" in type(e).__name__:
+                    if attempt < retry_policy.max_attempts - 1:
+                        # Retry after backoff
+                        time.sleep(retry_policy.backoff_ms / 1000)
+                        continue
+
+                    # Final timeout
+                    total_duration = int((time.time() - start_time) * 1000)
+                    return {
+                        "success": False,
+                        "exit_code": -1,
+                        "stdout": "",
+                        "stderr": f"Command timed out after {cmd.timeout_ms}ms",
+                        "skipped": False,
+                        "skip_reason": None,
+                        "duration_ms": total_duration,
+                        "attempts": attempt + 1,
+                        "timeout": True
+                    }
+                else:
+                    # Unexpected error
+                    total_duration = int((time.time() - start_time) * 1000)
+                    return {
+                        "success": False,
+                        "exit_code": -1,
+                        "stdout": "",
+                        "stderr": f"Unexpected error: {str(e)}",
+                        "skipped": False,
+                        "skip_reason": None,
+                        "duration_ms": total_duration,
+                        "attempts": attempt + 1,
+                        "error": str(e)
+                    }
 
         # Should never reach here
         return {

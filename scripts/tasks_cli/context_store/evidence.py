@@ -8,12 +8,12 @@ Extracted from context_store.py as part of modularization (S3.4).
 import hashlib
 import json
 import shutil
-import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from tasks_cli.exceptions import ValidationError
+from tasks_cli.providers import ProcessProvider
 
 # ============================================================================
 # Constants
@@ -57,16 +57,18 @@ class EvidenceManager:
     - Listing evidence attachments
     """
 
-    def __init__(self, repo_root: Path, context_root: Path):
+    def __init__(self, repo_root: Path, context_root: Path, process_provider=None):
         """
         Initialize evidence manager.
 
         Args:
             repo_root: Repository root directory
             context_root: Context store root (.agent-output/)
+            process_provider: Optional ProcessProvider instance (defaults to new instance)
         """
         self.repo_root = repo_root
         self.context_root = context_root
+        self._process_provider = process_provider or ProcessProvider()
 
     def _get_evidence_dir(self, task_id: str) -> Path:
         """
@@ -231,15 +233,13 @@ class EvidenceManager:
 
         try:
             # Try tar.zst first (best compression)
-            subprocess.run([
-                'tar',
-                '--zstd',
-                '--create',
-                '--file', str(archive_path),
-                '--directory', str(dir_path.parent),
-                dir_path.name
-            ], check=True, capture_output=True, text=True)
-        except (subprocess.CalledProcessError, FileNotFoundError):
+            self._process_provider.run(
+                ['tar', '--zstd', '--create', '--file', str(archive_path),
+                 '--directory', str(dir_path.parent), dir_path.name],
+                timeout=300,  # 5 minutes for large directories
+                check=True
+            )
+        except Exception:
             # Fallback to tar.gz if zstd not available
             import sys
             print(
@@ -251,17 +251,15 @@ class EvidenceManager:
             archive_path = output_path.with_suffix('.tar.gz')
 
             try:
-                subprocess.run([
-                    'tar',
-                    '--gzip',
-                    '--create',
-                    '--file', str(archive_path),
-                    '--directory', str(dir_path.parent),
-                    dir_path.name
-                ], check=True, capture_output=True, text=True)
-            except subprocess.CalledProcessError as tar_error:
+                self._process_provider.run(
+                    ['tar', '--gzip', '--create', '--file', str(archive_path),
+                     '--directory', str(dir_path.parent), dir_path.name],
+                    timeout=300,  # 5 minutes for large directories
+                    check=True
+                )
+            except Exception as tar_error:
                 raise ValidationError(
-                    f"Failed to create archive: {tar_error.stderr}"
+                    f"Failed to create archive: {str(tar_error)}"
                 ) from tar_error
 
         # 4. Return metadata

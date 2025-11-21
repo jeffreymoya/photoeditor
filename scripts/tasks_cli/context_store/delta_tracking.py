@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from ..exceptions import ValidationError, ContextNotFoundError, DriftError
+from ..providers import GitProvider
 
 
 # ============================================================================
@@ -90,14 +91,16 @@ class DeltaTracker:
     while maintaining clear separation of concerns.
     """
 
-    def __init__(self, repo_root: Path):
+    def __init__(self, repo_root: Path, git_provider=None):
         """
         Initialize delta tracker.
 
         Args:
             repo_root: Absolute path to repository root
+            git_provider: Optional GitProvider instance (defaults to new instance)
         """
         self.repo_root = Path(repo_root)
+        self._git_provider = git_provider or GitProvider(repo_root)
 
     def _calculate_file_sha256(self, file_path: Path) -> str:
         """
@@ -120,14 +123,7 @@ class DeltaTracker:
 
     def _get_current_git_head(self) -> str:
         """Get current git HEAD SHA."""
-        result = subprocess.run(
-            ['git', 'rev-parse', 'HEAD'],
-            cwd=self.repo_root,
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        return result.stdout.strip()
+        return self._git_provider.get_current_commit()
 
     def _check_staleness(self, git_head: str) -> None:
         """
@@ -148,7 +144,7 @@ class DeltaTracker:
                     f"Context may be stale.",
                     file=sys.stderr
                 )
-        except subprocess.CalledProcessError:
+        except Exception:
             # Unable to get current HEAD - non-fatal
             pass
 
@@ -159,29 +155,16 @@ class DeltaTracker:
         Returns:
             True if working tree is dirty (has changes or untracked files)
         """
-        # Check for modified/staged files
-        result = subprocess.run(
-            ['git', 'diff-index', '--quiet', 'HEAD'],
-            cwd=self.repo_root,
-            capture_output=True,
-            check=False  # Exit code signals dirty state
-        )
-        if result.returncode != 0:
-            return True  # Has modified files
+        # Use GitProvider status to check for dirty state
+        status_result = self._git_provider.status(include_untracked=True)
 
-        # Also check for untracked files (excluding .agent-output)
-        result = subprocess.run(
-            ['git', 'ls-files', '--others', '--exclude-standard'],
-            cwd=self.repo_root,
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        untracked = result.stdout.strip()
-        if untracked:
-            # Filter out .agent-output directory
-            untracked_files = [f for f in untracked.split('\n') if f and not f.startswith('.agent-output/')]
-            return len(untracked_files) > 0
+        if status_result['is_dirty']:
+            # Filter out .agent-output directory from dirty files
+            dirty_files = [
+                f for f in status_result['files']
+                if not f.startswith('.agent-output/')
+            ]
+            return len(dirty_files) > 0
 
         return False
 
@@ -217,19 +200,7 @@ class DeltaTracker:
             - out_of_scope_files: Untracked files outside declared scope
         """
         # Get all untracked files (respecting .gitignore)
-        result = subprocess.run(
-            ['git', 'ls-files', '--others', '--exclude-standard'],
-            cwd=self.repo_root,
-            capture_output=True,
-            text=True,
-            check=True
-        )
-
-        all_untracked = [
-            line.strip()
-            for line in result.stdout.strip().split('\n')
-            if line.strip()
-        ]
+        all_untracked = self._git_provider.ls_files(untracked=True)
 
         # Filter to task scope
         in_scope = []
@@ -698,7 +669,7 @@ class DeltaTracker:
         # 3. Verify base commit unchanged
         try:
             current_head = self._get_current_git_head()
-        except subprocess.CalledProcessError as exc:
+        except Exception as exc:
             raise DriftError("Unable to determine current git HEAD") from exc
 
         if current_head != base_commit:

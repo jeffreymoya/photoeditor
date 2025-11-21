@@ -52,10 +52,16 @@ def temp_repo(tmp_path):
 
 
 @pytest.fixture
-def helper(temp_repo):
-    """Create RuntimeHelper instance."""
+def mock_git_provider():
+    """Create mock GitProvider."""
+    return Mock()
+
+
+@pytest.fixture
+def helper(temp_repo, mock_git_provider):
+    """Create RuntimeHelper instance with mocked GitProvider."""
     context_root = temp_repo / ".agent-output"
-    return RuntimeHelper(repo_root=temp_repo, context_root=context_root)
+    return RuntimeHelper(repo_root=temp_repo, context_root=context_root, git_provider=mock_git_provider)
 
 
 # ============================================================================
@@ -318,41 +324,31 @@ def test_scan_for_secrets_clean_data(helper):
 # Git Operations Tests
 # ============================================================================
 
-@patch('subprocess.run')
-def test_get_current_git_head_success(mock_run, helper):
+def test_get_current_git_head_success(helper, mock_git_provider):
     """Test get_current_git_head returns commit SHA."""
-    mock_run.return_value = Mock(
-        stdout='abc123def456789012345678901234567890abcd\n',
-        returncode=0
-    )
+    mock_git_provider.get_current_commit.return_value = 'abc123def456789012345678901234567890abcd'
 
     git_head = helper.get_current_git_head()
 
     assert git_head == 'abc123def456789012345678901234567890abcd'
-    mock_run.assert_called_once()
-    assert mock_run.call_args[0][0] == ['git', 'rev-parse', 'HEAD']
+    mock_git_provider.get_current_commit.assert_called_once()
 
 
-@patch('subprocess.run')
-def test_get_current_git_head_failure(mock_run, helper):
+def test_get_current_git_head_failure(helper, mock_git_provider):
     """Test get_current_git_head raises on git command failure."""
-    mock_run.side_effect = subprocess.CalledProcessError(
-        returncode=128,
-        cmd=['git', 'rev-parse', 'HEAD'],
-        stderr='fatal: not a git repository'
+    from tasks_cli.providers import CommandFailed
+    mock_git_provider.get_current_commit.side_effect = CommandFailed(
+        ['git', 'rev-parse', 'HEAD'],
+        128
     )
 
-    with pytest.raises(subprocess.CalledProcessError):
+    with pytest.raises(CommandFailed):
         helper.get_current_git_head()
 
 
-@patch('subprocess.run')
-def test_check_staleness_matching_heads(mock_run, helper, capsys):
+def test_check_staleness_matching_heads(helper, mock_git_provider, capsys):
     """Test check_staleness with matching git heads (no warning)."""
-    mock_run.return_value = Mock(
-        stdout='abc123def456789012345678901234567890abcd\n',
-        returncode=0
-    )
+    mock_git_provider.get_current_commit.return_value = 'abc123def456789012345678901234567890abcd'
 
     helper.check_staleness('abc123def456789012345678901234567890abcd')
 
@@ -360,13 +356,9 @@ def test_check_staleness_matching_heads(mock_run, helper, capsys):
     assert 'Warning' not in captured.err
 
 
-@patch('subprocess.run')
-def test_check_staleness_mismatched_heads(mock_run, helper, capsys):
+def test_check_staleness_mismatched_heads(helper, mock_git_provider, capsys):
     """Test check_staleness with mismatched git heads (warning)."""
-    mock_run.return_value = Mock(
-        stdout='def456abc123789012345678901234567890abcd\n',
-        returncode=0
-    )
+    mock_git_provider.get_current_commit.return_value = 'def456abc123789012345678901234567890abcd'
 
     helper.check_staleness('abc123def456789012345678901234567890abcd')
 
@@ -377,13 +369,12 @@ def test_check_staleness_mismatched_heads(mock_run, helper, capsys):
     assert 'stale' in captured.err
 
 
-@patch('subprocess.run')
-def test_check_staleness_git_failure(mock_run, helper, capsys):
+def test_check_staleness_git_failure(helper, mock_git_provider, capsys):
     """Test check_staleness handles git command failure gracefully."""
-    mock_run.side_effect = subprocess.CalledProcessError(
-        returncode=128,
-        cmd=['git', 'rev-parse', 'HEAD'],
-        stderr='fatal: not a git repository'
+    from tasks_cli.providers import CommandFailed
+    mock_git_provider.get_current_commit.side_effect = CommandFailed(
+        ['git', 'rev-parse', 'HEAD'],
+        128
     )
 
     # Should not raise, just silently handle error

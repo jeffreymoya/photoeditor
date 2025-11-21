@@ -1,16 +1,11 @@
 # Dispatch Registry for Tasks CLI Command Routing
 #
-# This registry maps CLI commands to their handler type:
-# - 'legacy': Uses argparse-based handlers in __main__.py
-# - 'typer': Uses Typer framework handlers (to be implemented in Wave 1)
+# This registry maps CLI commands to their Typer handlers.
+# All commands have been migrated to Typer as of S9.2 (2025-11-21).
 #
-# Wave 1 Migration Plan:
-# - list, validate, explain will be first to migrate to Typer
-# - Other commands will follow in subsequent waves
-#
-# Environment Variable Override:
-# - TASKS_CLI_LEGACY_DISPATCH=1 forces all commands to use legacy handlers
-#   regardless of this registry (for emergency rollback)
+# Migration Status: COMPLETE
+# - All 38+ commands now use Typer handlers exclusively
+# - Legacy argparse handlers have been removed
 
 commands:
   # Core task queries (Wave 1 - MIGRATED)

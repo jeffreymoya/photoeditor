@@ -34,41 +34,41 @@ commands:
     migrated: false
     description: "Explain dependency chain for a task"
 
-  # Task workflow operations
+  # Task workflow operations (Wave 2 - MIGRATED)
   pick:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "Pick next task using priority algorithm"
 
   claim:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "Claim a task (transition to in_progress)"
 
   complete:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "Complete a task and archive it"
 
   archive:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "Archive a completed task without status change"
 
-  # Graph and cache operations
+  # Graph and cache operations (Wave 2 - MIGRATED)
   graph:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "Export dependency graph in DOT format"
 
   refresh-cache:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "Force rebuild of task cache"
 
   check-halt:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "Check for workflow halt conditions"
 
   # Task validation and quality

@@ -12,7 +12,6 @@ import json
 import os
 import re
 import shutil
-import subprocess
 import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -28,6 +27,7 @@ from .context_store.delta_tracking import (
     normalize_diff_for_hashing,
     calculate_scope_hash,
 )
+from .providers import ProcessProvider
 from .context_store.runtime import RuntimeHelper
 
 
@@ -1809,15 +1809,16 @@ class TaskContextStore:
 
         try:
             # Try tar.zst first (best compression)
-            subprocess.run([
+            process_provider = ProcessProvider()
+            process_provider.run([
                 'tar',
                 '--zstd',
                 '--create',
                 '--file', str(archive_path),
                 '--directory', str(dir_path.parent),
                 dir_path.name
-            ], check=True, capture_output=True, text=True)
-        except (subprocess.CalledProcessError, FileNotFoundError):
+            ], check=True, capture=True)
+        except Exception:
             # Fallback to tar.gz if zstd not available
             import sys
             print(
@@ -1829,17 +1830,19 @@ class TaskContextStore:
             archive_path = output_path.with_suffix('.tar.gz')
 
             try:
-                subprocess.run([
+                process_provider = ProcessProvider()
+                process_provider.run([
                     'tar',
                     '--gzip',
                     '--create',
                     '--file', str(archive_path),
                     '--directory', str(dir_path.parent),
                     dir_path.name
-                ], check=True, capture_output=True, text=True)
-            except subprocess.CalledProcessError as tar_error:
+                ], check=True, capture=True)
+            except Exception as tar_error:
+                error_msg = getattr(tar_error, 'stderr', str(tar_error))
                 raise ValidationError(
-                    f"Failed to create archive: {tar_error.stderr}"
+                    f"Failed to create archive: {error_msg}"
                 ) from tar_error
 
         # 4. Return metadata

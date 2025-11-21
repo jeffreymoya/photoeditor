@@ -10,7 +10,6 @@ Handles:
 
 import hashlib
 import os
-import subprocess
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -18,6 +17,7 @@ from typing import Dict, List, Optional, Tuple
 
 from ..exceptions import ValidationError, ContextNotFoundError, DriftError
 from ..providers import GitProvider
+from ..providers.exceptions import CommandFailed, NonZeroExitWithStdErr, TimeoutExceeded
 
 
 # ============================================================================
@@ -251,26 +251,10 @@ class DeltaTracker:
         from ..context_store import FileSnapshot
 
         # Get list of changed files with status
-        result = subprocess.run(
-            ['git', 'diff', '--name-status', base_commit],
-            cwd=self.repo_root,
-            env=env,
-            capture_output=True,
-            text=True,
-            check=True
-        )
+        file_status_list = self._git_provider.diff_name_status(base_commit, env=env)
 
         files_changed = []
-        for line in result.stdout.strip().split('\n'):
-            if not line:
-                continue
-
-            parts = line.split('\t', 1)
-            if len(parts) != 2:
-                continue
-
-            status = parts[0]
-            path = parts[1]
+        for status, path in file_status_list:
 
             # For deleted files, we can't calculate checksum
             if status == 'D':
@@ -409,54 +393,24 @@ class DeltaTracker:
             env['GIT_INDEX_FILE'] = tmp_index_path
 
             # Read current HEAD into temporary index
-            subprocess.run(
-                ['git', 'read-tree', 'HEAD'],
-                cwd=self.repo_root,
-                env=env,
-                capture_output=True,
-                text=True,
-                check=True
-            )
+            self._git_provider.read_tree('HEAD', env=env)
 
             # Stage in-scope untracked files in temporary index only
             # Exclude only generated .agent-output diffs, not all .diff files
             if in_scope_untracked:
                 # Build pathspec: exclude .agent-output directory and its diffs
                 pathspec = ['--'] + in_scope_untracked + [':!.agent-output/**']
-                subprocess.run(
-                    ['git', 'add', '-N'] + pathspec,
-                    cwd=self.repo_root,
-                    env=env,
-                    capture_output=True,
-                    text=True,
-                    check=False  # Ignore errors if files already tracked
-                )
+                self._git_provider.add_intent_to_add(pathspec, env=env)
 
             # Generate cumulative diff from base using temporary index
             diff_file = context_dir / f"{agent_role}-from-base.diff"
-            result = subprocess.run(
-                ['git', 'diff', base_commit],
-                cwd=self.repo_root,
-                env=env,
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            diff_content = result.stdout
+            diff_content = self._git_provider.diff(base_commit=base_commit, env=env)
 
             # 5. Calculate file checksums using temporary index
             files_changed = self._get_changed_files(base_commit, env=env)
 
             # 8. Get diff stat using temporary index
-            result_stat = subprocess.run(
-                ['git', 'diff', '--stat', base_commit],
-                cwd=self.repo_root,
-                env=env,
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            diff_stat = result_stat.stdout.strip()
+            diff_stat = self._git_provider.diff_stat(base_commit, env=env)
 
         finally:
             # Clean up temporary index file
@@ -484,14 +438,7 @@ class DeltaTracker:
         scope_hash = calculate_scope_hash(repo_paths)
 
         # 7. Capture git status report
-        result = subprocess.run(
-            ['git', 'status', '--porcelain', '-z'],
-            cwd=self.repo_root,
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        status_report = result.stdout
+        status_report = self._git_provider.status_porcelain_z()
 
         # 10. Create WorktreeSnapshot
         snapshot = WorktreeSnapshot(
@@ -544,25 +491,11 @@ class DeltaTracker:
                 env['GIT_INDEX_FILE'] = tmp_index_path
 
                 # 1. Read base tree into temporary index
-                subprocess.run(
-                    ['git', 'read-tree', base_commit],
-                    cwd=self.repo_root,
-                    env=env,
-                    capture_output=True,
-                    text=True,
-                    check=True
-                )
+                self._git_provider.read_tree(base_commit, env=env)
 
                 # 2. Apply implementer's diff to the temporary index
                 # Use --cached to apply only to index, not working tree
-                result = subprocess.run(
-                    ['git', 'apply', '--cached', str(implementer_diff_file)],
-                    cwd=self.repo_root,
-                    env=env,
-                    capture_output=True,
-                    text=True,
-                    check=False  # Don't raise on conflict
-                )
+                result = self._git_provider.apply_cached(str(implementer_diff_file), env=env)
 
                 if result.returncode != 0:
                     # Could not apply implementer's diff (likely due to conflicts)
@@ -589,27 +522,11 @@ class DeltaTracker:
 
                 if in_scope_untracked:
                     pathspec = ['--'] + in_scope_untracked + [':!.agent-output/**']
-                    subprocess.run(
-                        ['git', 'add', '-N'] + pathspec,
-                        cwd=self.repo_root,
-                        env=env,
-                        capture_output=True,
-                        text=True,
-                        check=False  # Ignore errors if files already tracked
-                    )
+                    self._git_provider.add_intent_to_add(pathspec, env=env)
 
                 # 3. Diff working tree against temporary index
                 # This shows what the reviewer changed on top of implementer's work
-                result = subprocess.run(
-                    ['git', 'diff'],
-                    cwd=self.repo_root,
-                    env=env,
-                    capture_output=True,
-                    text=True,
-                    check=True
-                )
-
-                incremental_diff = result.stdout
+                incremental_diff = self._git_provider.diff(env=env)
 
                 # If diff is empty, reviewer made no additional changes
                 if not incremental_diff.strip():
@@ -626,10 +543,11 @@ class DeltaTracker:
                 if os.path.exists(tmp_index_path):
                     os.unlink(tmp_index_path)
 
-        except subprocess.CalledProcessError as e:
+        except (CommandFailed, NonZeroExitWithStdErr, TimeoutExceeded) as e:
             # Unexpected git error
+            stderr = getattr(e, 'stderr', str(e))
             error_msg = (
-                f"Git error while calculating incremental diff:\n{e.stderr}\n\n"
+                f"Git error while calculating incremental diff:\n{stderr}\n\n"
                 f"Mitigation: Review the cumulative diff instead "
                 f"(--get-diff TASK --agent reviewer --type from_base)"
             )
@@ -702,37 +620,15 @@ class DeltaTracker:
             env['GIT_INDEX_FILE'] = tmp_index_path
 
             # Read current HEAD into temporary index
-            subprocess.run(
-                ['git', 'read-tree', 'HEAD'],
-                cwd=self.repo_root,
-                env=env,
-                capture_output=True,
-                text=True,
-                check=True
-            )
+            self._git_provider.read_tree('HEAD', env=env)
 
             # Stage in-scope untracked files in temporary index only
             if in_scope_untracked:
                 pathspec = ['--'] + in_scope_untracked + [':!.agent-output/**']
-                subprocess.run(
-                    ['git', 'add', '-N'] + pathspec,
-                    cwd=self.repo_root,
-                    env=env,
-                    capture_output=True,
-                    text=True,
-                    check=False  # Ignore errors if files already tracked
-                )
+                self._git_provider.add_intent_to_add(pathspec, env=env)
 
             # Generate diff from base using temporary index
-            result = subprocess.run(
-                ['git', 'diff', base_commit],
-                cwd=self.repo_root,
-                env=env,
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            current_diff = result.stdout
+            current_diff = self._git_provider.diff(base_commit=base_commit, env=env)
         finally:
             # Clean up temporary index
             if os.path.exists(tmp_index_path):

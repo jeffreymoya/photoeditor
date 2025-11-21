@@ -20,7 +20,6 @@ Usage:
 
 import argparse
 import json
-import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -63,6 +62,7 @@ from .models import Task
 from .operations import TaskOperationError, TaskOperations
 from .output import set_json_mode
 from .picker import TaskPicker, check_halt_conditions
+from .providers import GitProvider
 
 
 def find_repo_root() -> Path:
@@ -1485,7 +1485,6 @@ def cmd_init_context_legacy(args, repo_root: Path) -> int:
         Exit code (0 = success, 1 = error)
     """
     import hashlib
-    import subprocess
 
     task_id = args.init_context
     base_commit = args.base_commit
@@ -1493,35 +1492,24 @@ def cmd_init_context_legacy(args, repo_root: Path) -> int:
 
     # Check for dirty working tree (Issue #7)
     try:
-        result = subprocess.run(
-            ['git', 'status', '--porcelain'],
-            cwd=repo_root,
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        if result.stdout.strip():
+        git_provider = GitProvider(repo_root)
+        status_result = git_provider.status(include_untracked=True)
+        if status_result['is_dirty']:
             print("⚠️  Warning: Working tree has uncommitted changes:", file=sys.stderr)
-            for line in result.stdout.strip().split('\n')[:5]:  # Show first 5 files
-                print(f"  {line}", file=sys.stderr)
+            for file_path in status_result['files'][:5]:  # Show first 5 files
+                print(f"  {file_path}", file=sys.stderr)
             if not force_secrets:
                 print("\nContext initialization will proceed, but diffs may include uncommitted changes.", file=sys.stderr)
                 print("Commit your changes first or use --force-secrets to bypass this warning.", file=sys.stderr)
-    except subprocess.CalledProcessError:
+    except Exception:
         pass  # Non-fatal, continue
 
     # Auto-detect base commit if not provided
     if not base_commit:
         try:
-            result = subprocess.run(
-                ['git', 'rev-parse', 'HEAD'],
-                cwd=repo_root,
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            base_commit = result.stdout.strip()
-        except subprocess.CalledProcessError as e:
+            git_provider = GitProvider(repo_root)
+            base_commit = git_provider.get_current_commit()
+        except Exception as e:
             print(f"Error: Unable to determine git HEAD: {e}", file=sys.stderr)
             return 1
 
@@ -1932,7 +1920,6 @@ def cmd_rebuild_context(args, repo_root: Path) -> int:
         Exit code (0 = success, 1 = error)
     """
     import hashlib
-    import subprocess
 
     task_id = args.rebuild_context
     force_secrets = args.force_secrets if hasattr(args, 'force_secrets') else False
@@ -2013,15 +2000,9 @@ def cmd_rebuild_context(args, repo_root: Path) -> int:
 
     # Get current git HEAD
     try:
-        result = subprocess.run(
-            ['git', 'rev-parse', 'HEAD'],
-            cwd=repo_root,
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        current_head = result.stdout.strip()
-    except subprocess.CalledProcessError as e:
+        git_provider = GitProvider(repo_root)
+        current_head = git_provider.get_current_commit()
+    except Exception as e:
         if args.format == 'json':
             output_json({
                 'success': False,
@@ -2612,14 +2593,9 @@ def cmd_record_qa_legacy(args, repo_root: Path) -> int:
 
     # Get current git SHA
     try:
-        git_sha = subprocess.run(
-            ['git', 'rev-parse', 'HEAD'],
-            cwd=repo_root,
-            capture_output=True,
-            text=True,
-            check=True
-        ).stdout.strip()
-    except subprocess.CalledProcessError:
+        git_provider = GitProvider(repo_root)
+        git_sha = git_provider.get_current_commit()
+    except Exception:
         git_sha = None
 
     # Update coordination with QA log path and results

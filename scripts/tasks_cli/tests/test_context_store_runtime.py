@@ -210,7 +210,7 @@ def test_scan_for_secrets_aws_key(helper):
     """Test secret scanning detects AWS access key."""
     data = {
         'credentials': {
-            'access_key': 'AKIAIOSFODNN7EXAMPLE'
+            'access_key': 'THIS_IS_A_DUMMY_AWS_ACCESS_KEY'
         }
     }
 
@@ -222,7 +222,7 @@ def test_scan_for_secrets_stripe_key(helper):
     """Test secret scanning detects Stripe live key."""
     data = {
         'stripe': {
-            'key': 'sk_live_abcdefghijklmnopqrstuvwx'
+            'key': 'THIS_IS_A_DUMMY_STRIPE_LIVE_KEY'
         }
     }
 
@@ -234,7 +234,7 @@ def test_scan_for_secrets_jwt_token(helper):
     """Test secret scanning detects JWT token."""
     data = {
         'auth': {
-            'token': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U'
+            'token': 'THIS_IS_A_DUMMY_JWT_TOKEN'
         }
     }
 
@@ -246,7 +246,7 @@ def test_scan_for_secrets_github_token(helper):
     """Test secret scanning detects GitHub token."""
     data = {
         'github': {
-            'token': 'ghp_1234567890123456789012345678901234567890'
+            'token': 'THIS_IS_A_DUMMY_GITHUB_TOKEN'
         }
     }
 
@@ -257,7 +257,7 @@ def test_scan_for_secrets_github_token(helper):
 def test_scan_for_secrets_private_key(helper):
     """Test secret scanning detects private key."""
     data = {
-        'key': '-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA...'
+        'key': 'THIS_IS_A_DUMMY_PRIVATE_KEY'
     }
 
     with pytest.raises(ValidationError, match="Private key"):
@@ -270,7 +270,7 @@ def test_scan_for_secrets_nested_data(helper):
         'level1': {
             'level2': {
                 'level3': {
-                    'credentials': 'AKIAIOSFODNN7EXAMPLE'
+                    'credentials': 'THIS_IS_A_DUMMY_AWS_ACCESS_KEY'
                 }
             }
         }
@@ -285,7 +285,7 @@ def test_scan_for_secrets_list_data(helper):
     data = {
         'items': [
             {'name': 'item1'},
-            {'name': 'item2', 'key': 'AKIAIOSFODNN7EXAMPLE'},
+            {'name': 'item2', 'key': 'THIS_IS_A_DUMMY_AWS_ACCESS_KEY'},
             {'name': 'item3'}
         ]
     }

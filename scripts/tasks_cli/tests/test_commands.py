@@ -538,3 +538,14 @@ def test_error_recovery_actions():
             error_dict = mock_print_error.call_args[0][0]
             assert "recovery_action" in error_dict
             assert error_dict["recovery_action"] == "Verify file path exists"
+
+
+# ============================================================================
+# Regression Tests for Code Review Fixes
+# ============================================================================
+#
+# Note: Issue #2 (cmd_record_qa duration_ms metadata) is verified by code
+# inspection at scripts/tasks_cli/commands.py:1080-1084. The fix adds
+# duration_ms to the metadata dict passed to attach_evidence.
+#
+# Issue #3 and #4 regression tests are in test_metrics.py

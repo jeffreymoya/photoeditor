@@ -629,3 +629,56 @@ def test_detect_qa_drift_coverage_minor_change():
 
     # 1% drop should not trigger drift
     assert drift["has_drift"] is False
+
+
+# ============================================================================
+# Command Type Inference Tests (Fix #1)
+# ============================================================================
+
+def test_infer_command_type_lint():
+    """Test command type inference for lint commands."""
+    from tasks_cli.commands import _infer_command_type
+
+    assert _infer_command_type("pnpm run lint") == "lint"
+    assert _infer_command_type("npx eslint src/") == "lint"
+    assert _infer_command_type("ruff check .") == "lint"
+    assert _infer_command_type("PNPM RUN LINT:FIX") == "lint"  # Case insensitive
+
+
+def test_infer_command_type_typecheck():
+    """Test command type inference for typecheck commands."""
+    from tasks_cli.commands import _infer_command_type
+
+    assert _infer_command_type("pnpm run typecheck") == "typecheck"
+    assert _infer_command_type("tsc --noEmit") == "typecheck"
+    assert _infer_command_type("pyright src/") == "typecheck"
+    assert _infer_command_type("mypy .") == "typecheck"
+
+
+def test_infer_command_type_test():
+    """Test command type inference for test commands."""
+    from tasks_cli.commands import _infer_command_type
+
+    assert _infer_command_type("pnpm run test") == "test"
+    assert _infer_command_type("jest --watch") == "test"
+    assert _infer_command_type("pytest tests/") == "test"
+    assert _infer_command_type("vitest run") == "test"
+
+
+def test_infer_command_type_coverage():
+    """Test command type inference for coverage commands."""
+    from tasks_cli.commands import _infer_command_type
+
+    # Coverage patterns should match before test patterns
+    assert _infer_command_type("pnpm run test:coverage") == "coverage"
+    assert _infer_command_type("jest --coverage") == "coverage"
+    assert _infer_command_type("pytest --cov") == "coverage"
+
+
+def test_infer_command_type_unknown():
+    """Test command type inference for unknown commands."""
+    from tasks_cli.commands import _infer_command_type
+
+    assert _infer_command_type("make build") == "unknown"
+    assert _infer_command_type("npm install") == "unknown"
+    assert _infer_command_type("git status") == "unknown"

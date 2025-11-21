@@ -108,6 +108,9 @@ def test_task_snapshot_frozen():
         scope_in=['a'],
         scope_out=['b'],
         acceptance_criteria=['c'],
+        plan_steps=[],
+        deliverables=[],
+        validation_commands=[],
     )
 
     with pytest.raises(FrozenInstanceError):
@@ -179,6 +182,9 @@ def test_task_snapshot_serialization_roundtrip():
         scope_in=['a', 'b'],
         scope_out=['c'],
         acceptance_criteria=['d', 'e'],
+        plan_steps=[{'id': 1, 'title': 'Step 1'}],
+        deliverables=['file.ts'],
+        validation_commands=[{'command': 'npm test'}],
     )
 
     data = original.to_dict()
@@ -206,6 +212,9 @@ def test_task_context_serialization_roundtrip():
             scope_in=[],
             scope_out=[],
             acceptance_criteria=[],
+            plan_steps=[],
+            deliverables=[],
+            validation_commands=[],
         ),
         standards_citations=[],
         validation_baseline=ValidationBaseline(commands=[]),

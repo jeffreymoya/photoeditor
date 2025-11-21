@@ -48,6 +48,41 @@ from .output import (
     format_error_response
 )
 
+
+def _infer_command_type(command: str) -> str:
+    """
+    Infer QA command type from command string.
+
+    Maps common command patterns to standard types: lint, typecheck, test, coverage.
+    Falls back to 'unknown' if no pattern matches.
+
+    Args:
+        command: Shell command string
+
+    Returns:
+        One of: 'lint', 'typecheck', 'test', 'coverage', 'unknown'
+    """
+    command_lower = command.lower()
+
+    # Lint patterns
+    if any(pattern in command_lower for pattern in ['lint', 'eslint', 'ruff', 'flake8', 'pylint']):
+        return 'lint'
+
+    # Typecheck patterns
+    if any(pattern in command_lower for pattern in ['typecheck', 'tsc', 'pyright', 'mypy']):
+        return 'typecheck'
+
+    # Coverage patterns (check before test since coverage commands often contain 'test')
+    if any(pattern in command_lower for pattern in ['coverage', 'cov']):
+        return 'coverage'
+
+    # Test patterns
+    if any(pattern in command_lower for pattern in ['test', 'jest', 'pytest', 'vitest']):
+        return 'test'
+
+    return 'unknown'
+
+
 # Exit codes per schemas doc section 6.1
 EXIT_SUCCESS = 0
 EXIT_GENERAL_ERROR = 1
@@ -82,6 +117,118 @@ def print_error(error: Dict[str, Any], exit_code: int) -> None:
         if "recovery_action" in error:
             print(f"Recovery: {error['recovery_action']}", file=sys.stderr)
     sys.exit(exit_code)
+
+
+def _extract_standards_citations(
+    context_store: 'TaskContextStore',
+    task_id: str,
+    area: str,
+    priority: str,
+    task_data: dict
+) -> list:
+    """
+    Extract standards citations with actual content from referenced files.
+
+    Per proposal Section 3.1 and schemas Section 7.
+
+    Args:
+        context_store: TaskContextStore instance for extraction
+        task_id: Task identifier
+        area: Task area (backend, mobile, shared, infrastructure)
+        priority: Task priority (P0, P1, P2)
+        task_data: Full task YAML data
+
+    Returns:
+        List of standards citation dicts with line_span and content_sha
+    """
+    citations = []
+
+    # Define section mappings: file -> list of section headings to extract
+    section_map = {
+        'standards/global.md': ['Release Governance', 'Governance & Evidence'],
+        'standards/AGENTS.md': ['Agent Responsibilities'],
+        'standards/backend-tier.md': ['Edge & Interface Layer', 'Lambda Application Layer'],
+        'standards/frontend-tier.md': ['Component Structure', 'State Management'],
+        'standards/shared-contracts-tier.md': ['Contract-First Design', 'Versioning'],
+        'standards/typescript.md': ['Strict Configuration', 'Type Safety'],
+        'standards/cross-cutting.md': ['Hard-Fail Controls', 'Maintainability & Change Impact'],
+        'standards/testing-standards.md': ['Testing Requirements', 'Coverage Thresholds'],
+    }
+
+    # Collect standards files to extract from
+    files_to_extract = set()
+
+    # Add area-specific standards
+    if area == 'backend':
+        files_to_extract.update([
+            'standards/backend-tier.md',
+            'standards/cross-cutting.md',
+            'standards/typescript.md',
+        ])
+    elif area == 'mobile':
+        files_to_extract.update([
+            'standards/frontend-tier.md',
+            'standards/typescript.md',
+        ])
+    elif area == 'shared':
+        files_to_extract.update([
+            'standards/shared-contracts-tier.md',
+            'standards/typescript.md',
+        ])
+    elif area in ('infrastructure', 'infra'):
+        files_to_extract.add('standards/infrastructure-tier.md')
+
+    # Always include global and testing standards
+    files_to_extract.update([
+        'standards/global.md',
+        'standards/AGENTS.md',
+        'standards/testing-standards.md',
+    ])
+
+    # Add task-specific overrides from context.related_docs
+    context = task_data.get('context', {})
+    if isinstance(context, dict):
+        related_docs = context.get('related_docs', [])
+        if isinstance(related_docs, list):
+            for doc in related_docs:
+                doc_str = str(doc)
+                if doc_str.startswith('standards/'):
+                    files_to_extract.add(doc_str)
+
+    # Extract sections from each file
+    for standards_file in sorted(files_to_extract):
+        sections = section_map.get(standards_file, [])
+        if not sections:
+            # For files without predefined sections, try to extract first major section
+            # by reading the file and finding the first ## heading
+            try:
+                file_path = context_store.repo_root / standards_file
+                if file_path.exists():
+                    content = file_path.read_text(encoding='utf-8')
+                    lines = content.split('\n')
+                    for line in lines:
+                        if line.startswith('## '):
+                            first_section = line[3:].strip()
+                            sections = [first_section]
+                            break
+            except Exception:
+                pass  # Skip if we can't read the file
+
+        # Extract each section
+        for section_heading in sections:
+            try:
+                excerpt = context_store.extract_standards_excerpt(
+                    task_id=task_id,
+                    standards_file=standards_file,
+                    section_heading=section_heading
+                )
+                citations.append(excerpt.to_dict())
+            except (FileNotFoundError, ValueError) as e:
+                # Section not found or file missing - skip silently
+                # This is expected for optional sections
+                pass
+
+    return citations
 
 
 def _build_standards_citations(area: str, priority: str, task_data: dict) -> list:
@@ -365,7 +512,7 @@ def cmd_attach_standard(args) -> int:
             print(f"✓ Standards excerpt attached: {excerpt.excerpt_id}")
             print(f"  File: {excerpt.file}")
             print(f"  Section: {excerpt.section}")
-            print(f"  Lines: {excerpt.line_span[0]}-{excerpt.line_span[1]}")
+            print(f"  Lines: {excerpt.line_span}")
 
         return EXIT_SUCCESS
 
@@ -706,6 +853,9 @@ def cmd_init_context(args) -> int:
     try:
         repo_root = Path.cwd()
 
+        # Initialize context store early (needed by _extract_standards_citations)
+        context_store = TaskContextStore(repo_root)
+
         # Check if task is quarantined
         if is_quarantined(args.task_id, repo_root):
             error = {
@@ -734,21 +884,46 @@ def cmd_init_context(args) -> int:
         with open(task_path, 'r', encoding='utf-8') as f:
             task_data = yaml.safe_load(f)
 
-        # Validate acceptance criteria (fail if empty)
-        if not task_data.get('acceptance_criteria'):
+        # Validate required non-empty fields per schema
+        scope = task_data.get('scope', {})
+        scope_in = scope.get('in', []) if isinstance(scope, dict) else []
+        scope_out = scope.get('out', []) if isinstance(scope, dict) else []
+        acceptance_criteria = task_data.get('acceptance_criteria', [])
+        plan_steps = task_data.get('plan', [])
+        deliverables = task_data.get('deliverables', [])
+        validation = task_data.get('validation', {})
+        validation_pipeline = validation.get('pipeline', validation.get('commands', [])) if isinstance(validation, dict) else []
+
+        # Check all required fields
+        validation_errors = []
+        if not acceptance_criteria:
+            validation_errors.append("acceptance_criteria is empty")
+        if not scope_in:
+            validation_errors.append("scope.in is empty")
+        if not scope_out:
+            validation_errors.append("scope.out is empty")
+        if not plan_steps:
+            validation_errors.append("plan is empty")
+        if not deliverables:
+            validation_errors.append("deliverables is empty")
+        if not validation_pipeline:
+            validation_errors.append("validation.pipeline is empty")
+
+        if validation_errors:
             error = {
                 "code": "E001",
-                "name": "EmptyAcceptanceCriteria",
-                "message": "acceptance_criteria is empty",
-                "details": {"task_id": args.task_id},
-                "recovery_action": "Add acceptance criteria to task file"
+                "name": "IncompleteTaskSchema",
+                "message": "Required task fields are empty",
+                "details": {"task_id": args.task_id, "missing_fields": validation_errors},
+                "recovery_action": "Populate all required fields: scope.in, scope.out, acceptance_criteria, plan, deliverables, validation.pipeline"
             }
 
             # Add to exception ledger
+            # Note: "invalid_schema" is the correct enum value per models.py EXCEPTION_TYPES
             add_exception(
                 task_id=args.task_id,
-                exception_type="empty_acceptance_criteria",
-                parse_error="acceptance_criteria field is empty"
+                exception_type="invalid_schema",
+                parse_error="; ".join(validation_errors)
             )
 
             print_error(error, exit_code=EXIT_VALIDATION_ERROR)
@@ -772,12 +947,7 @@ def cmd_init_context(args) -> int:
                 print_error(error, exit_code=EXIT_GIT_ERROR)
 
         # Build immutable context payload
-        # Extract required fields
-        scope = task_data.get('scope', {})
-        scope_in = scope.get('in', []) if isinstance(scope, dict) else []
-        scope_out = scope.get('out', []) if isinstance(scope, dict) else []
-        acceptance_criteria = task_data.get('acceptance_criteria', [])
-        plan = task_data.get('plan', [])
+        # (Fields already extracted during validation above)
 
         # Build task snapshot
         task_snapshot = {
@@ -788,7 +958,8 @@ def cmd_init_context(args) -> int:
             'scope_in': scope_in,
             'scope_out': scope_out,
             'acceptance_criteria': acceptance_criteria,
-            'plan': plan
+            'plan_steps': plan_steps,
+            'deliverables': deliverables
         }
 
         # Extract repo paths
@@ -796,27 +967,75 @@ def cmd_init_context(args) -> int:
         repo_paths = context_data.get('repo_paths', []) if isinstance(context_data, dict) else []
 
         # Extract validation commands (support both 'command' and legacy 'cmd' keys)
-        validation = task_data.get('validation', {})
-        qa_commands_raw = validation.get('pipeline', validation.get('commands', [])) if isinstance(validation, dict) else []
+        # (validation_pipeline already extracted during field validation above)
         qa_commands = []
-        for cmd in qa_commands_raw:
+        validation_commands = []  # Structured command objects
+        for idx, cmd in enumerate(validation_pipeline):
             if isinstance(cmd, str):
                 qa_commands.append(cmd)
+                # Create full ValidationCommand structure with defaults
+                validation_commands.append({
+                    'id': f'val-{idx+1:03d}',
+                    'command': cmd,
+                    'description': f'Validation command {idx+1}',
+                    'cwd': '.',
+                    'package': None,
+                    'env': {},
+                    'expected_paths': [],
+                    'blocker_id': None,
+                    'timeout_ms': 120000,
+                    'retry_policy': {'max_attempts': 1, 'backoff_ms': 1000},
+                    'criticality': 'required',
+                    'expected_exit_codes': [0]
+                })
             elif isinstance(cmd, dict):
                 # Support both 'command' and legacy 'cmd' keys
                 command = cmd.get('command', cmd.get('cmd', ''))
                 if command:
                     qa_commands.append(command)
+                    # Preserve full command structure per schema §2.1
+                    retry_policy = cmd.get('retry_policy', {})
+                    if isinstance(retry_policy, dict):
+                        retry_policy = {
+                            'max_attempts': retry_policy.get('max_attempts', 1),
+                            'backoff_ms': retry_policy.get('backoff_ms', 1000)
+                        }
+                    else:
+                        retry_policy = {'max_attempts': 1, 'backoff_ms': 1000}
+
+                    validation_commands.append({
+                        'id': cmd.get('id', f'val-{idx+1:03d}'),
+                        'command': command,
+                        'description': cmd.get('description', ''),
+                        'cwd': cmd.get('cwd', '.'),
+                        'package': cmd.get('package'),
+                        'env': cmd.get('env', {}),
+                        'expected_paths': cmd.get('expected_paths', []),
+                        'blocker_id': cmd.get('blocker_id'),
+                        'timeout_ms': cmd.get('timeout_ms', 120000),
+                        'retry_policy': retry_policy,
+                        'criticality': cmd.get('criticality', 'required'),
+                        'expected_exit_codes': cmd.get('expected_exit_codes', [0])
+                    })
+
+        # Update task snapshot with validation_commands
+        task_snapshot['validation_commands'] = validation_commands
 
         validation_baseline = {
             'commands': qa_commands,
             'initial_results': None
         }
 
-        # Build standards citations based on task area and priority
+        # Extract standards citations with actual content
         area = task_snapshot['area']
         priority = task_snapshot['priority']
-        standards_citations = _build_standards_citations(area, priority, task_data)
+        standards_citations = _extract_standards_citations(
+            context_store=context_store,
+            task_id=task_id,
+            area=area,
+            priority=priority,
+            task_data=task_data
+        )
 
         # Build immutable payload
         immutable = {
@@ -851,8 +1070,36 @@ def cmd_init_context(args) -> int:
             )
         ]
 
-        # Initialize context store
-        context_store = TaskContextStore(repo_root)
+        # Add standards files used in citations (per §3.3 manifest requirement)
+        # Collect unique standards file paths from citations
+        standards_files_seen = set()
+        for citation_dict in standards_citations:
+            standards_file_path = citation_dict.get('file')
+            if standards_file_path and standards_file_path not in standards_files_seen:
+                standards_files_seen.add(standards_file_path)
+                full_path = repo_root / standards_file_path
+                if full_path.exists():
+                    # Calculate SHA256 of standards file
+                    standards_content = full_path.read_bytes()
+                    standards_sha = hashlib.sha256(standards_content).hexdigest()
+                    source_files.append(
+                        SourceFile(
+                            path=standards_file_path,
+                            sha256=standards_sha,
+                            purpose='standards_citation'
+                        )
+                    )
+
+        # Create task snapshot (per Section 3.1 requirement)
+        snapshot_metadata = context_store.create_task_snapshot(args.task_id, task_path)
+
+        # Add snapshot metadata to task_snapshot
+        # Note: Use 'created_at' to match TaskSnapshot.from_dict() field name
+        task_snapshot['snapshot_path'] = snapshot_metadata['snapshot_path']
+        task_snapshot['snapshot_sha256'] = snapshot_metadata['snapshot_sha256']
+        task_snapshot['original_path'] = snapshot_metadata['original_path']
+        task_snapshot['completed_path'] = snapshot_metadata['completed_path']
+        task_snapshot['created_at'] = snapshot_metadata['created_at']
 
         # Create context
         context = context_store.init_context(
@@ -863,6 +1110,19 @@ def cmd_init_context(args) -> int:
             created_by=getattr(args, 'actor', 'task-runner'),
             force_secrets=getattr(args, 'force_secrets', False),
             source_files=source_files
+        )
+
+        # Attach task snapshot as evidence (per Section 3.1 requirement)
+        snapshot_file_path = repo_root / snapshot_metadata['snapshot_path']
+        context_store.attach_evidence(
+            task_id=args.task_id,
+            artifact_type='file',
+            artifact_path=snapshot_file_path,
+            description=f'Task snapshot at initialization',
+            metadata={
+                'snapshot_sha256': snapshot_metadata['snapshot_sha256'],
+                'original_path': snapshot_metadata['original_path']
+            }
         )
 
         if is_json_mode():
@@ -909,17 +1169,6 @@ def cmd_record_qa(args) -> int:
         # Parse log path - handle both relative and absolute paths
         log_path = Path(args.log_path)
 
-        # Convert to relative path for storage, handling paths outside repo
-        if log_path.exists():
-            try:
-                # Try to make relative to repo_root
-                relative_log_path = str(log_path.relative_to(repo_root))
-            except ValueError:
-                # Path is outside repo or is absolute - use absolute path
-                relative_log_path = str(log_path.absolute())
-        else:
-            relative_log_path = str(log_path)
-
         # Get current git commit SHA
         git_sha = get_current_commit(repo_root)
 
@@ -927,36 +1176,62 @@ def cmd_record_qa(args) -> int:
         qa_summary = None
         log_sha256 = None
         if log_path.exists():
-            qa_summary = parse_qa_log(log_path, args.command)
+            # Determine command type: use explicit flag or infer from command
+            command_type = getattr(args, 'command_type', None) or _infer_command_type(args.command)
+            qa_summary = parse_qa_log(log_path, command_type)
             # Calculate log file SHA256
             log_sha256 = hashlib.sha256(log_path.read_bytes()).hexdigest()
 
-        # Generate command ID (SHA256 prefix of command string)
-        command_id = hashlib.sha256(args.command.encode('utf-8')).hexdigest()[:8]
+        # Get command ID - prefer explicit arg, otherwise lookup from context
+        # Per §4.1: command_id must match validation command ID from task file
+        command_id = getattr(args, 'command_id', None)
+        if not command_id:
+            # Try to lookup command ID from context validation_commands
+            context = context_store.get_context(args.task_id)
+            if context and context.immutable.task_snapshot.validation_commands:
+                # Match by command string
+                matching_cmd = next(
+                    (cmd for cmd in context.immutable.task_snapshot.validation_commands
+                     if cmd.get('command') == args.command),
+                    None
+                )
+                if matching_cmd:
+                    command_id = matching_cmd.get('id')
+
+        # Fallback: generate from command SHA if no ID found
+        if not command_id:
+            command_id = hashlib.sha256(args.command.encode('utf-8')).hexdigest()[:8]
 
         # Get duration if provided, otherwise default to 0
         duration_ms = getattr(args, 'duration_ms', 0)
 
-        # Create QA command result
+        # Attach log as evidence first to get the evidence bundle path
+        evidence_log_path = None
+        if log_path.exists():
+            evidence_attachment = context_store.attach_evidence(
+                task_id=args.task_id,
+                artifact_type="qa_output",
+                artifact_path=log_path,
+                description=f"QA output: {args.command}",
+                metadata={
+                    "command": args.command,
+                    "exit_code": args.exit_code,
+                    "duration_ms": duration_ms
+                }
+            )
+            # Use the evidence bundle path instead of the transient source path
+            evidence_log_path = evidence_attachment.path
+
+        # Create QA command result with evidence bundle path
         qa_command_result = QACommandResult(
             command_id=command_id,
             command=args.command,
             exit_code=args.exit_code,
             duration_ms=duration_ms,
-            log_path=relative_log_path if log_path.exists() else None,
+            log_path=evidence_log_path,
             log_sha256=log_sha256,
             summary=qa_summary
         )
-
-        # Attach log as evidence
-        if log_path.exists():
-            context_store.attach_evidence(
-                task_id=args.task_id,
-                artifact_type="qa_output",
-                artifact_path=log_path,
-                description=f"QA output: {args.command}",
-                metadata={"command": args.command, "exit_code": args.exit_code}
-            )
 
         # Load context and update validation_baseline with new QA result
         context = context_store.get_context(args.task_id)
@@ -1213,16 +1488,56 @@ def cmd_collect_metrics(args) -> int:
         # Collect metrics
         metrics = collect_task_metrics(args.task_id, repo_root, baseline)
 
-        # Save metrics
-        output_path = repo_root / ".agent-output" / args.task_id / "metrics.json"
+        # Transform to schema format per §10.1 of task-context-cache-hardening-schemas.md
+        metrics_output = {
+            "task_id": args.task_id,
+            "completed_at": metrics.timestamp,
+            "metrics": {
+                "file_read_reduction": {
+                    "implementer_reads": metrics.file_reads_by_agent.get("implementer", 0),
+                    "reviewer_reads": metrics.file_reads_by_agent.get("reviewer", 0),
+                    "validator_reads": metrics.file_reads_by_agent.get("validator", 0),
+                    "target_met": metrics.success_criteria_met.get("file_reads", False)
+                },
+                "warning_noise": {
+                    "total_warnings": metrics.total_warnings,
+                    "unique_warnings": metrics.total_warnings - metrics.repeated_warnings,
+                    "repeated_warnings": metrics.repeated_warnings,
+                    "target_met": metrics.success_criteria_met.get("warnings", False)
+                },
+                "qa_artifact_availability": {
+                    "required_commands": metrics.qa_commands_run,
+                    "commands_with_logs": metrics.qa_commands_with_logs,
+                    "coverage_percent": metrics.qa_artifact_coverage,
+                    "target_met": metrics.success_criteria_met.get("qa_coverage", False)
+                },
+                "prompt_size_savings": {
+                    "baseline_kb": (metrics.baseline_prompt_tokens / 1024) if metrics.baseline_prompt_tokens else None,
+                    "current_kb": (metrics.current_prompt_tokens / 1024) if metrics.current_prompt_tokens else None,
+                    "reduction_percent": metrics.prompt_size_savings_pct,
+                    "target_met": metrics.success_criteria_met.get("prompt_savings", False)
+                },
+                "json_output_reliability": {
+                    "total_json_calls": metrics.json_calls,
+                    "parse_failures": metrics.json_parse_failures,
+                    "target_met": metrics.success_criteria_met.get("json_reliability", False)
+                }
+            }
+        }
+
+        # Add baseline if provided
+        if baseline:
+            metrics_output["baseline"] = baseline
+
+        # Save metrics to schema-compliant filename
+        output_path = repo_root / ".agent-output" / args.task_id / "metrics-summary.json"
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        from dataclasses import asdict
         with open(output_path, 'w') as f:
-            json.dump(asdict(metrics), f, indent=2)
+            json.dump(metrics_output, f, indent=2)
 
         if is_json_mode():
-            print_success(asdict(metrics))
+            print_success(metrics_output)
         else:
             print(f"✓ Metrics collected for {args.task_id}")
             print(f"  Agents: {len(metrics.agents_run)}")

@@ -19,19 +19,21 @@ def mock_telemetry_data(tmp_path):
     task_dir = tmp_path / ".agent-output" / "TASK-TEST-001"
     task_dir.mkdir(parents=True, exist_ok=True)
 
-    # Implementer telemetry
+    # Implementer telemetry (per schema: metrics nested under "metrics" key)
     telemetry_impl = {
         "agent_role": "implementer",
         "session_start": "2025-11-18T10:00:00Z",
         "session_end": "2025-11-18T10:30:00Z",
-        "file_operations": {
-            "read_calls": 4,
-            "files_read": ["file1.py", "file2.py"]
-        },
-        "cache_operations": {
-            "hits": 10,
-            "misses": 2,
-            "estimated_tokens_saved": 5000
+        "metrics": {
+            "file_operations": {
+                "read_calls": 4,
+                "files_read": ["file1.py", "file2.py"]
+            },
+            "cache_operations": {
+                "cache_hits": 10,
+                "cache_misses": 2,
+                "estimated_tokens_saved": 5000
+            }
         },
         "warnings": [
             {"message": "Warning 1", "level": "warning"}
@@ -42,19 +44,21 @@ def mock_telemetry_data(tmp_path):
 
     (task_dir / "telemetry-implementer.json").write_text(json.dumps(telemetry_impl))
 
-    # Reviewer telemetry
+    # Reviewer telemetry (per schema: metrics nested under "metrics" key)
     telemetry_rev = {
         "agent_role": "reviewer",
         "session_start": "2025-11-18T10:30:00Z",
         "session_end": "2025-11-18T10:45:00Z",
-        "file_operations": {
-            "read_calls": 3,
-            "files_read": ["file3.py"]
-        },
-        "cache_operations": {
-            "hits": 8,
-            "misses": 1,
-            "estimated_tokens_saved": 3000
+        "metrics": {
+            "file_operations": {
+                "read_calls": 3,
+                "files_read": ["file3.py"]
+            },
+            "cache_operations": {
+                "cache_hits": 8,
+                "cache_misses": 1,
+                "estimated_tokens_saved": 3000
+            }
         },
         "warnings": [],
         "json_calls": 3,
@@ -63,13 +67,15 @@ def mock_telemetry_data(tmp_path):
 
     (task_dir / "telemetry-reviewer.json").write_text(json.dumps(telemetry_rev))
 
-    # Context with QA info
+    # Context with QA info (nested under immutable per TaskContext.to_dict structure)
     context = {
-        "validation_baseline": {
-            "initial_results": [
-                {"command": "lint", "log_path": ".agent-output/TASK-TEST-001/qa-lint.log"},
-                {"command": "test", "log_path": ".agent-output/TASK-TEST-001/qa-test.log"}
-            ]
+        "immutable": {
+            "validation_baseline": {
+                "initial_results": [
+                    {"command": "lint", "log_path": ".agent-output/TASK-TEST-001/qa-lint.log"},
+                    {"command": "test", "log_path": ".agent-output/TASK-TEST-001/qa-test.log"}
+                ]
+            }
         }
     }
 
@@ -244,8 +250,10 @@ def test_collect_task_metrics_with_repeated_warnings(tmp_path):
         "agent_role": "implementer",
         "session_start": "2025-11-18T10:00:00Z",
         "session_end": "2025-11-18T10:30:00Z",
-        "file_operations": {"read_calls": 2},
-        "cache_operations": {"hits": 0, "misses": 0},
+        "metrics": {
+            "file_operations": {"read_calls": 2},
+            "cache_operations": {"cache_hits": 0, "cache_misses": 0}
+        },
         "warnings": [
             {"message": "Same warning"},
             {"message": "Same warning"},
@@ -275,8 +283,10 @@ def test_generate_metrics_dashboard_multiple_tasks(tmp_path):
             "agent_role": "implementer",
             "session_start": "2025-11-18T10:00:00Z",
             "session_end": "2025-11-18T10:30:00Z",
-            "file_operations": {"read_calls": 3 + i},
-            "cache_operations": {"hits": 10, "misses": 2},
+            "metrics": {
+                "file_operations": {"read_calls": 3 + i},
+                "cache_operations": {"cache_hits": 10, "cache_misses": 2}
+            },
             "warnings": [],
             "json_calls": 5,
             "json_parse_failures": 0
@@ -397,3 +407,116 @@ def test_metrics_dashboard_dataclass():
     assert len(dashboard.tasks_analyzed) == 2
     assert dashboard.all_criteria_met is True
     assert dashboard.generated_at is not None  # Should have default timestamp
+
+
+# ============================================================================
+# Regression Tests for Code Review Fixes
+# ============================================================================
+
+
+def test_metrics_reads_validation_baseline_from_immutable(tmp_path):
+    """
+    Regression test for Issue #3: QA coverage metrics broken.
+
+    Metrics should read validation_baseline from context["immutable"]["validation_baseline"]
+    not context["validation_baseline"].
+    """
+    task_dir = tmp_path / ".agent-output" / "TASK-REGRESSION-003"
+    task_dir.mkdir(parents=True, exist_ok=True)
+
+    # Create context with validation_baseline in immutable structure
+    context = {
+        "immutable": {
+            "validation_baseline": {
+                "initial_results": {
+                    "results": [
+                        {
+                            "command_id": "abc12345",
+                            "command": "pnpm test",
+                            "exit_code": 0,
+                            "log_path": ".agent-output/TASK-REGRESSION-003/logs/test.log"
+                        },
+                        {
+                            "command_id": "def67890",
+                            "command": "pnpm lint",
+                            "exit_code": 0,
+                            "log_path": ".agent-output/TASK-REGRESSION-003/logs/lint.log"
+                        }
+                    ]
+                }
+            }
+        }
+    }
+
+    (task_dir / "context.json").write_text(json.dumps(context))
+
+    # Create log files
+    logs_dir = task_dir / "logs"
+    logs_dir.mkdir()
+    (logs_dir / "test.log").write_text("Test output")
+    (logs_dir / "lint.log").write_text("Lint output")
+
+    # Create minimal telemetry
+    telemetry = {
+        "agent_role": "test-agent",
+        "metrics": {
+            "file_operations": {"read_calls": 0},
+            "cache_operations": {"cache_hits": 0, "cache_misses": 0}
+        }
+    }
+    (task_dir / "telemetry-test.json").write_text(json.dumps(telemetry))
+
+    # Collect metrics
+    metrics = collect_task_metrics("TASK-REGRESSION-003", tmp_path)
+
+    # Verify QA coverage is calculated correctly (not 0%)
+    assert metrics.qa_commands_run == 2, "Should find 2 QA commands"
+    assert metrics.qa_commands_with_logs == 2, "Should find 2 logs"
+    assert metrics.qa_artifact_coverage == 100.0, "Coverage should be 100%"
+
+
+def test_metrics_handles_legacy_validation_baseline_format(tmp_path):
+    """
+    Regression test: Metrics should handle both new nested format and legacy flat format.
+    """
+    task_dir = tmp_path / ".agent-output" / "TASK-LEGACY"
+    task_dir.mkdir(parents=True, exist_ok=True)
+
+    # Create context with legacy flat structure (for backwards compatibility)
+    context = {
+        "immutable": {
+            "validation_baseline": {
+                "initial_results": [  # Legacy: direct list, not nested in dict
+                    {
+                        "command_id": "abc12345",
+                        "command": "pnpm test",
+                        "exit_code": 0,
+                        "log_path": ".agent-output/TASK-LEGACY/logs/test.log"
+                    }
+                ]
+            }
+        }
+    }
+
+    (task_dir / "context.json").write_text(json.dumps(context))
+
+    # Create log file
+    logs_dir = task_dir / "logs"
+    logs_dir.mkdir()
+    (logs_dir / "test.log").write_text("Test output")
+
+    # Create minimal telemetry
+    telemetry = {
+        "agent_role": "test-agent",
+        "metrics": {
+            "file_operations": {"read_calls": 0},
+            "cache_operations": {"cache_hits": 0, "cache_misses": 0}
+        }
+    }
+    (task_dir / "telemetry-test.json").write_text(json.dumps(telemetry))
+
+    # Should not crash
+    metrics = collect_task_metrics("TASK-LEGACY", tmp_path)
+
+    assert metrics.qa_commands_run == 1
+    assert metrics.qa_commands_with_logs == 1

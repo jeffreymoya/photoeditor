@@ -161,7 +161,8 @@ class TaskDatastore:
 
         except (json.JSONDecodeError, KeyError, OSError) as e:
             # Cache corrupted or unreadable - return None to trigger rebuild
-            print(f"Warning: Cache invalid ({e}), rebuilding...", flush=True)
+            import sys
+            print(f"Warning: Cache invalid ({e}), rebuilding...", file=sys.stderr, flush=True)
             return None
 
     def _get_next_snapshot_id(self) -> int:

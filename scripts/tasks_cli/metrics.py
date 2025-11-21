@@ -153,16 +153,19 @@ def collect_task_metrics(
         agent_role = telemetry.get("agent_role", "unknown")
         agents_run.append(agent_role)
 
-        # File operations
-        file_ops = telemetry.get("file_operations", {})
+        # Per schema: metrics are nested under "metrics" key
+        metrics_data = telemetry.get("metrics", {})
+
+        # File operations (nested under metrics.file_operations)
+        file_ops = metrics_data.get("file_operations", {})
         agent_reads = file_ops.get("read_calls", 0)
         total_file_reads += agent_reads
         file_reads_by_agent[agent_role] = agent_reads
 
-        # Cache operations
-        cache_ops = telemetry.get("cache_operations", {})
-        total_cache_hits += cache_ops.get("hits", 0)
-        total_cache_misses += cache_ops.get("misses", 0)
+        # Cache operations (nested under metrics.cache_operations)
+        cache_ops = metrics_data.get("cache_operations", {})
+        total_cache_hits += cache_ops.get("cache_hits", 0)
+        total_cache_misses += cache_ops.get("cache_misses", 0)
         estimated_tokens += cache_ops.get("estimated_tokens_saved", 0)
 
         # Warnings
@@ -190,7 +193,9 @@ def collect_task_metrics(
         with open(context_file) as f:
             context = json.load(f)
 
-        validation_baseline = context.get("validation_baseline", {})
+        # Read from nested immutable object per TaskContext.to_dict structure
+        immutable = context.get("immutable", {})
+        validation_baseline = immutable.get("validation_baseline", {})
         initial_results_data = validation_baseline.get("initial_results")
 
         # Handle both new format (QAResults dict) and legacy format (list)

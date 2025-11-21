@@ -18,7 +18,8 @@ from typing import Any, Dict, Optional
 import typer
 
 from ..context import TaskCliContext
-from ..exceptions import WorkflowHaltError
+from ..context_store import ContextNotFoundError, TaskContextStore
+from ..exceptions import ValidationError, WorkflowHaltError
 from ..models import Task
 from ..operations import TaskOperationError, TaskOperations
 
@@ -481,6 +482,86 @@ def explain_task(
     return 0
 
 
+def mark_blocked(
+    ctx: TaskCliContext,
+    task_id: str,
+    agent: str,
+    finding: str,
+    actor: str = "task-runner",
+    format_arg: str = 'text'
+) -> int:
+    """
+    Add blocking finding to agent coordination.
+
+    Args:
+        ctx: TaskCliContext with repo_root
+        task_id: Task ID to mark blocked
+        agent: Agent role (implementer, reviewer, validator)
+        finding: Blocking finding description
+        actor: Actor performing the operation
+        format_arg: Output format ('text' or 'json')
+
+    Returns:
+        Exit code (0 = success, 1 = error)
+    """
+    from .worktree_commands import _auto_verify_worktree, _check_drift_budget
+
+    context_store = TaskContextStore(ctx.repo_root)
+
+    try:
+        # Check drift budget before mutations
+        _check_drift_budget(context_store, task_id)
+
+        # Auto-verify worktree before mutations
+        _auto_verify_worktree(context_store, task_id, agent)
+
+        # Get current context to retrieve existing findings
+        context = context_store.get_context(task_id)
+        if context is None:
+            raise ContextNotFoundError(f"No context found for {task_id}")
+
+        # Get current agent coordination
+        agent_coord = getattr(context, agent)
+        existing_findings = list(agent_coord.blocking_findings)
+        existing_findings.append(finding)
+
+        # Update coordination with new findings and blocked status
+        context_store.update_coordination(
+            task_id=task_id,
+            agent_role=agent,
+            updates={
+                'blocking_findings': existing_findings,
+                'status': 'blocked',
+            },
+            actor=actor
+        )
+
+        if format_arg == 'json':
+            ctx.output_channel.print_json({
+                'success': True,
+                'task_id': task_id,
+                'agent_role': agent,
+                'finding': finding,
+                'total_findings': len(existing_findings),
+            })
+        else:
+            print(f"Marked {agent} as blocked for {task_id}")
+            print(f"  Finding: {finding}")
+            print(f"  Total findings: {len(existing_findings)}")
+
+        return 0
+
+    except (ContextNotFoundError, ValidationError) as e:
+        if format_arg == 'json':
+            ctx.output_channel.print_json({
+                'success': False,
+                'error': str(e),
+            })
+        else:
+            print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+
 # Typer registration
 
 def register_commands(app: typer.Typer, ctx: TaskCliContext) -> None:
@@ -558,4 +639,35 @@ def register_commands(app: typer.Typer, ctx: TaskCliContext) -> None:
     ):
         """Explain dependency chain for a task (blockers, artifacts, readiness)."""
         exit_code = explain_task(ctx, task_id, format)
+        raise typer.Exit(code=exit_code)
+
+    @app.command("mark-blocked")
+    def mark_blocked_cmd(
+        task_id: str = typer.Argument(
+            ...,
+            help="Task ID to mark blocked"
+        ),
+        agent: str = typer.Option(
+            ...,
+            '--agent',
+            help="Agent role (implementer, reviewer, validator)"
+        ),
+        finding: str = typer.Option(
+            ...,
+            '--finding',
+            help="Blocking finding description"
+        ),
+        actor: str = typer.Option(
+            'task-runner',
+            '--actor',
+            help="Actor performing the operation"
+        ),
+        format: str = typer.Option(
+            'text',
+            '--format',
+            help="Output format: text or json"
+        )
+    ):
+        """Add blocking finding to agent coordination."""
+        exit_code = mark_blocked(ctx, task_id, agent, finding, actor, format)
         raise typer.Exit(code=exit_code)

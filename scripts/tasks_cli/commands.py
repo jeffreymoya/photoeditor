@@ -50,9 +50,9 @@ from .commands.standards_helpers import (
     _build_standards_citations,
 )
 
-# Re-export QA commands
+# QA commands migrated to Typer in S5.3 - no longer re-exported
+# Use: python -m scripts.tasks_cli record-qa / compare-qa / resolve-drift
 from .commands.qa_commands import (
-    cmd_record_qa,
     _infer_command_type,
 )
 

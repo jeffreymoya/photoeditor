@@ -53,9 +53,9 @@ if commands_file.exists():
         cmd_compare_metrics = _legacy_commands.cmd_compare_metrics
         cmd_generate_dashboard = _legacy_commands.cmd_generate_dashboard
         cmd_init_context = _legacy_commands.cmd_init_context
-        cmd_record_qa = _legacy_commands.cmd_record_qa
         cmd_run_validation = _legacy_commands.cmd_run_validation
-        # cmd_verify_worktree removed in S5.2 - now in commands/worktree_commands.py
+        # cmd_record_qa migrated to Typer in S5.3
+        # cmd_verify_worktree migrated to Typer in S5.2
 
 __all__ = [
     # Evidence commands (from evidence.py)
@@ -76,7 +76,7 @@ __all__ = [
     'cmd_compare_metrics',
     'cmd_generate_dashboard',
     'cmd_init_context',
-    'cmd_record_qa',
     'cmd_run_validation',
-    # cmd_verify_worktree removed in S5.2 - now in commands/worktree_commands.py
+    # cmd_record_qa migrated to Typer in S5.3
+    # cmd_verify_worktree migrated to Typer in S5.2
 ]

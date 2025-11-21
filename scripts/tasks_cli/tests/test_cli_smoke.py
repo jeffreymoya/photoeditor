@@ -249,23 +249,17 @@ class TestCLIAPISignatures:
         assert len(sig.parameters) == 1
         assert 'args' in sig.parameters
 
-    def test_record_qa_signature(self):
-        """record_qa should accept task_id and artifact_path (not path)."""
-        from scripts.tasks_cli.commands import cmd_record_qa
-        import inspect
+    def test_record_qa_typer_exists(self):
+        """record_qa Typer command should exist in qa_commands module."""
+        from scripts.tasks_cli.commands.qa_commands import record_qa
+        # Typer commands use decorated functions - verify it exists
+        assert callable(record_qa)
 
-        sig = inspect.signature(cmd_record_qa)
-        assert len(sig.parameters) == 1
-        assert 'args' in sig.parameters
-
-    def test_verify_worktree_signature(self):
-        """verify_worktree should accept task_id."""
-        from scripts.tasks_cli.commands import cmd_verify_worktree
-        import inspect
-
-        sig = inspect.signature(cmd_verify_worktree)
-        assert len(sig.parameters) == 1
-        assert 'args' in sig.parameters
+    def test_verify_worktree_typer_exists(self):
+        """verify_worktree Typer command should exist in worktree_commands module."""
+        from scripts.tasks_cli.commands.worktree_commands import verify_worktree
+        # Typer commands use decorated functions - verify it exists
+        assert callable(verify_worktree)
 
 
 class TestErrorResponseFormat:

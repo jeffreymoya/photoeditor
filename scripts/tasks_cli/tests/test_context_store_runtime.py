@@ -210,7 +210,7 @@ def test_scan_for_secrets_aws_key(helper):
     """Test secret scanning detects AWS access key."""
     data = {
         'credentials': {
-            'access_key': 'THIS_IS_A_DUMMY_AWS_ACCESS_KEY'
+            'access_key': 'AKIAIOSFODNN7EXAMPLE'  # Matches AKIA[0-9A-Z]{16}
         }
     }
 
@@ -222,7 +222,7 @@ def test_scan_for_secrets_stripe_key(helper):
     """Test secret scanning detects Stripe live key."""
     data = {
         'stripe': {
-            'key': 'THIS_IS_A_DUMMY_STRIPE_LIVE_KEY'
+            'key': 'sk_live_abcdefghijklmnopqrstuvwx'  # Matches sk_live_[a-zA-Z0-9]{24,}
         }
     }
 
@@ -234,7 +234,7 @@ def test_scan_for_secrets_jwt_token(helper):
     """Test secret scanning detects JWT token."""
     data = {
         'auth': {
-            'token': 'THIS_IS_A_DUMMY_JWT_TOKEN'
+            'token': 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.'  # JWT format
         }
     }
 
@@ -246,7 +246,7 @@ def test_scan_for_secrets_github_token(helper):
     """Test secret scanning detects GitHub token."""
     data = {
         'github': {
-            'token': 'THIS_IS_A_DUMMY_GITHUB_TOKEN'
+            'token': 'ghp_abcdefghijklmnopqrstuvwxyz0123456789'  # Matches gh[pousr]_[a-zA-Z0-9]{36,}
         }
     }
 
@@ -257,7 +257,7 @@ def test_scan_for_secrets_github_token(helper):
 def test_scan_for_secrets_private_key(helper):
     """Test secret scanning detects private key."""
     data = {
-        'key': 'THIS_IS_A_DUMMY_PRIVATE_KEY'
+        'key': '-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAK...'
     }
 
     with pytest.raises(ValidationError, match="Private key"):
@@ -270,7 +270,7 @@ def test_scan_for_secrets_nested_data(helper):
         'level1': {
             'level2': {
                 'level3': {
-                    'credentials': 'THIS_IS_A_DUMMY_AWS_ACCESS_KEY'
+                    'credentials': 'AKIAIOSFODNN7EXAMPLE'  # Matches AKIA[0-9A-Z]{16}
                 }
             }
         }
@@ -285,7 +285,7 @@ def test_scan_for_secrets_list_data(helper):
     data = {
         'items': [
             {'name': 'item1'},
-            {'name': 'item2', 'key': 'THIS_IS_A_DUMMY_AWS_ACCESS_KEY'},
+            {'name': 'item2', 'key': 'AKIAIOSFODNN7EXAMPLE'},  # Matches AKIA[0-9A-Z]{16}
             {'name': 'item3'}
         ]
     }

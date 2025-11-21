@@ -144,41 +144,41 @@ commands:
     migrated: true
     description: "Reset drift budget and record resolution"
 
-  # Evidence and standards
+  # Evidence and standards (Wave 7 - MIGRATED)
   attach-evidence:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "Attach evidence to task context"
 
   list-evidence:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "List evidence attachments"
 
   attach-standard:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "Attach standards excerpt to context"
 
-  # Exception ledger
+  # Exception ledger (Wave 7 - MIGRATED)
   add-exception:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "Add exception to ledger"
 
   list-exceptions:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "List exceptions from ledger"
 
   resolve-exception:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "Resolve exception in ledger"
 
   cleanup-exceptions:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "Cleanup exceptions based on trigger"
 
   # Quarantine management

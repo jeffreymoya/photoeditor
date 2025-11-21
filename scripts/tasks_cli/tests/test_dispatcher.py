@@ -1,14 +1,15 @@
 """
-Tests for dual-dispatch command router.
+Tests for Typer command router.
 
 Validates:
 - Registry loading and parsing
-- Legacy dispatch environment override
 - Command routing logic
 - Registry validation
+
+Note: Legacy dispatch tests removed in S9.2 (2025-11-21).
+All commands now use Typer handlers exclusively.
 """
 
-import os
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch, mock_open
@@ -23,7 +24,6 @@ from dispatcher import (
     should_use_legacy,
     dispatch_command,
     validate_registry,
-    _dispatch_legacy,
     _dispatch_typer,
 )
 
@@ -58,7 +58,7 @@ class TestLoadRegistry:
 
     def test_load_registry_malformed_yaml(self):
         """Raises YAMLError if registry YAML is malformed."""
-        mock_yaml_content = "commands:\n  list:\n    handler: legacy\n  - invalid yaml syntax"
+        mock_yaml_content = "commands:\n  list:\n    handler: typer\n  - invalid yaml syntax"
 
         with patch('builtins.open', mock_open(read_data=mock_yaml_content)):
             with patch('dispatcher.Path') as mock_path:
@@ -71,7 +71,7 @@ class TestLoadRegistry:
 
     def test_load_registry_missing_commands_key(self):
         """Raises ValueError if 'commands' key missing."""
-        mock_yaml_content = "invalid_key:\n  list:\n    handler: legacy"
+        mock_yaml_content = "invalid_key:\n  list:\n    handler: typer"
 
         with patch('builtins.open', mock_open(read_data=mock_yaml_content)):
             with patch('dispatcher.Path') as mock_path:
@@ -84,55 +84,22 @@ class TestLoadRegistry:
 
 
 class TestShouldUseLegacy:
-    """Test legacy dispatch decision logic."""
+    """Test legacy dispatch decision logic.
 
-    def test_legacy_dispatch_env_flag_set(self, monkeypatch):
-        """TASKS_CLI_LEGACY_DISPATCH=1 forces legacy for all commands."""
-        monkeypatch.setenv('TASKS_CLI_LEGACY_DISPATCH', '1')
+    Note: Since S9.2, should_use_legacy always returns False
+    as all commands use Typer handlers.
+    """
 
-        # Even if registry says 'typer', env flag overrides
-        mock_registry = {
-            'list': {'handler': 'typer', 'migrated': True}
-        }
-
-        assert should_use_legacy('list', registry=mock_registry) is True
-
-    def test_legacy_dispatch_env_flag_not_set(self, monkeypatch):
-        """Without env flag, respects registry configuration."""
-        monkeypatch.delenv('TASKS_CLI_LEGACY_DISPATCH', raising=False)
-
-        mock_registry = {
-            'list': {'handler': 'legacy', 'migrated': False}
-        }
-
-        assert should_use_legacy('list', registry=mock_registry) is True
-
-    def test_typer_dispatch_when_migrated(self, monkeypatch):
-        """Returns False when command migrated to Typer."""
-        monkeypatch.delenv('TASKS_CLI_LEGACY_DISPATCH', raising=False)
-
+    def test_always_returns_false(self):
+        """should_use_legacy always returns False."""
         mock_registry = {
             'list': {'handler': 'typer', 'migrated': True}
         }
 
         assert should_use_legacy('list', registry=mock_registry) is False
 
-    def test_fallback_to_legacy_on_registry_error(self, monkeypatch, capsys):
-        """Falls back to legacy if registry cannot be loaded."""
-        monkeypatch.delenv('TASKS_CLI_LEGACY_DISPATCH', raising=False)
-
-        with patch('dispatcher.load_registry', side_effect=FileNotFoundError):
-            result = should_use_legacy('list', registry=None)
-
-            assert result is True
-            captured = capsys.readouterr()
-            assert "Could not load dispatch registry" in captured.err
-            assert "defaulting to legacy" in captured.err
-
-    def test_missing_command_defaults_to_legacy(self, monkeypatch):
-        """Command not in registry defaults to legacy handler."""
-        monkeypatch.delenv('TASKS_CLI_LEGACY_DISPATCH', raising=False)
-
+    def test_returns_false_even_for_unknown_command(self):
+        """Returns False even for unknown commands."""
         mock_registry = {
             'list': {'handler': 'typer', 'migrated': True}
         }
@@ -140,111 +107,22 @@ class TestShouldUseLegacy:
         # 'unknown-command' not in registry
         result = should_use_legacy('unknown-command', registry=mock_registry)
 
-        # Should default to legacy (handler field defaults to 'legacy')
-        assert result is True
+        assert result is False
 
 
 class TestDispatchCommand:
-    """Test command dispatching to appropriate handlers."""
+    """Test command dispatching to Typer handlers."""
 
-    def test_dispatch_to_legacy_handler(self, monkeypatch):
-        """Command dispatches to legacy handler when configured."""
-        monkeypatch.delenv('TASKS_CLI_LEGACY_DISPATCH', raising=False)
-
+    def test_dispatch_to_typer_handler(self):
+        """Command dispatches to Typer handler."""
         mock_args = MagicMock()
-        mock_context = {'picker': MagicMock(), 'graph': MagicMock()}
+        mock_context = {'repo_root': Path('/test')}
 
-        with patch('dispatcher.load_registry') as mock_load:
-            mock_load.return_value = {
-                'list': {'handler': 'legacy', 'migrated': False}
-            }
+        with patch('dispatcher._dispatch_typer', return_value=0) as mock_typer:
+            exit_code = dispatch_command('list', mock_args, mock_context)
 
-            with patch('dispatcher._dispatch_legacy', return_value=0) as mock_legacy:
-                exit_code = dispatch_command('list', mock_args, mock_context)
-
-                mock_legacy.assert_called_once_with('list', mock_args, mock_context)
-                assert exit_code == 0
-
-    def test_dispatch_to_typer_handler(self, monkeypatch):
-        """Command dispatches to Typer handler when configured."""
-        monkeypatch.delenv('TASKS_CLI_LEGACY_DISPATCH', raising=False)
-
-        mock_args = MagicMock()
-        mock_context = {'picker': MagicMock()}
-
-        with patch('dispatcher.load_registry') as mock_load:
-            mock_load.return_value = {
-                'list': {'handler': 'typer', 'migrated': True}
-            }
-
-            with patch('dispatcher._dispatch_typer', return_value=0) as mock_typer:
-                exit_code = dispatch_command('list', mock_args, mock_context)
-
-                mock_typer.assert_called_once_with('list', mock_args, mock_context)
-                assert exit_code == 0
-
-    def test_dispatch_respects_env_override(self, monkeypatch):
-        """Env flag overrides registry and forces legacy."""
-        monkeypatch.setenv('TASKS_CLI_LEGACY_DISPATCH', '1')
-
-        mock_args = MagicMock()
-
-        with patch('dispatcher.load_registry') as mock_load:
-            mock_load.return_value = {
-                'list': {'handler': 'typer', 'migrated': True}  # Registry says typer
-            }
-
-            with patch('dispatcher._dispatch_legacy', return_value=0) as mock_legacy:
-                exit_code = dispatch_command('list', mock_args, None)
-
-                # Should use legacy despite registry saying typer
-                mock_legacy.assert_called_once()
-                assert exit_code == 0
-
-
-class TestDispatchLegacy:
-    """Test legacy handler routing."""
-
-    def test_dispatch_legacy_unknown_command(self, capsys):
-        """Unknown command returns error exit code."""
-        mock_args = MagicMock()
-
-        # Mock the main module import to avoid relative import issues in tests
-        mock_main_module = MagicMock()
-
-        with patch('dispatcher.importlib.util.spec_from_file_location') as mock_spec_from_file:
-            mock_spec = MagicMock()
-            mock_spec.loader = MagicMock()
-            mock_spec_from_file.return_value = mock_spec
-
-            with patch('dispatcher.importlib.util.module_from_spec', return_value=mock_main_module):
-                exit_code = _dispatch_legacy('unknown-command', mock_args, None)
-
-        assert exit_code == 1
-        captured = capsys.readouterr()
-        assert "Unknown command 'unknown-command'" in captured.err
-
-    def test_dispatch_legacy_handler_not_found(self, capsys):
-        """Missing handler function returns error exit code."""
-        mock_args = MagicMock()
-
-        # Mock the main module import
-        mock_main_module = MagicMock()
-        # Ensure cmd_list doesn't exist on the mock
-        mock_main_module.cmd_list = MagicMock(side_effect=AttributeError)
-        del mock_main_module.cmd_list
-
-        with patch('dispatcher.importlib.util.spec_from_file_location') as mock_spec_from_file:
-            mock_spec = MagicMock()
-            mock_spec.loader = MagicMock()
-            mock_spec_from_file.return_value = mock_spec
-
-            with patch('dispatcher.importlib.util.module_from_spec', return_value=mock_main_module):
-                exit_code = _dispatch_legacy('list', mock_args, None)
-
-        assert exit_code == 1
-        captured = capsys.readouterr()
-        assert "Handler 'cmd_list' not found" in captured.err
+            mock_typer.assert_called_once_with('list', mock_args, mock_context)
+            assert exit_code == 0
 
 
 class TestDispatchTyper:
@@ -258,9 +136,6 @@ class TestDispatchTyper:
     @pytest.mark.skip(reason="Requires package context for relative imports - tested via integration tests")
     def test_dispatch_typer_requires_repo_root(self, capsys):
         """Typer dispatch returns error when repo_root missing from context."""
-        # This test verifies behavior when repo_root is missing from context.
-        # The function returns 1 and prints an error message.
-        # Tested via integration in test_cli_smoke.py.
         pass
 
 
@@ -277,7 +152,7 @@ class TestValidateRegistry:
         """Detects missing 'handler' field."""
         mock_registry = {
             'list': {'migrated': False, 'description': 'List tasks'},
-            'validate': {'handler': 'legacy', 'migrated': False}
+            'validate': {'handler': 'typer', 'migrated': True}
         }
 
         with patch('dispatcher.load_registry', return_value=mock_registry):
@@ -288,9 +163,9 @@ class TestValidateRegistry:
             assert "missing 'handler' field" in captured.err
 
     def test_validate_registry_invalid_handler_value(self, capsys):
-        """Detects invalid handler values."""
+        """Detects invalid handler values (only 'typer' allowed)."""
         mock_registry = {
-            'list': {'handler': 'invalid_handler', 'migrated': False}
+            'list': {'handler': 'legacy', 'migrated': False}
         }
 
         with patch('dispatcher.load_registry', return_value=mock_registry):
@@ -298,12 +173,13 @@ class TestValidateRegistry:
 
             assert result is False
             captured = capsys.readouterr()
-            assert "invalid handler: 'invalid_handler'" in captured.err
+            assert "invalid handler" in captured.err
+            assert "only 'typer' supported" in captured.err
 
     def test_validate_registry_missing_migrated_field(self, capsys):
         """Detects missing 'migrated' field."""
         mock_registry = {
-            'list': {'handler': 'legacy'}
+            'list': {'handler': 'typer'}
         }
 
         with patch('dispatcher.load_registry', return_value=mock_registry):
@@ -312,22 +188,6 @@ class TestValidateRegistry:
             assert result is False
             captured = capsys.readouterr()
             assert "missing 'migrated' field" in captured.err
-
-    def test_validate_registry_duplicate_commands(self, capsys):
-        """Detects duplicate command entries (edge case)."""
-        # Note: YAML parsing would normally prevent duplicates, but test logic
-        # This is a logical validation test
-        mock_registry = {
-            'list': {'handler': 'legacy', 'migrated': False},
-            'validate': {'handler': 'legacy', 'migrated': False}
-        }
-
-        # Simulate duplicate detection by checking seen_commands logic
-        with patch('dispatcher.load_registry', return_value=mock_registry):
-            result = validate_registry()
-
-            # Should pass since no actual duplicates in test data
-            assert result is True
 
     def test_validate_registry_load_failure(self, capsys):
         """Validation fails if registry cannot be loaded."""
@@ -339,36 +199,31 @@ class TestValidateRegistry:
             assert "Registry validation failed" in captured.err
 
 
-class TestRegistryConflicts:
-    """Test for command registration conflicts between legacy and Typer."""
+class TestRegistryAllTyper:
+    """Test that all commands are using Typer handlers."""
 
-    def test_no_duplicate_registrations(self):
-        """No command registered in both legacy and Typer handlers."""
-        registry = load_registry()
-
-        legacy_commands = set()
-        typer_commands = set()
-
-        for command, config in registry.items():
-            handler = config.get('handler')
-            if handler == 'legacy':
-                legacy_commands.add(command)
-            elif handler == 'typer':
-                typer_commands.add(command)
-
-        # Check for overlap
-        conflicts = legacy_commands & typer_commands
-        assert len(conflicts) == 0, f"Commands registered in both handlers: {conflicts}"
-
-    def test_all_commands_have_single_handler(self):
-        """Every command has exactly one handler type."""
+    def test_all_commands_use_typer(self):
+        """All commands in registry have handler: typer."""
         registry = load_registry()
 
         for command, config in registry.items():
             handler = config.get('handler')
-            assert handler in ('legacy', 'typer'), (
-                f"Command '{command}' has invalid handler: {handler}"
+            assert handler == 'typer', (
+                f"Command '{command}' should use 'typer' handler, found: {handler}"
             )
+
+    def test_no_legacy_handlers_remain(self):
+        """No commands have legacy handler type."""
+        registry = load_registry()
+
+        legacy_commands = [
+            cmd for cmd, config in registry.items()
+            if config.get('handler') == 'legacy'
+        ]
+
+        assert len(legacy_commands) == 0, (
+            f"Legacy handlers should be removed: {legacy_commands}"
+        )
 
 
 if __name__ == '__main__':

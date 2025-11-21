@@ -273,20 +273,22 @@ Update `task-cli-modularization-implementation-plan.md`:
 
 ---
 
-#### Session S5.3: Extract QA Handlers
+#### Session S5.3: Extract QA Handlers ✅ COMPLETED
 **Prereqs**: S5.2 complete
+**Completed**: 2025-11-21 | LOC Reduction: ~349 (2553→2204)
 **Target Handlers**:
 - `cmd_record_qa_legacy`
 - `cmd_compare_qa`
 - `cmd_resolve_drift`
 
 **Steps**:
-1. Create `commands/qa.py`
-2. Migrate using QABaselineManager from `context_store/qa.py`
-3. Update dispatch_registry.yaml
-4. Add `test_commands_qa.py`
+1. Extended `commands/qa_commands.py` with Typer commands
+2. Migrated using QABaselineManager from `context_store/qa.py`
+3. Updated dispatch_registry.yaml → `handler: typer`
+4. Registered in app.py via `register_qa_commands`
+5. Removed legacy handlers from `__main__.py`
 
-**Validation**: `pytest scripts/tasks_cli/tests/test_commands_qa.py -v`
+**Validation**: `python -m py_compile scripts/tasks_cli/commands/qa_commands.py`
 **Expected LOC Reduction**: ~300-400
 
 ---

@@ -130,18 +130,18 @@ commands:
     description: "Retrieve diff file path"
 
   record-qa:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "Record QA command results"
 
   compare-qa:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "Compare QA results against baseline"
 
   resolve-drift:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "Reset drift budget and record resolution"
 
   # Evidence and standards

@@ -107,6 +107,11 @@
       "cache": false,
       "persistent": true
     },
+    "cli-guardrails": {
+      "cache": true,
+      "outputs": [],
+      "inputs": ["scripts/tasks_cli/**/*.py"]
+    },
     "qa:static": {
       "dependsOn": ["typecheck", "lint", "qa:dependencies", "qa:dead-exports", "qa:duplication"],
       "cache": true,

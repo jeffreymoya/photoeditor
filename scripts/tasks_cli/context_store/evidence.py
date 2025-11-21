@@ -12,8 +12,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from tasks_cli.exceptions import ValidationError
-from tasks_cli.providers import ProcessProvider
+from ..exceptions import ValidationError
+from ..providers import ProcessProvider
 
 # ============================================================================
 # Constants
@@ -191,7 +191,7 @@ class EvidenceManager:
             ValidationError: If directory doesn't exist or archive creation fails
         """
         # Import CompressionMetadata here to avoid circular import
-        from tasks_cli.context_store import CompressionMetadata
+        from .models import CompressionMetadata
 
         if not dir_path.exists() or not dir_path.is_dir():
             raise ValidationError(f"Directory not found or not a directory: {dir_path}")
@@ -296,7 +296,7 @@ class EvidenceManager:
             ValidationError: If type invalid, size exceeds limits, or path invalid
         """
         # Import here to avoid circular dependency
-        from tasks_cli.context_store import EvidenceAttachment, ArtifactMetadata
+        from .models import EvidenceAttachment, ArtifactMetadata
 
         # Resolve artifact path
         if not artifact_path.is_absolute():
@@ -446,7 +446,7 @@ class EvidenceManager:
             List of EvidenceAttachment objects (empty if no evidence)
         """
         # Import here to avoid circular dependency
-        from tasks_cli.context_store import EvidenceAttachment
+        from .models import EvidenceAttachment
 
         evidence_dir = self._get_evidence_dir(task_id)
         index_path = evidence_dir / 'index.json'

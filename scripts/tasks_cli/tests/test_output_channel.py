@@ -246,3 +246,69 @@ class TestConcurrency:
 
         # Global warnings unchanged
         assert len(_WARNINGS) == initial_count
+
+    def test_parallel_command_simulation(self) -> None:
+        """Simulate two CLI commands running in parallel threads.
+
+        This test verifies that OutputChannel instances are isolated when
+        multiple command handlers execute concurrently, as would happen
+        with pytest -n (parallel test execution) or concurrent CLI invocations.
+        """
+        command_results: List[dict] = []
+        lock = threading.Lock()
+
+        def simulate_command(cmd_name: str, output_count: int) -> None:
+            """Simulate a CLI command with its own OutputChannel."""
+            channel = BufferingOutputChannel(json_mode=True)
+
+            # Simulate command work with output
+            for i in range(output_count):
+                channel.emit_warning(f"{cmd_name}: processing step {i}")
+                time.sleep(0.002)  # Interleave with other commands
+
+            # Final JSON output
+            channel.emit_json({
+                "command": cmd_name,
+                "steps_completed": output_count,
+                "warnings_count": len(channel.warnings_as_evidence()),
+            })
+
+            with lock:
+                command_results.append({
+                    "name": cmd_name,
+                    "json_output": channel.get_json_output(),
+                    "warnings": channel.warnings_as_evidence(),
+                    "stderr": channel.get_stderr(),
+                })
+
+        # Run two commands in parallel
+        threads = [
+            threading.Thread(target=simulate_command, args=("list", 5)),
+            threading.Thread(target=simulate_command, args=("validate", 3)),
+        ]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        # Verify isolation
+        assert len(command_results) == 2
+
+        for result in command_results:
+            name = result["name"]
+            json_out = result["json_output"]
+            warnings = result["warnings"]
+
+            # JSON output matches command
+            assert len(json_out) == 1
+            assert json_out[0]["command"] == name
+
+            # Warnings only from this command
+            expected_count = 5 if name == "list" else 3
+            assert len(warnings) == expected_count
+            for w in warnings:
+                assert name in w["message"]
+
+            # No cross-contamination
+            other_name = "validate" if name == "list" else "list"
+            assert other_name not in result["stderr"]

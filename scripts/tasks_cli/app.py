@@ -40,7 +40,11 @@ def get_app() -> typer.Typer:
     return app
 
 
-def initialize_commands(repo_root: Path) -> None:
+def initialize_commands(
+    repo_root: Path,
+    json_mode: bool = False,
+    verbose: bool = False,
+) -> None:
     """
     Initialize and register Typer commands with context.
 
@@ -49,6 +53,8 @@ def initialize_commands(repo_root: Path) -> None:
 
     Args:
         repo_root: Repository root path for context initialization
+        json_mode: Whether to output JSON format
+        verbose: Whether to enable verbose output
     """
     from .commands.tasks import register_commands
     from .commands.context import register_context_commands
@@ -60,8 +66,10 @@ def initialize_commands(repo_root: Path) -> None:
     from .commands.evidence import register_evidence_commands
     from .commands.exceptions import register_exception_commands
 
-    # Create context
-    ctx = TaskCliContext.from_repo_root(repo_root)
+    # Create context with output channel configuration
+    ctx = TaskCliContext.from_repo_root(
+        repo_root, json_mode=json_mode, verbose=verbose
+    )
 
     # Register Wave 1 commands
     register_commands(app, ctx)

@@ -35,7 +35,11 @@ from io import StringIO
 from typing import Any, Dict, List, Optional, TextIO
 
 
-# Global state (deprecated - use OutputChannel instead)
+# DEPRECATED: Global state - use OutputChannel instances instead for thread safety.
+# These globals remain for backwards compatibility with legacy commands during
+# migration. They will be removed in a future release once all commands use
+# ctx.output_channel.emit_*() methods.
+# See: docs/proposals/task-cli-modularization-mitigation-plan.md Session S8.2
 _JSON_MODE = False
 _WARNINGS: List[Dict[str, str]] = []
 
@@ -203,6 +207,10 @@ class BufferingOutputChannel(OutputChannel):
 def set_json_mode(enabled: bool) -> None:
     """
     Enable or disable JSON output mode.
+
+    .. deprecated::
+        Use OutputChannel.from_cli_flags() instead for thread-safe output.
+        This function uses global state which is not thread-safe.
 
     When JSON mode is enabled:
     - print_json() outputs to stdout

@@ -11,11 +11,11 @@ dependencies in specific contexts (e.g., temporary graphs for validation).
 
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Any
 
 from .context_store import TaskContextStore
 from .datastore import TaskDatastore
 from .graph import DependencyGraph
+from .output import OutputChannel
 from .picker import TaskPicker
 
 
@@ -41,14 +41,14 @@ class TaskCliContext:
     graph: DependencyGraph
     picker: TaskPicker
     context_store: TaskContextStore
-    output_channel: Any  # Type: output module or mock, kept as Any for flexibility
+    output_channel: OutputChannel
 
-    def with_output(self, channel: Any) -> "TaskCliContext":
+    def with_output(self, channel: OutputChannel) -> "TaskCliContext":
         """
         Create new context with replaced output channel.
 
         Args:
-            channel: New output channel (from output module)
+            channel: New OutputChannel instance
 
         Returns:
             New TaskCliContext instance with updated output_channel
@@ -71,7 +71,12 @@ class TaskCliContext:
         return replace(self, graph=graph)
 
     @classmethod
-    def from_repo_root(cls, repo_root: Path) -> "TaskCliContext":
+    def from_repo_root(
+        cls,
+        repo_root: Path,
+        json_mode: bool = False,
+        verbose: bool = False,
+    ) -> "TaskCliContext":
         """
         Factory method to create context from repository root.
 
@@ -81,17 +86,16 @@ class TaskCliContext:
         - Builds DependencyGraph from tasks
         - Creates TaskPicker with tasks and graph
         - Initializes TaskContextStore for agent coordination
-        - Sets up output module as default output channel
+        - Creates OutputChannel instance from CLI flags
 
         Args:
             repo_root: Absolute path to repository root
+            json_mode: Whether to output JSON format
+            verbose: Whether to enable verbose output
 
         Returns:
             Fully initialized TaskCliContext
         """
-        # Import output module here to avoid circular imports
-        from . import output
-
         # Create datastore and load tasks
         datastore = TaskDatastore(repo_root)
         tasks = datastore.load_tasks()
@@ -105,6 +109,11 @@ class TaskCliContext:
         # Initialize context store
         context_store = TaskContextStore(repo_root)
 
+        # Create OutputChannel from CLI flags
+        output_channel = OutputChannel.from_cli_flags(
+            json_mode=json_mode, verbose=verbose
+        )
+
         # Return fully initialized context
         return cls(
             repo_root=repo_root,
@@ -112,5 +121,5 @@ class TaskCliContext:
             graph=graph,
             picker=picker,
             context_store=context_store,
-            output_channel=output,
+            output_channel=output_channel,
         )

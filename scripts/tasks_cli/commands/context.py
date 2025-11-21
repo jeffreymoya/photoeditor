@@ -692,7 +692,7 @@ def register_context_commands(app: typer.Typer, ctx: TaskCliContext) -> None:
         format: str = typer.Option("text", "--format", "-f", help="Output format: 'text' or 'json'"),
     ):
         """Update coordination state for one agent."""
-        from ..__main__ import _auto_verify_worktree, _check_drift_budget
+        from .worktree_commands import _auto_verify_worktree, _check_drift_budget
 
         repo_root = ctx.repo_root
         store = TaskContextStore(repo_root)

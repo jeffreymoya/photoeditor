@@ -43,7 +43,7 @@ from .commands import (
     cmd_release_quarantine,
     cmd_resolve_exception,
     cmd_run_validation,
-    cmd_verify_worktree,
+    # cmd_verify_worktree removed in S5.2 - now in commands/worktree_commands.py
 )
 from .context import TaskCliContext
 from .context_store import (
@@ -1116,77 +1116,6 @@ def _get_default_qa_commands(area: str) -> list:
         ]
 
 
-def _auto_verify_worktree(context_store: TaskContextStore, task_id: str, agent_role: str) -> None:
-    """
-    Auto-verify worktree before mutations (Issue #2).
-
-    Per proposal Section 3.3: state-changing CLI verbs implicitly run
-    verify_worktree for the previous agent and abort on drift.
-
-    Args:
-        context_store: TaskContextStore instance
-        task_id: Task identifier
-        agent_role: Current agent role
-
-    Raises:
-        Drift Error: On worktree drift (increments drift_budget)
-        ContextNotFoundError: If no context or snapshot found
-    """
-    # Determine previous agent
-    agent_sequence = ['implementer', 'reviewer', 'validator']
-    try:
-        current_idx = agent_sequence.index(agent_role)
-        if current_idx > 0:
-            expected_agent = agent_sequence[current_idx - 1]
-
-            # Verify worktree matches previous agent's snapshot
-            try:
-                context_store.verify_worktree_state(task_id=task_id, expected_agent=expected_agent)
-            except DriftError:
-                # Increment drift budget for the current agent (Issue #3 fix)
-                # Current agent encounters drift, so they should be blocked
-                context = context_store.get_context(task_id)
-                if context:
-                    agent_coord = getattr(context, agent_role)
-                    context_store.update_coordination(
-                        task_id=task_id,
-                        agent_role=agent_role,
-                        updates={'drift_budget': agent_coord.drift_budget + 1},
-                        actor='auto-verification'
-                    )
-                # Re-raise drift error to block the operation
-                raise
-    except ValueError:
-        # Agent not in sequence, skip verification
-        pass
-
-
-def _check_drift_budget(context_store: TaskContextStore, task_id: str) -> None:
-    """
-    Check drift budget and block operations if non-zero (Issue #3).
-
-    Per proposal Section 3.4: when drift_budget > 0, state-changing CLI verbs
-    refuse to launch a new agent until operator records a resolution note.
-
-    Args:
-        context_store: TaskContextStore instance
-        task_id: Task identifier
-
-    Raises:
-        ValidationError: If any agent has drift_budget > 0
-    """
-    context = context_store.get_context(task_id)
-    if context:
-        for agent_role in ['implementer', 'reviewer', 'validator']:
-            agent_coord = getattr(context, agent_role)
-            if agent_coord.drift_budget > 0:
-                raise ValidationError(
-                    f"Drift budget exceeded for {agent_role} (count: {agent_coord.drift_budget}). "
-                    f"Manual intervention required. Run: python scripts/tasks.py --resolve-drift {task_id} "
-                    f"--agent {agent_role} --note \"Resolution description\""
-                )
-
-
 def cmd_mark_blocked(args, repo_root: Path) -> int:
     """
     Add blocking finding to agent coordination.
@@ -1198,6 +1127,8 @@ def cmd_mark_blocked(args, repo_root: Path) -> int:
     Returns:
         Exit code (0 = success, 1 = error)
     """
+    from .commands.worktree_commands import _auto_verify_worktree, _check_drift_budget
+
     task_id = args.mark_blocked
     agent_role = args.agent
     finding = args.finding
@@ -1259,243 +1190,8 @@ def cmd_mark_blocked(args, repo_root: Path) -> int:
 
 
 # ============================================================================
-# Delta Tracking Commands (Phase 2 Day 6)
+# Delta Tracking Commands moved to commands/worktree_commands.py (S5.2)
 # ============================================================================
-
-def cmd_snapshot_worktree(args, repo_root: Path) -> int:
-    """
-    Snapshot working tree state at agent completion.
-
-    Args:
-        args: Parsed command-line arguments
-        repo_root: Repository root path
-
-    Returns:
-        Exit code (0 = success, 1 = error)
-    """
-
-    task_id = args.snapshot_worktree
-    agent_role = args.agent
-    actor = args.actor if hasattr(args, 'actor') else "task-runner"
-    previous_agent = args.previous_agent if hasattr(args, 'previous_agent') else None
-
-    if not agent_role:
-        print("Error: --agent is required for snapshot-worktree", file=sys.stderr)
-        return 1
-
-    # Get base commit from context
-    context_store = TaskContextStore(repo_root)
-    context = context_store.get_context(task_id)
-
-    if context is None:
-        if args.format == 'json':
-            output_json({
-                'success': False,
-                'error': f'No context found for {task_id}',
-            })
-        else:
-            print(f"Error: No context found for {task_id}", file=sys.stderr)
-        return 1
-
-    base_commit = context.git_head
-
-    try:
-        # Check drift budget before mutations (Issue #3)
-        _check_drift_budget(context_store, task_id)
-
-        # Auto-verify worktree before mutations (Issue #2)
-        _auto_verify_worktree(context_store, task_id, agent_role)
-
-        snapshot = context_store.snapshot_worktree(
-            task_id=task_id,
-            agent_role=agent_role,
-            actor=actor,
-            base_commit=base_commit,
-            previous_agent=previous_agent
-        )
-
-        if args.format == 'json':
-            output_json({
-                'success': True,
-                'task_id': task_id,
-                'agent_role': agent_role,
-                'snapshot': snapshot.to_dict(),
-            })
-        else:
-            print(f"✓ Snapshotted working tree for {agent_role} on {task_id}")
-            print(f"  Base commit: {snapshot.base_commit[:8]}")
-            print(f"  Files changed: {len(snapshot.files_changed)}")
-            print(f"  Diff saved to: {snapshot.diff_from_base}")
-            print(f"  Diff stat: {snapshot.diff_stat}")
-
-            if snapshot.incremental_diff_error:
-                print("\n⚠️  Incremental diff calculation failed:")
-                print(f"  {snapshot.incremental_diff_error}")
-
-        return 0
-
-    except (ValidationError, ContextNotFoundError) as e:
-        if args.format == 'json':
-            output_json({
-                'success': False,
-                'error': str(e),
-            })
-        else:
-            print(f"Error: {e}", file=sys.stderr)
-        return 1
-
-
-def cmd_verify_worktree_legacy(args, repo_root: Path) -> int:
-    """
-    Legacy: Verify working tree matches expected state from previous agent.
-    Use cmd_verify_worktree from commands.py instead.
-
-    Args:
-        args: Parsed command-line arguments
-        repo_root: Repository root path
-
-    Returns:
-        Exit code (0 = success, 1 = error)
-    """
-    task_id = args.verify_worktree
-    expected_agent = args.expected_agent
-
-    if not expected_agent:
-        print("Error: --expected-agent is required for verify-worktree", file=sys.stderr)
-        return 1
-
-    context_store = TaskContextStore(repo_root)
-
-    try:
-        context_store.verify_worktree_state(
-            task_id=task_id,
-            expected_agent=expected_agent
-        )
-
-        if args.format == 'json':
-            output_json({
-                'success': True,
-                'task_id': task_id,
-                'expected_agent': expected_agent,
-                'drift_detected': False,
-            })
-        else:
-            print(f"✓ Working tree verified against {expected_agent} snapshot for {task_id}")
-            print("  No drift detected")
-
-        return 0
-
-    except DriftError as e:
-        if args.format == 'json':
-            output_json({
-                'success': False,
-                'drift_detected': True,
-                'error': str(e),
-            })
-        else:
-            print("❌ Drift detected:", file=sys.stderr)
-            print(str(e), file=sys.stderr)
-        return 1
-
-    except ContextNotFoundError as e:
-        if args.format == 'json':
-            output_json({
-                'success': False,
-                'error': str(e),
-            })
-        else:
-            print(f"Error: {e}", file=sys.stderr)
-        return 1
-
-
-def cmd_get_diff(args, repo_root: Path) -> int:
-    """
-    Retrieve diff file path for an agent's changes.
-
-    Args:
-        args: Parsed command-line arguments
-        repo_root: Repository root path
-
-    Returns:
-        Exit code (0 = success, 1 = error)
-    """
-    task_id = args.get_diff
-    agent_role = args.agent
-    diff_type = args.diff_type if hasattr(args, 'diff_type') else 'from_base'
-
-    if not agent_role:
-        print("Error: --agent is required for get-diff", file=sys.stderr)
-        return 1
-
-    context_store = TaskContextStore(repo_root)
-    context = context_store.get_context(task_id)
-
-    if context is None:
-        if args.format == 'json':
-            output_json({
-                'success': False,
-                'error': f'No context found for {task_id}',
-            })
-        else:
-            print(f"Error: No context found for {task_id}", file=sys.stderr)
-        return 1
-
-    # Get agent coordination
-    try:
-        agent_coord = getattr(context, agent_role)
-        snapshot = agent_coord.worktree_snapshot
-
-        if snapshot is None:
-            raise ContextNotFoundError(f"No worktree snapshot found for {agent_role}")
-
-        # Get diff path based on type
-        if diff_type == 'from_base':
-            diff_path = snapshot.diff_from_base
-        elif diff_type == 'incremental':
-            if agent_role != 'reviewer':
-                raise ValidationError("Incremental diff only available for reviewer")
-            if snapshot.diff_from_implementer is None:
-                if snapshot.incremental_diff_error:
-                    raise ValidationError(f"Incremental diff unavailable: {snapshot.incremental_diff_error}")
-                else:
-                    raise ValidationError("Incremental diff not calculated")
-            diff_path = snapshot.diff_from_implementer
-        else:
-            raise ValidationError(f"Invalid diff type: {diff_type}")
-
-        # Read diff content
-        full_diff_path = repo_root / diff_path
-        if not full_diff_path.exists():
-            raise ValidationError(f"Diff file not found: {diff_path}")
-
-        diff_content = full_diff_path.read_text(encoding='utf-8')
-
-        if args.format == 'json':
-            output_json({
-                'success': True,
-                'task_id': task_id,
-                'agent_role': agent_role,
-                'diff_type': diff_type,
-                'diff_path': diff_path,
-                'diff_content': diff_content,
-                'diff_stat': snapshot.diff_stat,
-            })
-        else:
-            print(f"Diff for {agent_role} ({diff_type}): {diff_path}")
-            print()
-            print(diff_content)
-
-        return 0
-
-    except (AttributeError, ContextNotFoundError, ValidationError) as e:
-        if args.format == 'json':
-            output_json({
-                'success': False,
-                'error': str(e),
-            })
-        else:
-            print(f"Error: {e}", file=sys.stderr)
-        return 1
 
 
 def _parse_qa_log(qa_log_content: str, command_type: Optional[str] = None) -> dict:
@@ -2769,16 +2465,10 @@ For more information, see: docs/proposals/task-context-cache-hardening.md
         elif args.rebuild_context:
             return cmd_rebuild_context(args, repo_root)
 
-        # Delta tracking commands
-        elif args.snapshot_worktree:
-            return cmd_snapshot_worktree(args, repo_root)
-
-        elif args.verify_worktree:
-            args.task_id = args.verify_worktree
-            return cmd_verify_worktree(args)
-
-        elif args.get_diff:
-            return cmd_get_diff(args, repo_root)
+        # Delta tracking commands (S5.2: migrated to Typer)
+        # Use: python -m scripts.tasks_cli snapshot-worktree TASK-ID --agent AGENT
+        # Use: python -m scripts.tasks_cli verify-worktree TASK-ID --expected-agent AGENT
+        # Use: python -m scripts.tasks_cli get-diff TASK-ID --agent AGENT
 
         elif args.record_qa:
             args.task_id = args.record_qa

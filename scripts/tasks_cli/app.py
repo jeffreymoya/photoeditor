@@ -54,6 +54,7 @@ def initialize_commands(repo_root: Path) -> None:
     from .commands.context import register_context_commands
     from .commands.workflow import register_commands as register_workflow_commands
     from .commands.graph import register_commands as register_graph_commands
+    from .commands.worktree_commands import register_worktree_commands
 
     # Create context
     ctx = TaskCliContext.from_repo_root(repo_root)
@@ -69,3 +70,6 @@ def initialize_commands(repo_root: Path) -> None:
 
     # Register Wave 3 context commands
     register_context_commands(app, ctx)
+
+    # Register Wave 5 worktree commands (S5.2 modularization)
+    register_worktree_commands(app, ctx)

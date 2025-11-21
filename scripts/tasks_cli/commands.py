@@ -61,10 +61,8 @@ from .commands.validation_commands import (
     cmd_run_validation,
 )
 
-# Re-export worktree commands
-from .commands.worktree_commands import (
-    cmd_verify_worktree,
-)
+# Worktree commands migrated to Typer in S5.2 - no longer re-exported
+# Use: python -m scripts.tasks_cli snapshot-worktree / verify-worktree / get-diff
 
 # Re-export metrics commands
 from .commands.metrics_commands import (
@@ -112,8 +110,7 @@ __all__ = [
     '_infer_command_type',
     # Validation commands
     'cmd_run_validation',
-    # Worktree commands
-    'cmd_verify_worktree',
+    # Worktree commands migrated to Typer in S5.2
     # Metrics commands
     'cmd_collect_metrics',
     'cmd_generate_dashboard',

@@ -40,7 +40,7 @@ from .metrics import (
     generate_metrics_dashboard,
     compare_metrics
 )
-from .git_utils import check_dirty_tree, get_current_commit
+from .providers import GitProvider
 from .output import (
     print_json,
     is_json_mode,
@@ -931,8 +931,8 @@ def cmd_init_context(args) -> int:
         # Check dirty tree
         allow_dirty = hasattr(args, 'allow_preexisting_dirty') and args.allow_preexisting_dirty
         if not allow_dirty:
-            is_clean, dirty_files = check_dirty_tree(
-                repo_root,
+            git_provider = GitProvider(repo_root)
+            is_clean, dirty_files = git_provider.check_dirty_tree(
                 allow_preexisting=False,
                 expected_files=[f".agent-output/{args.task_id}/"]
             )
@@ -1050,7 +1050,11 @@ def cmd_init_context(args) -> int:
         task_file_sha = hashlib.sha256(task_content).hexdigest()
 
         # Get current git commit
-        base_commit = get_current_commit(repo_root)
+        git_provider = GitProvider(repo_root)
+        try:
+            base_commit = git_provider.get_current_commit()
+        except Exception:
+            base_commit = None
         if not base_commit:
             error = {
                 "code": "E051",
@@ -1170,7 +1174,11 @@ def cmd_record_qa(args) -> int:
         log_path = Path(args.log_path)
 
         # Get current git commit SHA
-        git_sha = get_current_commit(repo_root)
+        git_provider = GitProvider(repo_root)
+        try:
+            git_sha = git_provider.get_current_commit()
+        except Exception:
+            git_sha = None
 
         # Parse QA log
         qa_summary = None

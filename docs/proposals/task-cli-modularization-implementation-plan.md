@@ -77,6 +77,68 @@ This document breaks the approved architecture proposal into discrete LLM-execut
 
 ---
 
+## 📋 Gap Analysis (2025-11-21)
+
+This section documents drift between the original proposal and actual implementation state.
+
+### Successfully Delivered
+
+| Goal | Status | Evidence |
+|------|--------|----------|
+| Context Store Decomposition | ✅ Complete | context_store.py → facade (104 LOC) + 6 modules |
+| Provider Layer | ✅ Complete | GitProvider + ProcessProvider with Tenacity, OTEL |
+| Typer Foundation | ✅ Complete | TaskCliContext, dual-dispatch, 12 commands migrated |
+| Telemetry Stubs | ✅ Complete | OpenTelemetry infrastructure ready |
+| Subprocess Policy | ✅ Complete | Only in providers/ (git.py:78, process.py:79) |
+
+### Remaining Gaps
+
+| Issue | Proposal Goal | Actual State | Severity | Mitigation |
+|-------|---------------|--------------|----------|------------|
+| __main__.py bloat | <500 LOC | 3,458 LOC | HIGH | Wave 5 scope |
+| linter.py | <500 LOC | 614 LOC | MEDIUM | Wave 5 scope |
+| Wave 2+ commands | Full Typer migration | 12/38 migrated (32%) | MEDIUM | Wave 5 scope |
+| OutputChannel | Phase 4 deliverable | Not started | LOW | Wave 5 scope |
+| Guardrail mode | Hard-fail post Phase 2 | Warn-only | LOW | Wave 5 scope |
+
+### Implementation Drift Notes
+
+1. **Phase renaming**: Proposal Phase 3 = Providers, Phase 4 = OutputChannel. Implementation renamed "Wave 4" to providers, deferring OutputChannel to Wave 5.
+2. **LOC guardrails**: Warning-only mode persists; will flip to hard-fail after Wave 5 completion.
+3. **Typer parity doc**: Created at `docs/tasks_cli-typer-parity.md` (was missing per initial gap analysis).
+
+---
+
+## 📊 Success Metrics (2025-11-21)
+
+Per proposal Section 7, tracked metrics:
+
+| Metric | Target | Current | Status |
+|--------|--------|---------|--------|
+| Max module LOC | ≤500 | 3,458 (__main__.py) | ❌ 2 violations |
+| subprocess.run confined | providers/ only | 2 locations (both in providers/) | ✅ Achieved |
+| `--help` cold start | <400ms | 192ms | ✅ Achieved |
+| Typer dispatcher usage | ≥95% | 32% (12/38 commands) | ⏳ In progress |
+
+### LOC Reduction Progress
+
+| Module | Wave 1 | Current | Target | Progress |
+|--------|--------|---------|--------|----------|
+| __main__.py | 3,671 | 3,458 | <500 | -6% |
+| context_store.py | 3,418 | 104 | <500 | ✅ -97% |
+| commands.py | 1,640 | split | <500 | ✅ Complete |
+| validation.py | 620 | split | <500 | ✅ Complete |
+| linter.py | 614 | 614 | <500 | 0% |
+
+### Subprocess Violation Progress
+
+| Wave | Count | Notes |
+|------|-------|-------|
+| Wave 1 | 27 | Baseline |
+| Wave 4 | 2 | All in providers/ ✅ |
+
+---
+
 ### Session Logistics
 
 - Each phase fits in a single LLM session with explicit checkpoints; if scope grows, split along module boundaries (e.g., Phase 2a = immutable/delta, 2b = evidence/qa).
@@ -317,8 +379,9 @@ pytest scripts/tasks_cli/tests/test_cli_smoke.py
 ## 📈 Implementation Status Summary
 
 ### Completed Waves: 4/6 (67%)
-### Completed Sessions: 17/23 (74%)
+### Completed Sessions: 17/24 (71%)
 ### Total Duration: ~7.5 hours
+### Key Gaps Remaining: __main__.py LOC (3,458), Typer migration (32%)
 
 #### ✅ Wave 1: Guardrails & Observability (2/2 sessions)
 - S1.1: Module limits guardrails and CLI snapshots ✅
@@ -345,14 +408,16 @@ pytest scripts/tasks_cli/tests/test_cli_smoke.py
 - S4.3: Refactor context_store to use providers ✅
 - S4.4: Provider lint rules ✅
 
-#### ⏸️ Wave 5: Output Channel & Parallel Safety (0/3 sessions)
-- S5.1: OutputChannel interface
-- S5.2: Refactor to use OutputChannel
-- S5.3: Concurrency tests
+#### ⏸️ Wave 5: LOC Reduction & Typer Completion (0/4 sessions)
+- S5.1: Split __main__.py (3,458 → <500 LOC) - extract cli_parser.py, commands/legacy.py
+- S5.2: Reduce linter.py (614 → <500 LOC) - extract helper functions
+- S5.3: Migrate remaining commands to Typer (26 pending per parity doc)
+- S5.4: OutputChannel interface and refactor
 
-#### ⏸️ Wave 6: Cleanup & Documentation (0/2 sessions)
-- S6.1: Delete legacy dispatcher
-- S6.2: Update docs and metrics
+#### ⏸️ Wave 6: Guardrails & Final Cleanup (0/3 sessions)
+- S6.1: Flip guardrails to hard-fail mode (--fail-on-loc in CI)
+- S6.2: Delete legacy dispatcher code, update dispatch_registry.yaml
+- S6.3: Final metrics capture, update parity doc, close ADRs
 
 ### Key Achievements So Far
 

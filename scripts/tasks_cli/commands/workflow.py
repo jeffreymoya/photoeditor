@@ -308,6 +308,179 @@ def archive_task(
         return 1
 
 
+def explain_task(
+    ctx: TaskCliContext,
+    task_id: str,
+    format_arg: str = 'text'
+) -> int:
+    """
+    Explain dependency chain for a specific task.
+
+    Shows:
+    - Hard blockers (blocked_by) with status
+    - Artifact dependencies (depends_on) with availability
+    - Transitive dependency chain
+    - Readiness assessment and recommendations
+
+    Args:
+        ctx: TaskCliContext with graph, datastore, and output channel
+        task_id: Task ID to explain
+        format_arg: Output format ('text' or 'json')
+
+    Returns:
+        Exit code (0 for success, 1 if task not found)
+    """
+    # Configure output mode
+    ctx.output_channel.set_json_mode(format_arg == 'json')
+
+    # Get graph and verify task exists
+    graph = ctx.datastore.get_dependency_graph()
+    if task_id not in graph.task_by_id:
+        if format_arg == 'json':
+            ctx.output_channel.print_json({
+                'error': f'Task not found: {task_id}',
+                'task_id': task_id
+            })
+        else:
+            print(f"Error: Task not found: {task_id}", file=sys.stderr)
+        return 1
+
+    task = graph.task_by_id[task_id]
+
+    # Compute dependency closure
+    closure = graph.compute_dependency_closure(task_id)
+
+    # Get completed task IDs for readiness check
+    tasks = ctx.datastore.load_tasks()
+    completed_ids = {t.id for t in tasks if t.is_completed()}
+
+    # Check readiness
+    is_ready = task.is_ready(completed_ids)
+    blocking_count = len([dep for dep in task.blocked_by if dep not in completed_ids])
+
+    # Output based on format
+    if format_arg == 'json':
+        # JSON output with all dependency information
+        blocker_details = []
+        for dep_id in task.blocked_by:
+            if dep_id in graph.task_by_id:
+                dep_task = graph.task_by_id[dep_id]
+                blocker_details.append({
+                    'id': dep_id,
+                    'status': dep_task.status,
+                    'title': dep_task.title,
+                    'blocking': dep_id not in completed_ids
+                })
+            else:
+                blocker_details.append({
+                    'id': dep_id,
+                    'status': 'unknown',
+                    'title': None,
+                    'blocking': True
+                })
+
+        artifact_details = []
+        for dep_id in task.depends_on:
+            if dep_id in graph.task_by_id:
+                dep_task = graph.task_by_id[dep_id]
+                artifact_details.append({
+                    'id': dep_id,
+                    'status': dep_task.status,
+                    'title': dep_task.title,
+                    'available': dep_id in completed_ids
+                })
+            else:
+                artifact_details.append({
+                    'id': dep_id,
+                    'status': 'unknown',
+                    'title': None,
+                    'available': False
+                })
+
+        ctx.output_channel.print_json({
+            'task': {
+                'id': task.id,
+                'title': task.title,
+                'status': task.status,
+                'priority': task.priority,
+                'unblocker': task.unblocker
+            },
+            'hard_blockers': blocker_details,
+            'artifact_dependencies': artifact_details,
+            'transitive_closure': sorted(closure['transitive']),
+            'readiness': {
+                'ready': is_ready,
+                'blocking_count': blocking_count,
+                'recommendation': (
+                    'Task is ready to start' if is_ready
+                    else f'Complete {blocking_count} hard blocker(s) first'
+                )
+            }
+        })
+    else:
+        # Human-readable text output
+        print(f"{task.id}: {task.title}")
+        print(f"  Status: {task.status}")
+        print(f"  Priority: {task.priority}")
+        if task.unblocker:
+            print("  Unblocker: YES")
+        print()
+
+        # Hard blockers (blocked_by)
+        if task.blocked_by:
+            print("  Hard Blockers (blocked_by):")
+            for dep_id in task.blocked_by:
+                if dep_id in graph.task_by_id:
+                    dep_task = graph.task_by_id[dep_id]
+                    status_indicator = "[BLOCKING]" if dep_id not in completed_ids else "[COMPLETED]"
+                    print(f"    -> {dep_id} (status: {dep_task.status}) - {dep_task.title} {status_indicator}")
+                else:
+                    print(f"    -> {dep_id} (MISSING) [BLOCKING]")
+            print()
+        else:
+            print("  Hard Blockers (blocked_by): None")
+            print()
+
+        # Artifact dependencies (depends_on)
+        if task.depends_on:
+            print("  Artifact Dependencies (depends_on):")
+            for dep_id in task.depends_on:
+                if dep_id in graph.task_by_id:
+                    dep_task = graph.task_by_id[dep_id]
+                    status_indicator = "[AVAILABLE]" if dep_id in completed_ids else "[IN PROGRESS]"
+                    print(f"    -> {dep_id} (status: {dep_task.status}) - {dep_task.title} {status_indicator}")
+                else:
+                    print(f"    -> {dep_id} (MISSING) [UNAVAILABLE]")
+            print()
+        else:
+            print("  Artifact Dependencies (depends_on): None")
+            print()
+
+        # Transitive chain
+        if closure['transitive']:
+            print("  Transitive Chain:")
+            chain_items = sorted(closure['transitive'])
+            if len(chain_items) <= 5:
+                print(f"    {task.id} -> {' -> '.join(chain_items)}")
+            else:
+                print(f"    {task.id} -> {' -> '.join(chain_items[:3])} -> ... ({len(chain_items)} total)")
+            print()
+
+        # Readiness assessment
+        print(f"  Readiness: {'READY' if is_ready else 'NOT READY'}", end='')
+        if not is_ready and blocking_count > 0:
+            print(f" ({blocking_count} hard blocker(s) remain)")
+        else:
+            print()
+
+        if not is_ready and task.blocked_by:
+            incomplete_blockers = [dep for dep in task.blocked_by if dep not in completed_ids]
+            if incomplete_blockers:
+                print(f"  Recommendation: Complete these tasks first: {', '.join(incomplete_blockers)}")
+
+    return 0
+
+
 # Typer registration
 
 def register_commands(app: typer.Typer, ctx: TaskCliContext) -> None:
@@ -369,4 +542,20 @@ def register_commands(app: typer.Typer, ctx: TaskCliContext) -> None:
     ):
         """Archive an already-completed task without status change."""
         exit_code = archive_task(ctx, task_path)
+        raise typer.Exit(code=exit_code)
+
+    @app.command("explain")
+    def explain_cmd(
+        task_id: str = typer.Argument(
+            ...,
+            help="Task ID to explain"
+        ),
+        format: str = typer.Option(
+            'text',
+            '--format',
+            help="Output format: text or json"
+        )
+    ):
+        """Explain dependency chain for a task (blockers, artifacts, readiness)."""
+        exit_code = explain_task(ctx, task_id, format)
         raise typer.Exit(code=exit_code)

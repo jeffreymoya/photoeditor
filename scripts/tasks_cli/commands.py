@@ -80,43 +80,13 @@ from .output import (
 )
 
 __all__ = [
-    # Exit codes
-    'EXIT_SUCCESS',
-    'EXIT_GENERAL_ERROR',
-    'EXIT_VALIDATION_ERROR',
-    'EXIT_DRIFT_ERROR',
-    'EXIT_BLOCKER_ERROR',
-    'EXIT_IO_ERROR',
-    'EXIT_GIT_ERROR',
-    # Evidence commands
-    'cmd_attach_evidence',
-    'cmd_list_evidence',
-    'cmd_attach_standard',
-    # Exception commands
-    'cmd_add_exception',
-    'cmd_list_exceptions',
-    'cmd_resolve_exception',
-    'cmd_cleanup_exceptions',
-    # Quarantine commands
-    'cmd_list_quarantined',
-    'cmd_release_quarantine',
-    'cmd_quarantine_task',
-    # Context commands
-    'cmd_init_context',
-    '_extract_standards_citations',
-    '_build_standards_citations',
-    # QA helper (commands migrated to Typer)
-    '_infer_command_type',
-    # Validation commands
-    'cmd_run_validation',
-    # Worktree commands migrated to Typer in S5.2
-    # Metrics commands
-    'cmd_collect_metrics',
-    'cmd_generate_dashboard',
-    'cmd_compare_metrics',
-    # Output helpers
-    'print_json',
-    'is_json_mode',
-    'format_success_response',
-    'format_error_response',
+    'EXIT_SUCCESS', 'EXIT_GENERAL_ERROR', 'EXIT_VALIDATION_ERROR',
+    'EXIT_DRIFT_ERROR', 'EXIT_BLOCKER_ERROR', 'EXIT_IO_ERROR', 'EXIT_GIT_ERROR',
+    'cmd_attach_evidence', 'cmd_list_evidence', 'cmd_attach_standard',
+    'cmd_add_exception', 'cmd_list_exceptions', 'cmd_resolve_exception', 'cmd_cleanup_exceptions',
+    'cmd_list_quarantined', 'cmd_release_quarantine', 'cmd_quarantine_task',
+    'cmd_init_context', '_extract_standards_citations', '_build_standards_citations',
+    '_infer_command_type', 'cmd_run_validation',
+    'cmd_collect_metrics', 'cmd_generate_dashboard', 'cmd_compare_metrics',
+    'print_json', 'is_json_mode', 'format_success_response', 'format_error_response',
 ]

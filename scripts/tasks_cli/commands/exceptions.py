@@ -1,7 +1,11 @@
 """CLI command handlers for exception ledger operations."""
 
-from typing import Dict, Any
+from typing import Dict, Any, Optional, TYPE_CHECKING
 import sys
+
+if TYPE_CHECKING:
+    import typer
+    from ..context import TaskCliContext
 
 from ..exception_ledger import (
     add_exception,
@@ -198,3 +202,72 @@ def cmd_cleanup_exceptions(args) -> int:
             "recovery_action": "Check logs and retry"
         }
         print_error(error, exit_code=EXIT_GENERAL_ERROR)
+
+
+# Typer registration
+
+def register_exception_commands(app: "typer.Typer", ctx: "TaskCliContext") -> None:
+    """
+    Register Typer exception commands with the app.
+
+    Args:
+        app: Typer app instance to register commands with
+        ctx: TaskCliContext to inject into commands
+    """
+    import typer
+
+    @app.command("add-exception")
+    def add_exception_cmd(
+        task_id: str = typer.Argument(..., help="Task ID"),
+        exception_type: str = typer.Option(..., "--type", "-t", help="Exception type"),
+        message: str = typer.Option(..., "--message", "-m", help="Exception message")
+    ):
+        """Add exception to ledger."""
+        class Args:
+            pass
+        args = Args()
+        args.task_id = task_id
+        args.exception_type = exception_type
+        args.message = message
+        exit_code = cmd_add_exception(args)
+        raise typer.Exit(code=exit_code or 0)
+
+    @app.command("list-exceptions")
+    def list_exceptions_cmd(
+        status: Optional[str] = typer.Option(None, "--status", "-s", help="Filter by status")
+    ):
+        """List exceptions from ledger."""
+        class Args:
+            pass
+        args = Args()
+        args.status = status
+        exit_code = cmd_list_exceptions(args)
+        raise typer.Exit(code=exit_code or 0)
+
+    @app.command("resolve-exception")
+    def resolve_exception_cmd(
+        task_id: str = typer.Argument(..., help="Task ID"),
+        notes: Optional[str] = typer.Option(None, "--notes", "-n", help="Resolution notes")
+    ):
+        """Resolve exception in ledger."""
+        class Args:
+            pass
+        args = Args()
+        args.task_id = task_id
+        args.notes = notes
+        exit_code = cmd_resolve_exception(args)
+        raise typer.Exit(code=exit_code or 0)
+
+    @app.command("cleanup-exceptions")
+    def cleanup_exceptions_cmd(
+        task_id: str = typer.Argument(..., help="Task ID"),
+        trigger: Optional[str] = typer.Option("manual", "--trigger", "-t", help="Cleanup trigger")
+    ):
+        """Cleanup exceptions based on trigger."""
+        class Args:
+            pass
+        args = Args()
+        args.task_id = task_id
+        args.trigger = trigger
+        exit_code = cmd_cleanup_exceptions(args)
+        raise typer.Exit(code=exit_code or 0)

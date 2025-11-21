@@ -1,9 +1,13 @@
 """CLI command handlers for evidence management operations."""
 
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Optional, TYPE_CHECKING
 import sys
 import json
+
+if TYPE_CHECKING:
+    import typer
+    from ..context import TaskCliContext
 
 from ..context_store import TaskContextStore
 from ..output import (
@@ -212,3 +216,64 @@ def cmd_attach_standard(args) -> int:
             "recovery_action": "Check logs and retry"
         }
         print_error(error, exit_code=EXIT_GENERAL_ERROR)
+
+
+# Typer registration
+
+def register_evidence_commands(app: "typer.Typer", ctx: "TaskCliContext") -> None:
+    """
+    Register Typer evidence commands with the app.
+
+    Args:
+        app: Typer app instance to register commands with
+        ctx: TaskCliContext to inject into commands
+    """
+    import typer
+
+    @app.command("attach-evidence")
+    def attach_evidence_cmd(
+        task_id: str = typer.Argument(..., help="Task ID"),
+        evidence_type: str = typer.Option(..., "--type", "-t", help="Evidence type"),
+        path: str = typer.Option(..., "--path", "-p", help="Path to evidence file"),
+        description: str = typer.Option("", "--description", "-d", help="Description"),
+        metadata: Optional[str] = typer.Option(None, "--metadata", "-m", help="JSON metadata")
+    ):
+        """Attach evidence to task context."""
+        class Args:
+            pass
+        args = Args()
+        args.task_id = task_id
+        args.type = evidence_type
+        args.path = path
+        args.description = description
+        args.metadata = metadata
+        exit_code = cmd_attach_evidence(args)
+        raise typer.Exit(code=exit_code or 0)
+
+    @app.command("list-evidence")
+    def list_evidence_cmd(
+        task_id: str = typer.Argument(..., help="Task ID")
+    ):
+        """List evidence attachments for a task."""
+        class Args:
+            pass
+        args = Args()
+        args.task_id = task_id
+        exit_code = cmd_list_evidence(args)
+        raise typer.Exit(code=exit_code or 0)
+
+    @app.command("attach-standard")
+    def attach_standard_cmd(
+        task_id: str = typer.Argument(..., help="Task ID"),
+        file: str = typer.Option(..., "--file", "-f", help="Standards file path"),
+        section: str = typer.Option(..., "--section", "-s", help="Section heading")
+    ):
+        """Attach standards excerpt to task context."""
+        class Args:
+            pass
+        args = Args()
+        args.task_id = task_id
+        args.file = file
+        args.section = section
+        exit_code = cmd_attach_standard(args)
+        raise typer.Exit(code=exit_code or 0)

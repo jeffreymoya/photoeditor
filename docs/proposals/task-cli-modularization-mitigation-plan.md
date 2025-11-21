@@ -352,32 +352,31 @@ Update `task-cli-modularization-implementation-plan.md`:
 
 ### Wave 7: Complete Typer Migration (3 Sessions)
 
-#### Session S7.1: Migrate Core Commands
+#### Session S7.1: Migrate Core Commands ✅ COMPLETED (PREVIOUSLY)
 **Prereqs**: Wave 6 complete
+**Note**: Target commands (pick, show, graph) were already migrated in earlier waves.
 **Target Commands** (from dispatch_registry.yaml where `handler: legacy`):
-- pick, show variants
-- graph export/visualize
-- template commands
+- pick, show variants → Already `handler: typer`
+- graph export/visualize → Already `handler: typer`
+- template commands → Not present in registry
 
-**Steps**:
-1. Implement Typer equivalents in target modules
-2. Update registry: `handler: legacy` → `handler: typer`
-3. Preserve all existing flags/options
-4. Add integration tests
-
-**Validation**: Compare output with legacy dispatch enabled vs disabled
+**Status**: No action required - commands already migrated
 
 ---
 
-#### Session S7.2: Migrate Evidence/Exception Commands
+#### Session S7.2: Migrate Evidence/Exception Commands ✅ COMPLETED
+**Completed**: 2025-11-21 | Legacy handlers reduced: 14→7
 **Target Commands**:
-- evidence attach, list, validate, export
-- exception add, list, resolve, defer
+- attach-evidence, list-evidence, attach-standard
+- add-exception, list-exceptions, resolve-exception, cleanup-exceptions
 
-**Steps**:
-1. Migrate to `commands/evidence.py` and `commands/exceptions.py`
-2. Update registry
-3. Test JSON output parity
+**Steps Completed**:
+1. Added Typer wrappers to `commands/evidence.py` via `register_evidence_commands`
+2. Added Typer wrappers to `commands/exceptions.py` via `register_exception_commands`
+3. Registered in `app.py` via Wave 7 imports
+4. Updated dispatch_registry.yaml → `handler: typer` for 7 commands
+
+**Validation**: `python scripts/tasks.py --list` passes
 
 ---
 

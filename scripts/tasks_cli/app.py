@@ -57,6 +57,8 @@ def initialize_commands(repo_root: Path) -> None:
     from .commands.worktree_commands import register_worktree_commands
     from .commands.qa_commands import register_qa_commands
     from .commands.lint import register_lint_commands
+    from .commands.evidence import register_evidence_commands
+    from .commands.exceptions import register_exception_commands
 
     # Create context
     ctx = TaskCliContext.from_repo_root(repo_root)
@@ -81,3 +83,9 @@ def initialize_commands(repo_root: Path) -> None:
 
     # Register Wave 5 lint commands (S5.4 modularization)
     register_lint_commands(app, ctx)
+
+    # Register Wave 7 evidence commands (S7.2 migration)
+    register_evidence_commands(app, ctx)
+
+    # Register Wave 7 exception commands (S7.2 migration)
+    register_exception_commands(app, ctx)

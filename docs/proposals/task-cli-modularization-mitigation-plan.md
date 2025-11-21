@@ -251,20 +251,24 @@ Update `task-cli-modularization-implementation-plan.md`:
 
 ---
 
-#### Session S5.2: Extract Worktree/Diff Handlers
+#### Session S5.2: Extract Worktree/Diff Handlers ✅ COMPLETED
 **Prereqs**: S5.1 complete
+**Completed**: 2025-11-21 | LOC Reduction: ~235 (2788→2553)
 **Target Handlers**:
 - `cmd_snapshot_worktree`
 - `cmd_verify_worktree_legacy`
 - `cmd_get_diff`
+- `_auto_verify_worktree` (helper)
+- `_check_drift_budget` (helper)
 
 **Steps**:
-1. Create `commands/worktree.py`
-2. Move handlers with DeltaTracker integration
-3. Update dispatch_registry.yaml
-4. Add `test_commands_worktree.py`
+1. Extended `commands/worktree_commands.py` with Typer commands
+2. Moved helpers with DeltaTracker integration
+3. Updated dispatch_registry.yaml → `handler: typer`
+4. Removed legacy dispatch block for these commands
+5. Updated imports in context.py and cmd_mark_blocked
 
-**Validation**: `pytest scripts/tasks_cli/tests/test_commands_worktree.py -v`
+**Validation**: `python scripts/tasks.py --list` passes
 **Expected LOC Reduction**: ~200-300
 
 ---

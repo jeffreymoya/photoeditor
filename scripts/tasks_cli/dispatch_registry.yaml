@@ -115,18 +115,18 @@ commands:
 
   # Delta tracking
   snapshot-worktree:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "Snapshot working tree state"
 
   verify-worktree:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "Verify working tree for drift"
 
   get-diff:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "Retrieve diff file path"
 
   record-qa:

@@ -55,7 +55,7 @@ if commands_file.exists():
         cmd_init_context = _legacy_commands.cmd_init_context
         cmd_record_qa = _legacy_commands.cmd_record_qa
         cmd_run_validation = _legacy_commands.cmd_run_validation
-        cmd_verify_worktree = _legacy_commands.cmd_verify_worktree
+        # cmd_verify_worktree removed in S5.2 - now in commands/worktree_commands.py
 
 __all__ = [
     # Evidence commands (from evidence.py)
@@ -78,5 +78,5 @@ __all__ = [
     'cmd_init_context',
     'cmd_record_qa',
     'cmd_run_validation',
-    'cmd_verify_worktree',
+    # cmd_verify_worktree removed in S5.2 - now in commands/worktree_commands.py
 ]

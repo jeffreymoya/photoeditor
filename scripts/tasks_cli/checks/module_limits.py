@@ -216,12 +216,17 @@ def main() -> int:
     parser.add_argument(
         "--hard-fail",
         action="store_true",
-        help="Exit with non-zero code on violations (future use)"
+        help="Exit with non-zero code on LOC violations"
+    )
+    parser.add_argument(
+        "--fail-on-loc",
+        action="store_true",
+        help="Alias for --hard-fail: exit non-zero on LOC violations"
     )
     parser.add_argument(
         "--enforce-providers",
         action="store_true",
-        help="Fail if subprocess.run found outside providers/ (Phase 3+)"
+        help="Fail if subprocess.run found outside providers/"
     )
 
     args = parser.parse_args()
@@ -242,8 +247,10 @@ def main() -> int:
         print()
         print(format_violations(loc_violations, subprocess_violations, args.enforce_providers))
 
-        # Exit with failure if violations found and (hard_fail OR enforce_providers)
-        if (loc_violations or subprocess_violations) and (args.hard_fail or args.enforce_providers):
+        # Exit with failure based on enforcement flags
+        loc_fail = loc_violations and (args.hard_fail or args.fail_on_loc)
+        provider_fail = subprocess_violations and args.enforce_providers
+        if loc_fail or provider_fail:
             print("ERROR: Violations detected in enforcement mode")
             return 1
         else:

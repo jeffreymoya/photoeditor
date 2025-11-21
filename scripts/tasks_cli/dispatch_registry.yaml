@@ -181,41 +181,41 @@ commands:
     migrated: true
     description: "Cleanup exceptions based on trigger"
 
-  # Quarantine management
+  # Quarantine management (Wave 7 S7.3 - MIGRATED)
   quarantine-task:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "Quarantine a task"
 
   list-quarantined:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "List quarantined tasks"
 
   release-quarantine:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "Release task from quarantine"
 
-  # Validation and metrics
+  # Validation and metrics (Wave 7 S7.3 - MIGRATED)
   run-validation:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "Run validation command with features"
 
   collect-metrics:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "Collect metrics for a task"
 
   generate-dashboard:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "Generate metrics dashboard"
 
   compare-metrics:
-    handler: legacy
-    migrated: false
+    handler: typer
+    migrated: true
     description: "Compare baseline and current metrics"
 
   # Context store management (Wave 3)

@@ -89,3 +89,12 @@ def initialize_commands(repo_root: Path) -> None:
 
     # Register Wave 7 exception commands (S7.2 migration)
     register_exception_commands(app, ctx)
+
+    # Register Wave 7 remaining commands (S7.3 migration)
+    from .commands.quarantine import register_quarantine_commands
+    from .commands.validation_commands import register_validation_commands
+    from .commands.metrics_commands import register_metrics_commands
+
+    register_quarantine_commands(app, ctx)
+    register_validation_commands(app, ctx)
+    register_metrics_commands(app, ctx)

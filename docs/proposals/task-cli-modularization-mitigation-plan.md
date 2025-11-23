@@ -365,20 +365,32 @@ commands/workflow.py (673 LOC) →
 - **Removed obsolete tests**: test_output.py, test_commands.py (tested deprecated APIs)
 - **Artifact**: Commit 9df672e - feat(tasks-cli): remove deprecated globals from output.py (M3.2)
 
-#### M3.3: Add Migration ADR
+#### M3.3: Add Migration ADR ✅ COMPLETED
 **Owner**: Implementation Team
 **Effort**: 1 hour
+**Completed**: 2025-11-23
 
 **Tasks**:
-1. Create `adr/ADR-XXXX-output-channel-migration.md`
+1. Create `adr/ADR-XXXX-output-channel-migration.md` ✅
 2. Document:
-   - Decision: Migrate from global state to injected OutputChannel
-   - Rationale: Thread-safety, testability, concurrent invocations
-   - Consequences: Breaking change for direct imports (none expected)
-   - Migration path completed
+   - Decision: Migrate from global state to injected OutputChannel ✅
+   - Rationale: Thread-safety, testability, concurrent invocations ✅
+   - Consequences: Breaking change for direct imports (none expected) ✅
+   - Migration path completed ✅
 
 **Acceptance Criteria**:
-- [ ] ADR created and linked from proposal
+- [x] ADR created and linked from proposal ✅
+
+**Implementation Summary**:
+- **Created ADR**: `adr/0013-task-cli-output-channel-migration.md`
+- **Documented Context**: Global state problems (thread-safety, testability, future-blocking)
+- **Documented Decision**: Dependency-injected OutputChannel instances via TaskCliContext
+- **Documented Consequences**: Thread-safety achieved, testability improved, -1,117 LOC reduction
+- **Documented Alternatives**: 5 alternatives considered and rejected with rationale
+- **Documented Implementation**: Complete migration timeline (M3.1 audit → M3.2 refactor)
+- **Linked Related Work**: Proposal sections, mitigation plan GAP-3, audit CSV, implementation commits
+- **Next Steps**: ADR available for reference by M4.1 (Architecture ADR) which depends on M3.3
+- **Artifact**: ADR 0013 completes GAP-3 documentation requirements
 
 **Related Proposal Sections**: 4.4 (Output & Telemetry), Section 5 Phase 4
 

@@ -11,8 +11,6 @@ from ..metrics import (
     compare_metrics
 )
 from ..output import (
-    print_json,
-    is_json_mode,
     format_success_response,
     format_error_response
 )
@@ -23,16 +21,16 @@ EXIT_GENERAL_ERROR = 1
 EXIT_IO_ERROR = 40
 
 
-def print_success(data: Dict[str, Any]) -> None:
+def print_success(ctx: "TaskCliContext", data: Dict[str, Any]) -> None:
     """Print success response in JSON mode or text mode."""
-    if is_json_mode():
+    if ctx.output_channel.json_mode:
         response = format_success_response(data)
-        print_json(response)
+        ctx.output_channel.print_json(response)
 
 
-def print_error(error: Dict[str, Any], exit_code: int) -> None:
+def print_error(ctx: "TaskCliContext", error: Dict[str, Any], exit_code: int) -> None:
     """Print error response and exit."""
-    if is_json_mode():
+    if ctx.output_channel.json_mode:
         response = format_error_response(
             code=error["code"],
             message=error["message"],
@@ -40,7 +38,7 @@ def print_error(error: Dict[str, Any], exit_code: int) -> None:
             name=error.get("name"),
             recovery_action=error.get("recovery_action")
         )
-        print_json(response)
+        ctx.output_channel.print_json(response)
     else:
         print(f"Error [{error['code']}]: {error['message']}", file=sys.stderr)
         if "recovery_action" in error:
@@ -48,11 +46,12 @@ def print_error(error: Dict[str, Any], exit_code: int) -> None:
     sys.exit(exit_code)
 
 
-def cmd_collect_metrics(args) -> int:
+def cmd_collect_metrics(ctx: "TaskCliContext", args) -> int:
     """
     Collect metrics for a task.
 
     Args:
+        ctx: TaskCliContext with output channel
         args: Parsed arguments with task_id, baseline_path (optional)
 
     Returns:
@@ -113,8 +112,8 @@ def cmd_collect_metrics(args) -> int:
         with open(output_path, 'w') as f:
             json.dump(metrics_output, f, indent=2)
 
-        if is_json_mode():
-            print_success(metrics_output)
+        if ctx.output_channel.json_mode:
+            print_success(ctx, metrics_output)
         else:
             print(f"✓ Metrics collected for {args.task_id}")
             print(f"  Agents: {len(metrics.agents_run)}")
@@ -132,7 +131,7 @@ def cmd_collect_metrics(args) -> int:
             "details": {},
             "recovery_action": "Ensure task has telemetry data"
         }
-        print_error(error, exit_code=EXIT_IO_ERROR)
+        print_error(ctx, error, exit_code=EXIT_IO_ERROR)
 
     except Exception as e:
         error = {
@@ -142,14 +141,15 @@ def cmd_collect_metrics(args) -> int:
             "details": {},
             "recovery_action": "Check logs and retry"
         }
-        print_error(error, exit_code=EXIT_GENERAL_ERROR)
+        print_error(ctx, error, exit_code=EXIT_GENERAL_ERROR)
 
 
-def cmd_generate_dashboard(args) -> int:
+def cmd_generate_dashboard(ctx: "TaskCliContext", args) -> int:
     """
     Generate metrics dashboard across tasks.
 
     Args:
+        ctx: TaskCliContext with output channel
         args: Parsed arguments with task_ids (list), output_path
 
     Returns:
@@ -161,9 +161,9 @@ def cmd_generate_dashboard(args) -> int:
 
         dashboard = generate_metrics_dashboard(args.task_ids, repo_root, output_path)
 
-        if is_json_mode():
+        if ctx.output_channel.json_mode:
             from dataclasses import asdict
-            print_success(asdict(dashboard))
+            print_success(ctx, asdict(dashboard))
         else:
             print(f"✓ Dashboard generated for {dashboard.total_tasks} tasks")
             print(f"  All criteria met: {dashboard.all_criteria_met}")
@@ -179,14 +179,15 @@ def cmd_generate_dashboard(args) -> int:
             "details": {},
             "recovery_action": "Check logs and retry"
         }
-        print_error(error, exit_code=EXIT_GENERAL_ERROR)
+        print_error(ctx, error, exit_code=EXIT_GENERAL_ERROR)
 
 
-def cmd_compare_metrics(args) -> int:
+def cmd_compare_metrics(ctx: "TaskCliContext", args) -> int:
     """
     Compare baseline and current metrics.
 
     Args:
+        ctx: TaskCliContext with output channel
         args: Parsed arguments with baseline_path, current_path
 
     Returns:
@@ -195,8 +196,8 @@ def cmd_compare_metrics(args) -> int:
     try:
         comparison = compare_metrics(Path(args.baseline_path), Path(args.current_path))
 
-        if is_json_mode():
-            print_success(comparison)
+        if ctx.output_channel.json_mode:
+            print_success(ctx, comparison)
         else:
             print("Metrics Comparison:")
             for metric, delta in comparison["deltas"].items():
@@ -213,7 +214,7 @@ def cmd_compare_metrics(args) -> int:
             "details": {},
             "recovery_action": "Check logs and retry"
         }
-        print_error(error, exit_code=EXIT_GENERAL_ERROR)
+        print_error(ctx, error, exit_code=EXIT_GENERAL_ERROR)
 
 
 # --- Typer Registration (Wave 7: S7.3) ---
@@ -234,7 +235,7 @@ def register_metrics_commands(app, ctx) -> None:
         args = Args()
         args.task_id = task_id
         args.baseline_path = baseline_path
-        raise SystemExit(cmd_collect_metrics(args))
+        raise SystemExit(cmd_collect_metrics(ctx, args))
 
     @app.command("generate-dashboard")
     def generate_dashboard_cmd(
@@ -247,7 +248,7 @@ def register_metrics_commands(app, ctx) -> None:
         args = Args()
         args.task_ids = task_ids
         args.output_path = output_path
-        raise SystemExit(cmd_generate_dashboard(args))
+        raise SystemExit(cmd_generate_dashboard(ctx, args))
 
     @app.command("compare-metrics")
     def compare_metrics_cmd(
@@ -260,4 +261,4 @@ def register_metrics_commands(app, ctx) -> None:
         args = Args()
         args.baseline_path = baseline_path
         args.current_path = current_path
-        raise SystemExit(cmd_compare_metrics(args))
+        raise SystemExit(cmd_compare_metrics(ctx, args))

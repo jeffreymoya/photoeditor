@@ -60,7 +60,7 @@ from .exceptions import ValidationError, WorkflowHaltError
 from .graph import DependencyGraph
 from .models import Task
 from .operations import TaskOperationError, TaskOperations
-from .output import set_json_mode
+from .output import OutputChannel
 from .picker import TaskPicker, check_halt_conditions
 from .providers import GitProvider
 
@@ -1599,11 +1599,16 @@ For more information, see: docs/proposals/task-context-cache-hardening.md
             print(f"Recovery: {error['recovery_action']}", file=sys.stderr)
         sys.exit(1)
 
-    # Set JSON output mode for stream separation
-    set_json_mode(args.format == 'json')
-
     # Find repository root
     repo_root = find_repo_root()
+
+    # Create context with appropriate output channel for legacy commands
+    # (Typer commands create their own context via dispatcher)
+    legacy_ctx = TaskCliContext.from_repo_root(
+        repo_root,
+        json_mode=(args.format == 'json'),
+        verbose=False
+    )
 
     # Determine which command was invoked
     command = None
@@ -1721,7 +1726,7 @@ For more information, see: docs/proposals/task-context-cache-hardening.md
         # Context cache commands
         elif args.init_context:
             args.task_id = args.init_context
-            return cmd_init_context(args)
+            return cmd_init_context(legacy_ctx, args)
 
         elif args.get_context:
             return cmd_get_context(args, repo_root)
@@ -1747,58 +1752,58 @@ For more information, see: docs/proposals/task-context-cache-hardening.md
         # Evidence and standards commands
         elif args.attach_evidence:
             args.task_id = args.attach_evidence
-            return cmd_attach_evidence(args)
+            return cmd_attach_evidence(legacy_ctx, args)
 
         elif args.list_evidence:
             args.task_id = args.list_evidence
-            return cmd_list_evidence(args)
+            return cmd_list_evidence(legacy_ctx, args)
 
         elif args.attach_standard:
             args.task_id = args.attach_standard
-            return cmd_attach_standard(args)
+            return cmd_attach_standard(legacy_ctx, args)
 
         # Exception ledger commands
         elif args.add_exception:
             args.task_id = args.add_exception
-            return cmd_add_exception(args)
+            return cmd_add_exception(legacy_ctx, args)
 
         elif args.list_exceptions:
-            return cmd_list_exceptions(args)
+            return cmd_list_exceptions(legacy_ctx, args)
 
         elif args.resolve_exception:
             args.task_id = args.resolve_exception
-            return cmd_resolve_exception(args)
+            return cmd_resolve_exception(legacy_ctx, args)
 
         elif args.cleanup_exceptions:
             args.task_id = args.cleanup_exceptions
-            return cmd_cleanup_exceptions(args)
+            return cmd_cleanup_exceptions(legacy_ctx, args)
 
         # Quarantine commands
         elif args.quarantine_task:
             args.task_id = args.quarantine_task
-            return cmd_quarantine_task(args)
+            return cmd_quarantine_task(legacy_ctx, args)
 
         elif args.list_quarantined:
-            return cmd_list_quarantined(args)
+            return cmd_list_quarantined(legacy_ctx, args)
 
         elif args.release_quarantine:
             args.task_id = args.release_quarantine
-            return cmd_release_quarantine(args)
+            return cmd_release_quarantine(legacy_ctx, args)
 
         # Enhanced commands (Session S15)
         elif hasattr(args, 'run_validation') and args.run_validation:
             args.task_id = args.run_validation
-            return cmd_run_validation(args)
+            return cmd_run_validation(legacy_ctx, args)
 
         elif hasattr(args, 'collect_metrics') and args.collect_metrics:
             args.task_id = args.collect_metrics
-            return cmd_collect_metrics(args)
+            return cmd_collect_metrics(legacy_ctx, args)
 
         elif hasattr(args, 'generate_dashboard') and args.generate_dashboard:
-            return cmd_generate_dashboard(args)
+            return cmd_generate_dashboard(legacy_ctx, args)
 
         elif hasattr(args, 'compare_metrics') and args.compare_metrics:
-            return cmd_compare_metrics(args)
+            return cmd_compare_metrics(legacy_ctx, args)
 
     except KeyboardInterrupt:
         print("\nInterrupted", file=sys.stderr)

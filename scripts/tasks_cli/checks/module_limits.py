@@ -84,10 +84,14 @@ def scan_module_loc(base_dir: Path, limit: int = 500) -> list[LOCViolation]:
     """
     violations: list[LOCViolation] = []
 
-    # Scan all .py files in tasks_cli (excluding tests)
-    for py_file in base_dir.glob("*.py"):
+    # Scan all .py files in tasks_cli recursively (excluding tests)
+    for py_file in base_dir.rglob("*.py"):
         # Skip test files
-        if py_file.name.startswith("test_"):
+        if "tests" in py_file.parts or py_file.name.startswith("test_"):
+            continue
+
+        # models.py files exempted: pure dataclasses/schemas, no logic
+        if py_file.name == "models.py":
             continue
 
         # Count lines (non-empty)

@@ -525,6 +525,31 @@ Fixed: Hardening v1.0 routes warnings to stderr, JSON to stdout (no interleaving
 
 **See**: `docs/troubleshooting.md` for complete error code reference and recovery procedures
 
+## Task CLI Guardrails
+
+The tasks CLI enforces code quality standards through static analysis guardrails defined in `scripts/tasks_cli/checks/module_limits.py`.
+
+### Module LOC Limits
+
+**Policy**: No CLI module may exceed 500 LOC to maintain single responsibility and reviewability.
+
+**Enforcement**:
+```bash
+python scripts/tasks_cli/checks/module_limits.py          # Warn-only mode
+python scripts/tasks_cli/checks/module_limits.py --hard-fail  # Fail on violations
+```
+
+**Exemptions**:
+- `*/models.py` files: Pure dataclasses/schemas with no business logic (exempted due to declarative nature)
+- Test files: Automatically excluded from LOC checks
+
+**Rationale**: The modularization effort (see `docs/proposals/task-cli-modularization.md`) decomposed the original 3,671 LOC monolith into focused modules. LOC limits prevent regression to mega-files and enforce separation of concerns.
+
+**When violations occur**:
+1. Review the module for logical split points (see mitigation plan `docs/proposals/task-cli-modularization-mitigation-plan.md`)
+2. Decompose into focused submodules (e.g., `commands/context.py` → `commands/context/*.py`)
+3. If module is cohesive and cannot be split without harming design, request exemption with documented justification
+
 ## Keep the Template Authoritative
 - Use a single canonical template: `docs/templates/TASK-0000-template.task.yaml`.
 - If you find a gap, improve the canonical template and reference that change in your task/PR/ADR. Do not diverge per‑task.

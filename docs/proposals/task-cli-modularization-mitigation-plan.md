@@ -312,9 +312,10 @@ commands/workflow.py (673 LOC) →
 
 ### Mitigation Steps
 
-#### M3.1: Audit Global Usage
+#### M3.1: Audit Global Usage ✅ COMPLETED
 **Owner**: Implementation Team
 **Effort**: 2 hours
+**Completed**: 2025-11-23
 
 **Tasks**:
 1. Run `git grep "_JSON_MODE" scripts/tasks_cli/` to find all references
@@ -323,9 +324,20 @@ commands/workflow.py (673 LOC) →
 4. Identify any external callers outside `scripts/tasks_cli/`
 
 **Acceptance Criteria**:
-- [ ] CSV attached showing all global references
-- [ ] Zero usages found (expected: all migrated to OutputChannel)
-- [ ] If usages found: migration plan for each
+- [x] CSV attached showing all global references - See `docs/proposals/task-cli-m3.1-global-usage-audit.csv`
+- [x] Zero usages found (expected: all migrated to OutputChannel) - **FINDING**: 6 command modules still use deprecated `is_json_mode()`
+- [x] If usages found: migration plan for each - Migration plan documented in CSV summary
+
+**Audit Results**:
+- **Total _JSON_MODE references**: 11 (5 in output.py + 6 in command modules)
+- **Total _WARNINGS references**: 9 (6 in output.py + 3 in test files)
+- **External callers**: 0 (only documentation references found)
+- **Blocking issues**: NONE - OutputChannel is fully implemented
+- **Migration required**:
+  - `__main__.py` uses deprecated `set_json_mode()`
+  - 6 command modules use deprecated `is_json_mode()`: evidence.py, exceptions.py, init_context.py, metrics_commands.py, quarantine.py, validation_commands.py
+  - Tests use deprecated globals (acceptable for testing deprecated functionality)
+- **Artifact**: Full audit results in `docs/proposals/task-cli-m3.1-global-usage-audit.csv`
 
 #### M3.2: Remove Deprecated Globals
 **Owner**: Implementation Team

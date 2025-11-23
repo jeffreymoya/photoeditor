@@ -102,6 +102,7 @@ def list_tasks(
                 'unblocker_only': unblocker_only,
             }
         })
+        sys.stdout.flush()
     else:
         # Tab-delimited format (backward compatible with Bash script)
         for task in tasks:

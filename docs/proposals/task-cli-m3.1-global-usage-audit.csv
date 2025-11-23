@@ -1,0 +1,52 @@
+Global,File,Line,Usage Type,Function/Context,Migrated to OutputChannel,Notes
+_JSON_MODE,scripts/tasks_cli/output.py,43,Declaration,Module-level global,No,Deprecated - marked for removal
+_JSON_MODE,scripts/tasks_cli/output.py,225,Mutation,set_json_mode(),No,Deprecated function - use OutputChannel.from_cli_flags()
+_JSON_MODE,scripts/tasks_cli/output.py,226,Mutation,set_json_mode(),No,Deprecated function - use OutputChannel.from_cli_flags()
+_JSON_MODE,scripts/tasks_cli/output.py,236,Read,is_json_mode(),No,Deprecated function - use ctx.output_channel.json_mode
+_JSON_MODE,scripts/tasks_cli/output.py,269,Read,print_warning(),No,Deprecated function - use ctx.output_channel.emit_warning()
+_JSON_MODE,scripts/tasks_cli/__main__.py,N/A,Call,set_json_mode() call,Partial,Main entry still uses deprecated function
+_JSON_MODE,scripts/tasks_cli/commands/evidence.py,Multiple,Call,is_json_mode() calls,No,5 calls to deprecated function
+_JSON_MODE,scripts/tasks_cli/commands/exceptions.py,Multiple,Call,is_json_mode() calls,No,6 calls to deprecated function
+_JSON_MODE,scripts/tasks_cli/commands/init_context.py,Multiple,Call,is_json_mode() calls,No,3 calls to deprecated function
+_JSON_MODE,scripts/tasks_cli/commands/metrics_commands.py,Multiple,Call,is_json_mode() calls,No,5 calls to deprecated function
+_JSON_MODE,scripts/tasks_cli/commands/quarantine.py,Multiple,Call,is_json_mode() calls,No,5 calls to deprecated function
+_JSON_MODE,scripts/tasks_cli/commands/validation_commands.py,Multiple,Call,is_json_mode() calls,No,3 calls to deprecated function
+_WARNINGS,scripts/tasks_cli/output.py,44,Declaration,Module-level global,No,Deprecated - marked for removal
+_WARNINGS,scripts/tasks_cli/output.py,290,Mutation,add_warning(),No,Deprecated function - use ctx.output_channel.emit_warning()
+_WARNINGS,scripts/tasks_cli/output.py,298,Mutation,add_warning(),No,Deprecated function - use ctx.output_channel.emit_warning()
+_WARNINGS,scripts/tasks_cli/output.py,314,Read,collect_warnings(),No,Deprecated function - use ctx.output_channel.warnings_as_evidence()
+_WARNINGS,scripts/tasks_cli/output.py,323,Mutation,clear_warnings(),No,Deprecated function - use ctx.output_channel.clear_warnings()
+_WARNINGS,scripts/tasks_cli/output.py,324,Mutation,clear_warnings(),No,Deprecated function - use ctx.output_channel.clear_warnings()
+_WARNINGS,scripts/tasks_cli/tests/test_output_channel.py,238,Read,Test imports,N/A,Test file - testing deprecated functions (acceptable)
+_WARNINGS,scripts/tasks_cli/tests/test_output_channel.py,241,Read,Test assertion,N/A,Test file - testing deprecated functions (acceptable)
+_WARNINGS,scripts/tasks_cli/tests/test_output_channel.py,248,Read,Test assertion,N/A,Test file - testing deprecated functions (acceptable)
+
+Summary Findings:
+================
+Total _JSON_MODE references: 11 (5 in output.py definition + 6 in commands)
+Total _WARNINGS references: 9 (6 in output.py definition + 3 in tests)
+External callers (outside scripts/tasks_cli/): 0 (only documentation references)
+
+Migration Status:
+=================
+- OutputChannel class EXISTS and is IMPLEMENTED with proper methods
+- Deprecated globals are clearly marked with deprecation comments
+- Main entry point (__main__.py) still uses deprecated set_json_mode()
+- 6 command modules still use deprecated is_json_mode() function
+- No usage of deprecated add_warning(), collect_warnings() found in commands
+- Test file usage is ACCEPTABLE (testing deprecated functionality)
+
+Blocking Issues:
+===============
+NONE - All command modules have access to ctx.output_channel
+      They just need to be refactored to use:
+      - ctx.output_channel.json_mode instead of is_json_mode()
+      - ctx.output_channel.emit_warning() instead of print_warning()
+
+Next Steps (M3.2):
+==================
+1. Refactor __main__.py to use OutputChannel.from_cli_flags()
+2. Refactor 6 command modules to use ctx.output_channel.json_mode
+3. Remove deprecated global declarations and functions from output.py
+4. Update tests to use OutputChannel instances or remove deprecated tests
+5. Verify all integration tests pass

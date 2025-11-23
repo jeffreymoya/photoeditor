@@ -56,19 +56,8 @@ def main():
     Main CLI entry point.
 
     Initializes Typer app with repository context and dispatches to commands.
-    All legacy argparse commands have been migrated to Typer.
+    All commands migrated to Typer as of 2025-11-23.
     """
-    # Check for legacy dispatch environment variable (deprecated)
-    if os.environ.get('TASKS_CLI_LEGACY_DISPATCH'):
-        print(
-            "Warning: TASKS_CLI_LEGACY_DISPATCH is deprecated and no longer supported.",
-            file=sys.stderr
-        )
-        print(
-            "All commands have been migrated to Typer. The flag will be ignored.",
-            file=sys.stderr
-        )
-
     # Find repository root
     try:
         repo_root = find_repo_root()

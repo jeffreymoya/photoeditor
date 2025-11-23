@@ -188,20 +188,28 @@ The Task CLI modularization effort has achieved its **core architectural goals**
 
 ### Mitigation Steps
 
-#### M2.1: Exempt Data Models (models.py)
+#### M2.1: Exempt Data Models (models.py) ✅ COMPLETED
 **Owner**: Implementation Team
 **Effort**: 1 hour
+**Completed**: 2025-11-23
 
 **Rationale**: `context_store/models.py` at 1,085 LOC is pure dataclasses/schemas (acceptable per proposal context: "models only")
 
 **Tasks**:
-1. Update `scripts/tasks_cli/checks/module_limits.py` to exempt `*/models.py` files
-2. Add comment: `# models.py files exempted: pure dataclasses/schemas, no logic`
-3. Document exemption policy in `tasks/README.md` guardrails section
+1. Update `scripts/tasks_cli/checks/module_limits.py` to exempt `*/models.py` files ✅
+2. Add comment: `# models.py files exempted: pure dataclasses/schemas, no logic` ✅
+3. Document exemption policy in `tasks/README.md` guardrails section ✅
 
 **Acceptance Criteria**:
-- [ ] `models.py` files skipped by guardrail check
-- [ ] CI still enforces 500 LOC for all other modules
+- [x] `models.py` files skipped by guardrail check - **VERIFIED**: context_store/models.py (1,085 LOC) no longer reported
+- [x] CI still enforces 500 LOC for all other modules - **VERIFIED**: 8 other violations still detected
+
+**Implementation Summary**:
+- **Updated module_limits.py**: Changed `glob("*.py")` to `rglob("*.py")` for recursive scanning
+- **Added exemption**: Skip files named `models.py` with explanatory comment
+- **Documented in tasks/README.md**: New "Task CLI Guardrails" section with exemption policy
+- **Test results**: `context_store/models.py` (1,085 LOC) correctly exempted, other violations still reported
+- **Artifacts**: 8 non-exempt modules still exceed limit (linter.py, git.py, qa.py, immutable.py, delta_tracking.py, facade.py, workflow.py, context.py)
 
 #### M2.2: Decompose providers/git.py (978 LOC)
 **Owner**: Implementation Team
@@ -779,10 +787,10 @@ commands/workflow.py (673 LOC) →
 | M1.1 | Audit legacy dispatch | 2h | None | ✅ Complete |
 | M1.2 | Delete legacy dispatch | 4h | M1.1 | ✅ Complete |
 | M1.3 | Remove compat shims | 2h | M1.2 | ✅ Complete |
-| M3.1 | Audit global usage | 2h | None |
-| M3.2 | Remove deprecated globals | 1h | M3.1 |
-| M3.3 | Migration ADR | 1h | M3.2 |
-| M2.1 | Exempt models.py | 1h | None |
+| M3.1 | Audit global usage | 2h | None | ✅ Complete |
+| M3.2 | Remove deprecated globals | 1h | M3.1 | ✅ Complete |
+| M3.3 | Migration ADR | 1h | M3.2 | ✅ Complete |
+| M2.1 | Exempt models.py | 1h | None | ✅ Complete |
 | M2.6 | Enable hard-fail guardrails | 1h | M2.1-M2.5 |
 | M4.1 | Architecture ADR | 3h | M1.3, M3.3 |
 | M6.3 | Subprocess lint rule | 3h | M6.1, M6.2 |

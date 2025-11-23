@@ -14,10 +14,9 @@ Configuration via environment variables:
 """
 
 import os
+import sys
 from typing import Optional
 from enum import Enum
-
-from .output import print_warning
 
 
 class NotificationLevel(Enum):
@@ -176,7 +175,8 @@ class NotificationService:
             return response.status_code == 200
         except Exception as e:
             # Silent failure - don't interrupt task runner
-            print_warning(f"Failed to send Telegram notification: {e}", level="warning")
+            sys.stderr.write(f"[WARNING] Failed to send Telegram notification: {e}\n")
+            sys.stderr.flush()
             return False
 
     def _build_ntfyt_url(self) -> str:
@@ -220,7 +220,8 @@ class NotificationService:
             return 200 <= response.status_code < 300
         except Exception as e:
             # Silent failure - don't interrupt task runner
-            print_warning(f"Failed to send ntfyt notification: {e}", level="warning")
+            sys.stderr.write(f"[WARNING] Failed to send ntfyt notification: {e}\n")
+            sys.stderr.flush()
             return False
 
 

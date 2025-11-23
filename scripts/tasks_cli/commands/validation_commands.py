@@ -5,8 +5,6 @@ from typing import Dict, Any
 import sys
 
 from ..output import (
-    print_json,
-    is_json_mode,
     format_success_response,
     format_error_response
 )
@@ -19,16 +17,16 @@ EXIT_VALIDATION_ERROR = 10
 EXIT_BLOCKER_ERROR = 30
 
 
-def print_success(data: Dict[str, Any]) -> None:
+def print_success(ctx: "TaskCliContext", data: Dict[str, Any]) -> None:
     """Print success response in JSON mode or text mode."""
-    if is_json_mode():
+    if ctx.output_channel.json_mode:
         response = format_success_response(data)
-        print_json(response)
+        ctx.output_channel.print_json(response)
 
 
-def print_error(error: Dict[str, Any], exit_code: int) -> None:
+def print_error(ctx: "TaskCliContext", error: Dict[str, Any], exit_code: int) -> None:
     """Print error response and exit."""
-    if is_json_mode():
+    if ctx.output_channel.json_mode:
         response = format_error_response(
             code=error["code"],
             message=error["message"],
@@ -36,7 +34,7 @@ def print_error(error: Dict[str, Any], exit_code: int) -> None:
             name=error.get("name"),
             recovery_action=error.get("recovery_action")
         )
-        print_json(response)
+        ctx.output_channel.print_json(response)
     else:
         print(f"Error [{error['code']}]: {error['message']}", file=sys.stderr)
         if "recovery_action" in error:
@@ -44,11 +42,12 @@ def print_error(error: Dict[str, Any], exit_code: int) -> None:
     sys.exit(exit_code)
 
 
-def cmd_run_validation(args) -> int:
+def cmd_run_validation(ctx: "TaskCliContext", args) -> int:
     """
     Run validation command with all features.
 
     Args:
+        ctx: TaskCliContext with output channel
         args: Parsed arguments with task_id, command_id, command, and other options
 
     Returns:
@@ -82,8 +81,8 @@ def cmd_run_validation(args) -> int:
 
         result = execute_validation_command(validation_cmd, args.task_id, repo_root)
 
-        if is_json_mode():
-            print_success(result)
+        if ctx.output_channel.json_mode:
+            print_success(ctx, result)
         else:
             if result.get("skipped"):
                 print(f"⊘ Validation skipped: {result['skip_reason']}")
@@ -108,7 +107,7 @@ def cmd_run_validation(args) -> int:
             "details": {},
             "recovery_action": "Check logs and retry"
         }
-        print_error(error, exit_code=EXIT_GENERAL_ERROR)
+        print_error(ctx, error, exit_code=EXIT_GENERAL_ERROR)
 
 
 # --- Typer Registration (Wave 7: S7.3) ---
@@ -149,4 +148,4 @@ def register_validation_commands(app, ctx) -> None:
         args.timeout_ms = timeout_ms
         args.criticality = criticality
         args.expected_exit_codes = expected_exit_codes or [0]
-        raise SystemExit(cmd_run_validation(args))
+        raise SystemExit(cmd_run_validation(ctx, args))

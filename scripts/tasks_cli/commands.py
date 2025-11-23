@@ -73,8 +73,6 @@ from .commands.metrics_commands import (
 
 # Re-export common output helpers for backward compatibility
 from .output import (
-    print_json,
-    is_json_mode,
     format_success_response,
     format_error_response
 )
@@ -88,5 +86,5 @@ __all__ = [
     'cmd_init_context', '_extract_standards_citations', '_build_standards_citations',
     '_infer_command_type', 'cmd_run_validation',
     'cmd_collect_metrics', 'cmd_generate_dashboard', 'cmd_compare_metrics',
-    'print_json', 'is_json_mode', 'format_success_response', 'format_error_response',
+    'format_success_response', 'format_error_response',
 ]

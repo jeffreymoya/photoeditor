@@ -10,8 +10,6 @@ from ..quarantine import (
     release_from_quarantine,
 )
 from ..output import (
-    print_json,
-    is_json_mode,
     format_success_response,
     format_error_response
 )
@@ -23,16 +21,16 @@ EXIT_VALIDATION_ERROR = 10
 EXIT_IO_ERROR = 40
 
 
-def print_success(data: Dict[str, Any]) -> None:
+def print_success(ctx: "TaskCliContext", data: Dict[str, Any]) -> None:
     """Print success response in JSON mode or text mode."""
-    if is_json_mode():
+    if ctx.output_channel.json_mode:
         response = format_success_response(data)
-        print_json(response)
+        ctx.output_channel.print_json(response)
 
 
-def print_error(error: Dict[str, Any], exit_code: int) -> None:
+def print_error(ctx: "TaskCliContext", error: Dict[str, Any], exit_code: int) -> None:
     """Print error response and exit."""
-    if is_json_mode():
+    if ctx.output_channel.json_mode:
         response = format_error_response(
             code=error["code"],
             message=error["message"],
@@ -40,7 +38,7 @@ def print_error(error: Dict[str, Any], exit_code: int) -> None:
             name=error.get("name"),
             recovery_action=error.get("recovery_action")
         )
-        print_json(response)
+        ctx.output_channel.print_json(response)
     else:
         print(f"Error [{error['code']}]: {error['message']}", file=sys.stderr)
         if "recovery_action" in error:
@@ -48,11 +46,12 @@ def print_error(error: Dict[str, Any], exit_code: int) -> None:
     sys.exit(exit_code)
 
 
-def cmd_list_quarantined(args) -> int:
+def cmd_list_quarantined(ctx: "TaskCliContext", args) -> int:
     """
     List quarantined tasks.
 
     Args:
+        ctx: TaskCliContext with output channel
         args: Parsed arguments with optional status filter
 
     Returns:
@@ -62,10 +61,10 @@ def cmd_list_quarantined(args) -> int:
         status_filter = args.status if hasattr(args, 'status') and args.status else None
         quarantined = list_quarantined(status_filter=status_filter)
 
-        if is_json_mode():
+        if ctx.output_channel.json_mode:
             # Convert to dict for JSON serialization
             quarantined_dicts = [q.to_dict() for q in quarantined]
-            print_success({"quarantined": quarantined_dicts, "count": len(quarantined_dicts)})
+            print_success(ctx, {"quarantined": quarantined_dicts, "count": len(quarantined_dicts)})
         else:
             if not quarantined:
                 print("No quarantined tasks")
@@ -85,14 +84,15 @@ def cmd_list_quarantined(args) -> int:
             "details": {},
             "recovery_action": "Check logs and retry"
         }
-        print_error(error, exit_code=EXIT_GENERAL_ERROR)
+        print_error(ctx, error, exit_code=EXIT_GENERAL_ERROR)
 
 
-def cmd_release_quarantine(args) -> int:
+def cmd_release_quarantine(ctx: "TaskCliContext", args) -> int:
     """
     Release task from quarantine.
 
     Args:
+        ctx: TaskCliContext with output channel
         args: Parsed arguments with task_id
 
     Returns:
@@ -101,8 +101,8 @@ def cmd_release_quarantine(args) -> int:
     try:
         release_from_quarantine(task_id=args.task_id)
 
-        if is_json_mode():
-            print_success({"task_id": args.task_id, "status": "released"})
+        if ctx.output_channel.json_mode:
+            print_success(ctx, {"task_id": args.task_id, "status": "released"})
         else:
             print(f"✓ Released {args.task_id} from quarantine")
 
@@ -116,7 +116,7 @@ def cmd_release_quarantine(args) -> int:
             "details": {"task_id": args.task_id},
             "recovery_action": "Verify task is currently quarantined"
         }
-        print_error(error, exit_code=EXIT_IO_ERROR)
+        print_error(ctx, error, exit_code=EXIT_IO_ERROR)
 
     except Exception as e:
         error = {
@@ -126,14 +126,15 @@ def cmd_release_quarantine(args) -> int:
             "details": {},
             "recovery_action": "Check logs and retry"
         }
-        print_error(error, exit_code=EXIT_GENERAL_ERROR)
+        print_error(ctx, error, exit_code=EXIT_GENERAL_ERROR)
 
 
-def cmd_quarantine_task(args) -> int:
+def cmd_quarantine_task(ctx: "TaskCliContext", args) -> int:
     """
     Quarantine a task.
 
     Args:
+        ctx: TaskCliContext with output channel
         args: Parsed arguments with task_id, reason, error_details
 
     Returns:
@@ -150,8 +151,8 @@ def cmd_quarantine_task(args) -> int:
             repo_root=repo_root
         )
 
-        if is_json_mode():
-            print_success({"task_id": args.task_id, "reason": args.reason, "path": str(entry_path)})
+        if ctx.output_channel.json_mode:
+            print_success(ctx, {"task_id": args.task_id, "reason": args.reason, "path": str(entry_path)})
         else:
             print(f"✓ Task {args.task_id} quarantined")
             print(f"  Reason: {args.reason}")
@@ -167,7 +168,7 @@ def cmd_quarantine_task(args) -> int:
             "details": {},
             "recovery_action": "Verify task_id and reason format"
         }
-        print_error(error, exit_code=EXIT_VALIDATION_ERROR)
+        print_error(ctx, error, exit_code=EXIT_VALIDATION_ERROR)
 
     except Exception as e:
         error = {
@@ -177,7 +178,7 @@ def cmd_quarantine_task(args) -> int:
             "details": {},
             "recovery_action": "Check logs and retry"
         }
-        print_error(error, exit_code=EXIT_GENERAL_ERROR)
+        print_error(ctx, error, exit_code=EXIT_GENERAL_ERROR)
 
 
 # --- Typer Registration (Wave 7: S7.3) ---
@@ -200,7 +201,7 @@ def register_quarantine_commands(app, ctx) -> None:
         args.task_id = task_id
         args.reason = reason
         args.error_details = error_details
-        raise SystemExit(cmd_quarantine_task(args))
+        raise SystemExit(cmd_quarantine_task(ctx, args))
 
     @app.command("list-quarantined")
     def list_quarantined_cmd(
@@ -211,7 +212,7 @@ def register_quarantine_commands(app, ctx) -> None:
             pass
         args = Args()
         args.status = status
-        raise SystemExit(cmd_list_quarantined(args))
+        raise SystemExit(cmd_list_quarantined(ctx, args))
 
     @app.command("release-quarantine")
     def release_quarantine_cmd(
@@ -222,4 +223,4 @@ def register_quarantine_commands(app, ctx) -> None:
             pass
         args = Args()
         args.task_id = task_id
-        raise SystemExit(cmd_release_quarantine(args))
+        raise SystemExit(cmd_release_quarantine(ctx, args))

@@ -1,10 +1,9 @@
 """
 Output formatting and stream management for task CLI.
 
-Implements warning channel separation per task-context-cache-hardening proposal
-Section 3.2. Ensures JSON output goes to stdout only, warnings go to stderr when
---format json is used, and all JSON output is machine-parseable (no interleaved
-warnings).
+Provides thread-safe output management via OutputChannel instances. All output now
+uses dependency-injected OutputChannel objects passed via TaskCliContext, eliminating
+global state for better testability and concurrent invocation support.
 
 Key behaviors:
 - JSON mode: JSON to stdout, warnings to stderr
@@ -13,18 +12,17 @@ Key behaviors:
 - Standardized JSON response format per schemas doc Section 6.3
 
 Usage:
-    from .output import set_json_mode, print_json, print_warning, add_warning
+    from .output import OutputChannel
 
-    set_json_mode(args.format == 'json')
+    # Create channel from CLI flags
+    channel = OutputChannel.from_cli_flags(json_mode=True, verbose=False)
 
-    # Print JSON response (stdout only)
-    print_json({"tasks": [...]})
+    # Or get from TaskCliContext
+    ctx.output_channel.emit_json({"tasks": [...]})
+    ctx.output_channel.emit_warning("Task TASK-1234 has malformed YAML")
 
-    # Print warning (stderr in JSON mode, stdout in text mode)
-    print_warning("Task TASK-1234 has malformed YAML")
-
-    # Collect warning for later inclusion in context
-    add_warning("Task TASK-1234 has malformed YAML", level="warning")
+    # Collect warnings for evidence
+    warnings = ctx.output_channel.warnings_as_evidence()
 """
 
 import json
@@ -33,15 +31,6 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from io import StringIO
 from typing import Any, Dict, List, Optional, TextIO
-
-
-# DEPRECATED: Global state - use OutputChannel instances instead for thread safety.
-# These globals remain for backwards compatibility with legacy commands during
-# migration. They will be removed in a future release once all commands use
-# ctx.output_channel.emit_*() methods.
-# See: docs/proposals/task-cli-modularization-mitigation-plan.md Session S8.2
-_JSON_MODE = False
-_WARNINGS: List[Dict[str, str]] = []
 
 
 @dataclass
@@ -117,6 +106,44 @@ class OutputChannel:
     def clear_warnings(self) -> None:
         """Clear collected warnings."""
         self._warnings = []
+
+    # Compatibility methods for backward compatibility with commands
+    # These delegate to the proper emit_* methods
+
+    def set_json_mode(self, enabled: bool) -> None:
+        """
+        Set JSON output mode.
+
+        Compatibility method for commands that need to toggle JSON mode.
+        Prefer setting json_mode at construction via from_cli_flags().
+
+        Args:
+            enabled: True to enable JSON mode, False for text mode
+        """
+        self.json_mode = enabled
+
+    def print_json(self, data: Dict[str, Any]) -> None:
+        """
+        Print JSON data (compatibility wrapper).
+
+        Delegates to emit_json(). Prefer calling emit_json() directly.
+
+        Args:
+            data: Dictionary to serialize as JSON
+        """
+        self.emit_json(data)
+
+    def print_warning(self, message: str, level: str = "warning") -> None:
+        """
+        Print warning (compatibility wrapper).
+
+        Delegates to emit_warning(). Prefer calling emit_warning() directly.
+
+        Args:
+            message: Warning message
+            level: Severity level
+        """
+        self.emit_warning(message, level)
 
 
 class NullOutputChannel(OutputChannel):
@@ -202,126 +229,6 @@ class BufferingOutputChannel(OutputChannel):
         self.stdout = self._stdout_buffer
         self.stderr = self._stderr_buffer
         self.clear_warnings()
-
-
-def set_json_mode(enabled: bool) -> None:
-    """
-    Enable or disable JSON output mode.
-
-    .. deprecated::
-        Use OutputChannel.from_cli_flags() instead for thread-safe output.
-        This function uses global state which is not thread-safe.
-
-    When JSON mode is enabled:
-    - print_json() outputs to stdout
-    - print_warning() outputs to stderr
-
-    When JSON mode is disabled:
-    - All output goes to stdout
-
-    Args:
-        enabled: True to enable JSON mode, False for text mode
-    """
-    global _JSON_MODE
-    _JSON_MODE = enabled
-
-
-def is_json_mode() -> bool:
-    """
-    Check if JSON output mode is enabled.
-
-    Returns:
-        True if JSON mode is active, False otherwise
-    """
-    return _JSON_MODE
-
-
-def print_json(data: Dict[str, Any]) -> None:
-    """
-    Print JSON-formatted data to stdout.
-
-    Always outputs to stdout regardless of mode. Uses consistent formatting
-    with 2-space indentation and UTF-8 encoding.
-
-    Args:
-        data: Dictionary to serialize as JSON
-    """
-    output = json.dumps(data, indent=2, ensure_ascii=False)
-    sys.stdout.write(output + '\n')
-    sys.stdout.flush()
-
-
-def print_warning(message: str, level: str = "warning") -> None:
-    """
-    Print warning message to appropriate stream based on mode.
-
-    In JSON mode: writes to stderr (prevents pollution of JSON output)
-    In text mode: writes to stdout (normal console output)
-
-    Format: [LEVEL] message
-
-    Args:
-        message: Warning message text
-        level: Severity level (default: "warning")
-    """
-    formatted = f"[{level.upper()}] {message}"
-
-    if _JSON_MODE:
-        # JSON mode: warnings to stderr to keep stdout clean for JSON
-        sys.stderr.write(formatted + '\n')
-        sys.stderr.flush()
-    else:
-        # Text mode: warnings to stdout like normal console output
-        sys.stdout.write(formatted + '\n')
-        sys.stdout.flush()
-
-
-def add_warning(message: str, level: str = "warning") -> None:
-    """
-    Add warning to collection and print it.
-
-    Warnings are collected for later inclusion in context.warnings array.
-    Also prints the warning immediately using print_warning().
-
-    Args:
-        message: Warning message text
-        level: Severity level (default: "warning")
-    """
-    global _WARNINGS
-
-    warning_record = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "level": level,
-        "message": message
-    }
-
-    _WARNINGS.append(warning_record)
-    print_warning(message, level)
-
-
-def collect_warnings() -> List[Dict[str, str]]:
-    """
-    Return collected warnings for inclusion in context.warnings array.
-
-    Each warning contains:
-    - timestamp: ISO 8601 timestamp in UTC
-    - level: Severity level (e.g., "warning", "error")
-    - message: Warning message text
-
-    Returns:
-        List of warning dictionaries sorted by timestamp
-    """
-    return sorted(_WARNINGS, key=lambda w: w["timestamp"])
-
-
-def clear_warnings() -> None:
-    """
-    Clear collected warnings.
-
-    Useful for resetting state between commands or tests.
-    """
-    global _WARNINGS
-    _WARNINGS = []
 
 
 def format_json_response(

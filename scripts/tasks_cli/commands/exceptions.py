@@ -14,8 +14,6 @@ from ..exception_ledger import (
     cleanup_exception
 )
 from ..output import (
-    print_json,
-    is_json_mode,
     format_success_response,
     format_error_response
 )
@@ -26,16 +24,16 @@ EXIT_GENERAL_ERROR = 1
 EXIT_VALIDATION_ERROR = 10
 
 
-def print_success(data: Dict[str, Any]) -> None:
+def print_success(ctx: "TaskCliContext", data: Dict[str, Any]) -> None:
     """Print success response in JSON mode or text mode."""
-    if is_json_mode():
+    if ctx.output_channel.json_mode:
         response = format_success_response(data)
-        print_json(response)
+        ctx.output_channel.print_json(response)
 
 
-def print_error(error: Dict[str, Any], exit_code: int) -> None:
+def print_error(ctx: "TaskCliContext", error: Dict[str, Any], exit_code: int) -> None:
     """Print error response and exit."""
-    if is_json_mode():
+    if ctx.output_channel.json_mode:
         response = format_error_response(
             code=error["code"],
             message=error["message"],
@@ -43,7 +41,7 @@ def print_error(error: Dict[str, Any], exit_code: int) -> None:
             name=error.get("name"),
             recovery_action=error.get("recovery_action")
         )
-        print_json(response)
+        ctx.output_channel.print_json(response)
     else:
         print(f"Error [{error['code']}]: {error['message']}", file=sys.stderr)
         if "recovery_action" in error:
@@ -51,11 +49,12 @@ def print_error(error: Dict[str, Any], exit_code: int) -> None:
     sys.exit(exit_code)
 
 
-def cmd_add_exception(args) -> int:
+def cmd_add_exception(ctx: "TaskCliContext", args) -> int:
     """
     Add exception to ledger.
 
     Args:
+        ctx: TaskCliContext with output channel
         args: Parsed arguments with task_id, exception_type, message, owner
 
     Returns:
@@ -68,8 +67,8 @@ def cmd_add_exception(args) -> int:
             parse_error=args.message
         )
 
-        if is_json_mode():
-            print_success({"task_id": args.task_id, "exception_type": args.exception_type})
+        if ctx.output_channel.json_mode:
+            print_success(ctx, {"task_id": args.task_id, "exception_type": args.exception_type})
         else:
             print(f"✓ Exception added for {args.task_id}")
             print(f"  Type: {args.exception_type}")
@@ -84,14 +83,15 @@ def cmd_add_exception(args) -> int:
             "details": {},
             "recovery_action": "Check logs and retry"
         }
-        print_error(error, exit_code=EXIT_GENERAL_ERROR)
+        print_error(ctx, error, exit_code=EXIT_GENERAL_ERROR)
 
 
-def cmd_list_exceptions(args) -> int:
+def cmd_list_exceptions(ctx: "TaskCliContext", args) -> int:
     """
     List exceptions from ledger.
 
     Args:
+        ctx: TaskCliContext with output channel
         args: Parsed arguments with optional status filter
 
     Returns:
@@ -104,8 +104,8 @@ def cmd_list_exceptions(args) -> int:
         # Convert to dicts for JSON serialization
         exception_dicts = [exc.to_dict() for exc in exceptions]
 
-        if is_json_mode():
-            print_success({"exceptions": exception_dicts, "count": len(exception_dicts)})
+        if ctx.output_channel.json_mode:
+            print_success(ctx, {"exceptions": exception_dicts, "count": len(exception_dicts)})
         else:
             if not exception_dicts:
                 print("No exceptions found")
@@ -127,14 +127,15 @@ def cmd_list_exceptions(args) -> int:
             "details": {},
             "recovery_action": "Check logs and retry"
         }
-        print_error(error, exit_code=EXIT_GENERAL_ERROR)
+        print_error(ctx, error, exit_code=EXIT_GENERAL_ERROR)
 
 
-def cmd_resolve_exception(args) -> int:
+def cmd_resolve_exception(ctx: "TaskCliContext", args) -> int:
     """
     Resolve exception in ledger.
 
     Args:
+        ctx: TaskCliContext with output channel
         args: Parsed arguments with task_id, notes
 
     Returns:
@@ -144,8 +145,8 @@ def cmd_resolve_exception(args) -> int:
         notes = args.notes if hasattr(args, 'notes') and args.notes else "Resolved"
         resolve_exception(task_id=args.task_id, notes=notes)
 
-        if is_json_mode():
-            print_success({"task_id": args.task_id, "status": "resolved"})
+        if ctx.output_channel.json_mode:
+            print_success(ctx, {"task_id": args.task_id, "status": "resolved"})
         else:
             print(f"✓ Exception resolved for {args.task_id}")
 
@@ -159,7 +160,7 @@ def cmd_resolve_exception(args) -> int:
             "details": {"task_id": args.task_id},
             "recovery_action": "Verify task_id exists in exception ledger"
         }
-        print_error(error, exit_code=EXIT_VALIDATION_ERROR)
+        print_error(ctx, error, exit_code=EXIT_VALIDATION_ERROR)
 
     except Exception as e:
         error = {
@@ -169,14 +170,15 @@ def cmd_resolve_exception(args) -> int:
             "details": {},
             "recovery_action": "Check logs and retry"
         }
-        print_error(error, exit_code=EXIT_GENERAL_ERROR)
+        print_error(ctx, error, exit_code=EXIT_GENERAL_ERROR)
 
 
-def cmd_cleanup_exceptions(args) -> int:
+def cmd_cleanup_exceptions(ctx: "TaskCliContext", args) -> int:
     """
     Cleanup exceptions based on trigger.
 
     Args:
+        ctx: TaskCliContext with output channel
         args: Parsed arguments with task_id, trigger
 
     Returns:
@@ -186,8 +188,8 @@ def cmd_cleanup_exceptions(args) -> int:
         trigger = args.trigger if hasattr(args, 'trigger') and args.trigger else "manual"
         cleanup_exception(task_id=args.task_id, trigger=trigger)
 
-        if is_json_mode():
-            print_success({"task_id": args.task_id, "trigger": trigger})
+        if ctx.output_channel.json_mode:
+            print_success(ctx, {"task_id": args.task_id, "trigger": trigger})
         else:
             print(f"✓ Exception cleanup for {args.task_id} (trigger: {trigger})")
 
@@ -201,7 +203,7 @@ def cmd_cleanup_exceptions(args) -> int:
             "details": {},
             "recovery_action": "Check logs and retry"
         }
-        print_error(error, exit_code=EXIT_GENERAL_ERROR)
+        print_error(ctx, error, exit_code=EXIT_GENERAL_ERROR)
 
 
 # Typer registration
@@ -229,7 +231,7 @@ def register_exception_commands(app: "typer.Typer", ctx: "TaskCliContext") -> No
         args.task_id = task_id
         args.exception_type = exception_type
         args.message = message
-        exit_code = cmd_add_exception(args)
+        exit_code = cmd_add_exception(ctx, args)
         raise typer.Exit(code=exit_code or 0)
 
     @app.command("list-exceptions")
@@ -241,7 +243,7 @@ def register_exception_commands(app: "typer.Typer", ctx: "TaskCliContext") -> No
             pass
         args = Args()
         args.status = status
-        exit_code = cmd_list_exceptions(args)
+        exit_code = cmd_list_exceptions(ctx, args)
         raise typer.Exit(code=exit_code or 0)
 
     @app.command("resolve-exception")
@@ -255,7 +257,7 @@ def register_exception_commands(app: "typer.Typer", ctx: "TaskCliContext") -> No
         args = Args()
         args.task_id = task_id
         args.notes = notes
-        exit_code = cmd_resolve_exception(args)
+        exit_code = cmd_resolve_exception(ctx, args)
         raise typer.Exit(code=exit_code or 0)
 
     @app.command("cleanup-exceptions")
@@ -269,5 +271,5 @@ def register_exception_commands(app: "typer.Typer", ctx: "TaskCliContext") -> No
         args = Args()
         args.task_id = task_id
         args.trigger = trigger
-        exit_code = cmd_cleanup_exceptions(args)
+        exit_code = cmd_cleanup_exceptions(ctx, args)
         raise typer.Exit(code=exit_code or 0)

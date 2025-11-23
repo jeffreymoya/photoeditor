@@ -17,8 +17,6 @@ from ..quarantine import is_quarantined
 from ..task_snapshot import resolve_task_path
 from ..providers import GitProvider
 from ..output import (
-    print_json,
-    is_json_mode,
     format_success_response,
     format_error_response
 )
@@ -36,16 +34,16 @@ EXIT_IO_ERROR = 40
 EXIT_GIT_ERROR = 50
 
 
-def print_success(data: Dict[str, Any]) -> None:
+def print_success(ctx: "TaskCliContext", data: Dict[str, Any]) -> None:
     """Print success response in JSON mode or text mode."""
-    if is_json_mode():
+    if ctx.output_channel.json_mode:
         response = format_success_response(data)
-        print_json(response)
+        ctx.output_channel.print_json(response)
 
 
-def print_error(error: Dict[str, Any], exit_code: int) -> None:
+def print_error(ctx: "TaskCliContext", error: Dict[str, Any], exit_code: int) -> None:
     """Print error response and exit."""
-    if is_json_mode():
+    if ctx.output_channel.json_mode:
         response = format_error_response(
             code=error["code"],
             message=error["message"],
@@ -53,7 +51,7 @@ def print_error(error: Dict[str, Any], exit_code: int) -> None:
             name=error.get("name"),
             recovery_action=error.get("recovery_action")
         )
-        print_json(response)
+        ctx.output_channel.print_json(response)
     else:
         print(f"Error [{error['code']}]: {error['message']}", file=sys.stderr)
         if "recovery_action" in error:
@@ -61,9 +59,13 @@ def print_error(error: Dict[str, Any], exit_code: int) -> None:
     sys.exit(exit_code)
 
 
-def cmd_init_context(args) -> int:
+def cmd_init_context(ctx: "TaskCliContext", args) -> int:
     """
     Enhanced context initialization with all validations.
+
+    Args:
+        ctx: TaskCliContext with output channel
+        args: Parsed arguments
 
     Integrates:
     - Quarantine checks
@@ -85,7 +87,7 @@ def cmd_init_context(args) -> int:
                 "details": {"task_id": args.task_id},
                 "recovery_action": "Release from quarantine or fix issues first"
             }
-            print_error(error, exit_code=EXIT_BLOCKER_ERROR)
+            print_error(ctx, error, exit_code=EXIT_BLOCKER_ERROR)
 
         task_path = resolve_task_path(args.task_id, repo_root)
         if not task_path:
@@ -96,7 +98,7 @@ def cmd_init_context(args) -> int:
                 "details": {"task_id": args.task_id},
                 "recovery_action": "Verify task ID and check tasks/ directory"
             }
-            print_error(error, exit_code=EXIT_IO_ERROR)
+            print_error(ctx, error, exit_code=EXIT_IO_ERROR)
         assert task_path is not None
 
         with open(task_path, 'r', encoding='utf-8') as f:
@@ -138,7 +140,7 @@ def cmd_init_context(args) -> int:
                 exception_type="invalid_schema",
                 parse_error="; ".join(validation_errors)
             )
-            print_error(error, exit_code=EXIT_VALIDATION_ERROR)
+            print_error(ctx, error, exit_code=EXIT_VALIDATION_ERROR)
 
         allow_dirty = hasattr(args, 'allow_preexisting_dirty') and args.allow_preexisting_dirty
         if not allow_dirty:
@@ -155,7 +157,7 @@ def cmd_init_context(args) -> int:
                     "details": {"files": dirty_files[:10]},
                     "recovery_action": "Commit or stash changes, or use --allow-preexisting-dirty"
                 }
-                print_error(error, exit_code=EXIT_GIT_ERROR)
+                print_error(ctx, error, exit_code=EXIT_GIT_ERROR)
 
         task_snapshot = {
             'title': task_data.get('title', ''),
@@ -260,7 +262,7 @@ def cmd_init_context(args) -> int:
                 "details": {},
                 "recovery_action": "Ensure working directory is in a git repository"
             }
-            print_error(error, exit_code=EXIT_GIT_ERROR)
+            print_error(ctx, error, exit_code=EXIT_GIT_ERROR)
 
         source_files = [
             SourceFile(
@@ -317,8 +319,8 @@ def cmd_init_context(args) -> int:
             }
         )
 
-        if is_json_mode():
-            print_success({
+        if ctx.output_channel.json_mode:
+            print_success(ctx, {
                 "task_id": args.task_id,
                 "context_initialized": True,
                 "base_commit": base_commit,
@@ -341,4 +343,4 @@ def cmd_init_context(args) -> int:
             "details": {},
             "recovery_action": "Check logs and retry"
         }
-        print_error(error, exit_code=EXIT_GENERAL_ERROR)
+        print_error(ctx, error, exit_code=EXIT_GENERAL_ERROR)

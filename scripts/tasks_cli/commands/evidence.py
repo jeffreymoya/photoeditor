@@ -11,8 +11,6 @@ if TYPE_CHECKING:
 
 from ..context_store import TaskContextStore
 from ..output import (
-    print_json,
-    is_json_mode,
     format_success_response,
     format_error_response
 )
@@ -24,16 +22,16 @@ EXIT_VALIDATION_ERROR = 10
 EXIT_IO_ERROR = 40
 
 
-def print_success(data: Dict[str, Any]) -> None:
+def print_success(ctx: "TaskCliContext", data: Dict[str, Any]) -> None:
     """Print success response in JSON mode or text mode."""
-    if is_json_mode():
+    if ctx.output_channel.json_mode:
         response = format_success_response(data)
-        print_json(response)
+        ctx.output_channel.print_json(response)
 
 
-def print_error(error: Dict[str, Any], exit_code: int) -> None:
+def print_error(ctx: "TaskCliContext", error: Dict[str, Any], exit_code: int) -> None:
     """Print error response and exit."""
-    if is_json_mode():
+    if ctx.output_channel.json_mode:
         response = format_error_response(
             code=error["code"],
             message=error["message"],
@@ -41,7 +39,7 @@ def print_error(error: Dict[str, Any], exit_code: int) -> None:
             name=error.get("name"),
             recovery_action=error.get("recovery_action")
         )
-        print_json(response)
+        ctx.output_channel.print_json(response)
     else:
         print(f"Error [{error['code']}]: {error['message']}", file=sys.stderr)
         if "recovery_action" in error:
@@ -49,11 +47,12 @@ def print_error(error: Dict[str, Any], exit_code: int) -> None:
     sys.exit(exit_code)
 
 
-def cmd_attach_evidence(args) -> int:
+def cmd_attach_evidence(ctx: "TaskCliContext", args) -> int:
     """
     Attach evidence to task context.
 
     Args:
+        ctx: TaskCliContext with output channel
         args: Parsed arguments with task_id, type, path, description, metadata
 
     Returns:
@@ -76,7 +75,7 @@ def cmd_attach_evidence(args) -> int:
                     "details": {"error": str(e)},
                     "recovery_action": "Provide valid JSON for --metadata"
                 }
-                print_error(error, exit_code=EXIT_VALIDATION_ERROR)
+                print_error(ctx, error, exit_code=EXIT_VALIDATION_ERROR)
 
         # Attach evidence
         evidence = context_store.attach_evidence(
@@ -87,8 +86,8 @@ def cmd_attach_evidence(args) -> int:
             metadata=metadata
         )
 
-        if is_json_mode():
-            print_success(evidence.to_dict())
+        if ctx.output_channel.json_mode:
+            print_success(ctx, evidence.to_dict())
         else:
             print(f"✓ Evidence attached: {evidence.id}")
             print(f"  Type: {evidence.type}")
@@ -104,7 +103,7 @@ def cmd_attach_evidence(args) -> int:
             "details": {"path": args.path},
             "recovery_action": "Verify file path exists"
         }
-        print_error(error, exit_code=EXIT_IO_ERROR)
+        print_error(ctx, error, exit_code=EXIT_IO_ERROR)
 
     except Exception as e:
         error = {
@@ -114,14 +113,15 @@ def cmd_attach_evidence(args) -> int:
             "details": {},
             "recovery_action": "Check logs and retry"
         }
-        print_error(error, exit_code=EXIT_GENERAL_ERROR)
+        print_error(ctx, error, exit_code=EXIT_GENERAL_ERROR)
 
 
-def cmd_list_evidence(args) -> int:
+def cmd_list_evidence(ctx: "TaskCliContext", args) -> int:
     """
     List evidence attachments for a task.
 
     Args:
+        ctx: TaskCliContext with output channel
         args: Parsed arguments with task_id
 
     Returns:
@@ -133,8 +133,8 @@ def cmd_list_evidence(args) -> int:
 
         evidence_list = context_store.list_evidence(task_id=args.task_id)
 
-        if is_json_mode():
-            print_success({"evidence": [e.to_dict() for e in evidence_list], "count": len(evidence_list)})
+        if ctx.output_channel.json_mode:
+            print_success(ctx, {"evidence": [e.to_dict() for e in evidence_list], "count": len(evidence_list)})
         else:
             if not evidence_list:
                 print("No evidence attachments found")
@@ -153,14 +153,15 @@ def cmd_list_evidence(args) -> int:
             "details": {},
             "recovery_action": "Check logs and retry"
         }
-        print_error(error, exit_code=EXIT_GENERAL_ERROR)
+        print_error(ctx, error, exit_code=EXIT_GENERAL_ERROR)
 
 
-def cmd_attach_standard(args) -> int:
+def cmd_attach_standard(ctx: "TaskCliContext", args) -> int:
     """
     Attach standards excerpt to task context.
 
     Args:
+        ctx: TaskCliContext with output channel
         args: Parsed arguments with task_id, file, section
 
     Returns:
@@ -177,8 +178,8 @@ def cmd_attach_standard(args) -> int:
             section_heading=args.section
         )
 
-        if is_json_mode():
-            print_success(excerpt.to_dict())
+        if ctx.output_channel.json_mode:
+            print_success(ctx, excerpt.to_dict())
         else:
             print(f"✓ Standards excerpt attached: {excerpt.excerpt_id}")
             print(f"  File: {excerpt.file}")
@@ -195,7 +196,7 @@ def cmd_attach_standard(args) -> int:
             "details": {"file": args.file},
             "recovery_action": "Verify standards file path"
         }
-        print_error(error, exit_code=EXIT_IO_ERROR)
+        print_error(ctx, error, exit_code=EXIT_IO_ERROR)
 
     except ValueError:
         error = {
@@ -205,7 +206,7 @@ def cmd_attach_standard(args) -> int:
             "details": {"section": args.section},
             "recovery_action": "Check section heading exists in standards file"
         }
-        print_error(error, exit_code=EXIT_VALIDATION_ERROR)
+        print_error(ctx, error, exit_code=EXIT_VALIDATION_ERROR)
 
     except Exception as e:
         error = {
@@ -215,7 +216,7 @@ def cmd_attach_standard(args) -> int:
             "details": {},
             "recovery_action": "Check logs and retry"
         }
-        print_error(error, exit_code=EXIT_GENERAL_ERROR)
+        print_error(ctx, error, exit_code=EXIT_GENERAL_ERROR)
 
 
 # Typer registration
@@ -247,7 +248,7 @@ def register_evidence_commands(app: "typer.Typer", ctx: "TaskCliContext") -> Non
         args.path = path
         args.description = description
         args.metadata = metadata
-        exit_code = cmd_attach_evidence(args)
+        exit_code = cmd_attach_evidence(ctx, args)
         raise typer.Exit(code=exit_code or 0)
 
     @app.command("list-evidence")
@@ -259,7 +260,7 @@ def register_evidence_commands(app: "typer.Typer", ctx: "TaskCliContext") -> Non
             pass
         args = Args()
         args.task_id = task_id
-        exit_code = cmd_list_evidence(args)
+        exit_code = cmd_list_evidence(ctx, args)
         raise typer.Exit(code=exit_code or 0)
 
     @app.command("attach-standard")
@@ -275,5 +276,5 @@ def register_evidence_commands(app: "typer.Typer", ctx: "TaskCliContext") -> Non
         args.task_id = task_id
         args.file = file
         args.section = section
-        exit_code = cmd_attach_standard(args)
+        exit_code = cmd_attach_standard(ctx, args)
         raise typer.Exit(code=exit_code or 0)

@@ -26,7 +26,6 @@ from ..context_store import (
     TaskContextStore,
 )
 from ..exceptions import ValidationError
-from ..output import print_json
 from ..providers import GitProvider
 from ..qa_parsing import parse_qa_log
 
@@ -163,7 +162,7 @@ def register_qa_commands(app: typer.Typer, ctx: TaskCliContext) -> None:
         qa_log_file = Path(log_from)
         if not qa_log_file.exists():
             if format == "json":
-                print_json({"success": False, "error": f"QA log file not found: {log_from}"})
+                ctx.output_channel.emit_json({"success": False, "error": f"QA log file not found: {log_from}"})
             else:
                 print(f"Error: QA log file not found: {log_from}", file=sys.stderr)
             raise typer.Exit(code=EXIT_GENERAL_ERROR)
@@ -209,7 +208,7 @@ def register_qa_commands(app: typer.Typer, ctx: TaskCliContext) -> None:
             )
 
             if format == "json":
-                print_json({
+                ctx.output_channel.emit_json({
                     "success": True,
                     "task_id": task_id,
                     "agent_role": agent,
@@ -247,7 +246,7 @@ def register_qa_commands(app: typer.Typer, ctx: TaskCliContext) -> None:
 
         except (ContextNotFoundError, ValidationError, DriftError) as e:
             if format == "json":
-                print_json({"success": False, "error": str(e)})
+                ctx.output_channel.emit_json({"success": False, "error": str(e)})
             else:
                 print(f"Error: {e}", file=sys.stderr)
             raise typer.Exit(code=EXIT_GENERAL_ERROR)
@@ -271,7 +270,7 @@ def register_qa_commands(app: typer.Typer, ctx: TaskCliContext) -> None:
         qa_log_file = Path(log_from)
         if not qa_log_file.exists():
             if format == "json":
-                print_json({"success": False, "error": f"QA log file not found: {log_from}"})
+                ctx.output_channel.emit_json({"success": False, "error": f"QA log file not found: {log_from}"})
             else:
                 print(f"Error: QA log file not found: {log_from}", file=sys.stderr)
             raise typer.Exit(code=EXIT_GENERAL_ERROR)
@@ -286,7 +285,7 @@ def register_qa_commands(app: typer.Typer, ctx: TaskCliContext) -> None:
 
             if not baseline_data:
                 if format == "json":
-                    print_json({
+                    ctx.output_channel.emit_json({
                         "success": False,
                         "error": f"No baseline QA results found for {agent} on {task_id}",
                     })
@@ -329,7 +328,7 @@ def register_qa_commands(app: typer.Typer, ctx: TaskCliContext) -> None:
             drift = detect_qa_drift(baseline_qa_results, current_qa_results)
 
             if format == "json":
-                print_json({
+                ctx.output_channel.emit_json({
                     "success": True,
                     "task_id": task_id,
                     "agent_role": agent,
@@ -351,7 +350,7 @@ def register_qa_commands(app: typer.Typer, ctx: TaskCliContext) -> None:
 
         except ContextNotFoundError as e:
             if format == "json":
-                print_json({"success": False, "error": str(e)})
+                ctx.output_channel.emit_json({"success": False, "error": str(e)})
             else:
                 print(f"Error: {e}", file=sys.stderr)
             raise typer.Exit(code=EXIT_GENERAL_ERROR)
@@ -380,7 +379,7 @@ def register_qa_commands(app: typer.Typer, ctx: TaskCliContext) -> None:
 
             if current_drift == 0:
                 if format == "json":
-                    print_json({
+                    ctx.output_channel.emit_json({
                         "success": True,
                         "task_id": task_id,
                         "agent_role": agent,
@@ -405,7 +404,7 @@ def register_qa_commands(app: typer.Typer, ctx: TaskCliContext) -> None:
             )
 
             if format == "json":
-                print_json({
+                ctx.output_channel.emit_json({
                     "success": True,
                     "task_id": task_id,
                     "agent_role": agent,
@@ -420,7 +419,7 @@ def register_qa_commands(app: typer.Typer, ctx: TaskCliContext) -> None:
 
         except (ContextNotFoundError, ValidationError) as e:
             if format == "json":
-                print_json({"success": False, "error": str(e)})
+                ctx.output_channel.emit_json({"success": False, "error": str(e)})
             else:
                 print(f"Error: {e}", file=sys.stderr)
             raise typer.Exit(code=EXIT_GENERAL_ERROR)

@@ -22,7 +22,7 @@ from ..context_store import (
     TaskContextStore,
 )
 from ..exceptions import ValidationError
-from ..output import print_json
+# Output functions are accessed via ctx.output_channel
 
 
 # Exit codes per schemas doc section 6.1
@@ -134,7 +134,7 @@ def register_worktree_commands(app: typer.Typer, ctx: TaskCliContext) -> None:
 
         if context is None:
             if format == "json":
-                print_json({"success": False, "error": f"No context found for {task_id}"})
+                ctx.output_channel.emit_json({"success": False, "error": f"No context found for {task_id}"})
             else:
                 print(f"Error: No context found for {task_id}", file=sys.stderr)
             raise typer.Exit(code=EXIT_GENERAL_ERROR)
@@ -154,7 +154,7 @@ def register_worktree_commands(app: typer.Typer, ctx: TaskCliContext) -> None:
             )
 
             if format == "json":
-                print_json(
+                ctx.output_channel.emit_json(
                     {
                         "success": True,
                         "task_id": task_id,
@@ -175,7 +175,7 @@ def register_worktree_commands(app: typer.Typer, ctx: TaskCliContext) -> None:
 
         except (ValidationError, ContextNotFoundError, DriftError) as e:
             if format == "json":
-                print_json({"success": False, "error": str(e)})
+                ctx.output_channel.emit_json({"success": False, "error": str(e)})
             else:
                 print(f"Error: {e}", file=sys.stderr)
             raise typer.Exit(code=EXIT_GENERAL_ERROR)
@@ -202,7 +202,7 @@ def register_worktree_commands(app: typer.Typer, ctx: TaskCliContext) -> None:
             )
 
             if format == "json":
-                print_json(
+                ctx.output_channel.emit_json(
                     {
                         "success": True,
                         "task_id": task_id,
@@ -218,7 +218,7 @@ def register_worktree_commands(app: typer.Typer, ctx: TaskCliContext) -> None:
 
         except DriftError as e:
             if format == "json":
-                print_json(
+                ctx.output_channel.emit_json(
                     {
                         "success": False,
                         "drift_detected": True,
@@ -234,7 +234,7 @@ def register_worktree_commands(app: typer.Typer, ctx: TaskCliContext) -> None:
 
         except ContextNotFoundError as e:
             if format == "json":
-                print_json({"success": False, "error": str(e)})
+                ctx.output_channel.emit_json({"success": False, "error": str(e)})
             else:
                 print(f"Error: {e}", file=sys.stderr)
             raise typer.Exit(code=EXIT_DRIFT_ERROR)
@@ -261,7 +261,7 @@ def register_worktree_commands(app: typer.Typer, ctx: TaskCliContext) -> None:
 
         if context is None:
             if format == "json":
-                print_json({"success": False, "error": f"No context found for {task_id}"})
+                ctx.output_channel.emit_json({"success": False, "error": f"No context found for {task_id}"})
             else:
                 print(f"Error: No context found for {task_id}", file=sys.stderr)
             raise typer.Exit(code=EXIT_GENERAL_ERROR)
@@ -298,7 +298,7 @@ def register_worktree_commands(app: typer.Typer, ctx: TaskCliContext) -> None:
             diff_content = full_diff_path.read_text(encoding="utf-8")
 
             if format == "json":
-                print_json(
+                ctx.output_channel.emit_json(
                     {
                         "success": True,
                         "task_id": task_id,
@@ -316,7 +316,7 @@ def register_worktree_commands(app: typer.Typer, ctx: TaskCliContext) -> None:
 
         except (AttributeError, ContextNotFoundError, ValidationError) as e:
             if format == "json":
-                print_json({"success": False, "error": str(e)})
+                ctx.output_channel.emit_json({"success": False, "error": str(e)})
             else:
                 print(f"Error: {e}", file=sys.stderr)
             raise typer.Exit(code=EXIT_GENERAL_ERROR)

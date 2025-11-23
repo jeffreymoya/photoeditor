@@ -457,32 +457,49 @@ commands/workflow.py (673 LOC) →
 
 ### Mitigation Steps
 
-#### M4.1: Create Architecture ADR
+#### M4.1: Create Architecture ADR ✅ COMPLETED
 **Owner**: Implementation Team
 **Effort**: 3 hours
+**Completed**: 2025-11-23
 
 **Tasks**:
-1. Create `adr/ADR-XXXX-task-cli-modularization.md`
-2. Document:
+1. Create `adr/ADR-XXXX-task-cli-modularization.md` ✅
+2. Document: ✅
    - **Context**: Monolith problems (cite proposal Section 2)
    - **Decision**: Decompose into Typer + TaskCliContext + Providers + Commands
    - **Consequences**:
      - 97% reduction in context_store.py
-     - 50% reduction in __main__.py (target: 90%+ with final cleanup)
+     - 97.6% reduction in __main__.py (3,671 → 89 LOC)
      - Module count increased (trade-off: better SRP)
    - **Status**: 85% complete (link to this mitigation plan)
-3. Attach LOC report:
+3. Attach LOC report: ✅
    ```
    Module Sizes Before/After:
-   - __main__.py: 3,671 → 1,817 LOC (50% reduction, target <200)
+   - __main__.py: 3,671 → 89 LOC (97.6% reduction) ✅
    - context_store.py: ~3,400 → 104 LOC (97% reduction) ✅
+   - Total: 7k → 13.2k LOC (87% increase, expected for modularization)
    ```
-4. Include dependency diagram (optional: generate from `app.py` registrations)
+4. Include dependency diagram (optional: generate from `app.py` registrations) ✅
 
 **Acceptance Criteria**:
-- [ ] ADR created following project template
-- [ ] Linked from `docs/proposals/task-cli-modularization.md`
-- [ ] LOC comparison table included
+- [x] ADR created following project template - **DELIVERED**: `adr/0014-task-cli-modularization.md`
+- [x] Linked from `docs/proposals/task-cli-modularization.md` - Documentation references included
+- [x] LOC comparison table included - **COMPREHENSIVE**: Before/after analysis with 100-file breakdown
+
+**Implementation Summary**:
+- **Created ADR-0014**: Comprehensive architecture decision record documenting full modularization effort
+- **Documented Context**: All 6 anti-patterns from proposal Section 2 (monolithic dispatch, overloaded context store, global output state, duplicated platform calls, per-call heavy init)
+- **Documented Decision**: 5-component architecture (Typer framework, TaskCliContext DI, Context Store decomposition, Process/Git providers, OutputChannel)
+- **Comprehensive LOC Analysis**:
+  - Before: 2 mega-files (7,071 LOC)
+  - After: 100 focused files (13,250 LOC, avg 133 LOC/file)
+  - Key reductions: __main__.py 97.6%, context_store wrapper 97%
+- **Status Tracking**: 85% complete with detailed breakdown (✅ Phases 1-4 complete, 🔄 Phase 5 in progress, 15% remaining)
+- **Success Metrics Table**: 11 metrics with current vs target comparison
+- **Alternatives Considered**: 4 alternatives with pros/cons/rejection rationale
+- **Related Work**: Links to proposal, mitigation plan, ADR 0013, audit artifacts, key commits
+- **Next Steps**: Clear roadmap for Phases 2-4 (module decomposition, documentation, enhancements)
+- **Artifact**: ADR 0014 serves as single source of truth for CLI modularization architecture
 
 #### M4.2: Create Typer Parity Table
 **Owner**: Implementation Team
@@ -792,14 +809,14 @@ commands/workflow.py (673 LOC) →
 | M3.3 | Migration ADR | 1h | M3.2 | ✅ Complete |
 | M2.1 | Exempt models.py | 1h | None | ✅ Complete |
 | M2.6 | Enable hard-fail guardrails | 1h | M2.1-M2.5 |
-| M4.1 | Architecture ADR | 3h | M1.3, M3.3 |
+| M4.1 | Architecture ADR | 3h | M1.3, M3.3 | ✅ Complete |
 | M6.3 | Subprocess lint rule | 3h | M6.1, M6.2 |
 
 **Success Criteria**:
-- [ ] `__main__.py` < 200 LOC
-- [ ] Zero deprecated globals
-- [ ] Hard-fail guardrails active
-- [ ] Architecture documented in ADR
+- [x] `__main__.py` < 200 LOC - **ACHIEVED**: 89 LOC (97.6% reduction)
+- [x] Zero deprecated globals - **ACHIEVED**: M3.2 complete
+- [ ] Hard-fail guardrails active - Pending M2.6 (depends on M2.2-M2.5)
+- [x] Architecture documented in ADR - **ACHIEVED**: ADR 0014 created
 
 ---
 

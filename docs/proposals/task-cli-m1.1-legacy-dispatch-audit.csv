@@ -1,0 +1,22 @@
+legacy_function,__main___line,typer_command,typer_module,migration_status,safe_to_delete,notes
+cmd_list,1719,list,commands/tasks.py,✅ MIGRATED,YES,Typer command fully functional
+cmd_validate,1722,validate,commands/tasks.py,✅ MIGRATED,YES,Typer command fully functional
+cmd_init_context,1729,init-context,commands/context.py,✅ MIGRATED,YES,Typer command fully functional
+cmd_get_context,1732,get-context,commands/context.py,⚠️ BROKEN - FUNCTION NOT DEFINED,YES,Legacy call will fail - Typer command exists and works
+cmd_update_agent,1735,update-agent,commands/context.py,⚠️ BROKEN - FUNCTION NOT DEFINED,YES,Legacy call will fail - Typer command exists and works
+cmd_purge_context,1740,purge-context,commands/context.py,⚠️ BROKEN - FUNCTION NOT DEFINED,YES,Legacy call will fail - Typer command exists and works
+cmd_rebuild_context,1743,rebuild-context,commands/context.py,⚠️ BROKEN - FUNCTION NOT DEFINED,YES,Legacy call will fail - Typer command exists and works
+cmd_attach_evidence,1755,attach-evidence,commands/evidence.py,✅ MIGRATED,YES,Typer command fully functional
+cmd_list_evidence,1759,list-evidence,commands/evidence.py,✅ MIGRATED,YES,Typer command fully functional
+cmd_attach_standard,1763,attach-standard,commands/evidence.py,✅ MIGRATED,YES,Typer command fully functional
+cmd_add_exception,1768,add-exception,commands/exceptions.py,✅ MIGRATED,YES,Typer command fully functional
+cmd_list_exceptions,1771,list-exceptions,commands/exceptions.py,✅ MIGRATED,YES,Typer command fully functional
+cmd_resolve_exception,1775,resolve-exception,commands/exceptions.py,✅ MIGRATED,YES,Typer command fully functional
+cmd_cleanup_exceptions,1779,cleanup-exceptions,commands/exceptions.py,✅ MIGRATED,YES,Typer command fully functional
+cmd_quarantine_task,1784,quarantine-task,commands/quarantine.py,✅ MIGRATED,YES,Typer command fully functional
+cmd_list_quarantined,1787,list-quarantined,commands/quarantine.py,✅ MIGRATED,YES,Typer command fully functional
+cmd_release_quarantine,1791,release-quarantine,commands/quarantine.py,✅ MIGRATED,YES,Typer command fully functional
+cmd_run_validation,1796,run-validation,commands/validation_commands.py,✅ MIGRATED,YES,Typer command fully functional
+cmd_collect_metrics,1800,collect-metrics,commands/metrics_commands.py,✅ MIGRATED,YES,Typer command fully functional
+cmd_generate_dashboard,1803,generate-dashboard,commands/metrics_commands.py,✅ MIGRATED,YES,Typer command fully functional
+cmd_compare_metrics,1806,compare-metrics,commands/metrics_commands.py,✅ MIGRATED,YES,Typer command fully functional

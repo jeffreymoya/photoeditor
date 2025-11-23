@@ -67,19 +67,30 @@ The Task CLI modularization effort has achieved its **core architectural goals**
 
 ### Mitigation Steps
 
-#### M1.1: Audit Legacy Dispatch Dependencies
+#### M1.1: Audit Legacy Dispatch Dependencies ✅ COMPLETED
 **Owner**: Implementation Team
 **Effort**: 2 hours
+**Completed**: 2025-11-23
 
 **Tasks**:
-1. Run `git grep "cmd_.*(" scripts/tasks_cli/__main__.py` to inventory all legacy command functions
-2. Cross-reference against `app.py` Typer registrations to confirm 100% Typer coverage
-3. Document any commands not yet migrated to Typer (expected: none based on analysis)
-4. Create checklist of functions safe to delete
+1. Run `git grep "cmd_.*(" scripts/tasks_cli/__main__.py` to inventory all legacy command functions ✅
+2. Cross-reference against `app.py` Typer registrations to confirm 100% Typer coverage ✅
+3. Document any commands not yet migrated to Typer (expected: none based on analysis) ✅
+4. Create checklist of functions safe to delete ✅
 
 **Acceptance Criteria**:
-- [ ] CSV mapping `{legacy_function, typer_command, migration_status}` attached to task
-- [ ] Zero unmigrated commands found
+- [x] CSV mapping `{legacy_function, typer_command, migration_status}` attached to task - See `docs/proposals/task-cli-m1.1-legacy-dispatch-audit.csv`
+- [x] Zero unmigrated commands found - **VERIFIED**: All 22 commands have Typer equivalents (100% coverage)
+
+**Audit Results**:
+- **Total legacy function calls**: 22 (lines 1717-1806 in __main__.py)
+- **Typer coverage**: 100% (all commands migrated)
+- **Broken function calls**: 4 (get-context, update-agent, purge-context, rebuild-context - functions deleted but dispatch not removed)
+- **Functions still defined in __main__.py**: 2 (cmd_list, cmd_validate - can be deleted)
+- **Safe to delete**: All 22 elif branches in legacy dispatch chain (lines 1703-1818)
+- **Artifacts**:
+  - Full audit CSV: `docs/proposals/task-cli-m1.1-legacy-dispatch-audit.csv`
+  - Summary report: `docs/proposals/task-cli-m1.1-audit-summary.md`
 
 #### M1.2: Delete Legacy Dispatch Chain
 **Owner**: Implementation Team
